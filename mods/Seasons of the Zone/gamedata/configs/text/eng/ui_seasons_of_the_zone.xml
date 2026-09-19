@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="windows-1251"?>
+
+<string_table>
+
+	<!-- The name in MCM's addon list. MCM builds this as opt_str_menu .. tree_id, i.e.
+	     "ui_mcm_menu_" .. "seasons_zone" (ui_mcm.script:124). NOT "ui_mcm_seasons_zone" -
+	     that spelling showed the raw key in the sidebar. -->
+	<string id="ui_mcm_menu_seasons_zone">
+		<text>Seasons of the Zone</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone">
+		<text>Seasons of the Zone</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_desc_top">
+		<text>Light, foliage, fog, wind, wetness and snowfall follow the real-world date, mapped to Polesia's five seasons. These change in-engine, immediately. Terrain and grass TEXTURES cannot - the engine binds them at load - so they are swapped at launch and need a restart.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_enabled">
+		<text>Enable seasonal atmosphere</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_enabled_desc">
+		<text>Turning this off releases control at once. Values already applied are left as they are, not reset.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_mode">
+		<text>Season</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_mode_desc">
+		<text>Automatic follows today's real date. The named seasons pin one in place and ignore the calendar. NOTE: pinning changes light, fog, wind, wetness and snowfall at once, but NOT terrain textures - those are chosen at launch. To move the ground too, pick the season, exit, and start the game with play.bat.</text>
+	</string>
+	<!-- List items are looked up as "<option path>_lst_<value>" with NO ui_mcm_
+	     prefix - ui_mcm.script:1465 builds it from the path directly. The prefixed
+	     spelling rendered the raw key in the dropdown. -->
+	<string id="seasons_zone_mode_lst_auto">
+		<text>Automatic (real date)</text>
+	</string>
+	<string id="seasons_zone_mode_lst_spring">
+		<text>Spring</text>
+	</string>
+	<string id="seasons_zone_mode_lst_summer">
+		<text>Summer</text>
+	</string>
+	<string id="seasons_zone_mode_lst_autumn">
+		<text>Autumn</text>
+	</string>
+	<string id="seasons_zone_mode_lst_winter_snow">
+		<text>Deep Winter (snow cover)</text>
+	</string>
+	<string id="seasons_zone_mode_lst_winter">
+		<text>Winter (first snows)</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_blend_days">
+		<text>Transition length (days)</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_blend_days_desc">
+		<text>How long one season takes to become the next. The window is centred on the changeover date, so 14 eases the shift in across the week either side. 0 is a hard switch.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_intensity">
+		<text>Intensity</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_intensity_desc">
+		<text>How far to push toward the season. 100% is the full look, 0% the neutral baseline this install ships with.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_do_grade">
+		<text>Drive colour and light</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_do_grade_desc">
+		<text>Grading, saturation, exposure, sun and sky brightness, tonemapping, sunshafts. Off if you would rather use cfg_load.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_do_flora">
+		<text>Drive foliage</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_do_flora_desc">
+		<text>Grass and tree specular, and sunlight scattering through a leaf - high on thin spring growth, near zero on bare winter branches.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_do_fog">
+		<text>Drive fog</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_do_fog_desc">
+		<text>Fog height, density, sun colouring and scattering. Autumn is the foggy season here; summer the clearest.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_do_wind">
+		<text>Drive wind</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_do_wind_desc">
+		<text>How grass and trees move. Spring is the windiest, summer the stillest, and winter branches are stiff rather than limp.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_do_wet">
+		<text>Drive wetness</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_do_wet_desc">
+		<text>How fast surfaces take on water and how fast they dry. Spring stays wet from the thaw; summer dries quickly, so it is wet only while it rains. Puddle shape itself is baked into the shaders and cannot follow the season.</text>
+	</string>
+
+	<!-- The launch-time texture layer. The per-mod switches below these are GENERATED
+	     into ui_mcm_seasons_mods.xml by _tools/season.py, one pair per installed mod,
+	     because their ids are not known until the folders are scanned. -->
+	<string id="ui_mcm_seasons_zone_desc_mods">
+		<text>Seasonal texture mods</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_desc_mods_unavailable">
+		<text>Mod list unavailable - launch with play.bat and it will be built.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_stage_textures">
+		<text>Swap textures with the season</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_stage_textures_desc">
+		<text>Master switch for the launch-time layer. Off means no seasonal texture mod is ever mounted, whatever the date, and the Zone keeps the terrain it has now. Light, colour, foliage, fog, wind, wetness and snowfall carry on following the calendar either way. Takes effect on the next launch.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_stage_sound">
+		<text>Gate ambient sound by season</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_stage_sound_desc">
+		<text>Silences sound channels that do not belong to the season - insects under snow, marsh life in a frozen swamp. Spring and summer keep everything; autumn drops swamp life; winter silences all insects; deep winter also silences daytime birds. Crows and owls are kept year-round on purpose. Wind, storms and interiors are never touched. Off means the soundscape plays unchanged all year. Takes effect on the next launch.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_notify">
+		<text>Announce season changes</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_notify_desc">
+		<text>Show a short message on screen when the season shifts during play.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_pda_greeting">
+		<text>PDA report on loading in</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_pda_greeting_desc">
+		<text>Once you are in the world, your PDA reports the real date, the season it selects, and how long until the next turns.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_pda_delay">
+		<text>PDA report delay (seconds)</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_pda_delay_desc">
+		<text>How long after loading the report arrives. Too short and it is buried by the loading screen before you see it.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_desc_cal_unavailable">
+		<text>Season calendar unavailable - the main script did not load.</text>
+	</string>
+
+</string_table>

@@ -1,0 +1,20 @@
+# Default: let git normalise text, but never guess at these.
+* text=auto
+
+# Game assets. A texture "fixed" by line-ending conversion fails silently, which is
+# the worst kind of failure in a mod - the file is present, the right size, and wrong.
+*.dds binary
+*.ogg binary
+*.png binary
+*.jpg binary
+*.7z  binary
+*.zip binary
+
+# Windows-only by nature; CRLF on checkout regardless of platform.
+*.bat text eol=crlf
+
+# X-Ray reads these; keep them text so diffs are readable.
+*.script text
+*.ltx    text
+*.xml    text
+*.ini    text

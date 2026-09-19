@@ -1,0 +1,17 @@
+# Your own configuration. Copy _tools/seasons_config.example.py to
+# _tools/seasons_config.py and edit that one. It names YOUR mod folders, so it is
+# personal to your install and is not something to share. An absent file is a
+# supported state: the whole in-engine seasonal layer runs without it.
+_tools/seasons_config.py
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Staging scratch, if you run the tools from a clone
+_staging/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store

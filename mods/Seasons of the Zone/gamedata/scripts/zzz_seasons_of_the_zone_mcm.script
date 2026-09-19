@@ -1,0 +1,241 @@
+-- Seasons of the Zone - MCM menu
+--
+-- The top-level id is "seasons_zone", so every setting is read as
+-- ui_mcm.get("seasons_zone/<id>") - see PREFIX in zzz_seasons_of_the_zone.script.
+-- Changing anything here fires on_option_change, which re-resolves and re-applies.
+--
+-- STRING KEYS - two of these are not what MCM's own tutorial claims, so check the code
+-- (ui_mcm.script), not the comment, before adding options:
+--     addon-list name   ui_mcm_menu_seasons_zone           (:124, opt_str_menu)
+--     option label      ui_mcm_seasons_zone_<id>
+--     list item         seasons_zone_<id>_lst_<value>      (:1465 - NO ui_mcm_ prefix)
+--     option with hint  ui_mcm_<hint>                      (:1122 - hint REPLACES the id)
+-- Get one wrong and the raw key renders on screen in place of the label, which is how the
+-- first two spellings above were found to be wrong in the first place.
+
+-- The live season calendar, as `desc` rows.
+--
+-- MCM renders a desc with game.translate_string(v.text), and translate_string returns its
+-- input UNCHANGED when no string id matches - which is why a missing key shows up on
+-- screen as the raw key. So a literal, computed sentence passed as `text` renders
+-- verbatim. That is what makes a dynamic panel possible here at all.
+--
+-- Colour is greyscale on purpose: MCM documents clr as {a,r,b,g} in one place and uses it
+-- as {a,r,g,b} elsewhere, so a hue would be a coin flip. r=g=b reads the same under either
+-- interpretation, and the ">>" marker carries the highlight regardless.
+local function calendar_rows()
+    local ok, rows = pcall(function()
+        return zzz_seasons_of_the_zone.calendar_rows()
+    end)
+    if not (ok and rows) then
+        return {{id = "desc_cal_err", type = "desc",
+                 text = "ui_mcm_seasons_zone_desc_cal_unavailable"}}
+    end
+    local out = {}
+    for i, r in ipairs(rows) do
+        out[#out + 1] = {
+            id   = "desc_cal_" .. i,
+            type = "desc",
+            text = r.text,
+            clr  = r.current and {255, 255, 255, 255} or {255, 165, 165, 165},
+        }
+    end
+    return out
+end
+
+-- The launch-time texture layer, as switches.
+--
+-- These are the only settings on this page that cannot take effect immediately. Terrain
+-- and texture mods bind from MO2's virtual file system at level load and are frozen for
+-- the session, so the decision has to be made before the game starts. season.py reads it
+-- at the next launch, reading these values straight out of MCM's own axr_options.ltx.
+-- See mod_list() in the main script for how the list itself is built.
+--
+-- The list is GENERATED from season_mods.ltx rather than hardcoded, so it shows whatever
+-- is actually installed - add a seasonal texture mod to TOGGLE_MODS in season.py and it
+-- appears here by itself, labelled with its own seasons.
+local function mod_rows()
+    local ok, info = pcall(function() return zzz_seasons_of_the_zone.mod_list() end)
+    if not (ok and info) then
+        return {{id = "desc_mods_none", type = "desc",
+                 text = "ui_mcm_seasons_zone_desc_mods_unavailable"}}
+    end
+    local out = {}
+    local function desc(id, text, bright)
+        out[#out + 1] = {id = id, type = "desc", text = text,
+                         clr = bright and {255, 255, 255, 255} or {255, 165, 165, 165}}
+    end
+
+    -- MCM renders a desc through translate_string, which returns its input unchanged when
+    -- no string id matches - so a computed sentence renders verbatim. Same trick as the
+    -- calendar rows above.
+    if not info.stage_textures then
+        desc("desc_mods_state", "Texture layer OFF. Nothing below is mounted; the "
+             .. "in-engine seasons continue as normal.", true)
+    elseif #info.mods == 0 then
+        desc("desc_mods_state", "No season-scoped texture mods are installed.", false)
+    else
+        desc("desc_mods_state", "Staged for " .. (info.staged_for == "winter_snow"
+             and "deep winter" or info.staged_for) .. " at launch.", false)
+    end
+
+    -- The master switches. Static ids, so their labels live in the shipped string file
+    -- rather than the generated one.
+    out[#out + 1] = {id = "stage_textures", type = "check", val = 1, def = true}
+
+    -- The ambient layer sits HERE and not among the "Drive ..." toggles above, because it
+    -- is staged at launch like the textures rather than driven live: ambient presets bind
+    -- at level load, so this cannot change mid-session either.
+    if info.sound_have then
+        out[#out + 1] = {id = "stage_sound", type = "check", val = 1, def = true}
+        local line
+        if not info.stage_sound then
+            line = "Ambient gating off - the soundscape plays unchanged all year."
+        elseif info.sound_cuts > 0 then
+            line = "Silencing " .. string.format("%d", info.sound_cuts)
+                   .. " sound channels this season."
+        else
+            line = "Nothing silenced this season - the Zone is at full voice."
+        end
+        desc("desc_sound_state", line, false)
+    end
+
+    -- GROUPED BY SEASON. A flat list hid the thing worth seeing: winter carries four mods
+    -- and several gigabytes while summer carries one, and "turn off everything wintry" was
+    -- a hunt rather than a glance. season.py sorts the list into calendar order and tags
+    -- each mod with the first season it serves, so all this has to do is notice when that
+    -- changes and drop a heading in.
+    --
+    -- A mod spanning seasons appears ONCE, under its first - an MCM option id cannot exist
+    -- twice - and its full span is carried in the generated label and hover text instead.
+    -- Aspect for image rows. Register_Image does NOT apply width_factor (Register_Slide
+    -- does), so a requested width renders stretched by screen_aspect / (4:3). Same
+    -- correction as the year dial: 0.75 at 16:9, 1.0 at 4:3.
+    local f = 0.75
+    local okd, dw, dh = pcall(function() return device().width, device().height end)
+    if okd and dw and dh and dh > 0 then
+        f = (1024 / 768) / (dw / dh)
+    end
+    local bar_w = math.floor(520 * f + 0.5)
+
+    local group = nil
+    for _, m in ipairs(info.mods) do
+        if m.group ~= "" and m.group ~= group then
+            group = m.group
+            -- A COLOURED RULE per season, so the sections are findable at a glance rather
+            -- than by reading. The colours come from each season's real r__color_grading
+            -- values (see _tools/build_season_headers.py), the same source the year dial
+            -- uses, so the two can never drift apart.
+            --
+            -- An image and not a tinted label: MCM documents a desc's `clr` as {a,r,b,g}
+            -- in one place and consumes it as {a,r,g,b} in another, so any hue is a coin
+            -- flip between the two readings. A texture has no such ambiguity.
+            out[#out + 1] = {id = "hdr_" .. group, type = "image",
+                             link = "ui_season_hdr_" .. group,
+                             size = {bar_w, 10}, pos = {0, 0}, stretch = true}
+            -- Count AND weigh the group. Size is the whole reason to switch a season off -
+            -- winter is four mods and nine gigabytes against summer's one - so putting it
+            -- in the heading answers the question without opening MO2.
+            local n, mb = 0, 0
+            for _, o in ipairs(info.mods) do
+                if o.group == group then
+                    n = n + 1
+                    mb = mb + (o.mb or 0)
+                end
+            end
+            -- Same decimal rule as everywhere else: a 0.4 MB group printed as "0 MB"
+            -- reads like a broken install rather than a small one.
+            local size
+            if mb >= 1024 then
+                size = string.format("%.1f GB", mb / 1024)
+            elseif mb < 10 then
+                size = string.format("%.1f MB", mb)
+            else
+                size = string.format("%.0f MB", mb)
+            end
+            desc("desc_grp_" .. group,
+                 string.upper(m.label) .. "   " .. n .. (n == 1 and " mod, " or " mods, ")
+                 .. size, group == info.staged_for)
+        end
+        -- hint, not id: MCM builds a caption as ui_mcm_<hint or id> (ui_mcm.script:1122)
+        -- and uses the same for the hover text with _desc appended (:886). season.py
+        -- generates both into ui_mcm_seasons_mods.xml.
+        out[#out + 1] = {id = "mod_" .. m.key, type = "check", val = 1, def = true,
+                         hint = "seasons_zone_mod_" .. m.key}
+    end
+    return out
+end
+
+function on_mcm_load()
+    local gr = {}
+    local function add(t) gr[#gr + 1] = t end
+
+    add({id = "desc_top", type = "desc", text = "ui_mcm_seasons_zone_desc_top"})
+
+    -- calendar panel: a live date line, then the year dial
+    add({id = "line_cal1", type = "line"})
+    for _, row in ipairs(calendar_rows()) do add(row) end
+    local ok, tex = pcall(function() return zzz_seasons_of_the_zone.dial_texture() end)
+    if ok and tex then
+        -- ASPECT: MCM's Register_Image does NOT apply width_factor (Register_Slide does),
+        -- so a square request renders as an ellipse. X-Ray lays the UI out in a 1024x768
+        -- space stretched to fill the screen, so horizontal units are wider than vertical
+        -- by screen_aspect / (4:3). Requesting {268,268} came back 1.34:1 on a 16:9
+        -- display, measured off a screenshot - matching the theory, and NOT MCM's rough
+        -- 0.8 constant. Computed here so it is correct at any resolution: 0.75 at 16:9,
+        -- 1.0 at 4:3, 0.571 at 21:9.
+        local H = 268
+        local f = 0.75
+        local okd, dw, dh = pcall(function() return device().width, device().height end)
+        if okd and dw and dh and dh > 0 then
+            f = (1024 / 768) / (dw / dh)
+        end
+        local W = math.floor(H * f + 0.5)
+        -- Centre it. Panel content measured at ~547 UI units wide, with images starting
+        -- ~27 units in from the content's left edge.
+        local x = math.floor((547 - W) / 2 - 27 + 0.5)
+        add({id = "dial", type = "image", link = tex,
+             size = {W, H}, pos = {x > 0 and x or 0, 0}, stretch = true})
+    end
+    add({id = "line_cal2", type = "line"})
+
+    add({id = "enabled", type = "check", val = 1, def = true})
+
+    -- "auto" follows the real-world calendar; the rest pin one season, which is what you
+    -- want for screenshots or for playing out of step on purpose.
+    add({id = "mode", type = "list", val = 0, def = "auto", content = {
+        {"auto", "auto"}, {"spring", "spring"}, {"summer", "summer"},
+        {"autumn", "autumn"}, {"winter", "winter"}, {"winter_snow", "winter_snow"},
+    }})
+
+    -- 0 = hard switch on the boundary date. Otherwise the window is CENTRED on the date,
+    -- so at 14 the change eases in over the week either side of it.
+    add({id = "blend_days", type = "track", val = 2, min = 0, max = 30, step = 1, def = 14})
+
+    -- 0 renders the [neutral] section (vanilla look), 1 the full season.
+    add({id = "intensity", type = "track", val = 2, min = 0.0, max = 1.0, step = 0.05, def = 1.0})
+
+    add({id = "line1", type = "line"})
+
+    add({id = "do_grade", type = "check", val = 1, def = true})
+    add({id = "do_flora", type = "check", val = 1, def = true})
+    add({id = "do_fog",   type = "check", val = 1, def = true})
+    add({id = "do_wind",  type = "check", val = 1, def = true})
+    add({id = "do_wet",   type = "check", val = 1, def = true})
+
+    add({id = "line2", type = "line"})
+
+    add({id = "desc_mods", type = "desc", text = "ui_mcm_seasons_zone_desc_mods"})
+    for _, row in ipairs(mod_rows()) do add(row) end
+
+    add({id = "line3", type = "line"})
+
+    add({id = "notify", type = "check", val = 1, def = true})
+
+    -- Delayed on purpose: sent at load it lands under the loading screen unseen.
+    add({id = "pda_greeting", type = "check", val = 1, def = true})
+    add({id = "pda_delay", type = "track", val = 2, min = 3, max = 60, step = 1, def = 12})
+
+    op = {id = "seasons_zone", sh = true, gr = gr}
+    return op
+end
