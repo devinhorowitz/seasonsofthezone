@@ -1,17 +1,31 @@
-"""Generate the packaged mod's season table.
+"""Generate the packaged mod's season table: gamedata/configs/seasons_of_the_zone.ltx.
 
-Grade values are LIFTED FROM the validated Atmos_*.ltx presets rather than retyped,
-so the packaged mod ships exactly what was tuned and tested in play. Flora, fog and
-wind are authored here (they have no preset to source from).
+This file is the SINGLE SOURCE OF TRUTH for every number the mod sends to the engine.
+Retune a season here, run this, reload a save.
+
+GRADE VALUES ARE CARRIED AS DATA. They were tuned in play as X-Ray console presets
+(Atmos_<season>.ltx under the game's appdata/) and lifted from there once; the presets
+themselves are not part of the mod. `--presets <dir>` re-lifts them from a folder of such
+presets for anyone who still tunes that way. Without it, the tables below are used, which
+is what a clone of the repository has.
+
+Flora, fog, wind and wetness are authored here directly; they never had a preset.
+
+Usage:
+    python _tools/build_seasons_ltx.py                  # regenerate the shipped ltx
+    python _tools/build_seasons_ltx.py --out X.ltx      # write elsewhere (for diffing)
+    python _tools/build_seasons_ltx.py --presets DIR    # re-lift the grade from presets
 """
+import argparse
 import io
 import os
 import re
 
-APPDATA = r"D:\ANOMALY\appdata"
-OUT = r"D:\GAMMA\mods\Seasons of the Zone\gamedata\configs\seasons_of_the_zone.ltx"
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT = os.path.join(os.path.dirname(HERE), "mods", "Seasons of the Zone", "gamedata",
+                   "configs", "seasons_of_the_zone.ltx")
 
-# console var in the preset  ->  ltx key in our mod
+# console var in a preset  ->  ltx key(s) in the mod, in component order
 GRADE_MAP = [
     ("r__color_grading",       ["grade_r", "grade_g", "grade_b"]),
     ("r__saturation",          ["saturation"]),
@@ -22,10 +36,44 @@ GRADE_MAP = [
     ("r2_sun_lumscale_amb",    ["sun_lumscale_amb"]),
     ("r2_tonemap_adaptation",  ["tonemap_adaptation"]),
     ("r2_tonemap_lowlum",      ["tonemap_lowlum"]),
-    ("r2_tonemap_middlegray",  ["tonemap_middlegray"]),
+    ("r2_tonemap_middlegray",  ["tonemap_middlegray"],),
     ("ssfx_hud_hemi",          ["hud_hemi"]),
     ("r2_sunshafts_value",     ["sunshafts_value"]),
 ]
+GRADE_KEYS = [k for _, ks in GRADE_MAP for k in ks]
+
+# The grade, per season, as tuned in play. winter_snow is INVERNO's own neutral grade,
+# authored for its snow textures: white ground carries the look, not a tint. Spring's
+# preset never defined sunshafts_value; it takes the neutral 0.55 so the season is
+# deterministic rather than inheriting whatever was set before it.
+GRADE = {
+    "spring": dict(grade_r=0.44, grade_g=0.44, grade_b=0.5, saturation=0.93, gamma=0.985,
+                   exposure=1.08, sun_lumscale=3.0, sun_lumscale_hemi=1.45,
+                   sun_lumscale_amb=1.7, tonemap_adaptation=3.0, tonemap_lowlum=0.55,
+                   tonemap_middlegray=1.2, hud_hemi=0.3, sunshafts_value=0.55),
+    "summer": dict(grade_r=0.725, grade_g=0.725, grade_b=0.525, saturation=1.05, gamma=1.0,
+                   exposure=0.75, sun_lumscale=3.0, sun_lumscale_hemi=0.8,
+                   sun_lumscale_amb=0.7, tonemap_adaptation=2.0, tonemap_lowlum=0.25,
+                   tonemap_middlegray=1.8, hud_hemi=0.1, sunshafts_value=0.51),
+    "autumn": dict(grade_r=0.86, grade_g=0.705, grade_b=0.44, saturation=1.13, gamma=1.01,
+                   exposure=0.8, sun_lumscale=2.1, sun_lumscale_hemi=0.82,
+                   sun_lumscale_amb=0.68, tonemap_adaptation=2.6, tonemap_lowlum=0.23,
+                   tonemap_middlegray=1.45, hud_hemi=0.15, sunshafts_value=0.58),
+    "winter": dict(grade_r=0.69, grade_g=0.76, grade_b=0.87, saturation=1.0, gamma=1.03,
+                   exposure=0.77, sun_lumscale=2.05, sun_lumscale_hemi=0.8,
+                   sun_lumscale_amb=0.65, tonemap_adaptation=3.0, tonemap_lowlum=0.21,
+                   tonemap_middlegray=1.15, hud_hemi=0.14, sunshafts_value=0.55),
+    "winter_snow": dict(grade_r=0.7, grade_g=0.7, grade_b=0.7, saturation=1.0, gamma=1.0,
+                        exposure=0.8, sun_lumscale=2.05, sun_lumscale_hemi=0.75,
+                        sun_lumscale_amb=0.65, tonemap_adaptation=3.0, tonemap_lowlum=0.21,
+                        tonemap_middlegray=1.1, hud_hemi=0.14, sunshafts_value=0.55),
+}
+
+# GAMMA's own baseline grade - what the Zone looks like with no season at all.
+NEUTRAL_GRADE = dict(grade_r=0.7, grade_g=0.7, grade_b=0.7, saturation=1.0, gamma=1.0,
+                     exposure=0.8, sun_lumscale=2.05, sun_lumscale_hemi=0.75,
+                     sun_lumscale_amb=0.65, tonemap_adaptation=3.0, tonemap_lowlum=0.21,
+                     tonemap_middlegray=1.1, hud_hemi=0.14, sunshafts_value=0.55)
 
 # Authored. See the header comment in the generated file for the reasoning.
 FLORA = {
@@ -52,7 +100,7 @@ FOG = {  # height capped at 20.0 by the engine - see RANGES in the script
 }
 
 # ssfx_wetness_multiplier (buildup_speed, dry_speed, 0). How fast surfaces take on water
-# and how fast they give it up - both 0.1..20.0, shipped 1.0/0.3, this install runs 1.4/0.5.
+# and how fast they give it up - both 0.1..20.0, shipped 1.0/0.3, GAMMA runs 1.4/0.5.
 #
 # This is the only RUNTIME lever on wetness. Puddle geometry (G_PUDDLES_SIZE,
 # _REFLECTIVITY, _RIPPLES...) is compile-time #defines in settings_screenspace_PUDDLES.h
@@ -103,15 +151,16 @@ RANGES = {
     "wind_grass_push": (0.1, 3.0), "wind_grass_wave": (0.1, 1.0),
     "wind_trees_speed": (0.1, 13.0), "wind_trees_trunk": (0.1, 0.3),
     "wind_trees_bend": (0.1, 2.0), "wind_min_speed": (0.0, 1.0),
+    "wet_buildup": (0.1, 20.0), "wet_dry": (0.1, 20.0),
 }
 
 SEASONS = ["spring", "summer", "autumn", "winter", "winter_snow"]
 
 # The "no seasons" reference point, used by the MCM Intensity slider: 0 renders exactly
-# this, 1 renders the full seasonal value, anything between is a lerp. Grade comes from
-# Atmos_Neutral.ltx; flora and wind are the SSS shipped defaults; fog is GAMMA'S OWN MCM
-# tuning (20 / 2 / 0.015) rather than the SSS default (8 / 1.3 / 0.1), because GAMMA's is
-# what this install actually plays with and is therefore the honest "off" state.
+# this, 1 renders the full seasonal value, anything between is a lerp. Flora and wind are
+# the SSS shipped defaults; fog is GAMMA'S OWN MCM tuning (20 / 2 / 0.015) rather than
+# the SSS default (8 / 1.3 / 0.1), because GAMMA's is what actually plays and is
+# therefore the honest "off" state.
 NEUTRAL_EXTRA = dict(
     spec_grass=0.30, spec_grass_wet=0.21, spec_trees=0.30, spec_trees_wet=0.21,
     sss_int=2.00, sss_color=1.00,
@@ -119,11 +168,16 @@ NEUTRAL_EXTRA = dict(
     wind_grass_speed=9.5, wind_grass_turbulence=1.4, wind_grass_push=1.5,
     wind_grass_wave=0.40, wind_trees_speed=11.0, wind_trees_trunk=0.15,
     wind_trees_bend=0.50, wind_min_speed=0.10,
-    wet_buildup=1.40, wet_dry=0.50,        # what this install currently runs
+    wet_buildup=1.40, wet_dry=0.50,        # GAMMA's shipped wetness
 )
+
+PRESET_FILE = {"spring": "Atmos_Spring.ltx", "summer": "Atmos_Summer.ltx",
+               "autumn": "Atmos_Autumn.ltx", "winter": "Atmos_Winter.ltx",
+               "winter_snow": "Atmos_WinterSnow.ltx", "neutral": "Atmos_Neutral.ltx"}
 
 
 def _scan(path):
+    """Grade values out of one X-Ray console preset file."""
     vals = {}
     for ln in io.open(path, encoding="cp1251", errors="replace", newline=""):
         s = ln.strip()
@@ -138,34 +192,30 @@ def _scan(path):
     return vals
 
 
-PRESET_FILE = {"spring": "Atmos_Spring.ltx", "summer": "Atmos_Summer.ltx",
-               "autumn": "Atmos_Autumn.ltx", "winter": "Atmos_Winter.ltx",
-               # INVERNO's own grade, authored FOR its snow textures: neutral grading that
-               # lets white ground carry the look, rather than our blue-tinted pre-snow winter.
-               "winter_snow": "Atmos_WinterSnow.ltx"}
+def grade_tables(presets_dir):
+    """(GRADE, NEUTRAL_GRADE) - from the embedded data, or re-lifted from presets.
 
-
-def read_preset(season, neutral):
-    """Grade values for one season, with Atmos_Neutral filling any gap.
-
-    The presets are not uniform: Atmos_Spring.ltx omits r2_sunshafts_value, so today
-    `cfg_load atmos_spring` leaves sunshafts at whatever the previous preset set - the
-    result depends on load order. The packaged mod sets every value explicitly, so a
-    missing one falls back to GAMMA's neutral baseline and the season becomes
-    deterministic. Fallbacks are reported, never silent.
+    Presets are not uniform: Atmos_Spring.ltx omits r2_sunshafts_value, so `cfg_load`
+    of it leaves sunshafts at whatever the previous preset set. The mod sets every value
+    explicitly, so a missing one takes the neutral value and the season is deterministic.
+    Fallbacks are reported, never silent.
     """
-    p = os.path.join(APPDATA, PRESET_FILE[season])
-    vals = _scan(p)
-    filled = []
-    for _, keys in GRADE_MAP:
-        for k in keys:
-            if k not in vals:
-                vals[k] = neutral[k]
-                filled.append(k)
-    return vals, filled
+    if not presets_dir:
+        return GRADE, NEUTRAL_GRADE
+    neutral = _scan(os.path.join(presets_dir, PRESET_FILE["neutral"]))
+    grade = {}
+    for s in SEASONS:
+        vals = _scan(os.path.join(presets_dir, PRESET_FILE[s]))
+        filled = [k for k in GRADE_KEYS if k not in vals]
+        for k in filled:
+            vals[k] = neutral[k]
+        if filled:
+            print("  %-11s not in its preset, filled from neutral: %s" % (s, ", ".join(filled)))
+        grade[s] = vals
+    return grade, neutral
 
 
-ORDER = ([k for _, ks in GRADE_MAP for k in ks]
+ORDER = (GRADE_KEYS
          + ["spec_grass", "spec_grass_wet", "spec_trees", "spec_trees_wet",
             "sss_int", "sss_color"]
          + ["fog_height", "fog_density", "fog_suncolor", "fog_scattering"]
@@ -195,9 +245,10 @@ HEADER = """; Seasons of the Zone - season parameter table
 ;   wind_*_speed               0.1..13   wind_grass_turbulence/push 0.1..3
 ;   wind_grass_wave            0.1..1    wind_trees_trunk           0.1..0.3
 ;   wind_trees_bend            0.1..2    wind_min_speed             0..1
+;   wet_buildup / wet_dry      0.1..20
 ;
-; Grade values are lifted verbatim from the Atmos_*.ltx presets validated in play.
-; Flora, fog and wind are authored:
+; Grade values were tuned in play as console presets and are carried in the generator
+; as data. Flora, fog, wind and wetness are authored:
 ;   flora  sss_int is sun-through-a-leaf: high on thin spring growth, near zero on bare
 ;          winter branches. Specular rises in winter (wet/icy) and falls in dry summer.
 ;   fog    autumn is the foggy season in Polesia - cool nights over damp warm ground.
@@ -205,22 +256,27 @@ HEADER = """; Seasons of the Zone - season parameter table
 ;          density, which has headroom to 5.0.
 ;   wind   spring is the windiest (thaw storms), summer the calmest (stagnant hot air).
 ;          Winter's trees_trunk/bend are LOW on purpose: frozen branches are stiff.
+;   wet    the thaw makes spring wet: fast build-up, almost no drying. Summer dries
+;          almost as fast as it wets.
 ;
-; GENERATED by _tools/build_seasons_ltx.py - regenerate rather than hand-merging if the
-; Atmos presets change.
+; GENERATED by _tools/build_seasons_ltx.py - edit the tables there and regenerate rather
+; than hand-merging, so the generator and the shipped file cannot drift apart.
 """
 
 
 def main():
-    neutral = _scan(os.path.join(APPDATA, "Atmos_Neutral.ltx"))
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default=OUT, help="where to write (default: the shipped file)")
+    ap.add_argument("--presets", default=None,
+                    help="folder of Atmos_<season>.ltx console presets to re-lift the "
+                         "grade from, instead of the embedded tables")
+    a = ap.parse_args()
+
+    grade, neutral = grade_tables(a.presets)
     out = [HEADER]
     for s in SEASONS:
-        vals, filled = read_preset(s, neutral)
-        if filled:
-            print("  %-7s not defined in its preset, filled from Atmos_Neutral: %s"
-                  % (s, ", ".join("%s=%s" % (k, vals[k]) for k in filled)))
-        vals.update(FLORA[s]); vals.update(FOG[s]); vals.update(WIND[s])
-        vals.update(WET[s])
+        vals = dict(grade[s])
+        vals.update(FLORA[s]); vals.update(FOG[s]); vals.update(WIND[s]); vals.update(WET[s])
         bad = []
         for k, v in vals.items():
             lo_hi = RANGES.get(k)
@@ -228,6 +284,9 @@ def main():
                 bad.append("%s.%s = %s (allowed %s..%s)" % (s, k, v, lo_hi[0], lo_hi[1]))
         if bad:
             raise SystemExit("refusing to emit out-of-range values: " + "; ".join(bad))
+        missing = [k for k in ORDER if k not in vals]
+        if missing:
+            raise SystemExit("%s is missing %s" % (s, ", ".join(missing)))
         out.append("[%s]" % s)
         for k in ORDER:
             out.append("%-22s = %s" % (k, vals[k]))
@@ -241,10 +300,11 @@ def main():
     for k in ORDER:
         out.append("%-22s = %s" % (k, nvals[k]))
     out.append("")
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    body = (chr(13) + chr(10)).join("\n".join(out).split("\n"))
-    io.open(OUT, "w", encoding="cp1251", newline="").write(body)
-    print("  wrote %s" % OUT)
+
+    os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
+    body = (chr(13) + chr(10)).join(chr(10).join(out).split(chr(10)))
+    io.open(a.out, "w", encoding="cp1251", newline="").write(body)
+    print("  wrote %s" % a.out)
     print("  %d seasons x %d keys" % (len(SEASONS), len(ORDER)))
 
 

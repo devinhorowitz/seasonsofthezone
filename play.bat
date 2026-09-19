@@ -29,9 +29,15 @@ REM  under another name, change this one line - a wrong name opens MO2 and start
 REM  nothing, silently, because `start` cannot report a bad moshortcut.
 set "SHORTCUT=Anomaly (DX11-AVX)"
 
+REM  python.org's installer puts the `py` launcher on PATH even when `python` is
+REM  not - and on a fresh Windows, a bare `python` can open the Microsoft Store
+REM  instead of running anything. Prefer the launcher when it exists.
+set "PY=python"
+where py >nul 2>&1 && set "PY=py -3"
+
 echo.
 echo  Checking the season...
-python "_tools\season.py" apply
+%PY% "_tools\season.py" apply
 if errorlevel 1 (
     echo.
     echo  season.py failed - launching anyway with whatever is currently staged.

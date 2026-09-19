@@ -47,10 +47,15 @@ they differ in grade, flora, fog, wind and snowfall.
 
 IDENTIFYING WHAT IS INSTALLED
 -----------------------------
-Always by hashing the mod folder against every option in the source archive,
-never by a stored note. `.Grok's Modpack Installer/mods.txt` field 2 claimed the
-terrain LOD patch was installed as `Winter` when the bytes were `Summer` - that
-field records what the installer was ASKED for, not what landed.
+By hashing the mod folder against every option in the source archive, never by a
+stored note. `.Grok's Modpack Installer/mods.txt` field 2 claimed the terrain LOD
+patch was installed as `Winter` when the bytes were `Summer` - that field records
+what the installer was ASKED for, not what landed.
+
+The LIVE folder is hashed fresh on every run. The ARCHIVE side is memoised
+(_baseline/season-archive-hashes.json), keyed on the archive's size and mtime, because
+it is immutable input and re-extracting 10 option trees to re-derive the same numbers
+cost two minutes per launch. That is a cache of a computation, not a note of a claim.
 """
 import argparse
 import datetime
@@ -135,6 +140,72 @@ try:
     SOUND_SRC = getattr(_cfg, "SOUND_SRC", None)
 except ImportError:
     LAYOUT, TOGGLE_MODS, SOUND_SRC = {}, {}, None
+
+
+def _validate_config():
+    """Refuse a malformed seasons_config.py with a sentence, not a traceback.
+
+    The mistake this exists for: `"seasons": ("winter")` is a STRING in Python, not a
+    one-element tuple, and `"winter" in "winter_snow"` is substring-true - so that mod
+    would have mounted in deep winter, silently, with the tool reporting success.
+    """
+    problems = []
+    valid = ", ".join(SEASONS)
+
+    if not isinstance(TOGGLE_MODS, dict):
+        problems.append("TOGGLE_MODS must be a dict of {mod folder: {...}}")
+    else:
+        for name, cfg in TOGGLE_MODS.items():
+            where = "TOGGLE_MODS[%r]" % name
+            if not isinstance(cfg, dict):
+                problems.append(where + " must be a dict with 'seasons' and 'above'")
+                continue
+            seasons = cfg.get("seasons")
+            if isinstance(seasons, str) or not isinstance(seasons, (list, tuple)) or not seasons:
+                problems.append(where + ": 'seasons' must be a tuple of season names - "
+                                "note the trailing comma in a one-element tuple, "
+                                "(\"winter\",) not (\"winter\")")
+            else:
+                bad = [str(x) for x in seasons if x not in SEASONS]
+                if bad:
+                    problems.append(where + ": unknown season(s) %s - valid: %s"
+                                    % (", ".join(bad), valid))
+            above = cfg.get("above")
+            if not isinstance(above, str) or not above.strip():
+                problems.append(where + ": 'above' must name the mod this one has to "
+                                "outrank (find it with: season.py whowins <file>)")
+
+    if not isinstance(LAYOUT, dict):
+        problems.append("LAYOUT must be a dict of {mod folder: {...}}")
+    else:
+        for name, cfg in LAYOUT.items():
+            where = "LAYOUT[%r]" % name
+            if not isinstance(cfg, dict):
+                problems.append(where + " must be a dict with 'archive' and 'options'")
+                continue
+            if not isinstance(cfg.get("archive"), str) or not cfg.get("archive"):
+                problems.append(where + ": 'archive' must be a filename in downloads/")
+            opts = cfg.get("options")
+            if not isinstance(opts, dict) or not opts:
+                problems.append(where + ": 'options' must map each season to a list of "
+                                "folder names inside the archive")
+            else:
+                for season, folders in opts.items():
+                    if season not in SEASONS:
+                        problems.append(where + ": unknown season %r in 'options' - valid: %s"
+                                        % (season, valid))
+                    if (isinstance(folders, str) or not isinstance(folders, (list, tuple))
+                            or not folders or not all(isinstance(f, str) for f in folders)):
+                        problems.append(where + ": options[%r] must be a list of folder "
+                                        "names, e.g. [\"Spring\"]" % season)
+
+    if SOUND_SRC is not None and (not isinstance(SOUND_SRC, str) or not SOUND_SRC):
+        problems.append("SOUND_SRC must be None or a mod folder name")
+
+    if problems:
+        raise SystemExit("  seasons_config.py needs fixing before anything runs:\n"
+                         + "\n".join("    - " + p for p in problems)
+                         + "\n  Nothing has been changed.")
 
 
 
@@ -300,25 +371,20 @@ def apply_toggles(season, dry_run=False, prefs=None):
 
     head, body = lines[0], lines[1:]
     changed = []
-    for name, cfg in TOGGLE_MODS.items():
-        folder = os.path.join(MODS, name)
-        if not os.path.isdir(folder):
-            continue                      # not installed yet; nothing to toggle
-        on = (season in cfg["seasons"]
-              and prefs["stage_textures"]
-              and _slug(name) not in prefs["off"])
-        want = "+" if on else "-"
-        def find(n):
-            return next((i for i, l in enumerate(body)
-                         if l[:1] in ("+", "-") and l[1:] == n), None)
 
-        idx, ref = find(name), find(cfg["above"])
+    def find(n):
+        return next((i for i, l in enumerate(body)
+                     if l[:1] in ("+", "-") and l[1:] == n), None)
+
+    def place(name, above, want):
+        """Put `name` directly above `above` with flag `want`; record what moved."""
+        idx, ref = find(name), find(above)
         if ref is None:
-            raise SystemExit("  cannot place %s: %s not in modlist" % (name, cfg["above"]))
+            raise SystemExit("  cannot place %s: %s not in modlist" % (name, above))
         if idx is None:
             body.insert(ref, want + name)
             changed.append((name, "absent", want))
-            continue
+            return
         # PLACEMENT IS CHECKED EVERY RUN, not only on insert. Lower line = higher
         # priority, so the mod must sit ABOVE its anchor. This used to be enforced only
         # when inserting, which meant correcting an `above` here silently did nothing to
@@ -326,12 +392,30 @@ def apply_toggles(season, dry_run=False, prefs=None):
         # quietly won the same files.
         if idx > ref:
             body.pop(idx)
-            body.insert(find(cfg["above"]), want + name)
+            body.insert(find(above), want + name)
             changed.append((name, "misplaced", want))
-            continue
+            return
         if body[idx][:1] != want:
             changed.append((name, body[idx][:1], want))
             body[idx] = want + name
+
+    for name, cfg in TOGGLE_MODS.items():
+        if not os.path.isdir(os.path.join(MODS, name)):
+            continue                      # not installed yet; nothing to toggle
+        on = (season in cfg["seasons"]
+              and prefs["stage_textures"]
+              and _slug(name) not in prefs["off"])
+        place(name, cfg["above"], "+" if on else "-")
+
+    # THE GENERATED SOUNDSCAPE HAS TO BE MOUNTED TOO, and above its source. write_soundscape()
+    # creates the folder, but a folder MO2 discovers by itself is appended DISABLED - so
+    # on any install but the one this was written on, the gating produced correct presets
+    # the game never read, while `status` reported the season off the marker file as if
+    # they were live. Same rule as every other toggle: the modlist is ours to keep right.
+    if SOUND_SRC and find(SOUND_SRC) is not None:
+        have = os.path.isdir(os.path.join(MODS, SOUND_MOD))
+        if have or find(SOUND_MOD) is not None:
+            place(SOUND_MOD, SOUND_SRC, "+" if (have and prefs["stage_sound"]) else "-")
 
     if changed and not dry_run:
         # MO2 holds modlist.txt in memory and rewrites it on exit, so an edit made while
@@ -587,7 +671,8 @@ def write_mod_panel(season, prefs=None):
                   "enabled = " + ("true" if r["enabled"] else "false"),
                   "wanted = " + ("true" if r["wanted"] else "false")]
     manifest = os.path.join(d, "season_mods.ltx")
-    io.open(manifest, "w", encoding="cp1251", newline="").write(crlf.join(lines) + crlf)
+    io.open(manifest, "w", encoding="cp1251", errors="replace",
+            newline="").write(crlf.join(lines) + crlf)
 
     # The captions. Anomaly loads every .xml under configs/text/<lang>/ by filename -
     # there is no manifest to register with - so writing the file is the whole job.
@@ -906,7 +991,10 @@ def running():
         out = subprocess.run(["tasklist"], capture_output=True, text=True, timeout=60).stdout.lower()
     except Exception:
         return []
-    return [p for p in ("anomalydx11avx.exe", "anomalydx11.exe", "modorganizer.exe") if p in out]
+    # Any Anomaly binary - DX8 through DX11-AVX and the launcher - plus MO2 itself. The
+    # old three-name list let a DX10 player have the game up while the modlist was edited.
+    found = set(re.findall(r"\b(anomaly[a-z0-9]*\.exe|modorganizer\.exe)", out))
+    return sorted(found)
 
 
 def lp(p):
@@ -936,6 +1024,28 @@ def hashes(base):
 
 def extract(archive, wanted, dest):
     """Extract only the named top-level option folders. Returns merged gamedata dir."""
+    dest = _extract_options(archive, wanted, dest)
+    # merge the option folders' gamedata trees, in order
+    merged = os.path.join(dest, "__merged", "gamedata")
+    os.makedirs(merged, exist_ok=True)
+    for w in wanted:
+        gd = os.path.join(dest, w, "gamedata")
+        if not os.path.isdir(gd):
+            raise SystemExit("  option has no gamedata/: %s" % w)
+        for r, _, fs in os.walk(gd):
+            for f in fs:
+                s = os.path.join(r, f)
+                t = os.path.join(merged, os.path.relpath(s, gd))
+                os.makedirs(os.path.dirname(t), exist_ok=True)
+                shutil.copy2(lp(s), lp(t))
+    return merged
+
+
+def _extract_options(archive, wanted, dest):
+    """Pull the named top-level option folders out of the archive into dest/<option>/.
+
+    Returns the directory actually used: when Windows refuses to delete a previous
+    staging tree (an indexer or AV holding a handle), a fresh sibling is used instead."""
     src = os.path.join(DOWNLOADS, archive)
     if not os.path.isfile(src):
         raise SystemExit("  missing archive: %s" % src)
@@ -955,14 +1065,25 @@ def extract(archive, wanted, dest):
                 dest = dest + "_" + datetime.datetime.now().strftime("%H%M%S")
     os.makedirs(dest, exist_ok=True)
     if archive.lower().endswith(".7z"):
-        import py7zr
+        try:
+            import py7zr
+        except ImportError:
+            raise SystemExit("  the LAYOUT layer needs the py7zr package to read .7z archives:\n"
+                             "    python -m pip install py7zr\n"
+                             "  Nothing has been changed.")
         with py7zr.SevenZipFile(src) as z:
             names = [n for n in z.getnames()
                      if any(n.replace("\\", "/").split("/")[0] == w for w in wanted)]
             z.reset()
             z.extract(path=dest, targets=names)
     else:
-        import rarfile
+        try:
+            import rarfile
+        except ImportError:
+            raise SystemExit("  the LAYOUT layer needs the rarfile package to read .rar archives:\n"
+                             "    python -m pip install rarfile\n"
+                             "  (and WinRAR or 7-Zip installed, for the unrar tool). "
+                             "Nothing has been changed.")
         # Find UnRAR rather than assume it. WinRAR's default location is only the first
         # guess; PATH and the 32-bit Program Files both count, and a missing tool should
         # say so plainly instead of failing inside rarfile with a confusing error.
@@ -971,19 +1092,53 @@ def extract(archive, wanted, dest):
             names = [i.filename for i in z.infolist()
                      if any(i.filename.replace("\\", "/").split("/")[0] == w for w in wanted)]
             z.extractall(dest, members=names)
-    # merge the option folders' gamedata trees, in order
-    merged = os.path.join(dest, "__merged", "gamedata")
-    os.makedirs(merged, exist_ok=True)
-    for w in wanted:
-        gd = os.path.join(dest, w, "gamedata")
-        if not os.path.isdir(gd):
-            raise SystemExit("  option has no gamedata/: %s" % w)
-        for r, _, fs in os.walk(gd):
-            for f in fs:
-                s = os.path.join(r, f)
-                t = os.path.join(merged, os.path.relpath(s, gd))
-                os.makedirs(os.path.dirname(t), exist_ok=True)
-                shutil.copy2(lp(s), lp(t))
+    return dest
+
+
+HASH_CACHE = os.path.join(ROOT, "_baseline", "season-archive-hashes.json")
+
+
+def _archive_key(archive):
+    """Identity of an archive's contents: name, size, mtime. Replace the file and every
+    cached hash for it is orphaned rather than trusted."""
+    src = os.path.join(DOWNLOADS, archive)
+    if not os.path.isfile(src):
+        raise SystemExit("  missing archive: %s" % src)
+    st = os.stat(src)
+    return "%s|%d|%d" % (archive, st.st_size, int(st.st_mtime))
+
+
+def _option_hashes(archive, options, tmp, mod):
+    """{relpath: md5} for the merged gamedata of these options, in overlay order.
+
+    Per-option hashes are memoised on disk. The merge is a dict update in the same order
+    the on-disk merge copies, so a later option's file wins exactly as it does there.
+    Only options not yet cached are extracted - once, on the first run after a download.
+    """
+    key = _archive_key(archive)
+    cache = {}
+    if os.path.isfile(HASH_CACHE):
+        try:
+            cache = json.loads(io.open(HASH_CACHE, encoding="utf-8").read())
+        except (OSError, ValueError):
+            cache = {}
+    per = cache.get(key, {})
+    missing = [o for o in options if o not in per]
+    if missing:
+        dest = _extract_options(archive, missing,
+                                os.path.join(tmp, mod[:18].replace(" ", "_"), "_hash"))
+        for o in missing:
+            gd = os.path.join(dest, o, "gamedata")
+            if not os.path.isdir(gd):
+                raise SystemExit("  option has no gamedata/: %s" % o)
+            per[o] = hashes(gd)
+        cache = {k: v for k, v in cache.items() if k.split("|")[0] != archive}  # stale keys
+        cache[key] = per
+        os.makedirs(os.path.dirname(HASH_CACHE), exist_ok=True)
+        io.open(HASH_CACHE, "w", encoding="utf-8").write(json.dumps(cache))
+    merged = {}
+    for o in options:
+        merged.update(per[o])
     return merged
 
 
@@ -1003,9 +1158,7 @@ def identify(mod, cfg, tmp, prefer=None):
         return None, "no gamedata"
     matches, detail = [], []
     for season in SEASONS:
-        merged = extract(cfg["archive"], cfg["options"][season],
-                         os.path.join(tmp, mod[:18].replace(" ", "_"), season))
-        cand = hashes(merged)
+        cand = _option_hashes(cfg["archive"], cfg["options"][season], tmp, mod)
         same = sum(1 for k in set(cand) & set(live) if cand[k] == live[k])
         detail.append((season, len(cand), len(set(cand) & set(live)), same))
         if same == len(live) and same > 0 and len(cand) == len(live):
@@ -1103,6 +1256,7 @@ def main():
     a = ap.parse_args()
 
     _check_install()
+    _validate_config()
 
     if a.cmd == "whowins":
         if not a.path:
@@ -1113,7 +1267,10 @@ def main():
 
     today = datetime.date.today()
     want = a.season or season_for(today, a.mapping)
-    tmp = os.path.join(ROOT, "_staging", "season")
+    # Per process. Two runs at once - status while play.bat stages, or play.bat twice -
+    # used to share one folder, and one run's cleanup pulled files out from under the
+    # other's extraction.
+    tmp = os.path.join(ROOT, "_staging", "season-%d" % os.getpid())
 
     prefs = read_prefs()
     if a.no_textures:
@@ -1140,11 +1297,17 @@ def main():
                     print("        %-8s archive %3d | shared %3d | identical %3d" % (s, n, shared, same))
         print()
 
-        grade_now = identify_grade()
+        # The user.ltx colour grade is a layer from before the mod drove those uniforms
+        # itself. It only exists where the Atmos_*.ltx presets do - this install - and the
+        # mod re-applies every one of those values at load anyway. Present: keep it in
+        # step. Absent: skip it, rather than fail every launch over a file nobody else has.
+        grade_have = any(os.path.isfile(os.path.join(APPDATA, fn)) for fn in GRADE_FILE.values())
+        grade_now = identify_grade() if grade_have else None
         flora_now = flora_installed()
         sound_now = soundscape_installed()
         flora_live = _mod_enabled(FLORA_MOD)
-        print("  colour grade   installed: %s" % (grade_now or "UNRECOGNISED / hand-tuned"))
+        print("  colour grade   %s" % (("installed: " + (grade_now or "UNRECOGNISED / hand-tuned"))
+                                      if grade_have else "driven in-engine by the mod (no Atmos presets)"))
         for name, inst, state, should, held in toggle_status(want, prefs):
             if not inst:
                 print("  %-30s NOT INSTALLED" % name[:30])
@@ -1166,7 +1329,7 @@ def main():
         # With the texture layer off the on-disk season is not ours to correct. Nothing
         # is copied, and what is already staged simply stays - that is the whole point.
         tex_ok = True if not stage_tex else all(v == want for v in installed.values())
-        grade_ok = grade_now == want
+        grade_ok = (grade_now == want) if grade_have else True
         # SUPERSEDED. "Season Flora" drives ssfx_florafixes_1/2, ssfx_floravariation,
         # ssfx_fog and ssfx_fog_scattering - every one of which Seasons of the Zone now
         # drives itself, blended across boundaries and toggleable from MCM. Both enabled

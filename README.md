@@ -52,7 +52,10 @@ hydrometeorological convention if you prefer round numbers.
 - S.T.A.L.K.E.R. Anomaly with **G.A.M.M.A.**, run through **Mod Organizer 2** (portable)
 - **Screen Space Shaders** — the uniforms above are SSS's
 - **MCM** for the settings page
-- **Python 3** on PATH, only for the launcher script
+- **Python 3**, only for the launcher. The python.org installer is enough; `play.bat`
+  finds it through the `py` launcher.
+- For the optional `LAYOUT` texture layer only: `python -m pip install py7zr` (and
+  `rarfile`, plus WinRAR or 7-Zip, for `.rar` archives). Nothing else needs a package.
 
 ---
 
@@ -68,6 +71,10 @@ times a year.
 
 Paths are detected from `ModOrganizer.ini`, so the drive letter, the game folder name and
 the selected profile are all read rather than assumed.
+
+**Removing it:** switch it off in MCM first, then disable the mod. Switching it off hands
+the colour grade back at its neutral values; pulling the mod while it is on leaves the
+console graded to whatever season was running until something else sets those values.
 
 ---
 

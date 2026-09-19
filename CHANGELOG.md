@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.0.1 — 2026-09-19
+
+Fixes from a full pass over the tooling against a simulated fresh install. Nothing about
+how the seasons look has changed.
+
+### Fixed
+
+- `season.py apply` failed on every install but the author's with *missing grade
+  preset*: the user.ltx colour-grade layer depended on `Atmos_*.ltx` console presets that
+  never shipped. The mod drives those uniforms itself, so the layer is now skipped when
+  the presets are absent instead of aborting every launch.
+- The generated `Seasonal Soundscape` mod was never placed in the modlist. MO2 appends a
+  folder it discovers on its own as disabled, so on a new install the ambient gating wrote
+  correct presets the game never read. It is now placed above its source and switched
+  with the MCM setting, like every other toggle.
+- `patches/` ships `apply_seasonal_snowfall.py`, a patcher, instead of a modified copy of
+  Project I.N.V.E.R.N.O's `yawm_snowfall.script`. None of their code is redistributed.
+- Season identification re-extracted every option of every configured archive on every
+  run — two minutes per launch with `LAYOUT` configured. Archive-side hashes are now
+  memoised, keyed on the archive's size and date; the live folder is still hashed fresh.
+- Two runs at once (`status` while `play.bat` staged, or `play.bat` twice) shared one
+  staging folder and corrupted each other. Each run now stages in its own.
+- The running-game check knew three executables; a DX10 player could have the game up
+  while the modlist was rewritten under it. Any Anomaly binary now counts.
+- A malformed `seasons_config.py` is refused with a sentence naming the entry, not a
+  traceback — including `("winter")`, a string rather than a tuple, which used to enable
+  a mod in deep winter through substring matching.
+- Missing `py7zr` / `rarfile` packages are reported with the install command.
+- `build_seasons_ltx.py` carries the grade values as data instead of reading one
+  machine's presets from a hardcoded path, so it runs from a clone.
+- `play.bat` prefers the `py` launcher, which the python.org installer puts on PATH even
+  when `python` is not.
+- Switching the mod off in MCM restores the colour grade to neutral before releasing
+  control, so the console is not left seasonal.
+- The MCM date line and the PDA report use fixed English month names; `os.date("%B")` is
+  locale-dependent and rendered as garbage on non-English, non-Cyrillic Windows.
+- The release builder now runs `status`, `apply --dry-run` and `apply` against a
+  simulated fresh install and refuses to package on any failure.
+
 ## 1.0.0 — 2026-09-19
 
 First public release.

@@ -115,7 +115,7 @@ LAYOUT = {
 | Field | Meaning |
 |---|---|
 | *key* | The installed mod folder whose contents get replaced. |
-| `archive` | Filename inside `downloads/` (MO2's own download folder). `.7z`, `.rar` and `.zip` are handled; `.rar` needs WinRAR's `unrar` on PATH or in Program Files. |
+| `archive` | Filename inside `downloads/` (MO2's own download folder). `.7z` needs `python -m pip install py7zr`; `.rar` needs `python -m pip install rarfile` plus WinRAR or 7-Zip. A missing package is reported with the command to run. |
 | `options` | Season → list of folder names **inside the archive**, applied in overlay order (later entries win). |
 
 This is the expensive mechanism — gigabytes are genuinely copied on a season change — so
@@ -123,7 +123,9 @@ use `TOGGLE_MODS` whenever a mod can simply be switched off instead. A season wi
 entry keeps whatever is already staged.
 
 Staged contents are identified by hashing the folder against every option in the archive,
-so a season change is skipped when the correct set is already in place.
+so a season change is skipped when the correct set is already in place. The archive-side
+hashes are cached after the first run (keyed on the archive's size and date), so a launch
+costs a hash of the live folder rather than a re-extraction.
 
 ---
 
@@ -151,6 +153,9 @@ is redistributed; the generated mod is built from what is already on your disk.
 
 Leave it as `None` to skip the layer entirely.
 
+The generated mod is placed in the modlist directly above `SOUND_SRC` and enabled or
+disabled with the MCM switch — you never touch it in MO2.
+
 ---
 
 ## Troubleshooting
@@ -160,6 +165,10 @@ a file the mod ships and re-anchor. This is silent by design in MO2, so suspect 
 
 **`cannot place <mod>: <name> not in modlist`.** The `above` name has a typo, or that mod
 is not installed. It must match the folder name exactly.
+
+**`seasons_config.py needs fixing`.** The message names the entry and the field. The
+usual one is `"seasons": ("winter")`, which is a string in Python, not a tuple — it
+needs the trailing comma: `("winter",)`.
 
 **Textures are wrong for the season.** The mod says so on load: *"TEXTURES ARE STAGED FOR
 X but the season running is Y"*. Run `season.py apply` (or launch with `play.bat`) and

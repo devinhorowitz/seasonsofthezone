@@ -160,6 +160,17 @@ local function cap(s)
     return v:sub(1, 1):upper() .. v:sub(2)
 end
 
+-- Fixed English month names. os.date("%B") is locale-dependent and hands back the OS
+-- codepage's bytes, which the game's cp1251 font renders as garbage on any Windows that
+-- is neither English nor Cyrillic. Every other string on the panel is English; so is this.
+local MONTHS = {"January", "February", "March", "April", "May", "June", "July",
+                "August", "September", "October", "November", "December"}
+
+local function today_text()
+    local t = os.date("*t")
+    return string.format("%d %s %d", t.day, MONTHS[t.month] or tostring(t.month), t.year)
+end
+
 local function mcm(key, default)
     if ui_mcm and ui_mcm.get then
         local ok, v = pcall(ui_mcm.get, PREFIX .. key)
@@ -262,20 +273,6 @@ end
 
 local function fmt(v)
     return string.format("%.4f", v)
-end
-
--- Resolve every uniform to a concrete command for the current blend.
--- Read an MCM value WITHOUT ui_mcm.get(). ui_mcm.script asserts if that is called during
--- on_mcm_load(), and the calendar panel below is built from exactly there. MCM's own
--- tutorial offers this as the alternative. vtype: 0 string, 1 bool, 2 float.
-local function mcm_raw(path, vtype, default)
-    if axr_main and axr_main.config then
-        local ok, v = pcall(function()
-            return axr_main.config:r_value("mcm", path, vtype, default)
-        end)
-        if ok and v ~= nil then return v end
-    end
-    return default
 end
 
 -- How wintry the Zone is right now, 0..1.
@@ -406,13 +403,7 @@ function calendar_rows()
         if doy >= doy_of(b.m, b.d, year) then cur = b.season end
     end
 
-    local function pretty(t)
-        local s = os.date("%d %B", t)
-        return (tostring(s):gsub("^0", ""))     -- "05 September" -> "5 September"
-    end
-
-    local today = os.date("%d %B %Y")
-    today = tostring(today):gsub("^0", "")
+    local today = today_text()
 
     local rows = {}
 
@@ -443,6 +434,7 @@ function calendar_rows()
     return rows
 end
 
+-- Resolve every uniform to a concrete command for the current blend.
 local function build(from, to, k, intensity, layers)
     local out, clamped = {}, {}
     for _, u in ipairs(UNIFORMS) do
@@ -517,7 +509,20 @@ local function apply(announce)
     if not P then return end
     local enabled = mcm("enabled", true)
     if not enabled then
-        if want then say("disabled in MCM - releasing control, values left as they are") end
+        if want then
+            -- Hand the GRADE back at neutral before letting go. Console values outlive
+            -- this script, and nothing else in the install drives r__color_grading and
+            -- its siblings, so releasing them mid-season would leave the Zone graded to
+            -- that season until something else set them. Only the grade: fog, flora, wind
+            -- and wetness are SSS's own, and it re-pushes the player's MCM values for
+            -- them on this same option-change tick, half a second before this runs -
+            -- restoring those too would overwrite what the player just set.
+            local c = get_console()
+            for _, u in ipairs(build("neutral", "neutral", 1.0, 1.0, {grade = true})) do
+                c:execute(u.cmd)
+            end
+            say("disabled in MCM - grade restored to neutral, releasing control")
+        end
         want = nil
         live = nil          -- not driving anything, so claim no season on the panel
         return
@@ -611,8 +616,7 @@ local function pda_announce()
         say("news_manager unavailable - skipping PDA announcement")
         return
     end
-    local date = os.date("%d %B %Y")
-    date = tostring(date):gsub("^0", "")          -- "05 September" -> "5 September"
+    local date = today_text()
 
     local mode = mcm("mode", "auto")
     local msg
@@ -734,13 +738,13 @@ local function actor_on_first_update()
         local on = (staged:r_string_ex("staged", "staging") or "on") ~= "off"
         local from, to = resolve(mcm("blend_days", 14))
         local mode = mcm("mode", "auto")
-        local live = (mode ~= "auto") and mode or to
+        local running = (mode ~= "auto") and mode or to
         -- With the texture layer switched off the two are SUPPOSED to disagree; saying so
         -- every load would be nagging about a choice that was made on purpose. An
         -- unrecognised staging is not actionable either.
-        if on and s and s ~= "unknown" and s ~= live then
+        if on and s and s ~= "unknown" and s ~= running then
             say("!TEXTURES ARE STAGED FOR " .. string.upper(s) .. " but the season running is "
-                .. string.upper(live) .. " - terrain will not match the light.")
+                .. string.upper(running) .. " - terrain will not match the light.")
             say(" run  _tools/season.py apply  (or play.bat) and relaunch to line them up")
         end
     end
