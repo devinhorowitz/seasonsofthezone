@@ -189,15 +189,26 @@ than replacing it. Switchable from the same MCM page.
 
 ## Optional: seasonal snowfall
 
-`patches/yawm_snowfall.script` gates snowfall, blowing leaves, seeds, dust and mist by
-season, and scales snow intensity with how deep into winter you are — flurries as the first
-snows arrive in November, full weight once cover holds in December.
+Project I.N.V.E.R.N.O's snowfall addon plays its particles off the weather alone, with no
+notion of season — so in an install that runs all year it snows in September the moment
+the right weather comes round. `patches/apply_seasonal_snowfall.py` gates it: snow only in
+the two winters and thinner in the first of them, seeds in spring, leaves in autumn, dust
+in the dry months, each easing in and out across the turn.
 
-It reads this mod's own `snow_factor()` and `season_mix()`, so it is a component of the
-system rather than a separate addon. Drop it over Project I.N.V.E.R.N.O's snowfall addon,
-which you install yourself.
+It is a **patcher, not a patched file**. The script it modifies is not mine, so nothing
+of it is redistributed here — you install INVERNO's snowfall addon yourself, then run:
 
-*Original script by the INVERNO / YAWM authors; this is a modification of their work.*
+```
+python patches/apply_seasonal_snowfall.py
+```
+
+It finds your copy under `mods/`, backs it up to `yawm_snowfall.script.orig`, and inserts
+the seasonal layer. `--revert` puts the original back. It refuses to touch a file that
+does not look like INVERNO's script, and running it twice is a no-op.
+
+The inserted code reads this mod's own `snow_factor()` and `season_mix()`, so it is a
+component of the system; with Seasons of the Zone absent the gate is inert and the addon
+behaves exactly as shipped.
 
 ---
 
@@ -222,9 +233,10 @@ licence.
 layers all read mods you install yourself — nothing of theirs is bundled, and the config
 ships empty so the mod does nothing to anyone's files until they ask it to.
 
-`patches/yawm_snowfall.script` is the one exception and is not original: it is a
-modification of Project I.N.V.E.R.N.O's snowfall script, credited to the INVERNO / YAWM
-authors. Only the seasonal gate on top is mine.
+That includes the snowfall gate. Project I.N.V.E.R.N.O's `yawm_snowfall.script` — lineage
+Yet Another Winter Mod (Daedalus-Prime), refactored by demonized, edited by Fabio Conte
+for INVERNO, particles by S.e.m.i.t.o.n.e. — is not shipped in any form. The patcher
+carries only the seasonal layer, which is mine, and applies it to your own copy.
 
 Built on **Screen Space Shaders** by Ascii1457, whose uniforms make the whole thing
 possible, and on **G.A.M.M.A.** by Grokitach. Seasonal texture sets that pair well with it

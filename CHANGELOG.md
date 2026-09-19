@@ -59,9 +59,10 @@ First public release.
 - `SOUND_SRC` — generate a seasonal ambience mod from whichever soundscape wins your
   preset files: insects silenced under snow, marsh life fading in autumn, crows and owls
   kept year-round, wind and interiors untouched.
-- `patches/yawm_snowfall.script` — gates snowfall, blowing leaves, seeds, dust and mist by
-  season and scales snow with how deep into winter you are. A modification of Project
-  I.N.V.E.R.N.O's snowfall script, credited to its authors.
+- `patches/apply_seasonal_snowfall.py` — a patcher for Project I.N.V.E.R.N.O's snowfall
+  addon: gates snowfall, blowing leaves, seeds, dust and mist by season and scales snow
+  with how deep into winter you are. Applies to the copy you installed, backs it up
+  first, reverts on request. Ships none of INVERNO's code.
 - `play.bat` — stages the season, then launches. The MO2 executable name is a variable at
   the top.
 
