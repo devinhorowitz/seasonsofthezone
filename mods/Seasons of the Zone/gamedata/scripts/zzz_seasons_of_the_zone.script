@@ -134,16 +134,33 @@ local function today_text()
 end
 
 -- Options live on three MCM pages; the stored path is seasons_zone/<page>/<id>.
-local PAGE = {}
-for _, k in ipairs({"enabled", "mode", "blend_days", "intensity", "do_grade", "do_flora",
-                    "do_fog", "do_wind", "do_wet", "notify", "pda_greeting", "pda_delay"}) do
-    PAGE[k] = "main"
+-- Options live on pages: the global settings on "main", each season's preset and mod
+-- ticks on its own page. mcm() reads a main-page option; season_preset() a season's.
+local function mcm_path(path, default)
+    if ui_mcm and ui_mcm.get then
+        local ok, v = pcall(ui_mcm.get, path)
+        if ok and v ~= nil then return v end
+    end
+    return default
 end
 
 local function mcm(key, default)
-    local page = PAGE[key] or (key:match("^preset_") and "presets") or "mods"
-    if ui_mcm and ui_mcm.get then
-        local ok, v = pcall(ui_mcm.get, PREFIX .. page .. "/" .. key)
+    return mcm_path(PREFIX .. "main/" .. key, default)
+end
+
+-- The preset chosen for a season; neutral's lives on the main page.
+local function season_preset(s)
+    if s == "neutral" then return mcm_path(PREFIX .. "main/preset_neutral", "builtin") end
+    return mcm_path(PREFIX .. s .. "/preset", "builtin")
+end
+
+-- A saved MCM value WITHOUT ui_mcm.get, which asserts during on_mcm_load (where the
+-- read-out is built). vtype 0 = string.
+local function cfg_raw(path, default)
+    if axr_main and axr_main.config then
+        local ok, v = pcall(function()
+            return axr_main.config:r_value("mcm", path, 0, default)
+        end)
         if ok and v ~= nil then return v end
     end
     return default
@@ -282,7 +299,7 @@ end
 -- order, then everything else alphabetically.
 function preset_choices()
     local paths = preset_paths()
-    local out, seen = {{"builtin", "Built-in (season table)"}}, {}
+    local out, seen = {{"builtin", "Built-in"}}, {}
     for _, name in ipairs(SHIPPED) do
         local stem = name:lower()
         if paths[stem] then
@@ -301,11 +318,49 @@ function preset_choices()
     return out
 end
 
+-- A per-season read-out for the MCM page: the grade after the chosen preset, plus fog,
+-- wind and wetness from the table. Built during on_mcm_load, so it uses cfg_raw, not
+-- ui_mcm.get. Reflects the SAVED preset (updates when you reopen after Apply).
+function season_readout(s)
+    local ini = ini_file(CFG)
+    if not (ini and ini:section_exist(s)) then return {} end
+    local g = {}
+    for _, u in ipairs(UNIFORMS) do
+        for _, k in ipairs(u.keys or {}) do g[k] = ini:r_float_ex(s, k) end
+    end
+    local src = "season table"
+    local sel = (s == "neutral") and cfg_raw(PREFIX .. "main/preset_neutral", "builtin")
+                                  or  cfg_raw(PREFIX .. s .. "/preset", "builtin")
+    if sel and tostring(sel):lower() ~= "builtin" then
+        local paths = preset_paths()
+        local key = tostring(sel):lower()
+        local vals = paths[key] and read_preset(paths[key])
+        if vals then
+            for k, v in pairs(vals) do g[k] = v end
+            src = tostring(sel)
+        end
+    end
+    local function f(x) return x and string.format("%.4g", x) or "-" end
+    return {
+        "color grade   " .. f(g.grade_r) .. "  " .. f(g.grade_g) .. "  " .. f(g.grade_b)
+            .. "      (from " .. src .. ")",
+        "saturation " .. f(g.saturation) .. "    gamma " .. f(g.gamma)
+            .. "    exposure " .. f(g.exposure),
+        "sun " .. f(g.sun_lumscale) .. "    sky " .. f(g.sun_lumscale_hemi) .. " / "
+            .. f(g.sun_lumscale_amb) .. "    sunshafts " .. f(g.sunshafts_value),
+        "tonemap " .. f(g.tonemap_adaptation) .. " / " .. f(g.tonemap_lowlum) .. " / "
+            .. f(g.tonemap_middlegray) .. "    hud " .. f(g.hud_hemi),
+        "fog " .. f(g.fog_height) .. " / " .. f(g.fog_density) .. " / " .. f(g.fog_suncolor)
+            .. "      wetness " .. f(g.wet_buildup) .. " / " .. f(g.wet_dry),
+        "wind grass " .. f(g.wind_grass_speed) .. "    trees " .. f(g.wind_trees_speed),
+    }
+end
+
 -- Replace each season's grade keys with its chosen preset, if one is chosen.
 local function overlay_presets(tbl)
     local paths
     for _, s in ipairs(PRESET_SEASONS) do
-        local sel = mcm("preset_" .. s, "builtin")
+        local sel = season_preset(s)
         if sel and sel ~= "builtin" and tbl[s] then
             paths = paths or preset_paths()
             sel = tostring(sel):lower()

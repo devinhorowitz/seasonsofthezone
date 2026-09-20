@@ -149,20 +149,14 @@
 		<text>Season calendar unavailable - the main script did not load.</text>
 	</string>
 
-	<string id="ui_mcm_seasons_zone_page_main"><text>Seasons</text></string>
-	<string id="ui_mcm_seasons_zone_page_presets"><text>Color presets</text></string>
-	<string id="ui_mcm_seasons_zone_page_mods"><text>Seasonal mods</text></string>
-	<string id="ui_mcm_seasons_zone_desc_presets"><text>Where each season's color grade comes from. Built-in is the season table; the rest are cfg presets in appdata - yours, Atmospherics', and the mod's own. Takes effect on Apply.</text></string>
-	<string id="ui_mcm_seasons_zone_preset_spring"><text>Spring</text></string>
-	<string id="ui_mcm_seasons_zone_preset_spring_desc"><text>The preset this season's color grade comes from. Only the grade changes.</text></string>
-	<string id="ui_mcm_seasons_zone_preset_summer"><text>Summer</text></string>
-	<string id="ui_mcm_seasons_zone_preset_summer_desc"><text>The preset this season's color grade comes from. Only the grade changes.</text></string>
-	<string id="ui_mcm_seasons_zone_preset_autumn"><text>Autumn</text></string>
-	<string id="ui_mcm_seasons_zone_preset_autumn_desc"><text>The preset this season's color grade comes from. Only the grade changes.</text></string>
-	<string id="ui_mcm_seasons_zone_preset_winter"><text>Winter</text></string>
-	<string id="ui_mcm_seasons_zone_preset_winter_desc"><text>The preset this season's color grade comes from. Only the grade changes.</text></string>
-	<string id="ui_mcm_seasons_zone_preset_winter_snow"><text>Deep winter</text></string>
-	<string id="ui_mcm_seasons_zone_preset_winter_snow_desc"><text>The preset this season's color grade comes from. Only the grade changes.</text></string>
-	<string id="ui_mcm_seasons_zone_preset_neutral"><text>Neutral (intensity 0)</text></string>
-	<string id="ui_mcm_seasons_zone_preset_neutral_desc"><text>The preset this season's color grade comes from. Only the grade changes.</text></string>
+	<string id="ui_mcm_seasons_zone_page_main"><text>Main</text></string>
+	<string id="ui_mcm_seasons_zone_page_spring"><text>Spring</text></string>
+	<string id="ui_mcm_seasons_zone_page_summer"><text>Summer</text></string>
+	<string id="ui_mcm_seasons_zone_page_autumn"><text>Autumn</text></string>
+	<string id="ui_mcm_seasons_zone_page_winter"><text>Winter</text></string>
+	<string id="ui_mcm_seasons_zone_page_winter_snow"><text>Deep winter</text></string>
+	<string id="ui_mcm_seasons_zone_preset"><text>Color grade preset</text></string>
+	<string id="ui_mcm_seasons_zone_preset_desc"><text>Which cfg preset this season's color grade comes from. Built-in is the season table; the rest are presets in appdata - yours, Atmospherics', and the mod's own. Only the grade changes; takes effect on Apply.</text></string>
+	<string id="ui_mcm_seasons_zone_preset_neutral"><text>Neutral preset (intensity 0)</text></string>
+	<string id="ui_mcm_seasons_zone_preset_neutral_desc"><text>The preset the neutral baseline uses, what intensity 0 renders. Only the grade changes; takes effect on Apply.</text></string>
 </string_table>

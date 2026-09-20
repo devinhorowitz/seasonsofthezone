@@ -249,10 +249,11 @@ def season_label(s):
 
 
 def read_prefs():
-    """{"stage_textures", "stage_sound", "off": set(slug)} from MCM's store, where the
-    Seasonal mods page saves them as seasons_zone/mods/<id>. No file or no keys yet
-    means defaults."""
-    out = {"stage_textures": True, "stage_sound": True, "off": set()}
+    """The MCM choices, from MCM's store. Global switches are seasons_zone/main/<id>; a
+    per-season mod hold is seasons_zone/<season>/mod_<slug>. Returns {"stage_textures",
+    "stage_sound", "off": {season: set(slug)}}. No file yet means defaults."""
+    out = {"stage_textures": True, "stage_sound": True,
+           "off": {s: set() for s in SEASONS}}
     p = _axr_options()
     if not p:
         return out
@@ -262,17 +263,17 @@ def read_prefs():
         return out
     for line in raw.splitlines():
         line = line.split(";")[0].strip()
-        if not line.startswith("seasons_zone/mods/") or "=" not in line:
+        if not line.startswith("seasons_zone/") or "=" not in line:
             continue
         k, v = [x.strip() for x in line.split("=", 1)]
-        k = k[len("seasons_zone/mods/"):]
+        page, _, o = k[len("seasons_zone/"):].partition("/")
         off = v.lower() in ("false", "off", "0", "no")
-        if k == "stage_textures":
+        if page == "main" and o == "stage_textures":
             out["stage_textures"] = not off
-        elif k == "stage_sound":
+        elif page == "main" and o == "stage_sound":
             out["stage_sound"] = not off
-        elif k.startswith("mod_") and off:
-            out["off"].add(k[4:])
+        elif o.startswith("mod_") and off and page in out["off"]:
+            out["off"][page].add(o[4:])       # a mod held for that one season
     return out
 
 
@@ -321,7 +322,7 @@ def apply_toggles(season, dry_run=False, prefs=None):
             continue
         on = (season in cfg["seasons"]
               and prefs["stage_textures"]
-              and _slug(name) not in prefs["off"])
+              and _slug(name) not in prefs["off"].get(season, set()))
         place(name, cfg["above"], "+" if on else "-")
 
     # The generated soundscape is placed too: a folder MO2 finds on its own is added
@@ -359,7 +360,7 @@ def toggle_status(season, prefs=None):
         held = None
         if not prefs["stage_textures"]:
             held = "off"
-        elif _slug(name) in prefs["off"]:
+        elif _slug(name) in prefs["off"].get(season, set()):
             held = "mod"
         out.append((name, installed, state, season in cfg["seasons"], held))
     return out
@@ -552,19 +553,9 @@ def write_mod_panel(season, prefs=None):
          "<string_table>"]
     for r in rows:
         seas = " and ".join(season_label(s) for s in r["seasons"])
-        if r["enabled"]:
-            state = "Mounted now. Untick to leave it out from the next launch on."
-        elif r["held"] == "off":
-            state = "Held back - the texture layer above is switched off."
-        elif r["held"] == "mod":
-            state = "Switched off. Tick to bring it back at the next launch."
-        elif r["wanted"]:
-            state = "Due this season - mounts at the next launch."
-        else:
-            state = "Out of season. It will mount when the season comes round."
         mb = ("{:,.1f}".format(r["mb"]) if r["mb"] < 10 else "{:,.0f}".format(r["mb"]))
-        desc = ("%s. %s files, %s MB. %s"
-                % (cap_first(seas), "{:,}".format(r["files"]), mb, state))
+        desc = ("%s. %s files, %s MB. Untick it on a season's page to leave it out there."
+                % (cap_first(seas), "{:,}".format(r["files"]), mb))
         extra = [season_label(s) for s in r["seasons"][1:]]
         caption = r["name"] + ("   + %s" % " and ".join(extra) if extra else "")
         x += ['\t<string id="ui_mcm_seasons_zone_mod_%s"><text>%s</text></string>'
