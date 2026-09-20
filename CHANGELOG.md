@@ -2,8 +2,7 @@
 
 ## 1.0.2 — 2026-09-19
 
-Load order, researched and hardened. Six investigations of the reference install, each
-checked by two independent reviewers, then the findings that were code rather than prose.
+Load order, researched and hardened.
 
 ### The answer
 
@@ -45,13 +44,10 @@ whole picture, including recovery from a GAMMA launcher Update.
 
 ## 1.0.1 — 2026-09-19
 
-Fixes from a full pass over the tooling against a simulated fresh install. Nothing about
-how the seasons look has changed.
-
 ### Fixed
 
 - `season.py apply` failed on every install but the author's with *missing grade
-  preset*: the user.ltx colour-grade layer depended on `Atmos_*.ltx` console presets that
+  preset*: the user.ltx color-grade layer depended on `Atmos_*.ltx` console presets that
   never shipped. The mod drives those uniforms itself, so the layer is now skipped when
   the presets are absent instead of aborting every launch.
 - The generated `Seasonal Soundscape` mod was never placed in the modlist. MO2 appends a
@@ -62,7 +58,7 @@ how the seasons look has changed.
   Project I.N.V.E.R.N.O's `yawm_snowfall.script`. None of their code is redistributed.
 - Season identification re-extracted every option of every configured archive on every
   run — two minutes per launch with `LAYOUT` configured. Archive-side hashes are now
-  memoised, keyed on the archive's size and date; the live folder is still hashed fresh.
+  memoized, keyed on the archive's size and date; the live folder is still hashed fresh.
 - Two runs at once (`status` while `play.bat` staged, or `play.bat` twice) shared one
   staging folder and corrupted each other. Each run now stages in its own.
 - The running-game check knew three executables; a DX10 player could have the game up
@@ -75,7 +71,7 @@ how the seasons look has changed.
   machine's presets from a hardcoded path, so it runs from a clone.
 - `play.bat` prefers the `py` launcher, which the python.org installer puts on PATH even
   when `python` is not.
-- Switching the mod off in MCM restores the colour grade to neutral before releasing
+- Switching the mod off in MCM restores the color grade to neutral before releasing
   control, so the console is not left seasonal.
 - The MCM date line and the PDA report use fixed English month names; `os.date("%B")` is
   locale-dependent and rendered as garbage on non-English, non-Cyrillic Windows.
@@ -89,12 +85,12 @@ First public release.
 ### The seasonal engine
 
 - Five phenological seasons for Polesia — spring, summer, autumn, winter and deep winter
-  — resolved from the real-world date. Winter is split because snow arrives long before
+  — resolved from the real-world date. Winter is split because snow arrives before
   cover holds, and the thaw is what makes spring wet.
-- Twenty Screen Space Shaders uniforms driven per season: colour grading, saturation,
+- Twenty Screen Space Shaders uniforms driven per season: color grading, saturation,
   gamma, exposure, three sun lumscales, sunshafts, three tonemap controls, HUD hemi,
   two flora-fix vectors, fog and fog scattering, grass and tree wind, and wetness.
-- Blending across a window centred on each boundary, 14 days by default, so seasons
+- Blending across a window centered on each boundary, 14 days by default, so seasons
   arrive gradually. 0 gives a hard switch on the date.
 - An `intensity` dial mixing the whole season against vanilla values.
 - Every value clamped to the engine's own range, read back after setting, with a refusal
@@ -104,11 +100,11 @@ First public release.
 
 ### The MCM page
 
-- A year dial showing where today sits, drawn from each season's own grading colours, and
+- A year dial showing where today sits, drawn from each season's own grading colors, and
   aspect-corrected for the live resolution.
 - A live calendar panel listing all five seasons with the current one highlighted.
 - Master switch, season pin (Automatic or any one season), transition length, intensity.
-- Per-layer switches for colour, foliage, fog, wind and wetness.
+- Per-layer switches for color, foliage, fog, wind, and wetness.
 - A generated list of season-scoped mods, grouped under coloured season headers with each
   group's mod count and total size, every mod independently switchable.
 - Master switches for the launch-time texture layer and for ambient sound gating.
