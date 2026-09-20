@@ -1,9 +1,9 @@
 # Seasons of the Zone
 
-The Zone follows the real-world calendar. Boot the game in late October and it is autumn,
+The Zone follows the real-world calendar. Boot the game in late October, and it is autumn,
 because Chornobyl is in autumn.
 
-Light, colour, fog, wind, wetness, snowfall and ambient sound all shift with the date and
+Light, color, fog, wind, wetness, snowfall, and ambient sound all shift with the date and
 blend across each season boundary. Nothing to download beyond this mod, and nothing to
 configure — it works the moment it is enabled.
 
@@ -16,11 +16,11 @@ configure — it works the moment it is enabled.
 ## What it actually does
 
 Twenty engine uniforms are driven per season and interpolated across a 14-day window
-centred on each boundary, so seasons arrive gradually rather than switching overnight:
+centered on each boundary, so seasons arrive gradually rather than switching overnight:
 
 | Layer | What changes |
 |---|---|
-| Colour and light | grade, saturation, gamma, exposure, sun lumscale, tonemap, sunshafts |
+| Color and light | grade, saturation, gamma, exposure, sun lumscale, tonemap, sunshafts |
 | Foliage | `ssfx_florafixes_1/2` — specular and sun-through-leaf |
 | Fog | `ssfx_fog`, `ssfx_fog_scattering` |
 | Wind | `ssfx_wind_grass`, `ssfx_wind_trees` |
@@ -28,7 +28,7 @@ centred on each boundary, so seasons arrive gradually rather than switching over
 
 Plus a year dial in the MCM page showing where today sits, and a PDA report on loading in.
 
-**Five seasons, not four.** Winter is split, because in Polesia snow arrives from late
+**Five seasons** Winter is split, because in Polesia snow arrives from late
 October but cover only holds from about December through March, and the thaw is what makes
 spring wet. One 110-day winter forced a choice between snow two months too early and bare
 ground through February.
@@ -41,7 +41,7 @@ winter       Nov 01 - Nov 30    30 d   first snowfall, ground not yet covered
 winter_snow  Dec 01 - Mar 04    94 d   snow lies on the ground
 ```
 
-The dates are researched rather than guessed — they are phenological, not the astronomical
+The dates are phenological, not the astronomical
 equinoxes, and deliberately lopsided. `--mapping met` switches to Ukraine's
 hydrometeorological convention if you prefer round numbers.
 
@@ -179,8 +179,8 @@ and you can anchor on anything stable.
 | Winter PDA maps | `winter`, `winter_snow` | Above **both** map mods if you have two — see the `whowins` example. |
 | Swamp / ground fog | `spring`, `autumn` | Shoulder seasons: thaw damp, then cool nights over warm water. |
 
-Anything with a seasonal flavour works — snow footstep audio, winter main-menu art, a
-spring flower pack. If it is a folder MO2 can mount, it can be seasonal.
+Anything with a seasonal flavor works — snow footstep audio, winter main-menu art, a
+spring flower pack. If MO2 can mount it as a folder, it can be seasonal.
 
 ### When to use `LAYOUT` instead
 
