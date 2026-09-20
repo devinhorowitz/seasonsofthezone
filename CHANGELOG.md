@@ -2,11 +2,12 @@
 
 ## 1.1.0 — 2026-09-20
 
-- Fixed: loading a save crashed with "Cannot find the specified saved game" on a save that
-  was plainly on disk. Listing `appdata/` for presets costs the engine its registry for
-  `appdata/savedgames` underneath it, and MCM builds a mod's page at startup, so this
-  happened on every load, not only after opening the menu. The mod now restores the
-  registry after listing, and the build refuses to package without that repair.
+- Caught before release, in the preset lookup added below: listing `appdata/` costs the
+  engine its registry for `appdata/savedgames` underneath it, and loading a save then
+  failed with "Cannot find the specified saved game" on a save that was plainly on disk.
+  MCM builds a mod's page at startup, so it happened on every load, not only after opening
+  the menu. The lookup now restores the registry, and the build refuses to package without
+  that repair. No released version was affected.
 - The MCM entry is now six pages: Main (calendar, dial, the in-engine layers, the two
   launch-time switches) and one for each season. A season's page holds its color grade
   preset, a read-out of the values that season resolves to, and a tick for every texture
