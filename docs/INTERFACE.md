@@ -20,7 +20,9 @@ graded towards. It follows the calendar and ignores the pin below it.
 Below the dial:
 
 - **Enable seasonal atmosphere** — the master switch.
-- **Season** — automatic, or pin one.
+- **Season** — automatic, or pin one. A pin drives every layer: the in-engine ones
+  change within five seconds, and the textures and soundscape follow at the next
+  launch, since both are staged before the game starts.
 - **Transition length (days)** — the blend window centered on each boundary. 0 switches on
   the date.
 - **Intensity** — 0 is GAMMA's stock look, 1 the full season.
@@ -77,9 +79,11 @@ Autumn: low amber sun, thinned canopy, the grade pulled towards yellow-brown.
 
 ![Deep winter at the rookie village](images/zone-deep-winter.jpg)
 
-Deep winter: snow cover, flat contrast, cold light and ice fog.
+Deep winter: snow cover, flat contrast, cold light, and the bare stems of the dead set
+showing through. The PDA line carries no date because the season is pinned rather than
+read from the calendar.
 
 Both shots combine this mod's in-engine grading with third-party texture layers it stages
-for the season (PanceRide's autumn set above, Project I.N.V.E.R.N.O's winter set below).
-The color, fog, wind and wetness are the mod; the ground and foliage textures are their
-authors'.
+for the season - C Consciousness' autumn set above, and its dead set under Project
+I.N.V.E.R.N.O's snow below. The color, fog, wind and wetness are the mod; the ground and
+foliage textures are their authors'.

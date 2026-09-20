@@ -87,6 +87,10 @@ Terrain and grass textures are loaded from MO2's virtual file system when a leve
 and kept for the session. There is no way to reload them at runtime. So the texture layer
 is decided before the game starts: `play.bat` runs `season.py apply`, then starts MO2.
 
+That is also why a season pinned in MCM reaches the textures and the soundscape only
+at the next launch: `season.py` reads the pin from MCM's store before the game exists.
+`--season` on the command line overrides it.
+
 ## The MO2 rule
 
 MO2 gives a shared file to the highest enabled mod that ships it. That is what makes

@@ -263,7 +263,7 @@ def read_prefs():
     """The MCM choices, from MCM's store. Global switches are seasons_zone/main/<id>; a
     per-season mod hold is seasons_zone/<season>/mod_<slug>. Returns {"stage_textures",
     "stage_sound", "off": {season: set(slug)}}. No file yet means defaults."""
-    out = {"stage_textures": True, "stage_sound": True,
+    out = {"stage_textures": True, "stage_sound": True, "mode": "auto",
            "off": {s: set() for s in SEASONS}}
     p = _axr_options()
     if not p:
@@ -279,7 +279,9 @@ def read_prefs():
         k, v = [x.strip() for x in line.split("=", 1)]
         page, _, o = k[len("seasons_zone/"):].partition("/")
         off = v.lower() in ("false", "off", "0", "no")
-        if page == "main" and o == "stage_textures":
+        if page == "main" and o == "mode":
+            out["mode"] = v.strip().lower()
+        elif page == "main" and o == "stage_textures":
             out["stage_textures"] = not off
         elif page == "main" and o == "stage_sound":
             out["stage_sound"] = not off
@@ -1055,10 +1057,14 @@ def main():
     shadow_check(force=(a.cmd == "status"))
 
     today = datetime.date.today()
-    want = a.season or season_for(today, a.mapping)
-    tmp = os.path.join(ROOT, "_staging", "season-%d" % os.getpid())    # per process
-
     prefs = read_prefs()
+
+    # MCM offers "automatic, or pin one" and the in-engine layers honour it, so the
+    # staged layers follow it too - otherwise pinning a season gives you its light
+    # over another season's ground. An explicit --season still wins over the pin.
+    pinned = prefs["mode"] if prefs["mode"] in SEASONS else None
+    want = a.season or pinned or season_for(today, a.mapping)
+    tmp = os.path.join(ROOT, "_staging", "season-%d" % os.getpid())    # per process
     if a.no_textures:
         prefs["stage_textures"] = False
     stage_tex = prefs["stage_textures"]
@@ -1067,7 +1073,11 @@ def main():
     print("  date            %s" % today.isoformat())
     print("  mapping         %s" % ("phenological (Polesia)" if a.mapping == "pheno"
                                     else "meteorological (UA convention)"))
-    print("  season for date %s%s" % (want, "   (forced)" if a.season else ""))
+    why = ("   (forced with --season)" if a.season else
+           "   (pinned in MCM)" if pinned else "")
+    print("  season          %s%s" % (want, why))
+    if pinned and not a.season:
+        print("  calendar says   %s" % season_for(today, a.mapping))
     print("  texture layer   %s" % ("on" if stage_tex else
                                     "OFF - textures left alone, in-engine seasons still run"))
     print()

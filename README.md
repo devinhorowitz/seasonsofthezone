@@ -98,7 +98,7 @@ If you never use the texture layer, launch however you like.
 each season.
 
 - **Main** — the year dial and today's date; the master switch; season (automatic, or
-  pin one); transition length (0 for a hard switch on the boundary date, 14 by default);
+  pin one — a pin also decides what is staged at the next launch); transition length (0 for a hard switch on the boundary date, 14 by default);
   intensity (0 is GAMMA's stock look, 1 the full season); one switch per layer: color,
   foliage, fog, wind, and wetness; the two launch-time switches, for textures and
   ambient sound; the PDA message.
