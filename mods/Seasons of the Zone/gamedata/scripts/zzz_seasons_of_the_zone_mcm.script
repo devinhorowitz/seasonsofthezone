@@ -1,69 +1,147 @@
--- Seasons of the Zone - MCM page
+-- Seasons of the Zone - MCM pages
 --
--- The tree id is "seasons_zone"; settings are read as ui_mcm.get("seasons_zone/<id>").
--- Any change fires on_option_change, which re-applies.
+-- Three pages under one entry: Seasons (the calendar and the in-engine layers), Color
+-- presets, and Seasonal mods (the launch-time layers). The tree id is "seasons_zone";
+-- an option is stored as seasons_zone/<page>/<id>, which mcm() in the main script reads.
 --
 -- String keys (from ui_mcm.script, not its tutorial):
---     addon-list name   ui_mcm_menu_seasons_zone
---     option label      ui_mcm_seasons_zone_<id>
---     list item         seasons_zone_<id>_lst_<value>      (no ui_mcm_ prefix)
---     option with hint  ui_mcm_<hint>                      (the hint replaces the id)
+--     page title        the `text` field: ui_mcm_seasons_zone_page_<page>
+--     option label      ui_mcm_<hint>. The hint is set to seasons_zone_<id> explicitly, so
+--                       the keys do not depend on which page an option sits on.
+--     hover text        the same with _desc
+--     list item         seasons_zone_<page>_<id>_lst_<value>, or a literal with no_str
 -- A wrong key renders as itself on screen.
 --
 -- A desc row renders game.translate_string(text), which returns its input when nothing
--- matches - so a computed sentence renders verbatim. Colors are grayscale: MCM
--- documents clr as {a,r,b,g} in one place and uses it as {a,r,g,b} in another.
+-- matches - so a computed sentence renders verbatim. Colors are grayscale: MCM documents
+-- clr as {a,r,b,g} in one place and uses it as {a,r,g,b} in another.
 
-local function calendar_rows()
-    local ok, rows = pcall(function()
-        return zzz_seasons_of_the_zone.calendar_rows()
-    end)
-    if not (ok and rows) then
-        return {{id = "desc_cal_err", type = "desc",
-                 text = "ui_mcm_seasons_zone_desc_cal_unavailable"}}
+-- Register_Image does not apply width_factor: a square request renders as an ellipse.
+-- Widths are corrected by (4:3) / screen aspect, 0.75 at 16:9.
+local function aspect()
+    local f = 0.75
+    local okd, dw, dh = pcall(function() return device().width, device().height end)
+    if okd and dw and dh and dh > 0 then
+        f = (1024 / 768) / (dw / dh)
     end
-    local out = {}
-    for i, r in ipairs(rows) do
-        out[#out + 1] = {
-            id   = "desc_cal_" .. i,
-            type = "desc",
-            text = r.text,
-            clr  = r.current and {255, 255, 255, 255} or {255, 165, 165, 165},
-        }
-    end
-    return out
+    return f
 end
 
--- The launch-time layers, as switches. These take effect at the next launch: season.py
--- reads them from axr_options.ltx. The mod list comes from season_mods.ltx, which
--- season.py generates from what is installed.
-local function mod_rows()
+-- An option with a caption keeps the key it always had, whatever page it is on.
+local function opt(t)
+    if t.type == "check" or t.type == "list" or t.type == "track" then
+        t.hint = t.hint or ("seasons_zone_" .. t.id)
+    end
+    return t
+end
+
+local function desc(out, id, text, bright)
+    out[#out + 1] = {id = id, type = "desc", text = text,
+                     clr = bright and {255, 255, 255, 255} or {255, 165, 165, 165}}
+end
+
+-- Today's date, and a line when a pinned season disagrees with the calendar.
+local function calendar_rows(out)
+    local ok, rows = pcall(function() return zzz_seasons_of_the_zone.calendar_rows() end)
+    if not (ok and rows) then
+        out[#out + 1] = {id = "desc_cal_err", type = "desc",
+                         text = "ui_mcm_seasons_zone_desc_cal_unavailable"}
+        return
+    end
+    for i, r in ipairs(rows) do
+        desc(out, "desc_cal_" .. i, r.text, r.current)
+    end
+end
+
+-- Page 1: the calendar and the in-engine layers.
+local function page_main()
+    local gr = {}
+    local function add(t) gr[#gr + 1] = opt(t) end
+
+    add({id = "desc_top", type = "desc", text = "ui_mcm_seasons_zone_desc_top"})
+    add({id = "line_cal1", type = "line"})
+    calendar_rows(gr)
+    local ok, tex = pcall(function() return zzz_seasons_of_the_zone.dial_texture() end)
+    if ok and tex then
+        local H = 268
+        local W = math.floor(H * aspect() + 0.5)
+        -- centered: the panel is ~547 units wide and images start ~27 units in
+        local x = math.floor((547 - W) / 2 - 27 + 0.5)
+        add({id = "dial", type = "image", link = tex,
+             size = {W, H}, pos = {x > 0 and x or 0, 0}, stretch = true})
+    end
+    add({id = "line_cal2", type = "line"})
+
+    add({id = "enabled", type = "check", val = 1, def = true})
+    add({id = "mode", type = "list", val = 0, def = "auto", content = {
+        {"auto", "auto"}, {"spring", "spring"}, {"summer", "summer"},
+        {"autumn", "autumn"}, {"winter", "winter"}, {"winter_snow", "winter_snow"},
+    }})
+    -- the blend window, centered on each boundary; 0 switches on the date
+    add({id = "blend_days", type = "track", val = 2, min = 0, max = 30, step = 1, def = 14})
+    -- 0 renders [neutral], 1 the full season
+    add({id = "intensity", type = "track", val = 2, min = 0.0, max = 1.0, step = 0.05, def = 1.0})
+
+    add({id = "line1", type = "line"})
+    add({id = "do_grade", type = "check", val = 1, def = true})
+    add({id = "do_flora", type = "check", val = 1, def = true})
+    add({id = "do_fog",   type = "check", val = 1, def = true})
+    add({id = "do_wind",  type = "check", val = 1, def = true})
+    add({id = "do_wet",   type = "check", val = 1, def = true})
+
+    add({id = "line2", type = "line"})
+    add({id = "notify", type = "check", val = 1, def = true})
+    add({id = "pda_greeting", type = "check", val = 1, def = true})
+    add({id = "pda_delay", type = "track", val = 2, min = 3, max = 60, step = 1, def = 12})
+    return gr
+end
+
+-- Page 2: one dropdown per season, listing every cfg preset in appdata (Atmospherics'
+-- and your own) plus the mod's shipped ones. Labels are file names, shown as they are.
+local function page_presets()
+    local gr = {}
+    local function add(t) gr[#gr + 1] = opt(t) end
+
+    add({id = "desc_presets", type = "desc", text = "ui_mcm_seasons_zone_desc_presets"})
+    add({id = "line_presets", type = "line"})
+    local okp, choices = pcall(function() return zzz_seasons_of_the_zone.preset_choices() end)
+    if not (okp and choices) then choices = {{"builtin", "Built-in (season table)"}} end
+    for _, s in ipairs({"spring", "summer", "autumn", "winter", "winter_snow", "neutral"}) do
+        add({id = "preset_" .. s, type = "list", val = 0, def = "builtin",
+             no_str = true, content = choices})
+    end
+    return gr
+end
+
+-- Page 3: the launch-time layers. These take effect at the next launch: season.py reads
+-- them from axr_options.ltx. The mod list comes from season_mods.ltx, which season.py
+-- generates from what is installed.
+local function page_mods()
+    local gr = {}
+    local function add(t) gr[#gr + 1] = opt(t) end
+
+    add({id = "desc_mods", type = "desc", text = "ui_mcm_seasons_zone_desc_mods"})
     local ok, info = pcall(function() return zzz_seasons_of_the_zone.mod_list() end)
     if not (ok and info) then
-        return {{id = "desc_mods_none", type = "desc",
-                 text = "ui_mcm_seasons_zone_desc_mods_unavailable"}}
-    end
-    local out = {}
-    local function desc(id, text, bright)
-        out[#out + 1] = {id = id, type = "desc", text = text,
-                         clr = bright and {255, 255, 255, 255} or {255, 165, 165, 165}}
+        add({id = "desc_mods_none", type = "desc", text = "ui_mcm_seasons_zone_desc_mods_unavailable"})
+        return gr
     end
 
     if not info.stage_textures then
-        desc("desc_mods_state", "Texture layer OFF. Nothing below is mounted; the "
+        desc(gr, "desc_mods_state", "Texture layer OFF. Nothing below is mounted; the "
              .. "in-engine seasons continue as normal.", true)
     elseif #info.mods == 0 then
-        desc("desc_mods_state", "No season-scoped texture mods are installed.", false)
+        desc(gr, "desc_mods_state", "No season-scoped texture mods are installed.", false)
     else
-        desc("desc_mods_state", "Staged for " .. (info.staged_for == "winter_snow"
+        desc(gr, "desc_mods_state", "Staged for " .. (info.staged_for == "winter_snow"
              and "deep winter" or info.staged_for) .. " at launch.", false)
     end
 
-    out[#out + 1] = {id = "stage_textures", type = "check", val = 1, def = true}
+    add({id = "stage_textures", type = "check", val = 1, def = true})
 
     -- staged at launch like the textures, so it sits here rather than with the live layers
     if info.sound_have then
-        out[#out + 1] = {id = "stage_sound", type = "check", val = 1, def = true}
+        add({id = "stage_sound", type = "check", val = 1, def = true})
         local line
         if not info.stage_sound then
             line = "Ambient gating off - the soundscape plays unchanged all year."
@@ -73,27 +151,20 @@ local function mod_rows()
         else
             line = "Nothing silenced this season - the Zone is at full voice."
         end
-        desc("desc_sound_state", line, false)
+        desc(gr, "desc_sound_state", line, false)
     end
 
     -- Grouped by season, with a heading wherever the group changes (the list arrives in
-    -- calendar order). Register_Image does not apply width_factor, so image widths are
-    -- corrected by (4:3) / screen aspect: 0.75 at 16:9.
-    local f = 0.75
-    local okd, dw, dh = pcall(function() return device().width, device().height end)
-    if okd and dw and dh and dh > 0 then
-        f = (1024 / 768) / (dw / dh)
-    end
-    local bar_w = math.floor(520 * f + 0.5)
-
+    -- calendar order).
+    local bar_w = math.floor(520 * aspect() + 0.5)
     local group = nil
     for _, m in ipairs(info.mods) do
         if m.group ~= "" and m.group ~= group then
             group = m.group
             -- a colored bar per season (_tools/build_season_headers.py)
-            out[#out + 1] = {id = "hdr_" .. group, type = "image",
-                             link = "ui_season_hdr_" .. group,
-                             size = {bar_w, 10}, pos = {0, 0}, stretch = true}
+            gr[#gr + 1] = {id = "hdr_" .. group, type = "image",
+                           link = "ui_season_hdr_" .. group,
+                           size = {bar_w, 10}, pos = {0, 0}, stretch = true}
             local n, mb = 0, 0
             for _, o in ipairs(info.mods) do
                 if o.group == group then
@@ -109,89 +180,22 @@ local function mod_rows()
             else
                 size = string.format("%.0f MB", mb)
             end
-            desc("desc_grp_" .. group,
+            desc(gr, "desc_grp_" .. group,
                  string.upper(m.label) .. "   " .. n .. (n == 1 and " mod, " or " mods, ")
                  .. size, group == info.staged_for)
         end
         -- the caption and hover text come from season.py's ui_mcm_seasons_mods.xml
-        out[#out + 1] = {id = "mod_" .. m.key, type = "check", val = 1, def = true,
-                         hint = "seasons_zone_mod_" .. m.key}
+        add({id = "mod_" .. m.key, type = "check", val = 1, def = true,
+             hint = "seasons_zone_mod_" .. m.key})
     end
-    return out
+    return gr
 end
 
 function on_mcm_load()
-    local gr = {}
-    local function add(t) gr[#gr + 1] = t end
-
-    add({id = "desc_top", type = "desc", text = "ui_mcm_seasons_zone_desc_top"})
-
-    -- calendar panel: a live date line, then the year dial
-    add({id = "line_cal1", type = "line"})
-    for _, row in ipairs(calendar_rows()) do add(row) end
-    local ok, tex = pcall(function() return zzz_seasons_of_the_zone.dial_texture() end)
-    if ok and tex then
-        -- Register_Image does not apply width_factor: a square request renders as an
-        -- ellipse. Corrected by (4:3) / screen aspect.
-        local H = 268
-        local f = 0.75
-        local okd, dw, dh = pcall(function() return device().width, device().height end)
-        if okd and dw and dh and dh > 0 then
-            f = (1024 / 768) / (dw / dh)
-        end
-        local W = math.floor(H * f + 0.5)
-        -- centered: the panel is ~547 units wide and images start ~27 units in
-        local x = math.floor((547 - W) / 2 - 27 + 0.5)
-        add({id = "dial", type = "image", link = tex,
-             size = {W, H}, pos = {x > 0 and x or 0, 0}, stretch = true})
-    end
-    add({id = "line_cal2", type = "line"})
-
-    add({id = "enabled", type = "check", val = 1, def = true})
-
-    add({id = "mode", type = "list", val = 0, def = "auto", content = {
-        {"auto", "auto"}, {"spring", "spring"}, {"summer", "summer"},
-        {"autumn", "autumn"}, {"winter", "winter"}, {"winter_snow", "winter_snow"},
-    }})
-
-    -- the blend window, centered on each boundary; 0 switches on the date
-    add({id = "blend_days", type = "track", val = 2, min = 0, max = 30, step = 1, def = 14})
-
-    -- 0 renders [neutral], 1 the full season
-    add({id = "intensity", type = "track", val = 2, min = 0.0, max = 1.0, step = 0.05, def = 1.0})
-
-    add({id = "line1", type = "line"})
-
-    add({id = "do_grade", type = "check", val = 1, def = true})
-    add({id = "do_flora", type = "check", val = 1, def = true})
-    add({id = "do_fog",   type = "check", val = 1, def = true})
-    add({id = "do_wind",  type = "check", val = 1, def = true})
-    add({id = "do_wet",   type = "check", val = 1, def = true})
-
-    -- Color grade presets: one dropdown per season, listing every cfg preset in appdata
-    -- (Atmospherics' and your own) plus the mod's shipped ones. Labels are file names,
-    -- so no_str shows them as they are.
-    add({id = "line_presets", type = "line"})
-    add({id = "desc_presets", type = "desc", text = "ui_mcm_seasons_zone_desc_presets"})
-    local okp, choices = pcall(function() return zzz_seasons_of_the_zone.preset_choices() end)
-    if not (okp and choices) then choices = {{"builtin", "Built-in (season table)"}} end
-    for _, s in ipairs({"spring", "summer", "autumn", "winter", "winter_snow", "neutral"}) do
-        add({id = "preset_" .. s, type = "list", val = 0, def = "builtin",
-             no_str = true, content = choices})
-    end
-
-    add({id = "line2", type = "line"})
-
-    add({id = "desc_mods", type = "desc", text = "ui_mcm_seasons_zone_desc_mods"})
-    for _, row in ipairs(mod_rows()) do add(row) end
-
-    add({id = "line3", type = "line"})
-
-    add({id = "notify", type = "check", val = 1, def = true})
-
-    add({id = "pda_greeting", type = "check", val = 1, def = true})
-    add({id = "pda_delay", type = "track", val = 2, min = 3, max = 60, step = 1, def = 12})
-
-    op = {id = "seasons_zone", sh = true, gr = gr}
+    op = {id = "seasons_zone", sh = false, gr = {
+        {id = "main",    sh = true, text = "ui_mcm_seasons_zone_page_main",    gr = page_main()},
+        {id = "presets", sh = true, text = "ui_mcm_seasons_zone_page_presets", gr = page_presets()},
+        {id = "mods",    sh = true, text = "ui_mcm_seasons_zone_page_mods",    gr = page_mods()},
+    }}
     return op
 end

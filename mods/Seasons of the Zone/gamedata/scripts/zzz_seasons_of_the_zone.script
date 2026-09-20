@@ -133,9 +133,17 @@ local function today_text()
     return string.format("%d %s %d", t.day, MONTHS[t.month] or tostring(t.month), t.year)
 end
 
+-- Options live on three MCM pages; the stored path is seasons_zone/<page>/<id>.
+local PAGE = {}
+for _, k in ipairs({"enabled", "mode", "blend_days", "intensity", "do_grade", "do_flora",
+                    "do_fog", "do_wind", "do_wet", "notify", "pda_greeting", "pda_delay"}) do
+    PAGE[k] = "main"
+end
+
 local function mcm(key, default)
+    local page = PAGE[key] or (key:match("^preset_") and "presets") or "mods"
     if ui_mcm and ui_mcm.get then
-        local ok, v = pcall(ui_mcm.get, PREFIX .. key)
+        local ok, v = pcall(ui_mcm.get, PREFIX .. page .. "/" .. key)
         if ok and v ~= nil then return v end
     end
     return default
@@ -206,6 +214,23 @@ local PRESET_MAP = {
 local PRESET_SEASONS = {"spring", "summer", "autumn", "winter", "winter_snow", "neutral"}
 local SHIPPED = {"Seasons_Spring", "Seasons_Summer", "Seasons_Autumn", "Seasons_Winter",
                  "Seasons_DeepWinter", "Seasons_Neutral"}
+-- The engine's file table is lowercase, so names come back as "atmos_cold". Shown as
+-- "Atmos Cold"; the mod's own by season.
+local SHIPPED_LABEL = {
+    seasons_spring = "Seasons: Spring", seasons_summer = "Seasons: Summer",
+    seasons_autumn = "Seasons: Autumn", seasons_winter = "Seasons: Winter",
+    seasons_deepwinter = "Seasons: Deep winter", seasons_neutral = "Seasons: Neutral",
+}
+
+local function pretty(stem)
+    local s = SHIPPED_LABEL[stem]
+    if s then return s end
+    local words = {}
+    for w in stem:gmatch("[^_]+") do
+        words[#words + 1] = w:sub(1, 1):upper() .. w:sub(2)
+    end
+    return table.concat(words, " ")
+end
 
 -- {key = number} for the grade commands in a preset file, or nil if it has none
 local function read_preset(path)
@@ -226,46 +251,52 @@ local function read_preset(path)
     return any and out or nil
 end
 
--- {name = path} for every preset on offer, and the names in order with where each came
--- from. appdata/ first; the mod's own copies only when not already there.
+-- {stem = path} for every preset on offer, keyed lowercase. appdata/ first; the mod's own
+-- copies only when not already there.
 local function preset_paths()
-    local paths, order = {}, {}
+    local paths = {}
     local ok, err = pcall(function()
         local fs = getFS()
         local flist = fs:file_list_open_ex("$app_data_root$",
                                            bit_or(FS.FS_ListFiles, FS.FS_RootOnly), "*.ltx")
         for i = 0, flist:Size() - 1 do
             local name = flist:GetAt(i):NameFull()
-            local stem = name:match("^(.+)%.ltx$")
-            if stem and name:lower() ~= "user.ltx" then
+            local stem = name:lower():match("^(.+)%.ltx$")
+            if stem and stem ~= "user" then
                 local path = fs:update_path("$app_data_root$", name)
-                if read_preset(path) then
-                    paths[stem] = path
-                    order[#order + 1] = {stem, "appdata"}
-                end
+                if read_preset(path) then paths[stem] = path end
             end
         end
     end)
     if not ok then say("!could not list presets in appdata: " .. tostring(err)) end
-    for _, stem in ipairs(SHIPPED) do
-        if not paths[stem] then
-            local path = getFS():update_path("$game_config$", "seasons_presets\\" .. stem .. ".ltx")
-            if read_preset(path) then
-                paths[stem] = path
-                order[#order + 1] = {stem, "mod"}
-            end
+    for _, name in ipairs(SHIPPED) do
+        if not paths[name:lower()] then
+            local path = getFS():update_path("$game_config$", "seasons_presets\\" .. name .. ".ltx")
+            if read_preset(path) then paths[name:lower()] = path end
         end
     end
-    table.sort(order, function(a, b) return a[1]:lower() < b[1]:lower() end)
-    return paths, order
+    return paths
 end
 
--- The MCM dropdown: {{value, label}, ...}, "builtin" first.
+-- The MCM dropdown: {{value, label}, ...}. Built-in, then the mod's own presets in season
+-- order, then everything else alphabetically.
 function preset_choices()
-    local _, order = preset_paths()
-    local out = {{"builtin", "Built-in (season table)"}}
-    for _, e in ipairs(order) do
-        out[#out + 1] = {e[1], e[1] .. (e[2] == "mod" and "  (mod)" or "")}
+    local paths = preset_paths()
+    local out, seen = {{"builtin", "Built-in (season table)"}}, {}
+    for _, name in ipairs(SHIPPED) do
+        local stem = name:lower()
+        if paths[stem] then
+            out[#out + 1] = {stem, pretty(stem)}
+            seen[stem] = true
+        end
+    end
+    local rest = {}
+    for stem in pairs(paths) do
+        if not seen[stem] then rest[#rest + 1] = stem end
+    end
+    table.sort(rest)
+    for _, stem in ipairs(rest) do
+        out[#out + 1] = {stem, pretty(stem)}
     end
     return out
 end
@@ -277,6 +308,7 @@ local function overlay_presets(tbl)
         local sel = mcm("preset_" .. s, "builtin")
         if sel and sel ~= "builtin" and tbl[s] then
             paths = paths or preset_paths()
+            sel = tostring(sel):lower()
             local vals = paths[sel] and read_preset(paths[sel])
             if vals then
                 for k, v in pairs(vals) do tbl[s][k] = v end

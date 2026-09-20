@@ -101,7 +101,9 @@ owns a file. See [CONFIGURING.md](CONFIGURING.md).
 
 `season.py` runs before the game exists, so it reads MCM's own store: MCM saves every
 setting through `axr_main.config` into `gamedata/configs/axr_options.ltx`, under `[mcm]`,
-one line per option as `<tree>/<option> = <value>`. MO2 maps that path to the mod that owns
+one line per option as `<tree>/<page>/<option> = <value>` — the launch-time switches are
+`seasons_zone/mods/stage_textures`, `seasons_zone/mods/stage_sound` and
+`seasons_zone/mods/mod_<name>`. MO2 maps that path to the mod that owns
 it (on GAMMA, "G.A.M.M.A. MCM values"). It is plain text, so a switch set in the menu is
 readable at the next launch.
 
@@ -120,9 +122,12 @@ the menu by itself.
 
 ## MCM details
 
-- An option's caption is the string `ui_mcm_<hint or id>`, its hover text the same with
-  `_desc` appended, and a list item is `<tree>_<id>_lst_<value>` with no `ui_mcm_` prefix.
-  A wrong key renders as itself on screen.
+- A page inside an addon is a node without `sh` whose children have `sh = true`; MCM
+  lists the children in its next column and titles each by its `text` string.
+- An option's caption is the string `ui_mcm_<hint>` (the hint defaults to the option's
+  path with `/` as `_`), its hover text the same with `_desc` appended, and a list item is
+  `<path>_lst_<value>` with no `ui_mcm_` prefix, or a literal label with `no_str`. A wrong
+  key renders as itself on screen.
 - `game.translate_string()` returns its input unchanged when nothing matches, which is
   what lets a computed sentence render as a `desc` row.
 - MCM documents a desc's `clr` as `{a,r,b,g}` in one place and uses it as `{a,r,g,b}` in

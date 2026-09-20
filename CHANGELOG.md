@@ -2,9 +2,13 @@
 
 ## 1.1.0 — 2026-09-19
 
-- Color grade presets on the MCM page: one dropdown per season (and neutral) picks the
-  `cfg_load` preset that season's grade comes from — Atmospherics' own, the mod's
-  `Seasons_*` files, or any preset in `appdata/`. Only the grade changes.
+- The MCM entry is now three pages: Seasons (calendar, dial, the in-engine layers), Color
+  presets, and Seasonal mods (the launch-time layers and the texture-mod list). The
+  launch-time switches are stored under `seasons_zone/mods/`; earlier per-mod choices
+  reset to on.
+- Color presets: one dropdown per season (and neutral) picks the `cfg_load` preset that
+  season's grade comes from — the mod's own six, Atmospherics' Cold/Neutral/Warm, or any
+  preset in `appdata/`. Only the grade changes.
 - The mod ships its six grades as `Seasons_*.ltx` presets; `play.bat` copies them into
   `appdata/` beside Atmospherics' (never overwriting), so they can be `cfg_load`-ed or
   edited in place.

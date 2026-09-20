@@ -92,15 +92,18 @@ If you never use the texture layer, launch however you like.
 
 ---
 
-## The MCM page
+## The MCM pages
 
-**Mod Configuration Menu → Seasons of the Zone**:
+**Mod Configuration Menu → Seasons of the Zone** has three pages:
 
-- **Season** — automatic, or pin one
-- **Transition length** — 0 for a hard switch on the boundary date; 14 by default
-- **Intensity** — 0 is GAMMA's stock look, 1 the full season
-- One switch per layer: color, foliage, fog, wind, and wetness
-- The year dial, today's date, and the PDA message
+- **Seasons** — the year dial and today's date; the master switch; season (automatic, or
+  pin one); transition length (0 for a hard switch on the boundary date, 14 by default);
+  intensity (0 is GAMMA's stock look, 1 the full season); one switch per layer: color,
+  foliage, fog, wind, and wetness; the PDA message.
+- **Color presets** — one dropdown per season choosing the `cfg_load` preset its color
+  grade comes from.
+- **Seasonal mods** — the launch-time layers: the texture-layer switch, the ambient-sound
+  switch, and every season-scoped mod with its own switch.
 
 ---
 
@@ -207,8 +210,8 @@ The addon also ships an old `level_weathers.script`. Remove it: the patcher warn
 ## Optional: color grade presets
 
 Each season's color grade can come from a `cfg_load` preset instead of the mod's season
-table: pick one per season on the MCM page. The dropdown lists every preset in the game's
-`appdata/` — Atmospherics' `Atmos_Cold`, `Atmos_Neutral` and `Atmos_Warm`, and any you
+table: pick one per season on the **Color presets** page. The dropdown lists every preset
+in the game's `appdata/` — Atmospherics' `Atmos_Cold`, `Atmos_Neutral` and `Atmos_Warm`, and any you
 have tuned yourself — plus the mod's own `Seasons_Spring`, `Seasons_Summer`,
 `Seasons_Autumn`, `Seasons_Winter`, `Seasons_DeepWinter` and `Seasons_Neutral`. `play.bat`
 copies those six into `appdata/` beside the others, so you can `cfg_load` or edit them

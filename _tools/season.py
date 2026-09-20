@@ -249,8 +249,9 @@ def season_label(s):
 
 
 def read_prefs():
-    """{"stage_textures", "stage_sound", "off": set(slug)} from MCM's store. No file or
-    no keys yet means defaults."""
+    """{"stage_textures", "stage_sound", "off": set(slug)} from MCM's store, where the
+    Seasonal mods page saves them as seasons_zone/mods/<id>. No file or no keys yet
+    means defaults."""
     out = {"stage_textures": True, "stage_sound": True, "off": set()}
     p = _axr_options()
     if not p:
@@ -261,10 +262,10 @@ def read_prefs():
         return out
     for line in raw.splitlines():
         line = line.split(";")[0].strip()
-        if not line.startswith("seasons_zone/") or "=" not in line:
+        if not line.startswith("seasons_zone/mods/") or "=" not in line:
             continue
         k, v = [x.strip() for x in line.split("=", 1)]
-        k = k[len("seasons_zone/"):]
+        k = k[len("seasons_zone/mods/"):]
         off = v.lower() in ("false", "off", "0", "no")
         if k == "stage_textures":
             out["stage_textures"] = not off

@@ -1,11 +1,11 @@
-# The MCM page
+# The MCM pages
 
-Everything is on one page: **MCM → Seasons of the Zone**. There is no HUD element, no
-pop-up and no key binding.
+**MCM → Seasons of the Zone** has three pages, listed in MCM's second column: Seasons,
+Color presets, Seasonal mods. There is no HUD element, no pop-up and no key binding.
 
 ---
 
-## The year dial
+## Seasons
 
 ![The MCM page, showing the year dial](images/mcm-year-dial.png)
 
@@ -25,43 +25,40 @@ Below the dial:
 - **Season** — automatic, or pin one.
 - **Transition length (days)** — the blend window centered on each boundary. 0 switches on
   the date.
-
-## The layers
+- **Intensity** — 0 is GAMMA's stock look, 1 the full season.
 
 ![Per-layer switches and the launch-time section](images/mcm-drive-layers.png)
 
-**Intensity** mixes the season with GAMMA's stock look: 0 is stock, 1 the full season.
-
 Then one switch per layer — color and light, foliage, fog, wind, wetness — so a layer you
-would rather tune yourself can be switched off on its own.
+would rather tune yourself can be switched off on its own, and the PDA message settings.
 
-Below those, one dropdown per season (and one for neutral, what intensity 0 renders)
-picks the `cfg_load` preset that season's color grade comes from: Built-in (the season
-table), Atmospherics' presets, the mod's `Seasons_*` files, or any preset of your own in
-`appdata/`. Takes effect on Apply.
+## Color presets
 
-Below the rule, the launch-time section says what was staged at launch ("Staged for deep
-winter at launch"), because that layer cannot change mid-session. **Swap textures with the
-season** is its master switch: off, the in-engine seasons continue and no texture mod is
-mounted or unmounted.
+One dropdown per season, and one for neutral (what intensity 0 renders). Each picks the
+`cfg_load` preset that season's color grade comes from: Built-in (the season table), the
+mod's own six presets, then every other preset in `appdata/` — Atmospherics' Cold, Neutral
+and Warm, and any you have tuned. Only the grade changes; takes effect on Apply.
 
-## Season-scoped mods
+## Seasonal mods
 
-![The seasonal mod list, grouped by season with colored headers](images/mcm-seasonal-mods.png)
+![The seasonal mod list, grouped by season with coloured headers](images/mcm-seasonal-mods.png)
 
-Every mod named in `seasons_config.py` appears here, grouped under its first season behind
-a colored bar, with the group's mod count and total size. Switching a mod off here means
-"never mount this", and the choice persists.
+The launch-time layers, which cannot change mid-session. The page says what was staged at
+launch ("Staged for deep winter at launch"). **Swap textures with the season** is the
+texture layer's master switch: off, the in-engine seasons continue and no texture mod is
+mounted or unmounted. **Gate ambient sound by season** is the soundscape's.
 
-The entries shown are third-party texture packs (I.N.V.E.R.N.O, PanceRide and others).
-None of them are included in this mod.
-
-## Hover text
+Every mod named in `seasons_config.py` appears below, grouped under its first season
+behind a colored bar, with the group's mod count and total size. Switching a mod off here
+means "never mount this", and the choice persists.
 
 ![Hover help explaining the ambient sound gating](images/mcm-hover-help.png)
 
 Every option has hover text. For the generated entries it gives the mod's size and whether
-it is mounted now. The ambient-gating text lists exactly what is silenced in each season.
+it is mounted now.
+
+The entries shown are third-party texture packs (I.N.V.E.R.N.O, PanceRide and others).
+None of them are included in this mod.
 
 ---
 
