@@ -244,6 +244,17 @@ def _display(name):
     return name[:i] if i > 0 and name.endswith(")") else name
 
 
+def _drop_season(name):
+    """"Grass and Trees - Summer" -> "Grass and Trees". Every season has its own MCM
+    page, so a season in the mod's own name is said twice on screen."""
+    low = name.lower()
+    for s in SEASONS:
+        tail = " - " + season_label(s)
+        if low.endswith(tail):
+            return name[:-len(tail)]
+    return name
+
+
 def season_label(s):
     return "deep winter" if s == "winter_snow" else s
 
@@ -505,6 +516,20 @@ def write_mod_panel(season, prefs=None):
     rows.sort(key=lambda r: (SEASONS.index(r["seasons"][0]), r["name"].lower()))
     for r in rows:
         r["group"] = r["seasons"][0]
+        r["caption"] = _drop_season(r["name"])
+
+    # Dropping the season can leave two mods on one page reading alike - a user may
+    # well have "<something> - Winter" and "<something> - Deep winter" both in winter.
+    # Where that happens, both keep their full names.
+    for season in SEASONS:
+        by_caption = {}
+        for r in rows:
+            if season in r["seasons"]:
+                by_caption.setdefault(r["caption"], []).append(r)
+        for clash in by_caption.values():
+            if len(clash) > 1:
+                for r in clash:
+                    r["caption"] = r["name"]
 
     _ssrc = _sound_src_dir()
     sound_have = bool(_ssrc) and os.path.isdir(_ssrc)
@@ -554,10 +579,9 @@ def write_mod_panel(season, prefs=None):
     for r in rows:
         seas = " and ".join(season_label(s) for s in r["seasons"])
         mb = ("{:,.1f}".format(r["mb"]) if r["mb"] < 10 else "{:,.0f}".format(r["mb"]))
-        desc = ("%s. %s files, %s MB. Untick it on a season's page to leave it out there."
+        desc = ("%s. %s files, %s MB. Untick to leave it out of this season."
                 % (cap_first(seas), "{:,}".format(r["files"]), mb))
-        extra = [season_label(s) for s in r["seasons"][1:]]
-        caption = r["name"] + ("   + %s" % " and ".join(extra) if extra else "")
+        caption = r["caption"]
         x += ['\t<string id="ui_mcm_seasons_zone_mod_%s"><text>%s</text></string>'
               % (r["key"], _xml_escape(caption)),
               '\t<string id="ui_mcm_seasons_zone_mod_%s_desc"><text>%s</text></string>'

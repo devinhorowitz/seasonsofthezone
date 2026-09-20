@@ -54,7 +54,7 @@ The values are in `gamedata/configs/seasons_of_the_zone.ltx`, one section per se
 tables and regenerate rather than editing the file.
 
 A `cfg_load` preset is a text file of console commands in `appdata/`. With a preset
-chosen for a season on the MCM page, the mod reads it when the table is loaded and again
+chosen for a season on its own page, the mod reads it when the table is loaded and again
 on Apply, and replaces that season's twelve grade commands with the preset's values before
 blending. Presets are found by listing `appdata/` (`user.ltx` excluded) and the mod's own
 folder.
@@ -97,13 +97,13 @@ owns a file. See [CONFIGURING.md](CONFIGURING.md).
 
 ---
 
-## How the tooling talks to the MCM page
+## How the tooling talks to the MCM pages
 
 `season.py` runs before the game exists, so it reads MCM's own store: MCM saves every
 setting through `axr_main.config` into `gamedata/configs/axr_options.ltx`, under `[mcm]`,
 one line per option as `<tree>/<page>/<option> = <value>` — the launch-time switches are
-`seasons_zone/mods/stage_textures`, `seasons_zone/mods/stage_sound` and
-`seasons_zone/mods/mod_<name>`. MO2 maps that path to the mod that owns
+`seasons_zone/main/stage_textures` and `seasons_zone/main/stage_sound`, and a mod's
+per-season tick is `seasons_zone/<season>/mod_<name>`. MO2 maps that path to the mod that owns
 it (on GAMMA, "G.A.M.M.A. MCM values"). It is plain text, so a switch set in the menu is
 readable at the next launch.
 
@@ -117,8 +117,8 @@ Three files go the other way, written by `season.py` and read by the mod:
 
 They ship empty and are rewritten at every launch. Do not edit them.
 
-The MCM page is built from that list, which is why a mod added to `TOGGLE_MODS` appears in
-the menu by itself.
+The season pages are built from that list, which is why a mod added to `TOGGLE_MODS`
+appears in the menu by itself.
 
 ## MCM details
 

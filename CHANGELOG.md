@@ -1,14 +1,25 @@
 # Changelog
 
-## 1.1.0 — 2026-09-19
+## 1.1.0 — 2026-09-20
 
-- The MCM entry is now three pages: Seasons (calendar, dial, the in-engine layers), Color
-  presets, and Seasonal mods (the launch-time layers and the texture-mod list). The
-  launch-time switches are stored under `seasons_zone/mods/`; earlier per-mod choices
-  reset to on.
-- Color presets: one dropdown per season (and neutral) picks the `cfg_load` preset that
-  season's grade comes from — the mod's own six, Atmospherics' Cold/Neutral/Warm, or any
-  preset in `appdata/`. Only the grade changes.
+- Fixed: loading a save crashed with "Cannot find the specified saved game" on a save that
+  was plainly on disk. Listing `appdata/` for presets costs the engine its registry for
+  `appdata/savedgames` underneath it, and MCM builds a mod's page at startup, so this
+  happened on every load, not only after opening the menu. The mod now restores the
+  registry after listing, and the build refuses to package without that repair.
+- The MCM entry is now six pages: Main (calendar, dial, the in-engine layers, the two
+  launch-time switches) and one for each season. A season's page holds its color grade
+  preset, a read-out of the values that season resolves to, and a tick for every texture
+  mod scoped to it.
+- A mod's tick is per-season now, stored as `seasons_zone/<season>/mod_<name>`: a mod used
+  by both winters can be left out of one and kept in the other. The global switches moved
+  to `seasons_zone/main/`; earlier per-mod choices reset to on.
+- Mod captions no longer repeat the season, since each mod is listed on the page of every
+  season it serves: "Grass and Trees - Summer" reads as "Grass and Trees". Two mods that
+  would then read alike on one page keep their full names.
+- Color grade presets: the dropdown on a season's page (and Neutral on Main) picks the
+  `cfg_load` preset that grade comes from — the mod's own six, Atmospherics' Cold/Neutral/
+  Warm, or any preset in `appdata/`. Only the grade changes.
 - The mod ships its six grades as `Seasons_*.ltx` presets; `play.bat` copies them into
   `appdata/` beside Atmospherics' (never overwriting), so they can be `cfg_load`-ed or
   edited in place.

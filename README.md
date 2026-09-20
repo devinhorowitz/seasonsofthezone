@@ -7,7 +7,7 @@ Light, color, fog, wind, wetness, snowfall, and ambient sound change with the da
 blend across each season boundary. Nothing to download beyond this mod, nothing to
 configure.
 
-![The Seasons of the Zone page in MCM, showing the year dial](docs/images/mcm-year-dial.png)
+![The Main page in MCM, showing the year dial](docs/images/mcm-main.png)
 
 *More of the interface: [docs/INTERFACE.md](docs/INTERFACE.md)*
 
@@ -26,7 +26,7 @@ each boundary:
 | Wind | `ssfx_wind_grass`, `ssfx_wind_trees` |
 | Wetness | `ssfx_wetness_multiplier` — spring stays wet after the thaw, summer dries fast |
 
-There is a year dial on the MCM page and a PDA message when you load in.
+There is a year dial on the Main page and a PDA message when you load in.
 
 **Five seasons.** Winter is split in two: in Polesia snow starts falling in November but
 only settles from December to early March.
@@ -94,16 +94,16 @@ If you never use the texture layer, launch however you like.
 
 ## The MCM pages
 
-**Mod Configuration Menu → Seasons of the Zone** has three pages:
+**Mod Configuration Menu → Seasons of the Zone** has six pages: Main, then one for
+each season.
 
-- **Seasons** — the year dial and today's date; the master switch; season (automatic, or
+- **Main** — the year dial and today's date; the master switch; season (automatic, or
   pin one); transition length (0 for a hard switch on the boundary date, 14 by default);
   intensity (0 is GAMMA's stock look, 1 the full season); one switch per layer: color,
-  foliage, fog, wind, and wetness; the PDA message.
-- **Color presets** — one dropdown per season choosing the `cfg_load` preset its color
-  grade comes from.
-- **Seasonal mods** — the launch-time layers: the texture-layer switch, the ambient-sound
-  switch, and every season-scoped mod with its own switch.
+  foliage, fog, wind, and wetness; the two launch-time switches, for textures and
+  ambient sound; the PDA message.
+- **Spring, Summer, Autumn, Winter, Deep winter** — that season's color grade preset,
+  a read-out of the values it resolves to, and a tick for each texture mod scoped to it.
 
 ---
 
@@ -121,11 +121,11 @@ TOGGLE_MODS = {
 }
 ```
 
-Relaunch. The mod is enabled in November and disabled in March, and appears on the MCM
-page under a WINTER heading with its file count and size. Nothing is copied — MO2 just
+Relaunch. The mod is enabled in November and disabled in March, and appears on the Winter
+and Deep winter pages with its file count and size. Nothing is copied — MO2 just
 stops mounting the folder — so an 11 GB texture set costs nothing to switch.
 
-![Season-scoped mods grouped under colored headings in the MCM page](docs/images/mcm-seasonal-mods.png)
+![The Winter page, with a tick for each mod winter uses](docs/images/mcm-season-winter.png)
 
 *The packs shown are third-party texture mods, not included here.*
 
@@ -180,7 +180,7 @@ Point `SOUND_SRC` at the ambience mod that wins your
 season: insects and daytime birds silenced in deep winter, marsh birds from autumn on, wind
 and storms untouched. Crows and owls stay all year.
 
-The gated presets are generated from your own files at launch. Switchable on the MCM page.
+The gated presets are generated from your own files at launch. Switchable on the Main page.
 
 ---
 
@@ -210,7 +210,7 @@ The addon also ships an old `level_weathers.script`. Remove it: the patcher warn
 ## Optional: color grade presets
 
 Each season's color grade can come from a `cfg_load` preset instead of the mod's season
-table: pick one per season on the **Color presets** page. The dropdown lists every preset
+table: pick one on that season's own page. The dropdown lists every preset
 in the game's `appdata/` — Atmospherics' `Atmos_Cold`, `Atmos_Neutral` and `Atmos_Warm`, and any you
 have tuned yourself — plus the mod's own `Seasons_Spring`, `Seasons_Summer`,
 `Seasons_Autumn`, `Seasons_Winter`, `Seasons_DeepWinter` and `Seasons_Neutral`. `play.bat`
@@ -239,7 +239,7 @@ Details and recovery: [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
 
 | | |
 |---|---|
-| [docs/INTERFACE.md](docs/INTERFACE.md) | The MCM page, option by option |
+| [docs/INTERFACE.md](docs/INTERFACE.md) | The MCM pages, option by option |
 | [docs/CONFIGURING.md](docs/CONFIGURING.md) | Making other mods seasonal: fields, commands, troubleshooting |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | The calendar, the blend, the values, the MO2 rule |
 | [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md) | Where everything sits, what must not be enabled together, recovering from a GAMMA update |

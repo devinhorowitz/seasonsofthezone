@@ -286,6 +286,16 @@ local function preset_paths()
         end
     end)
     if not ok then say("!could not list presets in appdata: " .. tostring(err)) end
+
+    -- Listing $app_data_root$ costs the engine its registry for the savedgames
+    -- folder underneath it, and CALifeUpdateManager::load then fatals with "Cannot
+    -- find the specified saved game" on a save that is plainly on disk. MCM calls
+    -- on_mcm_load at startup, so this runs on every load, not only when the menu is
+    -- opened. Listing the leaf puts the registry back.
+    pcall(function()
+        getFS():file_list_open_ex("$game_saves$",
+                                  bit_or(FS.FS_ListFiles, FS.FS_RootOnly), "*.scop")
+    end)
     for _, name in ipairs(SHIPPED) do
         if not paths[name:lower()] then
             local path = getFS():update_path("$game_config$", "seasons_presets\\" .. name .. ".ltx")

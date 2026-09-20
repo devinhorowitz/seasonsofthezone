@@ -1,7 +1,7 @@
 # Configuring the launch-time layers
 
 Everything here is optional. With no configuration you get the whole in-engine layer:
-light, color, foliage, fog, wind, wetness, the dial, the MCM page and the PDA message.
+light, color, foliage, fog, wind, wetness, the dial, the MCM pages and the PDA message.
 
 Configuration adds what cannot change at runtime: swapping texture mods, switching
 season-scoped mods, and gating ambient sound. `_tools/season.py` does that before the game
@@ -51,8 +51,9 @@ TOGGLE_MODS = {
 | `seasons` | Seasons in which the mod is enabled: `spring`, `summer`, `autumn`, `winter`, `winter_snow`. Note the trailing comma in a one-element tuple: `("winter",)`. |
 | `above` | The mod this one must outrank. |
 
-Each mod listed here gets its own switch on the MCM page, under the heading of its first
-season, with its file count and size. Switching it off there means "never mount this".
+Each mod listed here gets its own tick on the page of every season it serves, with its
+file count and size. Unticking it there means "never mount this in that season"; the
+same mod can stay on for another season.
 
 ### Choosing `above`
 
@@ -149,8 +150,8 @@ the next launch. Leave `SOUND_SRC = None` to skip the layer.
 The mod ships its season grades as `cfg_load` presets, `Seasons_*.ltx`, in
 `gamedata/configs/seasons_presets/`. `play.bat` copies them into the game's `appdata/`
 if they are not there, beside Atmospherics' `Atmos_*.ltx`; an existing copy is never
-overwritten, so you can tune them in place. Which preset each season uses is chosen on
-the MCM page, not here.
+overwritten, so you can tune them in place. Which preset a season uses is chosen on that
+season's MCM page, not here.
 
 ---
 
