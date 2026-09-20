@@ -58,18 +58,38 @@ TOGGLE_MODS = {
         "seasons": ("winter", "winter_snow"),
         "above": "282- GAMMA Loading Screens - CS Eden",
     },
-    # PanceRide's Summer and Autumn editions are one mod with the foliage repainted, so
-    # the Zone keeps its shape across the boundary. They share no file with 388; the
-    # anchor works because 388 sits above Atmospherics, SSS 24 and the Aydin base pack.
-    # If 388 ever moves below those, re-anchor these on whichever is highest.
-    "PanceRide Grass and Trees - Summer (seasonal)": {
+    # A pack that ships several seasonal variants of the SAME files is the easy case:
+    # install each variant as its own mod and give it one season here. Only one can
+    # ever be mounted, so they cannot fight each other. C Consciousness ships four -
+    # Spring, Summer, Autumn and Dead - as the same 202 texture paths repainted.
+    #
+    # Its grass placement (23 level.details) does not change with the season, so that
+    # is a separate mod that stays mounted year-round and is not listed here at all.
+    # These four sit below INVERNO, so snow still wins both winters, and above the
+    # Aydin packs, which is what 388 anchors.
+    "CCon Spring (seasonal)": {
+        "seasons": ("spring",),
+        "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
+    },
+    "CCon Summer (seasonal)": {
         "seasons": ("summer",),
         "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
     },
-    "PanceRide Grass and Trees - Autumn (seasonal)": {
+    "CCon Autumn (seasonal)": {
         "seasons": ("autumn",),
         "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
     },
+    # Bare, dead foliage under INVERNO's snow.
+    "CCon Dead (seasonal)": {
+        "seasons": ("winter", "winter_snow"),
+        "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
+    },
+
+    # PanceRide's Summer and Autumn sets were listed here until 2026-09-20, on the same
+    # anchor, until CCon replaced them: two seasons and textures only, against four
+    # seasons plus placement. Swapping one pack for another is editing these entries -
+    # nothing is copied and nothing else has to change.
+
     # Ground fog over standing water: thaw in spring, cool nights over warm water in
     # autumn. Collides with nothing; the anchor only keeps it with the visual mods.
     "Swamp Ground Fog (seasonal)": {

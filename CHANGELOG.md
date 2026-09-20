@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.1 — 2026-09-20
+
+- `seasons_config.example.py` rewritten to read as a worked example rather than one
+  install's notes. The headline case is now a pack that ships several seasonal variants
+  of the same files - install each variant as its own mod, give it one season, and only
+  one can ever be mounted - beside the existing two-season case.
+- Nothing in the mod itself changed.
+
 ## 1.1.0 — 2026-09-20
 
 - Caught before release, in the preset lookup added below: listing `appdata/` costs the
