@@ -204,13 +204,15 @@ The addon also ships an old `level_weathers.script`. Remove it: the patcher warn
 
 ---
 
-## Optional: color grade from presets
+## Optional: color grade presets
 
-The season table carries its own color grade. To take a season's grade from a
-`cfg_load` preset instead — Atmospherics' `Atmos_Warm.ltx` for summer, `Atmos_Cold.ltx`
-for deep winter, or a preset of your own — set `GRADE_PRESETS` in `seasons_config.py`.
-The grade is re-read at each launch, so a refined preset flows through. See
-[docs/CONFIGURING.md](docs/CONFIGURING.md).
+Each season's color grade can come from a `cfg_load` preset instead of the mod's season
+table: pick one per season on the MCM page. The dropdown lists every preset in the game's
+`appdata/` — Atmospherics' `Atmos_Cold`, `Atmos_Neutral` and `Atmos_Warm`, and any you
+have tuned yourself — plus the mod's own `Seasons_Spring`, `Seasons_Summer`,
+`Seasons_Autumn`, `Seasons_Winter`, `Seasons_DeepWinter` and `Seasons_Neutral`. `play.bat`
+copies those six into `appdata/` beside the others, so you can `cfg_load` or edit them
+too. Only the grade changes; fog, wind and wetness stay with the season table.
 
 ---
 

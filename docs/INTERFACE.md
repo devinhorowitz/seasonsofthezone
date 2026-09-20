@@ -35,6 +35,11 @@ Below the dial:
 Then one switch per layer — color and light, foliage, fog, wind, wetness — so a layer you
 would rather tune yourself can be switched off on its own.
 
+Below those, one dropdown per season (and one for neutral, what intensity 0 renders)
+picks the `cfg_load` preset that season's color grade comes from: Built-in (the season
+table), Atmospherics' presets, the mod's `Seasons_*` files, or any preset of your own in
+`appdata/`. Takes effect on Apply.
+
 Below the rule, the launch-time section says what was staged at launch ("Staged for deep
 winter at launch"), because that layer cannot change mid-session. **Swap textures with the
 season** is its master switch: off, the in-engine seasons continue and no texture mod is

@@ -183,6 +183,111 @@ local function circ(delta, len)
     return delta
 end
 
+-- --- color grade presets ------------------------------------------------------------
+--
+-- A cfg_load preset is a text file of console commands in appdata/. Atmospherics ships
+-- Atmos_Cold/Neutral/Warm there; this mod ships Seasons_* (copied in by play.bat, and
+-- read from its own folder until then). A season can take its grade from one of them,
+-- chosen on the MCM page. Only the grade keys change.
+local PRESET_MAP = {
+    r__color_grading      = {"grade_r", "grade_g", "grade_b"},
+    r__saturation         = {"saturation"},
+    r__gamma              = {"gamma"},
+    r__exposure           = {"exposure"},
+    r2_sun_lumscale       = {"sun_lumscale"},
+    r2_sun_lumscale_hemi  = {"sun_lumscale_hemi"},
+    r2_sun_lumscale_amb   = {"sun_lumscale_amb"},
+    r2_tonemap_adaptation = {"tonemap_adaptation"},
+    r2_tonemap_lowlum     = {"tonemap_lowlum"},
+    r2_tonemap_middlegray = {"tonemap_middlegray"},
+    ssfx_hud_hemi         = {"hud_hemi"},
+    r2_sunshafts_value    = {"sunshafts_value"},
+}
+local PRESET_SEASONS = {"spring", "summer", "autumn", "winter", "winter_snow", "neutral"}
+local SHIPPED = {"Seasons_Spring", "Seasons_Summer", "Seasons_Autumn", "Seasons_Winter",
+                 "Seasons_DeepWinter", "Seasons_Neutral"}
+
+-- {key = number} for the grade commands in a preset file, or nil if it has none
+local function read_preset(path)
+    local f = io.open(path, "r")
+    if not f then return nil end
+    local out, any = {}, false
+    for line in f:lines() do
+        local cmd, rest = line:match("^%s*([%w_]+)%s+(.-)%s*$")
+        local keys = cmd and PRESET_MAP[cmd]
+        if keys then
+            local vals = nums(rest)
+            for i, k in ipairs(keys) do
+                if vals[i] then out[k] = vals[i]; any = true end
+            end
+        end
+    end
+    f:close()
+    return any and out or nil
+end
+
+-- {name = path} for every preset on offer, and the names in order with where each came
+-- from. appdata/ first; the mod's own copies only when not already there.
+local function preset_paths()
+    local paths, order = {}, {}
+    local ok, err = pcall(function()
+        local fs = getFS()
+        local flist = fs:file_list_open_ex("$app_data_root$",
+                                           bit_or(FS.FS_ListFiles, FS.FS_RootOnly), "*.ltx")
+        for i = 0, flist:Size() - 1 do
+            local name = flist:GetAt(i):NameFull()
+            local stem = name:match("^(.+)%.ltx$")
+            if stem and name:lower() ~= "user.ltx" then
+                local path = fs:update_path("$app_data_root$", name)
+                if read_preset(path) then
+                    paths[stem] = path
+                    order[#order + 1] = {stem, "appdata"}
+                end
+            end
+        end
+    end)
+    if not ok then say("!could not list presets in appdata: " .. tostring(err)) end
+    for _, stem in ipairs(SHIPPED) do
+        if not paths[stem] then
+            local path = getFS():update_path("$game_config$", "seasons_presets\\" .. stem .. ".ltx")
+            if read_preset(path) then
+                paths[stem] = path
+                order[#order + 1] = {stem, "mod"}
+            end
+        end
+    end
+    table.sort(order, function(a, b) return a[1]:lower() < b[1]:lower() end)
+    return paths, order
+end
+
+-- The MCM dropdown: {{value, label}, ...}, "builtin" first.
+function preset_choices()
+    local _, order = preset_paths()
+    local out = {{"builtin", "Built-in (season table)"}}
+    for _, e in ipairs(order) do
+        out[#out + 1] = {e[1], e[1] .. (e[2] == "mod" and "  (mod)" or "")}
+    end
+    return out
+end
+
+-- Replace each season's grade keys with its chosen preset, if one is chosen.
+local function overlay_presets(tbl)
+    local paths
+    for _, s in ipairs(PRESET_SEASONS) do
+        local sel = mcm("preset_" .. s, "builtin")
+        if sel and sel ~= "builtin" and tbl[s] then
+            paths = paths or preset_paths()
+            local vals = paths[sel] and read_preset(paths[sel])
+            if vals then
+                for k, v in pairs(vals) do tbl[s][k] = v end
+                say("grade for " .. s .. " from preset " .. sel)
+            else
+                say("!preset " .. sel .. " chosen for " .. s .. " not found - using the table")
+            end
+        end
+    end
+end
+
 local function load_table()
     local ini = ini_file(CFG)
     if not ini then return nil end
@@ -205,6 +310,7 @@ local function load_table()
             end
         end
     end
+    overlay_presets(out)
     return out
 end
 
@@ -623,6 +729,7 @@ local function on_option_change()
     -- SSS re-pushes its own MCM values here; land after them
     CreateTimeEvent("seasons_zone", "reapply", 0.5, function()
         dead, fails = {}, {}         -- MCM changed: give a refused uniform a fresh chance
+        P = load_table() or P        -- a preset choice may have changed
         apply(true)
         return true
     end)

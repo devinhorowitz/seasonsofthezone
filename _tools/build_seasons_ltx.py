@@ -227,6 +227,33 @@ HEADER = """; Seasons of the Zone - season table
 """
 
 
+CRLF = chr(13) + chr(10)
+
+# The same grades as cfg_load presets, so they can be picked per season on the MCM page,
+# cfg_load-ed by hand, or edited in appdata/ beside Atmospherics' own.
+PRESET_NAME = {"spring": "Seasons_Spring", "summer": "Seasons_Summer",
+               "autumn": "Seasons_Autumn", "winter": "Seasons_Winter",
+               "winter_snow": "Seasons_DeepWinter", "neutral": "Seasons_Neutral"}
+
+
+def preset_text(vals):
+    """A cfg_load preset: one console command per line, vectors in parentheses."""
+    lines = []
+    for var, keys in GRADE_MAP:
+        nums = ["%s" % vals[k] for k in keys]
+        lines.append(var + " " + ("(" + ", ".join(nums) + ")" if len(nums) > 1 else nums[0]))
+    return CRLF.join(lines) + CRLF
+
+
+def write_presets(grade, neutral, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+    for s in SEASONS + ["neutral"]:
+        vals = neutral if s == "neutral" else grade[s]
+        io.open(os.path.join(out_dir, PRESET_NAME[s] + ".ltx"), "w", encoding="cp1251",
+                newline="").write(preset_text(vals))
+    return len(PRESET_NAME)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=OUT)
@@ -267,6 +294,8 @@ def main():
     io.open(a.out, "w", encoding="cp1251", newline="").write(body)
     print("  wrote %s" % a.out)
     print("  %d seasons x %d keys" % (len(SEASONS), len(ORDER)))
+    pdir = os.path.join(os.path.dirname(os.path.abspath(a.out)), "seasons_presets")
+    print("  wrote %d presets to %s" % (write_presets(grade, neutral, pdir), pdir))
 
 
 if __name__ == "__main__":

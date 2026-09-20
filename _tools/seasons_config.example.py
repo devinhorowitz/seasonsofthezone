@@ -9,10 +9,6 @@ add the launch-time layers, which use mods you install yourself.
                  mods that ship one folder per season. Gigabytes move; prefer TOGGLE_MODS.
   SOUND_SRC      the ambience mod whose presets are gated by season. Must be the mod
                  that wins those files.
-  GRADE_PRESETS  {season or "neutral": cfg preset file}. The season's color grade is
-                 taken from that preset at each launch instead of the shipped table.
-                 Presets are found in the game's appdata/ or in an enabled mod's
-                 appdata/ folder (Atmospherics ships Atmos_Cold/Neutral/Warm there).
 """
 
 # mod folder -> archive in downloads/, and per season the option folders to overlay
@@ -95,14 +91,3 @@ TOGGLE_MODS = {
 }
 
 SOUND_SRC = "304- Dark Signal Weather and Ambiance Audio - Shrike"
-
-# The presets the shipped table was tuned in. With these set, retuning a preset in
-# appdata/ changes the season at the next launch.
-GRADE_PRESETS = {
-    "spring": "Atmos_Spring.ltx",
-    "summer": "Atmos_Summer.ltx",
-    "autumn": "Atmos_Autumn.ltx",
-    "winter": "Atmos_Winter.ltx",
-    "winter_snow": "Atmos_WinterSnow.ltx",
-    "neutral": "Atmos_Neutral.ltx",
-}

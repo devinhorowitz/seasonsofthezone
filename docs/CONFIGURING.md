@@ -144,24 +144,13 @@ the next launch. Leave `SOUND_SRC = None` to skip the layer.
 
 ---
 
-## `GRADE_PRESETS`
+## Presets
 
-```python
-GRADE_PRESETS = {
-    "summer": "Atmos_Warm.ltx",        # Atmospherics' own, from its appdata/ folder
-    "winter_snow": "Atmos_Cold.ltx",
-    "neutral": "Atmos_Neutral.ltx",
-}
-```
-
-A season (or `neutral`, what intensity 0 renders) can take its color grade from a
-`cfg_load` preset instead of the shipped table. The file is looked up in the game's
-`appdata/`, then in each enabled mod's `appdata/` folder (Atmospherics ships `Atmos_Cold`,
-`Atmos_Neutral` and `Atmos_Warm` there), or given as an absolute path.
-
-At each launch the grade keys of `seasons_of_the_zone.ltx` are rewritten from the
-presets; fog, wind, wetness and any hand edits are left alone. Seasons not listed keep
-the table. Leave it `None` to use the table for everything.
+The mod ships its season grades as `cfg_load` presets, `Seasons_*.ltx`, in
+`gamedata/configs/seasons_presets/`. `play.bat` copies them into the game's `appdata/`
+if they are not there, beside Atmospherics' `Atmos_*.ltx`; an existing copy is never
+overwritten, so you can tune them in place. Which preset each season uses is chosen on
+the MCM page, not here.
 
 ---
 

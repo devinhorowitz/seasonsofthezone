@@ -49,8 +49,15 @@ engine's.
 foliage red and blue.
 
 The values are in `gamedata/configs/seasons_of_the_zone.ltx`, one section per season plus
-`[neutral]`. `_tools/build_seasons_ltx.py` generates that file from its tables and also
-supplies the dial's colors; edit the tables and regenerate rather than editing the file.
+`[neutral]`. `_tools/build_seasons_ltx.py` generates that file from its tables, the six
+`Seasons_*.ltx` presets in `configs/seasons_presets/`, and the dial's colors; edit the
+tables and regenerate rather than editing the file.
+
+A `cfg_load` preset is a text file of console commands in `appdata/`. With a preset
+chosen for a season on the MCM page, the mod reads it when the table is loaded and again
+on Apply, and replaces that season's twelve grade commands with the preset's values before
+blending. Presets are found by listing `appdata/` (`user.ltx` excluded) and the mod's own
+folder.
 
 ## Out-of-range values
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0 — 2026-09-19
+
+- Color grade presets on the MCM page: one dropdown per season (and neutral) picks the
+  `cfg_load` preset that season's grade comes from — Atmospherics' own, the mod's
+  `Seasons_*` files, or any preset in `appdata/`. Only the grade changes.
+- The mod ships its six grades as `Seasons_*.ltx` presets; `play.bat` copies them into
+  `appdata/` beside Atmospherics' (never overwriting), so they can be `cfg_load`-ed or
+  edited in place.
+- `GRADE_PRESETS` from 1.0.3 is gone; the dropdowns replace it.
+
 ## 1.0.3 — 2026-09-19
 
 - `GRADE_PRESETS` in `seasons_config.py`: a season's color grade can be taken from a

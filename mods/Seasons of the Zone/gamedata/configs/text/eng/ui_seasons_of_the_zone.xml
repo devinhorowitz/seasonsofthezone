@@ -149,4 +149,17 @@
 		<text>Season calendar unavailable - the main script did not load.</text>
 	</string>
 
+	<string id="ui_mcm_seasons_zone_desc_presets"><text>Color grade presets. Each season can take its color grade from a cfg preset in appdata - Atmospherics' own, the mod's Seasons_* files, or one you tuned - instead of the season table. Only the grade changes. Takes effect on Apply.</text></string>
+	<string id="ui_mcm_seasons_zone_preset_spring"><text>Spring preset</text></string>
+	<string id="ui_mcm_seasons_zone_preset_spring_desc"><text>The preset whose color grade spring uses. Built-in is the season table. Files marked (mod) are the mod's own, read from its folder until play.bat copies them into appdata.</text></string>
+	<string id="ui_mcm_seasons_zone_preset_summer"><text>Summer preset</text></string>
+	<string id="ui_mcm_seasons_zone_preset_summer_desc"><text>The preset whose color grade summer uses. Built-in is the season table. Files marked (mod) are the mod's own, read from its folder until play.bat copies them into appdata.</text></string>
+	<string id="ui_mcm_seasons_zone_preset_autumn"><text>Autumn preset</text></string>
+	<string id="ui_mcm_seasons_zone_preset_autumn_desc"><text>The preset whose color grade autumn uses. Built-in is the season table. Files marked (mod) are the mod's own, read from its folder until play.bat copies them into appdata.</text></string>
+	<string id="ui_mcm_seasons_zone_preset_winter"><text>Winter preset</text></string>
+	<string id="ui_mcm_seasons_zone_preset_winter_desc"><text>The preset whose color grade winter uses. Built-in is the season table. Files marked (mod) are the mod's own, read from its folder until play.bat copies them into appdata.</text></string>
+	<string id="ui_mcm_seasons_zone_preset_winter_snow"><text>Deep winter preset</text></string>
+	<string id="ui_mcm_seasons_zone_preset_winter_snow_desc"><text>The preset whose color grade deep winter uses. Built-in is the season table. Files marked (mod) are the mod's own, read from its folder until play.bat copies them into appdata.</text></string>
+	<string id="ui_mcm_seasons_zone_preset_neutral"><text>Neutral preset</text></string>
+	<string id="ui_mcm_seasons_zone_preset_neutral_desc"><text>The preset whose color grade intensity 0 uses. Built-in is the season table. Files marked (mod) are the mod's own, read from its folder until play.bat copies them into appdata.</text></string>
 </string_table>

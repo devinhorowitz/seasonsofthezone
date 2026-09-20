@@ -86,7 +86,7 @@ def profile_name():
 
 
 APPDATA = os.path.join(game_dir(), "appdata")
-MOD_LTX = os.path.join(MODS, SOTZ, "gamedata", "configs", "seasons_of_the_zone.ltx")
+PRESET_DIR = os.path.join(MODS, SOTZ, "gamedata", "configs", "seasons_presets")
 
 # Install-specific configuration lives in seasons_config.py. Missing or empty is fine:
 # the in-engine layer runs with nothing staged.
@@ -95,9 +95,8 @@ try:
     LAYOUT = getattr(_cfg, "LAYOUT", {})
     TOGGLE_MODS = getattr(_cfg, "TOGGLE_MODS", {})
     SOUND_SRC = getattr(_cfg, "SOUND_SRC", None)
-    GRADE_PRESETS = getattr(_cfg, "GRADE_PRESETS", None)
 except ImportError:
-    LAYOUT, TOGGLE_MODS, SOUND_SRC, GRADE_PRESETS = {}, {}, None, None
+    LAYOUT, TOGGLE_MODS, SOUND_SRC = {}, {}, None
 
 
 def _validate_config():
@@ -157,17 +156,6 @@ def _validate_config():
 
     if SOUND_SRC is not None and (not isinstance(SOUND_SRC, str) or not SOUND_SRC):
         problems.append("SOUND_SRC must be None or a mod folder name")
-
-    if GRADE_PRESETS is not None:
-        if not isinstance(GRADE_PRESETS, dict):
-            problems.append("GRADE_PRESETS must be None or a dict of {season: preset file}")
-        else:
-            for k, v in GRADE_PRESETS.items():
-                if k not in SEASONS and k != "neutral":
-                    problems.append("GRADE_PRESETS: unknown key %r - valid: %s, neutral"
-                                    % (k, valid))
-                if not isinstance(v, str) or not v:
-                    problems.append("GRADE_PRESETS[%r] must be a preset filename or path" % k)
 
     if problems:
         raise SystemExit("  seasons_config.py needs fixing before anything runs:\n"
@@ -611,68 +599,25 @@ MET = [("winter_snow", 12, 1), ("spring", 3, 1), ("summer", 6, 1),
 FLORA_MOD = "Season Flora"
 
 
-# --- color grade from cfg presets -------------------------------------------------------
+# --- color grade presets ----------------------------------------------------------------
 #
-# The mod's season table carries its own grade values. GRADE_PRESETS lets a season (or
-# "neutral") take its grade from a cfg_load preset instead - Atmospherics' own, or your
-# tuned ones - so that when the preset changes, the season follows at the next launch.
-# Only the grade keys are rewritten; fog, wind, wetness and comments stay as they are.
-def _preset_path(name):
-    """A preset by absolute path, or by filename in the game's appdata/ or an enabled
-    mod's appdata/ folder, highest priority first."""
-    if os.path.isabs(name):
-        return name if os.path.isfile(name) else None
-    p = os.path.join(APPDATA, name)
-    if os.path.isfile(p):
-        return p
-    for l in _modlist_lines() or []:
-        if l[:1] == "+":
-            p = os.path.join(MODS, l[1:], "appdata", name)
-            if os.path.isfile(p):
-                return p
-    return None
-
-
-def apply_presets(write):
-    """Rewrite the grade keys of the season table from GRADE_PRESETS. Returns the sections
-    whose values differ from the presets (and were rewritten, if `write`)."""
-    if not GRADE_PRESETS or not os.path.isfile(MOD_LTX):
-        return []
-    import build_seasons_ltx as bsl
-    grades = {}
-    for section, name in GRADE_PRESETS.items():
-        p = _preset_path(name)
-        if not p:
-            print("  ! GRADE_PRESETS[%r]: %s not found in appdata/ or any enabled mod's"
-                  " appdata/ - skipped" % (section, name))
-            continue
-        grades[section] = bsl.scan_preset(p)
-
-    raw = io.open(MOD_LTX, encoding="cp1251", errors="replace", newline="").read()
-    nl = _detect_nl(raw)
-    lines = raw.split(nl)
-    changed, cur = set(), None
-    for i, l in enumerate(lines):
-        s = l.strip()
-        m = re.match(r"^\[([a-z_]+)\]$", s)
-        if m:
-            cur = m.group(1)
-            continue
-        if cur not in grades or "=" not in s or s.startswith(";"):
-            continue
-        k, v = [x.strip() for x in s.split("=", 1)]
-        if k not in grades[cur]:
-            continue
-        try:
-            same = abs(float(v) - grades[cur][k]) < 1e-6
-        except ValueError:
-            same = False
-        if not same:
-            lines[i] = "%-22s = %s" % (k, grades[cur][k])
-            changed.add(cur)
-    if changed and write:
-        io.open(MOD_LTX, "w", encoding="cp1251", newline="").write(nl.join(lines))
-    return [s for s in list(SEASONS) + ["neutral"] if s in changed]
+# The mod ships its season grades as cfg_load presets (Seasons_*.ltx). They are copied
+# into the game's appdata/ beside Atmospherics' Atmos_*.ltx, so they can be picked per
+# season on the MCM page, cfg_load-ed by hand, or edited in place. An existing copy is
+# never overwritten.
+def install_presets(write):
+    """Returns (shipped names, names already in appdata, names copied this run)."""
+    if not os.path.isdir(PRESET_DIR):
+        return [], [], []
+    shipped = sorted(f for f in os.listdir(PRESET_DIR) if f.lower().endswith(".ltx"))
+    present = [f for f in shipped if os.path.isfile(os.path.join(APPDATA, f))]
+    copied = []
+    if write and os.path.isdir(APPDATA):
+        for f in shipped:
+            if f not in present:
+                shutil.copy2(os.path.join(PRESET_DIR, f), os.path.join(APPDATA, f))
+                copied.append(f)
+    return shipped, present, copied
 
 
 def season_for(d, mapping="pheno"):
@@ -1100,11 +1045,11 @@ def main():
                  "   (source mod disabled - overrides removed)"
                  if (SOUND_SRC and not _mod_enabled(SOUND_SRC)) else
                  "" if prefs["stage_sound"] else "   (gating switched off in MCM)"))
-        stale_grade = apply_presets(write=False)
-        if GRADE_PRESETS:
-            print("  color grade   from presets: %s%s"
-                  % (", ".join(sorted(GRADE_PRESETS)),
-                     "   (%s out of date)" % ", ".join(stale_grade) if stale_grade else ""))
+        shipped, present, copied = install_presets(writing)
+        if shipped:
+            print("  presets        %d shipped, %d in appdata%s"
+                  % (len(shipped), len(present) + len(copied),
+                     "   (copied: %s)" % ", ".join(copied) if copied else ""))
         print()
 
         # With the texture layer off, whatever is staged stays.
@@ -1117,9 +1062,7 @@ def main():
             sound_ok = sound_now == want
         else:
             sound_ok = sound_now is None
-        grade_ok = not stale_grade
-
-        if tex_ok and grade_ok and sound_ok:
+        if tex_ok and sound_ok:
             # Toggles are checked even when nothing else moved: a newly installed
             # season-scoped mod is absent from the modlist until something inserts it.
             tg = apply_toggles(want, not writing, prefs)
@@ -1143,8 +1086,6 @@ def main():
         if not tex_ok:
             print("  => textures: %s" % " and ".join(
                 "%s %s -> %s" % (m.split(" ")[0], installed[m] or "?", want) for m in LAYOUT))
-        if not grade_ok:
-            print("  => grade   : presets changed for %s" % ", ".join(stale_grade))
         if not sound_ok:
             print("  => sound   : %s -> %s" % (sound_now or "?", want))
 
@@ -1177,11 +1118,6 @@ def main():
             if bad:
                 raise SystemExit("  aborted - %s" % bad[:3])
             done.append("textures")
-
-        if not grade_ok:
-            ch = apply_presets(write=True)
-            print("  %-64s %s" % ("color grade <- presets: " + ", ".join(ch), "WRITTEN"))
-            done.append("grade")
 
         if not sound_ok:
             src_live = bool(_ssrc) and os.path.isdir(_ssrc)

@@ -168,6 +168,18 @@ function on_mcm_load()
     add({id = "do_wind",  type = "check", val = 1, def = true})
     add({id = "do_wet",   type = "check", val = 1, def = true})
 
+    -- Color grade presets: one dropdown per season, listing every cfg preset in appdata
+    -- (Atmospherics' and your own) plus the mod's shipped ones. Labels are file names,
+    -- so no_str shows them as they are.
+    add({id = "line_presets", type = "line"})
+    add({id = "desc_presets", type = "desc", text = "ui_mcm_seasons_zone_desc_presets"})
+    local okp, choices = pcall(function() return zzz_seasons_of_the_zone.preset_choices() end)
+    if not (okp and choices) then choices = {{"builtin", "Built-in (season table)"}} end
+    for _, s in ipairs({"spring", "summer", "autumn", "winter", "winter_snow", "neutral"}) do
+        add({id = "preset_" .. s, type = "list", val = 0, def = "builtin",
+             no_str = true, content = choices})
+    end
+
     add({id = "line2", type = "line"})
 
     add({id = "desc_mods", type = "desc", text = "ui_mcm_seasons_zone_desc_mods"})
