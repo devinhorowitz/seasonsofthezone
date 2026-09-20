@@ -128,6 +128,17 @@ local UNIFORMS = {
      keys = {"wet_buildup", "wet_dry"}, pad = 1},
 }
 
+-- Dynamic Tonemap Extended (a stock-GAMMA opt-in, off by default) drives these five on a
+-- timer of 60/time_factor seconds. Two writers on one console value is a visible pulse -
+-- it pushes, we re-assert, it pushes - and no modlist position can fix a fight between
+-- scripts. So while its module is loaded these five are its, and the log says so once.
+-- Referencing the global is safe: Anomaly resolves an unknown script name to nil.
+local DTE_OWNS = {
+    r2_tonemap_adaptation = true, r2_tonemap_lowlum = true, r2_tonemap_middlegray = true,
+    r2_sun_lumscale_amb = true, r2_sun_lumscale_hemi = true,
+}
+local dte_said   = false
+
 local P          = nil   -- P[season][key] = number, loaded from the ltx
 local want       = nil   -- resolved command list for the current blend
 -- What apply() last resolved: {mode, season}. The MCM panel needs this and cannot work it
@@ -437,8 +448,14 @@ end
 -- Resolve every uniform to a concrete command for the current blend.
 local function build(from, to, k, intensity, layers)
     local out, clamped = {}, {}
+    local dte = (dynamic_tonemap ~= nil)
+    if dte and not dte_said then
+        dte_said = true
+        say("Dynamic Tonemap Extended is loaded - leaving tonemap adaptation/lowlum/"
+            .. "middlegray and sun lumscale amb/hemi to it (5 of 12 grade uniforms)")
+    end
     for _, u in ipairs(UNIFORMS) do
-        if layers[u.layer] then
+        if layers[u.layer] and not (dte and DTE_OWNS[u.name]) then
             local parts, n
             if u.const then
                 parts, n = {}, #u.const
@@ -494,10 +511,18 @@ local function enforce()
                     fails[u.name] = (fails[u.name] or 0) + 1
                     if fails[u.name] >= GIVE_UP then
                         dead[u.name] = true
-                        say("!" .. u.name .. " REFUSED by the engine " .. GIVE_UP
-                            .. "x running - " .. u.val .. " is out of range. Search this log"
-                            .. " for: Invalid syntax in call to " .. u.name
-                            .. " . Not retrying it this session.")
+                        if q(u.name) == nil then
+                            -- No readback at all: the command does not exist in this
+                            -- engine build. An older or non-modded exe, not a bad value.
+                            say("!" .. u.name .. " is not a console command in this engine"
+                                .. " build - GAMMA's Modded Exes (DX11) are required for it."
+                                .. " Not retrying it this session.")
+                        else
+                            say("!" .. u.name .. " REFUSED by the engine " .. GIVE_UP
+                                .. "x running - " .. u.val .. " is out of range. Search this log"
+                                .. " for: Invalid syntax in call to " .. u.name
+                                .. " . Not retrying it this session.")
+                        end
                     end
                 end
             end

@@ -101,6 +101,9 @@ TOGGLE_MODS = {
     # matching season. Aydin remains the sole source for spring and both winters, where
     # PanceRide has no edition. The SSS terrain LOD patch has ZERO overlap and survives
     # intact.
+    # INVARIANT: these two share ZERO files with their anchor. The anchor works only
+    # because 388 sits above Atmospherics, SSS 24 and the Aydin base pack (289). If 388
+    # ever moves below any of those, re-anchor PanceRide on whichever of them is highest.
     "PanceRide Grass and Trees - Summer (seasonal)": {
         "seasons": ("summer",),
         "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
@@ -136,9 +139,13 @@ TOGGLE_MODS = {
     # textures and not one byte-identical - and the higher one wins. Anchoring on the
     # lower one alone put this BELOW Global Map Rework, so the snow maps never rendered
     # and the toggle looked broken while the modlist flag was flipping correctly.
+    # ...AND above INVERNO Winter Textures, which ships its own near-greyscale
+    # textures/ui/ui_global_map.dds and is on in the same seasons. Anchoring on the map mod
+    # alone put this below INVERNO, so the coloured winter global map never showed. No
+    # enabled mod above INVERNO ships any of these files, so the higher anchor costs nothing.
     "Winter PDA Maps (seasonal)": {
         "seasons": ("winter", "winter_snow"),
-        "above": "358- Global Map Rework - DeadEnvoy",
+        "above": "INVERNO Partly Snowy (winter only)",
     },
 }
 

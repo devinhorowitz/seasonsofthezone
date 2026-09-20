@@ -15,11 +15,32 @@ WHY A SCRIPT AND NOT THE FINISHED FILE
   patched copy would be redistributing their work, so this ships the changes instead
   and applies them to the copy you already installed.
 
+WHICH COPY
+  The standalone "Snowfall (light + Dynamic Fog)" addon. The v1.08.4 FOMOD's "Light
+  Snowfall" / "Heavy Snowfall" options install a cut-down script with no seed, leaf or
+  fog particles; the seasonal layer keys on those, so this refuses that copy rather
+  than produce a script that fails at load.
+
+WHERE IT SITS, AND WHAT TO REMOVE FROM IT FIRST
+  Position in MO2 does not matter: yawm_snowfall.script is shipped by nothing else, and
+  the gate finds Seasons of the Zone by global name, not by priority. Keep the module
+  ENABLED all year and never season-toggle it - its particles are created when the
+  script loads and the gate decides what plays.
+  INVERNO's standalone download ALSO ships gamedata/scripts/level_weathers.script, an
+  older fork of the weather manager. From wherever MO2 drops the folder it beats the
+  base game's copy, and above your weather mod it beats that too - silently: no crash,
+  no log line, dead weather options in MCM. No placement fixes it; the file has to go.
+  This script warns when it sees one, and --disable-weathers renames it out of the way.
+  Verify with:  python _tools/season.py whowins scripts/level_weathers.script
+  Only your weather mod, or no mod at all, may appear.
+
 USE
     python apply_seasonal_snowfall.py
         find the script under mods/ and patch it
     python apply_seasonal_snowfall.py "<path to yawm_snowfall.script>"
         patch one named file
+    python apply_seasonal_snowfall.py --disable-weathers
+        also rename level_weathers.script beside it to .disabled
     python apply_seasonal_snowfall.py --revert
         put the original back from the .orig backup
 
@@ -29,6 +50,7 @@ USE
 """
 import io
 import os
+import re
 import shutil
 import sys
 
@@ -39,9 +61,12 @@ A_HEADER = "function on_game_start()"
 A_UPDATE = "function actor_on_update()"
 A_HOOK = 'switch_particles(weather_to_particles[weather], inside_pos, is_inside)'
 
-BANNER = """\
---==============================================================================================
--- MODIFIED FOR "Seasons of the Zone" - the ONLY change is a seasonal gate.
+# Every particle local the seasonal tables key on. A copy that does not declare all of
+# them would take the patch cleanly and then die at load with "table index is nil".
+NEEDS = ['snow_particle_dust', 'snow_particle_flakes', 'snow_particle_fog1', 'snow_particle_fog2', 'snow_particle_fog3', 'snow_particle_front', 'snow_particle_heavy', 'snow_particle_leaves', 'snow_particle_light', 'snow_particle_rainl', 'snow_particle_rainr', 'snow_particle_seed1', 'snow_particle_seed2', 'snow_particle_storm']
+
+BANNER = r"""--==============================================================================================
+-- MODIFIED FOR "Seasons of the Zone" - a seasonal layer is inserted; nothing original is removed.
 --
 -- As shipped this snows whenever the WEATHER matches, with no notion of season:
 --     weather_to_particles[level.get_weather()]
@@ -52,14 +77,13 @@ BANNER = """\
 --
 -- If Seasons of the Zone is absent the gate is inert and this behaves exactly as shipped.
 --
--- level_weathers.script, which this addon also ships, is DELIBERATELY NOT INSTALLED:
--- INVERNO's copy is an older fork missing Atmospherics' weather weights, progression
--- matrix and MCM starting-weather work.
+-- If this addon's download also shipped level_weathers.script, that file must NOT be
+-- mounted above your weather-manager mod: it is an older fork of the weather manager
+-- and replaces the newer one silently. Remove it. See apply_seasonal_snowfall.py.
 --==============================================================================================
 """
 
-HELPERS = """\
-local function seasons_weight()
+HELPERS = r"""local function seasons_weight()
     if not (zzz_seasons_of_the_zone and zzz_seasons_of_the_zone.snow_factor) then
         return 1.0                      -- standalone: behave exactly as shipped
     end
@@ -130,8 +154,7 @@ local SEASON_OF = {
     -- winter 2.4 > spring 2.2 > summer 1.4):
     [snow_particle_fog1] = {"spring", "autumn"},              -- mist: thaw and radiation fog
     [snow_particle_fog2] = {"summer"},                        -- airborne dust: dry air only
-    -- fog3 (lanforse
-og_light) is REMOVED, not season-gated. It was the last particle
+    -- fog3 (lanforse/fog_light) is REMOVED, not season-gated. It was the last particle
     -- playing in clear skies and the one that still read as flurries. It is a PARTICLE
     -- haze, and this mod already drives real volumetric fog per season through ssfx_fog
     -- (autumn 20/3.0/0.08, deep winter 14/2.9/0.010) - so it was duplicating, in a worse
@@ -189,7 +212,7 @@ end
 
 
 def _nl(raw):
-    """Match the file's own line endings; a mod folder can hold either."""
+    """Match the file's own dominant line ending; a mod folder can hold either."""
     crlf = chr(13) + chr(10)
     return crlf if crlf in raw else chr(10)
 
@@ -217,6 +240,26 @@ def _find():
     return None
 
 
+def warn_weathers(path, disable=False):
+    """The one genuine load-order hazard, see the header. Returns True if present."""
+    lw = os.path.join(os.path.dirname(path), "level_weathers.script")
+    if not os.path.isfile(lw):
+        return False
+    if disable:
+        os.replace(lw, lw + ".disabled")
+        print("  disabled  %s" % lw)
+        print("            (renamed to .disabled; rename it back to undo)")
+        return True
+    print()
+    print("  ** WARNING: this module also ships level_weathers.script **")
+    print("     %s" % lw)
+    print("     It is an older fork of the weather manager. Mounted above your weather")
+    print("     mod it replaces the newer one silently - dead MCM weather options, no")
+    print("     log line. Delete it, hide it in MO2, or re-run with --disable-weathers.")
+    print("     Check:  python _tools/season.py whowins scripts/level_weathers.script")
+    return True
+
+
 def revert(path):
     bak = path + ".orig"
     if not os.path.isfile(bak):
@@ -235,6 +278,7 @@ def patch(path):
     if "zzz_seasons_of_the_zone" in raw:
         print("  already patched - nothing to do")
         print("  (%s)" % path)
+        warn_weathers(path)
         return 0
 
     # Verify this is the file we think it is BEFORE touching anything. A patcher that
@@ -247,6 +291,19 @@ def patch(path):
                 "  INVERNO's yawm_snowfall.script, so nothing was changed."
                 % (anchor, len(hits)))
         return hits[0]
+
+    # Refuse a copy that lacks a particle the seasonal tables key on (the FOMOD Light /
+    # Heavy variants). Patched, it would load as far as the season table and die there.
+    missing = [n for n in NEEDS
+               if not re.search(r"^\s*local\s+" + n + r"\b", raw, re.M)
+               and not re.search(r"^\s*" + n + r"\s*=", raw, re.M)]
+    if missing:
+        raise SystemExit(
+            "  this copy of yawm_snowfall.script does not declare %s.\n"
+            "  It looks like INVERNO's FOMOD Light/Heavy Snowfall variant, which has no"
+            " seed,\n  leaf or fog particles - the seasonal layer keys on them and would"
+            " fail at load.\n  Use the standalone \"Snowfall (light + Dynamic Fog)\""
+            " addon. Nothing was changed." % ", ".join(missing))
 
     i_header = only(A_HEADER)
     i_update = only(A_UPDATE)
@@ -267,10 +324,13 @@ def patch(path):
         indent + "switch_particles(resolved, inside_pos, is_inside)",
     ]
 
-    # Build back to front so the earlier indices stay valid.
+    # Build back to front so the earlier indices stay valid. The helper block gets one
+    # blank line on each side whatever the original has there: INVERNO's file runs
+    # `local inside_pos` straight into `function actor_on_update()` with no gap.
     out = list(lines)
     out[i_hook:i_hook + 1] = replacement
-    out[i_update:i_update] = HELPERS.splitlines() + [""]
+    lead = [] if (i_update > 0 and out[i_update - 1] == "") else [""]
+    out[i_update:i_update] = lead + HELPERS.splitlines() + [""]
     out[i_header:i_header] = BANNER.splitlines() + [""]
 
     bak = path + ".orig"
@@ -287,12 +347,14 @@ def patch(path):
     print()
     print("  Snowfall now follows the calendar. With Seasons of the Zone absent the")
     print("  gate is inert and the addon behaves exactly as shipped.")
+    warn_weathers(path)
     return 0
 
 
 def main():
     args = [a for a in sys.argv[1:]]
     want_revert = "--revert" in args
+    disable_weathers = "--disable-weathers" in args
     args = [a for a in args if not a.startswith("--")]
 
     path = args[0] if args else _find()
@@ -305,7 +367,12 @@ def main():
     if not os.path.isfile(path):
         raise SystemExit("  no such file: %s" % path)
 
-    raise SystemExit(revert(path) if want_revert else patch(path))
+    if want_revert:
+        raise SystemExit(revert(path))
+    rc = patch(path)
+    if disable_weathers:
+        warn_weathers(path, disable=True)
+    raise SystemExit(rc)
 
 
 main()

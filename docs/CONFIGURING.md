@@ -88,7 +88,15 @@ Copy that name into `above`. If it reports that no mod ships the file, the base 
 provides it, any placement wins, and you can anchor on anything stable.
 
 Placement is re-checked on **every** run, not only when the mod is first inserted, so
-correcting an `above` afterwards actually moves the mod.
+correcting an `above` afterwards actually moves the mod. An anchor that no longer exists
+skips that one entry with a warning; the rest still run.
+
+`above` only guarantees *directly above that mod*. `season.py status` therefore audits
+every file of every season-scoped mod against every mod above it and prints `SHADOWED`
+when an enabled mod would win, a count of *dormant* disabled mods that would if ticked,
+and a *note* for two season-scoped mods that overlap in a shared season. `play.bat` runs
+the same audit whenever the modlist has changed. See
+[LOAD-ORDER.md](LOAD-ORDER.md).
 
 ---
 
@@ -154,7 +162,8 @@ is redistributed; the generated mod is built from what is already on your disk.
 Leave it as `None` to skip the layer entirely.
 
 The generated mod is placed in the modlist directly above `SOUND_SRC` and enabled or
-disabled with the MCM switch — you never touch it in MO2.
+disabled with the MCM switch — you never touch it in MO2. The source mod must itself
+be enabled: disable it and the generated overrides are removed at the next launch.
 
 ---
 

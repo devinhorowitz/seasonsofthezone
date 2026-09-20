@@ -1,5 +1,48 @@
 # Changelog
 
+## 1.0.2 — 2026-09-19
+
+Load order, researched and hardened. Six investigations of the reference install, each
+checked by two independent reviewers, then the findings that were code rather than prose.
+
+### The answer
+
+Seasons of the Zone can sit anywhere in MO2: no other mod ships any of its files, and
+script order is the engine's own directory listing, not priority. Everything that does
+need placing is now either enforced or audited by the tool. `docs/LOAD-ORDER.md` has the
+whole picture, including recovery from a GAMMA launcher Update.
+
+### Fixed
+
+- `season.py status` audits every file of every season-scoped mod against every mod above
+  it: `SHADOWED` for an enabled mod that would win, a count of dormant disabled ones, and
+  a note for two season-scoped mods overlapping in a shared season. `apply` runs it
+  whenever the modlist has changed.
+- A missing `above` anchor skips that entry with a warning instead of aborting the whole
+  run — one folder renamed by a GAMMA update used to freeze every toggle, every launch.
+- The tool says plainly when the mod itself is missing or disabled in the selected
+  profile, and when the superseded Season Flora is enabled beside it.
+- Seasonal Soundscape follows its source mod's enabled state; disabling the source removes
+  the generated overrides rather than re-mounting the old presets.
+- The running-game check matches the executable's path against this install, so a second
+  GAMMA install on the same machine no longer blocks it.
+- MCM's settings file is located by MO2's rules (overwrite/, then the highest-priority
+  enabled mod) instead of by newest timestamp.
+- In-game: Dynamic Tonemap Extended is detected at load and given the five grade uniforms
+  it drives on a timer, ending a visible pulse between the two. A console command the
+  engine does not know is now reported as that, not as "out of range".
+- The snowfall patcher refuses INVERNO's FOMOD Light/Heavy Snowfall scripts, which lack
+  the particles the seasonal layer keys on and would fail at load; warns loudly when
+  `level_weathers.script` sits beside the target and offers `--disable-weathers`; and is
+  now verified against INVERNO's real standalone script rather than a reconstruction.
+- Winter PDA Maps in the example config are anchored above both INVERNO mods: INVERNO
+  ships its own near-greyscale `ui_global_map.dds`, and in the same seasons it was winning.
+- `play.bat` refuses to launch an MO2 shortcut that does not exist (and lists the ones
+  that do), and stops for a keypress on a `season.py` failure instead of launching anyway.
+- README: which folder to copy, the shortcut step, the engine requirement, that SSS's
+  sliders are overridden while a layer is on, and that removing the mod means reverting
+  the snowfall patch too.
+
 ## 1.0.1 — 2026-09-19
 
 Fixes from a full pass over the tooling against a simulated fresh install. Nothing about

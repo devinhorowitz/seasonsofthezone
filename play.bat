@@ -29,6 +29,18 @@ REM  under another name, change this one line - a wrong name opens MO2 and start
 REM  nothing, silently, because `start` cannot report a bad moshortcut.
 set "SHORTCUT=Anomaly (DX11-AVX)"
 
+REM  Refuse to launch a shortcut MO2 does not have - the failure is otherwise silent.
+findstr /C:"title=%SHORTCUT%" ModOrganizer.ini >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo  ** MO2 has no shortcut named "%SHORTCUT%".
+    echo     Open play.bat and set SHORTCUT to one of these, exactly:
+    findstr /R "title=" ModOrganizer.ini
+    echo.
+    pause
+    exit /b 1
+)
+
 REM  python.org's installer puts the `py` launcher on PATH even when `python` is
 REM  not - and on a fresh Windows, a bare `python` can open the Microsoft Store
 REM  instead of running anything. Prefer the launcher when it exists.
@@ -40,11 +52,11 @@ echo  Checking the season...
 %PY% "_tools\season.py" apply
 if errorlevel 1 (
     echo.
-    echo  season.py failed - launching anyway with whatever is currently staged.
-    echo  The textures will be whatever was staged last; the in-game layer is unaffected.
+    echo  season.py failed - read the lines above. The textures will be whatever was
+    echo  staged last; the in-game layer is unaffected. Press a key to launch anyway.
     echo.
-    REM  No pause: a launcher must never block waiting for a keypress.
-    timeout /t 4 >nul
+    REM  A pause, deliberately. Launching after four seconds hid the failure every day.
+    pause
 )
 
 echo.

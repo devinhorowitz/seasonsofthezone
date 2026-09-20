@@ -50,7 +50,9 @@ hydrometeorological convention if you prefer round numbers.
 ## Requirements
 
 - S.T.A.L.K.E.R. Anomaly with **G.A.M.M.A.**, run through **Mod Organizer 2** (portable)
-- **Screen Space Shaders** — the uniforms above are SSS's
+- **Screen Space Shaders** — the uniforms above are SSS's — and the **Modded Exes** engine
+  build GAMMA ships it with, on **DX11**. An older exe does not know the `ssfx_` commands;
+  the mod says so in the log rather than guessing.
 - **MCM** for the settings page
 - **Python 3**, only for the launcher. The python.org installer is enough; `play.bat`
   finds it through the `py` launcher.
@@ -61,9 +63,13 @@ hydrometeorological convention if you prefer round numbers.
 
 ## Install
 
-1. Drop `Seasons of the Zone` into your `mods/` folder and enable it in MO2.
+1. Copy the **inner** `mods/Seasons of the Zone` folder into your `mods/` — so that
+   `mods/Seasons of the Zone/gamedata` exists — and **enable it** in MO2. (Do not use
+   MO2's *Install from archive* on the zip; it holds the tools too.)
 2. Copy `_tools/` and `play.bat` into your GAMMA root (beside `ModOrganizer.exe`).
-3. Launch with **`play.bat`** instead of MO2 from now on.
+3. Open `play.bat` and check `SHORTCUT=` names the Anomaly entry you launch from MO2
+   (default `Anomaly (DX11-AVX)`; it refuses to start a name MO2 does not have).
+4. Launch with **`play.bat`** instead of MO2 from now on.
 
 That is the whole installation. `play.bat` checks the date, stages anything that needs
 staging, and starts the game. It is a no-op on most days and only does real work about five
@@ -74,7 +80,13 @@ the selected profile are all read rather than assumed.
 
 **Removing it:** switch it off in MCM first, then disable the mod. Switching it off hands
 the colour grade back at its neutral values; pulling the mod while it is on leaves the
-console graded to whatever season was running until something else sets those values.
+console graded to whatever season was running until something else sets those values. If
+you applied the snowfall patch, `--revert` it too — with the mod gone, the gate falls back
+to snowing whenever the weather says so.
+
+**While a layer is on**, SSS's own MCM sliders for that layer (fog, wind, flora fixes,
+wetness) and the vanilla sunshafts and gamma sliders are overridden within five seconds.
+Switch the layer off to tune them yourself.
 
 ---
 
@@ -219,6 +231,26 @@ behaves exactly as shipped.
 
 ---
 
+## Load order
+
+Seasons of the Zone can sit **anywhere** in MO2. No other mod ships any of its 44 files,
+and script order is decided by the engine's own directory listing (hence the `zzz_` name),
+not by priority — so the one rule is that it is *enabled*. What does need placing:
+
+- the season-scoped mods in `TOGGLE_MODS` — `play.bat` puts each directly above its
+  `above` anchor and re-checks every launch; `whowins` chooses the anchor, and
+  `season.py status` reports anything higher up that would shadow it;
+- INVERNO's snowfall addon — **remove `level_weathers.script` from it** before enabling,
+  or it takes over the weather system from wherever MO2 drops it (the patcher warns, and
+  `--disable-weathers` does it for you);
+- never run the old Season Flora prototype alongside this — it writes the same console
+  values, and no position fixes that. Dynamic Tonemap Extended is detected and yielded to.
+
+A GAMMA launcher **Update** silently drops this mod and every companion from the load
+order. Full detail and the recovery checklist: [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
+
+---
+
 ## Documentation
 
 | | |
@@ -226,6 +258,7 @@ behaves exactly as shipped.
 | [docs/INTERFACE.md](docs/INTERFACE.md) | What the page looks like, option by option |
 | [docs/CONFIGURING.md](docs/CONFIGURING.md) | Making other mods seasonal: full field reference, commands, troubleshooting |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | Internals: the calendar, the blend, the uniforms, the MO2 rule |
+| [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md) | Where everything sits, what must not be enabled together, recovering from a GAMMA update |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 
 ---

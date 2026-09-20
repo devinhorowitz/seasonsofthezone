@@ -278,27 +278,31 @@ def write_staged(season, staging=True):
 # Preferences only ever SUBTRACT. They can hold a mod back; they cannot force a winter
 # texture set on in July, and they cannot stage a season the calendar did not pick.
 def _axr_options():
-    """Locate MCM's store. MO2 redirects a VFS write to whichever ENABLED mod owns the
-    path - here "G.A.M.M.A. MCM values" - or to overwrite/ when none does. Both are
-    checked and the newest wins, so renaming or replacing the owning mod (which that
-    mod's own name invites) cannot strand us on a stale copy."""
-    cands = glob.glob(os.path.join(MODS, "*", "gamedata", "configs", "axr_options.ltx"))
-    cands.append(os.path.join(ROOT, "overwrite", "gamedata", "configs", "axr_options.ltx"))
+    """Locate MCM's store, by MO2's own rules.
+
+    overwrite/ is the highest priority of all: if it holds the file, that is what the
+    game reads and writes. Otherwise the highest-priority ENABLED mod shipping it wins -
+    on GAMMA that is "G.A.M.M.A. MCM values", whatever the player has renamed it to. An
+    earlier version took the newest copy by mtime, which is not what the game does."""
+    ow = os.path.join(ROOT, "overwrite", "gamedata", "configs", "axr_options.ltx")
+    if os.path.isfile(ow):
+        return ow
     try:
         raw = io.open(_modlist_path(), encoding="utf-8", errors="replace", newline="").read()
-        enabled = set(l[1:] for l in raw.split(_detect_nl(raw)) if l[:1] == "+")
+        order = [l[1:] for l in raw.split(_detect_nl(raw)) if l[:1] == "+"]
     except OSError:
-        enabled = None
-    live = []
-    for p in cands:
-        if not os.path.isfile(p):
-            continue
-        if p.startswith(MODS) and enabled is not None:
-            mod = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(p))))
-            if mod not in enabled:
-                continue                  # a disabled mod's copy is not what the game reads
-        live.append(p)
-    return max(live, key=os.path.getmtime) if live else None
+        return None
+    rank = {name: i for i, name in enumerate(order)}      # lower index = higher priority
+    best, best_rank = None, None
+    for p in glob.glob(os.path.join(glob.escape(MODS), "*", "gamedata", "configs",
+                                    "axr_options.ltx")):
+        mod = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(p))))
+        r = rank.get(mod)
+        if r is None:
+            continue                      # disabled or unlisted: the game never reads it
+        if best_rank is None or r < best_rank:
+            best, best_rank = p, r
+    return best
 
 
 def _slug(name):
@@ -380,7 +384,13 @@ def apply_toggles(season, dry_run=False, prefs=None):
         """Put `name` directly above `above` with flag `want`; record what moved."""
         idx, ref = find(name), find(above)
         if ref is None:
-            raise SystemExit("  cannot place %s: %s not in modlist" % (name, above))
+            # ONE bad anchor used to abort the whole run before anything was written, so a
+            # single folder renamed by a GAMMA update froze every toggle on every launch.
+            # Skip this entry, say so, and let the rest proceed.
+            print("  ! %s: anchor %r is not in the modlist - SKIPPED. Fix 'above' in"
+                  " seasons_config.py (season.py whowins <file> names the right mod)."
+                  % (name[:40], above))
+            return
         if idx is None:
             body.insert(ref, want + name)
             changed.append((name, "absent", want))
@@ -415,7 +425,8 @@ def apply_toggles(season, dry_run=False, prefs=None):
     if SOUND_SRC and find(SOUND_SRC) is not None:
         have = os.path.isdir(os.path.join(MODS, SOUND_MOD))
         if have or find(SOUND_MOD) is not None:
-            place(SOUND_MOD, SOUND_SRC, "+" if (have and prefs["stage_sound"]) else "-")
+            on = have and prefs["stage_sound"] and _mod_enabled(SOUND_SRC)
+            place(SOUND_MOD, SOUND_SRC, "+" if on else "-")
 
     if changed and not dry_run:
         # MO2 holds modlist.txt in memory and rewrites it on exit, so an edit made while
@@ -499,8 +510,12 @@ def _sound_src_dir():
 
     None is the default and a supported state: with no SOUND_SRC there is nothing to gate,
     and the rest of the seasonal system runs exactly as it otherwise would. Every caller
-    checks for None rather than assuming a path."""
-    if not SOUND_SRC:
+    checks for None rather than assuming a path.
+
+    None ALSO when the source mod is disabled. The folder existing is not the same as the
+    mod being mounted: a player who unticks the source to go back to another soundscape
+    used to get the old presets re-mounted anyway through the generated mod."""
+    if not SOUND_SRC or not _mod_enabled(SOUND_SRC):
         return None
     return os.path.join(MODS, SOUND_SRC, "gamedata", *SOUND_REL)
 
@@ -987,14 +1002,37 @@ def season_for(d, mapping="pheno"):
 
 
 def running():
+    """Anomaly or MO2 processes that belong to THIS install, matched by executable path.
+
+    tasklist gives only names, so a second GAMMA install on the same machine - or a test
+    sandbox - used to block every modlist write here. Get-Process gives the path. A process
+    whose path cannot be read (elevated) is counted as ours: guessing the other way would
+    let a modlist edit be silently reverted by an MO2 that was in fact running.
+    """
+    cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+           "Get-Process -Name anomaly*,ModOrganizer -ErrorAction SilentlyContinue | "
+           "ForEach-Object { if ($_.Path) { $_.Path } else { $_.ProcessName + '.exe|?' } }"]
     try:
-        out = subprocess.run(["tasklist"], capture_output=True, text=True, timeout=60).stdout.lower()
-    except Exception:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=60).stdout
+    except Exception as e:
+        # Fail open, but audibly: a modlist edit under a running MO2 is silently reverted,
+        # so if the check itself cannot run the player should know it did not.
+        print("  ! could not list running processes (%s) - assuming MO2 and the game are"
+              " closed" % e.__class__.__name__)
         return []
-    # Any Anomaly binary - DX8 through DX11-AVX and the launcher - plus MO2 itself. The
-    # old three-name list let a DX10 player have the game up while the modlist was edited.
-    found = set(re.findall(r"\b(anomaly[a-z0-9]*\.exe|modorganizer\.exe)", out))
-    return sorted(found)
+    roots = [os.path.normcase(os.path.abspath(p)) + os.sep for p in (ROOT, game_dir())]
+    mine = set()
+    for line in out.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.endswith("|?"):
+            mine.add(line[:-2].lower() + " (path unreadable, assumed this install)")
+            continue
+        p = os.path.normcase(os.path.abspath(line))
+        if any(p.startswith(r) for r in roots):
+            mine.add(os.path.basename(line).lower())
+    return sorted(mine)
 
 
 def lp(p):
@@ -1169,7 +1207,8 @@ def identify(mod, cfg, tmp, prefer=None):
 
 
 def who_wins(rel):
-    """Print every enabled mod shipping `rel`, highest priority first, and name the winner.
+    """Print every mod shipping `rel` - enabled or disabled - highest priority first, and
+    name the winner among the enabled ones.
 
     MO2 resolves a shared file to the HIGHEST enabled mod that ships it. That is the whole
     basis of the seasonal toggling, and it is also the one thing that fails silently: a
@@ -1205,14 +1244,132 @@ def who_wins(rel):
 
     print()
     if not hits:
-        print("  No enabled or disabled mod ships it - the base game .db provides it.")
-        print("  A mod of your own shipping this file would win outright.")
+        print("  No enabled or disabled mod ships it as a loose file - the base game .db")
+        print("  provides it (archives under db/ are not inspected). A mod of your own")
+        print("  shipping this file would win outright.")
     elif winner is None:
         print("  Only disabled mods ship it; the base game .db is providing it.")
     else:
         print("  Put your seasonal mod ABOVE:  %s" % winner)
         print("  i.e.  \"above\": \"%s\"" % winner)
     return 0
+
+
+def _check_mod_state():
+    """Say plainly when the mod itself is not going to run.
+
+    season.py never enables the main mod - it only finds its config files by name - so a
+    folder that MO2 discovered on its own (appended DISABLED) or one dropped from the list
+    by a GAMMA launcher update stayed dark while every stage step reported success.
+    """
+    gd = os.path.join(MODS, SOTZ, "gamedata")
+    if not os.path.isdir(gd):
+        print("  ! mods/%s/gamedata is missing - the mod is not installed. The zip's" % SOTZ)
+        print("    INNER 'mods/%s' folder goes into mods/; check the path." % SOTZ)
+        return
+    try:
+        raw = io.open(_modlist_path(), encoding="utf-8", errors="replace", newline="").read()
+    except OSError:
+        return
+    lines = raw.split(_detect_nl(raw))
+    state = next((l[:1] for l in lines if l[:1] in ("+", "-") and l[1:] == SOTZ), None)
+    if state is None:
+        print("  ! '%s' is not in profile %r - MO2 will add it DISABLED at its next start."
+              % (SOTZ, profile_name()))
+        print("    Enable it in MO2, or nothing in-game will happen.")
+    elif state == "-":
+        print("  ! '%s' is DISABLED in profile %r - enable it in MO2." % (SOTZ, profile_name()))
+    if state == "+" and _mod_enabled(FLORA_MOD):
+        print("  ! '%s' is enabled beside '%s'. Both drive the same flora and fog uniforms;"
+              % (FLORA_MOD, SOTZ))
+        print("    that is two writers on one console value. Disable %s." % FLORA_MOD)
+
+
+SHADOW_CACHE = os.path.join(ROOT, "_baseline", "season-shadow-check.json")
+
+
+def shadow_check(force=False):
+    """Every file a season-scoped mod ships, tested against every mod ABOVE it.
+
+    `above` only guarantees "directly above X". A mod higher in the list that also ships
+    one of the files wins silently, and until this check the tool went on reporting
+    success. Three verdicts:
+
+      SHADOWED  an ENABLED mod that is not ours sits above and ships the file. Wrong now.
+      dormant   a DISABLED mod above shares files: harmless today, a trap the day it is
+                ticked. Counted, with one example, so it is known rather than discovered.
+      note      two season-scoped mods that are BOTH on in some season overlap. Judged on
+                the shared seasons, not on today's flags - the INVERNO-above-Winter-PDA-Maps
+                case is invisible in autumn, when both are off, and real in December.
+                One seasonal mod deliberately overriding another looks identical to a
+                mistake here, so this is information, not an error.
+
+    Cost is a stat per (file, higher mod) pair - a few seconds for a large texture pack -
+    so under `apply` it runs only when the modlist has changed since it last ran; `status`
+    always runs it.
+    """
+    try:
+        raw = io.open(_modlist_path(), encoding="utf-8", errors="replace", newline="").read()
+    except OSError:
+        return
+    body = [l for l in raw.split(_detect_nl(raw)) if l[:1] in ("+", "-")]
+    key = hashlib.md5((raw + "|" + "|".join(sorted(TOGGLE_MODS))).encode("utf-8", "replace")).hexdigest()
+    if not force and os.path.isfile(SHADOW_CACHE):
+        try:
+            if json.loads(io.open(SHADOW_CACHE, encoding="utf-8").read()).get("key") == key:
+                return
+        except (OSError, ValueError):
+            pass
+
+    ours = set(TOGGLE_MODS) | {SOUND_MOD, SOTZ}
+    index = {l[1:]: i for i, l in enumerate(body)}
+    shadowed, dormant, notes = [], {}, []
+    for name, cfg in TOGGLE_MODS.items():
+        base = os.path.join(MODS, name, "gamedata")
+        if name not in index or not os.path.isdir(base):
+            continue
+        rels = []
+        for r, _, fs in os.walk(base):
+            for f in fs:
+                rels.append(os.path.relpath(os.path.join(r, f), base))
+        for line in body[:index[name]]:
+            other, on = line[1:], line[:1] == "+"
+            og = os.path.join(MODS, other, "gamedata")
+            if not os.path.isdir(og):
+                continue
+            hits = [rel for rel in rels if os.path.isfile(os.path.join(og, rel))]
+            if not hits:
+                continue
+            eg = hits[0].replace(os.sep, "/")
+            if other in TOGGLE_MODS:
+                shared = set(cfg["seasons"]) & set(TOGGLE_MODS[other]["seasons"])
+                if shared:
+                    notes.append((name, other, len(hits), eg, ", ".join(
+                        s_ for s_ in SEASONS if s_ in shared)))
+            elif other in ours:
+                continue
+            elif on:
+                shadowed.append((name, other, len(hits), eg))
+            else:
+                d = dormant.setdefault(name, [])
+                d.append((other, len(hits), eg))
+
+    os.makedirs(os.path.dirname(SHADOW_CACHE), exist_ok=True)
+    io.open(SHADOW_CACHE, "w", encoding="utf-8").write(json.dumps({"key": key}))
+    for name, other, n, eg in shadowed:
+        print("  ! %s is SHADOWED by '%s' on %d file(s), e.g. %s"
+              % (name[:36], other[:44], n, eg))
+        print("    It cannot win those files even when enabled. Anchor it above that mod,"
+              " or disable that mod.")
+    for name, lst in dormant.items():
+        other, n, eg = lst[0]
+        print("  - %d disabled mod(s) above %s share its files (e.g. '%s', %d file(s), %s)."
+              % (len(lst), name[:36], other[:40], n, eg))
+        print("    Enabling one of them will shadow it; run `season.py status` afterwards.")
+    for name, other, n, eg, seasons in notes:
+        print("  - note: '%s' sits above %s and overrides %d of its file(s) in %s (e.g. %s)"
+              % (other[:40], name[:36], n, seasons, eg))
+        print("    Fine if that is the intent; if not, swap their anchors.")
 
 
 def _check_install():
@@ -1264,6 +1421,9 @@ def main():
                              "    python _tools/season.py whowins "
                              "textures/terrain/terrain_escape.dds")
         raise SystemExit(who_wins(a.path))
+
+    _check_mod_state()
+    shadow_check(force=(a.cmd == "status"))
 
     today = datetime.date.today()
     want = a.season or season_for(today, a.mapping)
@@ -1323,6 +1483,8 @@ def main():
                  "" if flora_live else "   (mod disabled - superseded by the main mod)"))
         print("  soundscape     installed: %s%s"
               % (sound_now or "not present",
+                 "   (source mod disabled - overrides removed)"
+                 if (SOUND_SRC and not _mod_enabled(SOUND_SRC)) else
                  "" if prefs["stage_sound"] else "   (gating switched off in MCM)"))
         print()
 
@@ -1339,7 +1501,10 @@ def main():
         flora_ok = (flora_now == want) if flora_live else True
         _ssrc = _sound_src_dir()
         if not _ssrc or not os.path.isdir(_ssrc):
-            sound_ok = True                       # no source configured; nothing to gate
+            # No source configured, or the source mod is disabled. Either way any overrides
+            # still on disk are stale and come out - they were built from a mod that no
+            # longer plays.
+            sound_ok = (sound_now is None) if SOUND_SRC else True
         elif prefs["stage_sound"]:
             sound_ok = sound_now == want
         else:
@@ -1355,9 +1520,12 @@ def main():
             tg = apply_toggles(want, not writing, prefs)
             for name, was, now in tg:
                 print("  %-58s %s -> %s" % (name[:58], was, now))
-            if tg:
+            if tg and writing:
                 print("  => %s: season-scoped mods corrected. Takes effect on next launch."
                       % want)
+            elif tg:
+                print("  => %s: season-scoped mods need correcting - run `season.py apply`"
+                      " (or play.bat)." % want)
             elif not stage_tex:
                 print("  => %s in-engine; texture layer off, nothing staged" % want)
             else:
@@ -1430,14 +1598,22 @@ def main():
                     raise SystemExit("  aborted - flora config did not take")
 
         if not sound_ok:
-            n, cuts = write_soundscape(want, prefs["stage_sound"])
+            src_live = bool(_ssrc) and os.path.isdir(_ssrc)
+            if not src_live:
+                # source gone or disabled: remove the overrides, place nothing
+                if os.path.isdir(_sound_dst_dir()):
+                    shutil.rmtree(_sound_dst_dir(), ignore_errors=True)
+                n, cuts = 0, 0
+            else:
+                n, cuts = write_soundscape(want, prefs["stage_sound"])
             if n is None:
                 print("  %-64s %s" % ("soundscape", "SKIPPED - '" + SOUND_SRC + "' not installed"))
             else:
                 got = soundscape_installed()
-                exp = want if prefs["stage_sound"] else None
+                active = prefs["stage_sound"] and src_live
+                exp = want if active else None
                 label = ("soundscape -> " + want + " (%d channel cuts)" % cuts
-                         if prefs["stage_sound"] else "soundscape OFF - overrides removed")
+                         if active else "soundscape OFF - overrides removed")
                 print("  %-64s %3d files  %s" % (label, n,
                       "VERIFIED" if got == exp else "** reads as %s **" % got))
                 if got != exp:
