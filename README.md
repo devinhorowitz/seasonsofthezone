@@ -177,8 +177,10 @@ move, so use `TOGGLE_MODS` wherever a mod can simply be switched off.
 
 Point `SOUND_SRC` at the ambience mod that wins your
 `configs/environment/ambients/presets/` files. Its sound channels are then gated per
-season: insects and daytime birds silenced in deep winter, marsh birds from autumn on, wind
-and storms untouched. Crows and owls stay all year.
+season, so each of the five sounds different: spring keeps the dawn chorus and loses the
+crickets, summer has everything, autumn loses the daytime insects but keeps crickets
+calling until the frost, and the winters lose the insects entirely. Wind and storms are
+untouched. Crows and owls stay all year.
 
 The gated presets are generated from your own files at launch. Switchable on the Main page.
 

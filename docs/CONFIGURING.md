@@ -132,12 +132,18 @@ soundscape mods ship the same presets; use `whowins`). `season.py` generates a
 
 | Season | Silenced |
 |---|---|
-| spring, summer | nothing |
-| autumn | swamp birds |
-| winter | insects, swamp birds |
-| deep winter | insects, swamp birds, daytime birds |
+| spring | night crickets |
+| summer | nothing |
+| autumn | daytime insects, swamp birds |
+| winter | all insects, swamp birds |
+| deep winter | all insects, swamp birds, daytime birds |
 
 Wind, storms, thunder and interiors are never touched. Crows and owls stay all year.
+Crickets belong to summer and autumn nights, so spring is carried by the dawn chorus
+alone; autumn keeps them calling until the first frost but loses the daytime insects.
+
+The generated files record which channels they were cut with, so editing this table
+rebuilds them at the next launch rather than waiting for the season to turn.
 
 The generated mod is placed directly above `SOUND_SRC` and follows the MCM switch; you do
 not touch it in MO2. If you disable the source mod, the generated presets are removed at

@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0 — 2026-09-20
+
+- The seasonal soundscape now gives all five seasons a different sound. Spring and summer
+  cut nothing at all before, and autumn cut one channel that appears in two presets, so
+  three of the five were acoustically identical. Spring loses the night crickets and is
+  carried by the dawn chorus; autumn loses the daytime insects but keeps crickets calling
+  until the first frost; the winters are unchanged. On the reference ambience mod that is
+  48 cuts across 16 presets for spring, and 58 across 11 for autumn, where both were
+  previously near zero.
+- Editing `SOUND_CUT` now rebuilds the generated presets. The marker on their first line
+  records the channels they were cut with, and a mismatch counts as stale - before this
+  the season name alone was compared, so an edit did nothing until the season turned.
+
 ## 1.1.1 — 2026-09-20
 
 - `seasons_config.example.py` rewritten to read as a worked example rather than one

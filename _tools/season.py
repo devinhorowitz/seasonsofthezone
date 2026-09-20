@@ -387,16 +387,37 @@ SOUND_MOD = "Seasonal Soundscape"
 SOUND_REL = ("configs", "environment", "ambients", "presets")
 
 # Channels removed per season. Wind, storms, drones and interiors are never touched;
-# birds_night (owls and crows) stays all year. The case of "Insects" varies in the files.
+# birds_night (owls and crows) stays all year. The case of "Insects" varies between the
+# files, so both spellings are listed.
+#
+#   spring       crickets are a summer and autumn night sound, so spring nights are owls
+#                and the dawn chorus carries the season on its own
+#   summer       nothing cut - the full soundscape, and the baseline the rest are read against
+#   autumn       day insects are gone by October, but crickets call at night until the
+#                first frost, so Insects_night stays; the waders have left the marshes
+#   winter       nothing stridulates below freezing
+#   winter_snow  corvids and owls only
+#
+# Each season must leave a different set of channels standing, or two of them sound
+# alike; scratchpad/test_soundscape.py checks that.
 SOUND_CUT = {
-    "spring":      (),
+    "spring":      ("Insects_night",),
     "summer":      (),
-    "autumn":      ("birds_swamp",),
+    "autumn":      ("Insects", "insects", "birds_swamp"),
     "winter":      ("Insects", "insects", "Insects_night", "birds_swamp"),
     "winter_snow": ("Insects", "insects", "Insects_night", "birds_swamp", "birds"),
 }
 
 SOUND_TAG = ";; seasonal-soundscape season="
+SOUND_SIG = " cuts="
+
+
+def _sound_signature(season):
+    """Short hash of the channels cut for `season`. It goes in the marker so that
+    editing SOUND_CUT makes the generated files stale even when the season has not
+    moved - otherwise the edit silently does nothing until the season turns."""
+    raw = ",".join(sorted(SOUND_CUT.get(season, ())))
+    return hashlib.md5(raw.encode("utf-8")).hexdigest()[:8]
 
 
 def _sound_src_dir():
@@ -448,7 +469,8 @@ def write_soundscape(season, enabled=True):
             if new != line:
                 removed += 1
             out.append(new)
-        body = nl.join([SOUND_TAG + season] + out)
+        body = nl.join([SOUND_TAG + season + SOUND_SIG + _sound_signature(season)]
+                       + out)
         io.open(os.path.join(dst, f), "w", encoding="cp1251", newline="").write(body)
         n += 1
     return n, removed
@@ -464,7 +486,24 @@ def soundscape_installed():
             first = io.open(os.path.join(d, f), encoding="cp1251",
                             errors="replace").readline().strip()
             if first.startswith(SOUND_TAG):
-                return first[len(SOUND_TAG):].strip()
+                payload = first[len(SOUND_TAG):].strip()
+                return payload.split(SOUND_SIG.strip())[0].strip()
+            return None
+    return None
+
+
+def soundscape_signature():
+    """The cut signature the generated presets were written with, or None for files
+    written before the marker carried one."""
+    d = _sound_dst_dir()
+    if not os.path.isdir(d):
+        return None
+    for f in sorted(os.listdir(d)):
+        if f.lower().endswith(".ltx"):
+            first = io.open(os.path.join(d, f), encoding="cp1251",
+                            errors="replace").readline().strip()
+            if SOUND_SIG.strip() in first:
+                return first.split(SOUND_SIG.strip())[1].strip() or None
             return None
     return None
 
@@ -1075,7 +1114,8 @@ def main():
             # no source, or the source mod is disabled: stale overrides come out
             sound_ok = (sound_now is None) if SOUND_SRC else True
         elif prefs["stage_sound"]:
-            sound_ok = sound_now == want
+            sound_ok = (sound_now == want
+                        and soundscape_signature() == _sound_signature(want))
         else:
             sound_ok = sound_now is None
         if tex_ok and sound_ok:
