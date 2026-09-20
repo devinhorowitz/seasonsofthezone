@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0 — 2026-09-20
+
+- The season pinned in MCM now drives the staged layers too. MCM offers "automatic, or
+  pin one" and the in-engine layers honoured it, but `season.py` only ever read the
+  calendar - so pinning Deep winter gave you winter light and fog over autumn ground
+  textures and an autumn soundscape. Precedence is `--season`, then the pin, then the
+  calendar; a value in the store that is not a season falls back to the calendar.
+- `status` names the pin and prints what the calendar would have said, instead of
+  reporting the calendar's answer as though it were the reason.
+- The two in-world screenshots are retaken on the current texture stack; the caption
+  named a pack that no longer stages for either season.
+
 ## 1.2.0 — 2026-09-20
 
 - The seasonal soundscape now gives all five seasons a different sound. Spring and summer
