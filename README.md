@@ -155,6 +155,7 @@ Use that name. If no mod ships the file, any position works.
 |---|---|---|
 | Project I.N.V.E.R.N.O — winter textures | `winter`, `winter_snow` | Terrain, flora and levels. Must outrank your grass mod and Atmospherics/SSS; it carries its own shader headers. |
 | I.N.V.E.R.N.O — "Partly snowy" ground detail | `winter` | Patchy ground while the snow arrives. Above the base INVERNO. |
+| C Consciousness Grass & Trees | `spring` / `summer` / `autumn` / `winter` | Four sets, one entry each; the Dead set covers both winters under the snow. Its grass placement does not change with the season, so that part stays mounted year-round and is not a seasonal entry. |
 | Grass and Trees by PanceRide | `summer` / `autumn` | Matching Summer and Autumn editions; two entries, one per season. |
 | Winter loading screens | `winter`, `winter_snow` | Above your loading-screen mod. |
 | Winter PDA maps | `winter`, `winter_snow` | Above every mod that ships map textures, INVERNO included. |
@@ -260,4 +261,4 @@ particles by S.e.m.i.t.o.n.e.) is not shipped in any form; the patcher carries o
 seasonal layer.
 
 Built on **Screen Space Shaders** by Ascii1457 and **G.A.M.M.A.** by Grokitach. Seasonal
-texture sets by the I.N.V.E.R.N.O, PanceRide and Aydin authors.
+texture sets by the I.N.V.E.R.N.O, C Consciousness, PanceRide and Aydin authors.

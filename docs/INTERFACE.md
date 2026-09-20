@@ -64,9 +64,9 @@ text gives the mod's full span, file count and size.
 ![The Autumn page](images/mcm-season-autumn.png)
 
 A mod is listed on the page of every season it serves, so its name carries no season: on
-the Autumn page above, *PanceRide Grass and Trees* is the autumn set.
+the Autumn page above, *CCon Autumn* is the autumn set.
 
-The mods shown are third-party texture packs (I.N.V.E.R.N.O, PanceRide and others). None
+The mods shown are third-party texture packs (I.N.V.E.R.N.O, C Consciousness and others). None
 of them are included in this mod.
 
 ---
