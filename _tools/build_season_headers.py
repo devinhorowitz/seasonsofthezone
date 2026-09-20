@@ -1,26 +1,11 @@
-"""Render one coloured header bar per season for the MCM mod panel.
+"""Render one colored header bar per season for the MCM mod list.
 
-WHY A TEXTURE AND NOT A COLOURED LABEL
-  MCM exposes `clr` on a desc row, but it documents that field as {a,r,b,g} in one place
-  and consumes it as {a,r,g,b} elsewhere, so any hue is a coin flip between the two
-  readings - which is why the calendar rows and the group headings are greyscale. An
-  image row has no such ambiguity: the colour is in the file.
+A texture rather than a colored label: MCM documents a desc's `clr` as {a,r,b,g} in one
+place and uses it as {a,r,g,b} in another. The colors come from season_colors() in
+build_season_dial.py, so the bars and the dial always agree.
 
-  This is the same mechanism the year dial already uses - a flat .dds in gamedata/textures
-  referenced by bare name, uncompressed RGBA, non-power-of-two - so it needs no texture
-  description XML and no new machinery.
-
-COLOURS
-  Taken from season_colours() in build_season_dial.py, which derives them from each
-  season's actual r__color_grading values in seasons_of_the_zone.ltx rather than from
-  taste. The dial and these bars therefore cannot drift apart: change a season's grade and
-  both follow.
-
-SHAPE
-  A wide, short bar with the colour at full strength on the left fading out to the right,
-  so it reads as a section rule rather than a block that fights the panel background. The
-  heading text is a separate desc row directly beneath, because it carries live counts and
-  sizes that cannot be baked into an image.
+The bar is full strength on the left and fades to the right, so it reads as a rule under
+the heading rather than a block. The heading text is a separate row beneath it.
 """
 import os
 import sys
@@ -28,14 +13,14 @@ import sys
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from build_season_dial import season_colours          # noqa: E402
+from build_season_dial import season_colors          # noqa: E402
 
 MOD = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    "mods", "Seasons of the Zone")
 TEXDIR = os.path.join(MOD, "gamedata", "textures")
 
-W, H = 256, 16            # drawn size; MCM scales it to the row size it is given
-FADE_FROM = 0.45          # fraction of the width held at full alpha before fading
+W, H = 256, 16            # drawn size; MCM scales it to the row
+FADE_FROM = 0.45          # fraction of the width at full alpha before the fade
 
 
 def bar(rgb):
@@ -48,16 +33,15 @@ def bar(rgb):
             a = 1.0
         else:
             a = 1.0 - (t - FADE_FROM) / (1.0 - FADE_FROM)
-            a = a * a                       # ease out, so the tail is a long soft fade
+            a = a * a
         for y in range(H):
-            # slight vertical shading keeps it from looking like a flat rectangle
-            v = 1.0 - 0.35 * abs((y / float(H - 1)) - 0.5) * 2.0
+            v = 1.0 - 0.35 * abs((y / float(H - 1)) - 0.5) * 2.0    # slight vertical shading
             px[x, y] = (int(r * v), int(g * v), int(b * v), int(255 * a))
     return im
 
 
 def main():
-    cols = season_colours()
+    cols = season_colors()
     os.makedirs(TEXDIR, exist_ok=True)
     for season, rgb in sorted(cols.items()):
         p = os.path.join(TEXDIR, "ui_season_hdr_%s.dds" % season)

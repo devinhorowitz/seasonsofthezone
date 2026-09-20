@@ -56,7 +56,7 @@
 		<text>Transition length (days)</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_blend_days_desc">
-		<text>How long one season takes to become the next. The window is centred on the changeover date, so 14 eases the shift in across the week either side. 0 is a hard switch.</text>
+		<text>How long one season takes to become the next. The window is centered on the changeover date, so 14 eases the shift in across the week either side. 0 is a hard switch.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_intensity">
@@ -67,7 +67,7 @@
 	</string>
 
 	<string id="ui_mcm_seasons_zone_do_grade">
-		<text>Drive colour and light</text>
+		<text>Drive color and light</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_do_grade_desc">
 		<text>Grading, saturation, exposure, sun and sky brightness, tonemapping, sunshafts. Off if you would rather use cfg_load.</text>
@@ -84,7 +84,7 @@
 		<text>Drive fog</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_do_fog_desc">
-		<text>Fog height, density, sun colouring and scattering. Autumn is the foggy season here; summer the clearest.</text>
+		<text>Fog height, density, sun coloring and scattering. Autumn is the foggy season here; summer the clearest.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_do_wind">
@@ -114,7 +114,7 @@
 		<text>Swap textures with the season</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_stage_textures_desc">
-		<text>Master switch for the launch-time layer. Off means no seasonal texture mod is ever mounted, whatever the date, and the Zone keeps the terrain it has now. Light, colour, foliage, fog, wind, wetness and snowfall carry on following the calendar either way. Takes effect on the next launch.</text>
+		<text>Master switch for the launch-time layer. Off means no seasonal texture mod is ever mounted, whatever the date, and the Zone keeps the terrain it has now. Light, color, foliage, fog, wind, wetness and snowfall carry on following the calendar either way. Takes effect on the next launch.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_stage_sound">

@@ -1,38 +1,22 @@
-"""Apply the Seasons of the Zone snowfall gate to your own copy of INVERNO's script.
+"""Add the Seasons of the Zone seasonal layer to your copy of INVERNO's snowfall script.
 
-WHAT THIS IS
-  Project I.N.V.E.R.N.O's snowfall addon plays its particles off the WEATHER alone,
-  with no notion of season, so in an install that runs all year it snows in September
-  the moment the right weather comes round. This edits your copy so the particles are
-  resolved through Seasons of the Zone's calendar first: snow only in the two winters
-  and thinner in the first of them, seeds in spring, leaves in autumn, dust in the dry
-  months, each easing in and out across the turn.
+  INVERNO's snowfall addon plays its particles off the weather alone, so it snows in
+  September. This edits your copy so the particles follow the calendar: snow only in
+  the two winters and lighter in the first, seeds in spring, leaves in autumn, dust
+  in the dry months.
 
-WHY A SCRIPT AND NOT THE FINISHED FILE
-  yawm_snowfall.script is not mine. Its lineage is Yet Another Winter Mod
-  (Daedalus-Prime), refactored by demonized, edited by Fabio Conte / crazewastaken for
-  Project I.N.V.E.R.N.O, with particles by S.e.m.i.t.o.n.e. for The Arrival. Shipping a
-  patched copy would be redistributing their work, so this ships the changes instead
-  and applies them to the copy you already installed.
+  yawm_snowfall.script is not mine (Yet Another Winter Mod by Daedalus-Prime,
+  refactored by demonized, edited by Fabio Conte for INVERNO; particles by
+  S.e.m.i.t.o.n.e.), so this ships the changes and applies them to the copy you
+  installed. Use the standalone "Snowfall (light + Dynamic Fog)" addon: the v1.08.4
+  FOMOD's Light/Heavy Snowfall options install a cut-down script without the seed,
+  leaf and fog particles the layer uses, and this refuses that copy.
 
-WHICH COPY
-  The standalone "Snowfall (light + Dynamic Fog)" addon. The v1.08.4 FOMOD's "Light
-  Snowfall" / "Heavy Snowfall" options install a cut-down script with no seed, leaf or
-  fog particles; the seasonal layer keys on those, so this refuses that copy rather
-  than produce a script that fails at load.
-
-WHERE IT SITS, AND WHAT TO REMOVE FROM IT FIRST
-  Position in MO2 does not matter: yawm_snowfall.script is shipped by nothing else, and
-  the gate finds Seasons of the Zone by global name, not by priority. Keep the module
-  ENABLED all year and never season-toggle it - its particles are created when the
-  script loads and the gate decides what plays.
-  INVERNO's standalone download ALSO ships gamedata/scripts/level_weathers.script, an
-  older fork of the weather manager. From wherever MO2 drops the folder it beats the
-  base game's copy, and above your weather mod it beats that too - silently: no crash,
-  no log line, dead weather options in MCM. No placement fixes it; the file has to go.
-  This script warns when it sees one, and --disable-weathers renames it out of the way.
-  Verify with:  python _tools/season.py whowins scripts/level_weathers.script
-  Only your weather mod, or no mod at all, may appear.
+  Where the addon sits in MO2 does not matter. Keep it enabled all year; the gate
+  decides what plays. The addon also ships level_weathers.script, an older weather
+  manager that beats yours from any position - remove it. This warns when it sees
+  one; --disable-weathers renames it. Check with:
+      python _tools/season.py whowins scripts/level_weathers.script
 
 USE
     python apply_seasonal_snowfall.py

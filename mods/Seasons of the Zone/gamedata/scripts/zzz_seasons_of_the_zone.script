@@ -1,34 +1,21 @@
 -- Seasons of the Zone
 --
--- Ties the Zone's light, foliage, fog and wind to the REAL-WORLD date, mapped onto the
--- actual phenological seasons of Polesia - the region the Zone sits in. Boot the game in
--- late October and the Zone is in autumn because Chornobyl is in autumn.
+-- Sets the engine's light, foliage, fog, wind and wetness values from the real-world
+-- date, mapped to the seasons of Polesia. Reads the date with os.date(), the values from
+-- configs/seasons_of_the_zone.ltx, and drives the console directly.
 --
--- Self-contained: no external tooling, no generated state. It reads the date with
--- os.date(), reads its parameters from configs/seasons_of_the_zone.ltx, and drives the
--- engine directly. Everything is tunable from MCM or that one config file.
+-- Textures cannot follow: the engine loads them at level load and keeps them for the
+-- session. _tools/season.py handles those before launch.
 --
--- WHAT IT CANNOT DO
---   Terrain and grass TEXTURES bind at level load from MO2's virtual file system and are
---   frozen for the session. No runtime API rebinds them - the only reload_textures() in
---   the install calls ChangeLevel(). Seasonal textures therefore still require swapping
---   mod files and relaunching, which a shipped mod cannot do to itself. This drives every
---   NON-texture layer, which is most of the visible difference.
+-- SSS's own scripts push their MCM values at game start and on every option change, so
+-- applying once would be overwritten. This re-checks the engine every few seconds and
+-- re-asserts only what drifted.
 --
--- WHY IT RE-ASSERTS INSTEAD OF APPLYING ONCE
---   SSS's own ssfx_fog / ssfx_florafixes / ssfx_wind scripts push their MCM values at
---   game start and again on every option change. Applying once races them. This re-checks
---   the engine periodically and re-asserts only what has actually drifted, which also
---   survives the player opening MCM mid-session.
---
--- THE FAILURE MODE THIS CODE IS BUILT AROUND
---   X-Ray REJECTS A WHOLE console command when ANY single component is out of range. It
---   does NOT clamp. The only trace is one line - "~ Invalid syntax in call to 'ssfx_fog'"
---   - and the old value stays, so a readback returns a plausible number and nothing looks
---   broken. A previous version of this system shipped fog height 28.0 against an engine
---   max of 20.0 and silently did nothing for weeks. Hence: clamp on the way out, read
---   back after every set, and distinguish "something overwrote us" from "the engine
---   refused us" instead of retrying a rejected command forever.
+-- The engine rejects a whole console command if any component is out of range, and the
+-- only trace is one "~ Invalid syntax in call to ..." log line; the old value stays. So
+-- every value is clamped before sending, read back after, and a refusal (the value did
+-- not move) is told from drift (something else changed it). A refused value is given up
+-- on after a few tries instead of being retried forever.
 
 local CFG        = "seasons_of_the_zone.ltx"
 local PREFIX     = "seasons_zone/"
@@ -36,24 +23,9 @@ local CHECK_MS   = 5000      -- how often to re-assert drifted uniforms
 local DATE_MS    = 600000    -- how often to re-read the calendar (long sessions, midnight)
 local GIVE_UP    = 5         -- consecutive refusals before we stop retrying a uniform
 
--- Phenological season starts for Polesia / northern Ukraine. Deliberately lopsided and
--- NOT the astronomical equinox/solstice dates. Stored as month/day and converted per-year
--- so leap years stay exact.
---
--- WINTER IS SPLIT IN TWO, because in Polesia those are genuinely different worlds:
---   winter        1 Nov - 30 Nov   30d  first snowfall, ground not yet covered
---   winter_snow   1 Dec -  4 Mar   94d  snow lies on the ground
--- Treating that as one 110-day "winter" meant either snow two months too early or bare
--- ground through February.
---
--- DATES ARE RESEARCHED, NOT GUESSED (see the 2026-09-18 changelog for sources):
---   "November marks the beginning of snowfall" and cover "accumulates in December and
---   remains to early March" for Kyiv/northern Ukraine. Kyiv averages ~80 days of snow
---   cover a year (~100 in colder decades); Chernobyl sits ~130 km further north, hence 94.
---   Spring starts as the cover goes, so it owns the wet thaw BEFORE green-up - the Polish
---   growing season (52N, same continental transition) now begins 12 March.
---   Autumn is anchored on birch leaf colouring/fall, 19 September in Poland 2007-2021;
---   October is peak "golden autumn" in Ukraine - zhovten, the month named for yellow.
+-- Season starts for Polesia: the dates the landscape changes, not the equinoxes.
+-- Month/day, converted per year so leap years stay exact. Winter is split: snow starts
+-- falling in November but only settles from December to early March.
 local BOUNDS = {
     {m = 3,  d = 5,  season = "spring"},       -- 76d,  thaw then green-up
     {m = 5,  d = 20, season = "summer"},       -- 118d, full foliage
@@ -62,9 +34,7 @@ local BOUNDS = {
     {m = 12, d = 1,  season = "winter_snow"},  -- 94d,  cover (wraps the year end)
 }
 
--- Engine-enforced bounds. Anything sent outside these is discarded WHOLESALE, so we clamp
--- first and say so. Sourced from the SSS MCM sliders and confirmed against the engine's
--- own "~ Valid arguments: vector4 in range [...]" line, which it prints on every refusal.
+-- Engine ranges, from the SSS MCM sliders. A value outside these is clamped and logged.
 local RANGES = {
     saturation = {0.0, 2.0}, gamma = {0.0, 2.0}, exposure = {0.0, 2.0},
     spec_grass = {0.0, 1.0}, spec_grass_wet = {0.0, 1.0},
@@ -101,11 +71,7 @@ local UNIFORMS = {
      keys = {"spec_grass", "spec_grass_wet", "spec_trees", "spec_trees_wet"}},
     {name = "ssfx_florafixes_2", layer = "flora", keys = {"sss_int", "sss_color"}, pad = 2},
 
-    -- Pinned at zero on purpose, NOT a seasonal tint. The shader does
-    --     color_variation(t) = sin(t + float3(0, 0.33, 0.66) * 6.28) * 0.5
-    -- three sine waves a third of a cycle apart = a HUE ROTATION in all directions, not a
-    -- shift toward amber. Driving it at 0.30 turned foliage red and dark blue. It is a
-    -- per-instance decorrelation knob. Held at the shipped default so nothing else moves it.
+    -- Held at zero: it is a hue rotation, not a tint, and turns foliage red and blue.
     {name = "ssfx_floravariation", layer = "flora", const = {0, 0, 0, 0}},
 
     {name = "ssfx_fog", layer = "fog",
@@ -117,22 +83,13 @@ local UNIFORMS = {
     {name = "ssfx_wind_trees", layer = "wind",
      keys = {"wind_trees_speed", "wind_trees_trunk", "wind_trees_bend", "wind_min_speed"}},
 
-    -- How fast surfaces take on water and how fast they give it up. The thaw is what
-    -- makes a Polesian spring wet, so spring builds fast and dries at 0.18; summer dries
-    -- at 1.20, i.e. wet only while it is actually raining.
-    --
-    -- This is the ONLY runtime lever on wetness. Puddle geometry is compile-time
-    -- #defines in settings_screenspace_PUDDLES.h with no console equivalent - which is
-    -- why INVERNO ships a modified header instead of a setting.
+    -- how fast surfaces take on water and how fast they dry
     {name = "ssfx_wetness_multiplier", layer = "wet",
      keys = {"wet_buildup", "wet_dry"}, pad = 1},
 }
 
--- Dynamic Tonemap Extended (a stock-GAMMA opt-in, off by default) drives these five on a
--- timer of 60/time_factor seconds. Two writers on one console value is a visible pulse -
--- it pushes, we re-assert, it pushes - and no modlist position can fix a fight between
--- scripts. So while its module is loaded these five are its, and the log says so once.
--- Referencing the global is safe: Anomaly resolves an unknown script name to nil.
+-- Dynamic Tonemap Extended sets these five on a timer. Fighting it would be a visible
+-- pulse, so while its module is loaded they are left to it.
 local DTE_OWNS = {
     r2_tonemap_adaptation = true, r2_tonemap_lowlum = true, r2_tonemap_middlegray = true,
     r2_sun_lumscale_amb = true, r2_sun_lumscale_hemi = true,
@@ -141,11 +98,8 @@ local dte_said   = false
 
 local P          = nil   -- P[season][key] = number, loaded from the ltx
 local want       = nil   -- resolved command list for the current blend
--- What apply() last resolved: {mode, season}. The MCM panel needs this and cannot work it
--- out for itself - ui_mcm.get() asserts when called from on_mcm_load (ui_mcm.script:705),
--- so the panel has no way to read the pin at the moment it is being built. Caching what
--- apply() resolved sidesteps that, and unlike reading the stored setting back it cannot go
--- stale: this is set by the code that actually pushed the season to the engine.
+-- What apply() last resolved, {mode, season}, for the MCM panel: ui_mcm.get() cannot
+-- be called while the panel is being built.
 local live       = nil
 local reasserts  = {}
 local fails      = {}
@@ -158,9 +112,7 @@ local function say(msg)
     printf("%s", "[seasons] " .. msg)
 end
 
--- Config keys are not prose. "winter_snow" must never reach the player: it leaked into
--- the PDA feed as "Winter giving way to winter_snow".
-local DISPLAY = {winter_snow = "deep winter"}
+local DISPLAY = {winter_snow = "deep winter"}     -- config keys are not for the player
 
 local function name_of(s)
     return DISPLAY[s] or tostring(s)
@@ -171,9 +123,8 @@ local function cap(s)
     return v:sub(1, 1):upper() .. v:sub(2)
 end
 
--- Fixed English month names. os.date("%B") is locale-dependent and hands back the OS
--- codepage's bytes, which the game's cp1251 font renders as garbage on any Windows that
--- is neither English nor Cyrillic. Every other string on the panel is English; so is this.
+-- os.date("%B") depends on the Windows locale and renders as garbage in the game's font
+-- outside English and Cyrillic locales.
 local MONTHS = {"January", "February", "March", "April", "May", "June", "July",
                 "August", "September", "October", "November", "December"}
 
@@ -286,14 +237,8 @@ local function fmt(v)
     return string.format("%.4f", v)
 end
 
--- How wintry the Zone is right now, 0..1.
---
--- Snowfall rides on this rather than on a date test, so snow fades IN across the turn
--- into winter and OUT again, instead of switching on at midnight on 25 November. It also
--- honours the MCM enable switch and a pinned season.
---
--- CACHED: yawm_snowfall.script calls this from actor_on_update, i.e. every frame, and
--- resolve() does os.date/os.time work that has no business running at that rate.
+-- How wintry it is now, 0..1, for the snowfall patch. Blended across the boundaries
+-- like everything else, and cached: it is called every frame.
 local snow_cached, snow_cache_until = 0.0, 0
 
 function snow_factor()
@@ -301,9 +246,7 @@ function snow_factor()
     if tg < snow_cache_until then return snow_cached end
     snow_cache_until = tg + 5000
 
-    -- Snow falls in BOTH winter seasons, harder once the ground is covered. Lerping the
-    -- weights through the same from/to/k the rest of the mod uses means every transition
-    -- (autumn->winter, winter->winter_snow, winter_snow->spring) eases automatically.
+    -- snow in both winters, harder once the ground is covered
     local SNOW_WEIGHT = {winter = 0.60, winter_snow = 1.00}
 
     local v = 0.0
@@ -323,14 +266,8 @@ function snow_factor()
 end
 
 
--- The current blend as a weight per season, summing to 1.
---
--- snow_factor() answers "how wintry is it"; this answers "how much of each season is in
--- play", which is what any OTHER seasonal effect needs. Drifting seeds belong to spring,
--- falling leaves to autumn, and a consumer can ask for the blend of whichever seasons it
--- cares about without this file knowing anything about particles.
---
--- CACHED for the same reason snow_factor() is: the snowfall script calls it every frame.
+-- The current blend as a weight per season, summing to 1, for other seasonal effects
+-- (seeds in spring, leaves in autumn). Cached: called every frame.
 local mix_cached, mix_until = nil, 0
 
 function season_mix()
@@ -357,11 +294,7 @@ function season_mix()
     return m
 end
 
--- Which pre-rendered dial matches today.
---
--- 16 positions around the year, ~23 days apart. That granularity is only possible
--- because the EXACT date is NOT baked into the texture - it is drawn as live text in the
--- row above. Baking the date would need one texture per day.
+-- Pre-rendered dials, ~11 days apart. The date itself is live text above the dial.
 DIAL_POSITIONS = 32
 
 -- which season a day-of-year falls in, ignoring blending
@@ -373,14 +306,8 @@ local function season_at(doy, year)
     return cur
 end
 
--- Pick the dial whose OWN date falls in the same season as today, nearest to today.
---
--- Choosing purely by day-of-year is wrong near a boundary: each texture bakes in which
--- arc is highlighted, so a dial rendered a few days the other side of a boundary lights
--- the wrong season. That is exactly what happened on 18 September - the nearest position
--- had been rendered for 9 September, still summer under the researched dates, so the
--- panel highlighted SUMMER while the world was in autumn. Winter is only 30 days, which
--- is shorter than the old 23-day sampling step, so it could have been skipped entirely.
+-- The nearest dial whose own date is in today's season. Each dial has its season's arc
+-- highlighted, so the nearest by date alone can light the wrong arc near a boundary.
 function dial_texture()
     local year = os.date("*t").year
     local doy  = tonumber(os.date("%j"))
@@ -400,11 +327,8 @@ function dial_texture()
 end
 
 
--- The season calendar, as rows for the MCM panel.
---
--- Touches no game state and no MCM cache, so it is safe to build the settings menu from -
--- including at the main menu, before any save is loaded. Each row is {text, current},
--- and the caller decides how to mark the current one.
+-- Rows for the MCM panel: today's date, and a line when a pinned season disagrees with
+-- the calendar. Touches no game state, so it is safe at the main menu.
 function calendar_rows()
     local year = os.date("*t").year
     local doy  = tonumber(os.date("%j"))
@@ -418,20 +342,8 @@ function calendar_rows()
 
     local rows = {}
 
-    -- ONE header row stating the date, and - only when they disagree - one saying so.
-    --
-    -- The dial tracks the DATE, so with a season pinned its centre reads one season while
-    -- the world runs another. That is honest but it puts the largest element on the page
-    -- in contradiction with what you are standing in, so name the difference.
-    --
-    -- An earlier version of this line read the setting back through axr_main.config,
-    -- because ui_mcm.get() cannot be called from on_mcm_load() (ui_mcm.script:705), and
-    -- that read went stale: the panel announced "Pinned to Winter_snow" while the dropdown
-    -- three rows below read "Automatic (real date)" and the game was, correctly, on
-    -- automatic. This instead reports what apply() actually resolved and pushed to the
-    -- engine, so it cannot disagree with the world. It stays silent until the mod has run
-    -- once - opened from the main menu there is no running season to report - and silent
-    -- when the pin agrees with the calendar, because then there is nothing to explain.
+    -- `live` is what apply() last pushed, so this cannot disagree with the world. It is
+    -- nil until the mod has run once.
     rows[#rows + 1] = {text = "Today is " .. today .. ".", current = false}
 
     if live and live.mode ~= "auto" and live.season ~= cur then
@@ -463,9 +375,7 @@ local function build(from, to, k, intensity, layers)
             else
                 parts, n = {}, #u.keys
                 for _, key in ipairs(u.keys) do
-                    -- blend the two seasons, then blend that toward neutral by intensity.
-                    -- Both endpoints are in range, so the result is too - clamp() only
-                    -- ever fires on a hand-edited config value.
+                    -- blend the two seasons, then toward neutral by intensity
                     local v = lerp(P[from][key], P[to][key], k)
                     v = lerp(P.neutral[key], v, intensity)
                     local c, hit = clamp(key, v)
@@ -493,9 +403,8 @@ local function build(from, to, k, intensity, layers)
     return out
 end
 
--- Re-assert what drifted, and tell the two failure modes apart.
---   DRIFT   the set landed and something later overwrote it -> keep correcting, forever.
---   REFUSAL the set did not move the value -> the engine rejected it; retrying is futile.
+-- Re-assert what drifted. Drift (something overwrote a value) is corrected forever; a
+-- refusal (the value did not move) is given up on.
 local function enforce()
     if not want then return end
     local c = get_console()
@@ -512,8 +421,7 @@ local function enforce()
                     if fails[u.name] >= GIVE_UP then
                         dead[u.name] = true
                         if q(u.name) == nil then
-                            -- No readback at all: the command does not exist in this
-                            -- engine build. An older or non-modded exe, not a bad value.
+                            -- no readback: the command does not exist in this engine
                             say("!" .. u.name .. " is not a console command in this engine"
                                 .. " build - GAMMA's Modded Exes (DX11) are required for it."
                                 .. " Not retrying it this session.")
@@ -535,13 +443,8 @@ local function apply(announce)
     local enabled = mcm("enabled", true)
     if not enabled then
         if want then
-            -- Hand the GRADE back at neutral before letting go. Console values outlive
-            -- this script, and nothing else in the install drives r__color_grading and
-            -- its siblings, so releasing them mid-season would leave the Zone graded to
-            -- that season until something else set them. Only the grade: fog, flora, wind
-            -- and wetness are SSS's own, and it re-pushes the player's MCM values for
-            -- them on this same option-change tick, half a second before this runs -
-            -- restoring those too would overwrite what the player just set.
+            -- Restore the grade to neutral before letting go; nothing else sets those
+            -- values. The other layers are SSS's own and it re-pushes them itself.
             local c = get_console()
             for _, u in ipairs(build("neutral", "neutral", 1.0, 1.0, {grade = true})) do
                 c:execute(u.cmd)
@@ -600,10 +503,7 @@ local function apply(announce)
         end
         if last_label and label ~= last_label and mcm("notify", true)
            and actor_menu and actor_menu.set_msg then
-            -- `label` is the LOG string and is built from raw config keys
-            -- ("winter_snow", "summer->autumn 71%"). It must never be shown to the
-            -- player - pinning Deep Winter would have put "The season turns:
-            -- winter_snow" on screen. Same leak as the PDA feed had.
+            -- `label` is the log string, built from config keys; not for the player
             local said
             if from == to then
                 said = cap(to) .. " has settled over the Zone."
@@ -616,10 +516,8 @@ local function apply(announce)
     last_label = label
 end
 
--- How many days until the NEXT season starts, and which one.
--- A boundary landing on today gives d == 0, which wraps to a full year and so loses the
--- min - which is what we want: standing on the first day of autumn, the next season is
--- winter, not autumn again.
+-- Days until the next season starts, and which one. A boundary on today wraps to a full
+-- year, so the first day of autumn reports winter, not autumn.
 local function days_to_next()
     local year = os.date("*t").year
     local doy  = tonumber(os.date("%j"))
@@ -633,9 +531,8 @@ local function days_to_next()
     return best, name
 end
 
--- The Zone acknowledging the real calendar, delivered as PDA news once the player is
--- actually in the world. Deliberately delayed: fired at actor_on_first_update it lands
--- under the loading screen and is never seen.
+-- The PDA message. Delayed: sent at actor_on_first_update it lands under the loading
+-- screen.
 local function pda_announce()
     if not (db.actor and news_manager and news_manager.send_tip) then
         say("news_manager unavailable - skipping PDA announcement")
@@ -646,9 +543,7 @@ local function pda_announce()
     local mode = mcm("mode", "auto")
     local msg
     if mode ~= "auto" then
-        -- A PDA has no notion of the player having pinned a season in a menu.
-        -- Just state it, and omit the date: with the calendar overridden the date
-        -- is not what chose this, and printing it would only contradict the season.
+        -- pinned: no date, which would only contradict the season
         msg = string.format("%s in the Zone.", cap(mode))
     else
         local from, to, k = resolve(mcm("blend_days", 14))
@@ -657,8 +552,6 @@ local function pda_announce()
             msg = string.format("%s in the Zone. %s. %s begins in %s days.",
                                 cap(to), date, cap(nxt), tostring(d))
         else
-            -- Qualitative, not a percentage. "71% through the turn" is a debug readout,
-            -- not something a PDA would say, and it reads as nonsense in the message feed.
             local phase
             if k < 0.35 then
                 phase = string.format("%s is beginning to show.", cap(to))
@@ -688,16 +581,9 @@ local function actor_on_update()
     enforce()
 end
 
--- --- season-scoped mods: the list, and the player's decisions about it --------------
---
--- _tools/season.py writes season_mods.ltx before the game starts, describing every
--- season-scoped mod that is actually installed. The MCM page turns that into one switch
--- per mod. The decisions go back the other way through MCM's own store: ui_mcm persists
--- to axr_options.ltx, plain text on disk, which season.py reads before the next launch.
---
--- None of it can change anything THIS session. Textures bind from the VFS at level load
--- and are frozen there; the only honest thing to do is say so on the page and act on the
--- next launch.
+-- Season-scoped mods. _tools/season.py writes season_mods.ltx before launch; the MCM
+-- page shows one switch per mod; MCM saves the choice to axr_options.ltx, which
+-- season.py reads at the next launch. Nothing here can change the current session.
 local MODS_CFG = "season_mods.ltx"
 
 function mod_list()
@@ -719,12 +605,9 @@ function mod_list()
                 key     = key,
                 name    = ini:r_string_ex(key, "name") or key,
                 seasons = ini:r_string_ex(key, "seasons") or "",
-                -- group: the first season this mod serves. season.py has already sorted
-                -- the list into calendar order, so the panel only has to notice when the
-                -- group changes and drop a heading in.
+                -- the first season the mod serves; the list arrives in calendar order
                 group   = ini:r_string_ex(key, "group") or "",
-                -- underscores back to spaces: r_string_ex strips internal whitespace out
-                -- of an ltx value, so season.py writes "Deep_winter" to survive the trip
+                -- r_string_ex strips internal whitespace, so season.py writes "Deep_winter"
                 label   = (ini:r_string_ex(key, "group_label") or ""):gsub("_", " "),
                 span    = ini:r_string_ex(key, "span") or "",
                 mb      = ini:r_float_ex(key, "mb") or 0,
@@ -753,10 +636,8 @@ local function actor_on_first_update()
     end
     apply(true)
 
-    -- Textures cannot follow the calendar at runtime: X-Ray binds them from the VFS at
-    -- launch and freezes them. So they are staged by _tools/season.py, and the two can
-    -- disagree - a season pinned in MCM, or the game launched without staging. That used
-    -- to be silent, and looked like a bug: winter light on autumn ground. Say it plainly.
+    -- The staged textures and the running season can disagree (a pinned season, or a
+    -- launch without staging). Say so.
     local staged = ini_file("season_staged.ltx")
     if staged and staged:section_exist("staged") then
         local s = staged:r_string_ex("staged", "season")
@@ -764,9 +645,7 @@ local function actor_on_first_update()
         local from, to = resolve(mcm("blend_days", 14))
         local mode = mcm("mode", "auto")
         local running = (mode ~= "auto") and mode or to
-        -- With the texture layer switched off the two are SUPPOSED to disagree; saying so
-        -- every load would be nagging about a choice that was made on purpose. An
-        -- unrecognised staging is not actionable either.
+        -- with the texture layer off they are meant to disagree
         if on and s and s ~= "unknown" and s ~= running then
             say("!TEXTURES ARE STAGED FOR " .. string.upper(s) .. " but the season running is "
                 .. string.upper(running) .. " - terrain will not match the light.")
