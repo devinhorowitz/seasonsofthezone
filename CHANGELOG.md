@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.4.0 — 2026-09-21
+
+The launch-time half was never seasonal — it maps a date to a set of names and stages the
+mods scoped to them. This release stops pretending otherwise: the calendar is now open.
+
+- **`PERIODS`** adds base periods alongside the five seasons. They partition the year the
+  same way: one is active at a time, each runs until the next begins.
+- **`EVENTS`** adds windows that *overlay* whatever period they land in rather than
+  replacing it, so a Christmas event keeps deep winter's snow underneath. A window may be
+  a single day, and a start after its end wraps the year end.
+- A date now resolves to a **list** — the base period, then every event covering it — and
+  a mod is staged if any name it is scoped to is in that list.
+- **`when`** is the config key for a mod's periods. `seasons` is the original spelling and
+  still works; existing configurations need no edit.
+- A pin or `--season` fixes the *base* period only. Events still resolve against the real
+  date, so pinning summer in December does not cancel a Christmas event.
+- `--season` and config validation accept any declared period or event name, and an
+  unknown name is reported by name before anything is staged.
+- **Fixed:** `write_mod_panel` named its loop variable the same as its parameter, so the
+  `staged_for` value written to `season_mods.ltx` and the soundscape cut count were both
+  read from the last name in the season tuple (`winter_snow`) rather than the period being
+  staged. Present since the MCM mod panel was added.
+- New **[docs/SCHEDULING.md](docs/SCHEDULING.md)**: the model, the config reference,
+  recipes, and an honest list of what the calendar cannot express yet (weekday and
+  nth-of-month recurrence, moveable feasts, per-event MCM ticks).
 ## 1.3.0 — 2026-09-20
 
 - The season pinned in MCM now drives the staged layers too. MCM offers "automatic, or

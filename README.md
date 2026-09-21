@@ -1,11 +1,18 @@
 # Seasons of the Zone
 
+**Point a mod at a stretch of the real calendar. It loads itself when that time of year
+comes round, and unloads when it passes.**
+
 The Zone follows the real-world calendar. Boot the game in late October, and it is autumn,
 because Chornobyl is in autumn.
 
 Light, color, fog, wind, wetness, snowfall, and ambient sound change with the date and
 blend across each season boundary. Nothing to download beyond this mod, nothing to
 configure.
+
+That is the part that works out of the box. Underneath it is a scheduler, and the four
+seasons are simply the calendar it ships with — see
+**[the calendar underneath](#the-calendar-underneath)**.
 
 ![The Main page in MCM, showing the year dial](docs/images/mcm-main.png)
 
@@ -41,6 +48,53 @@ winter_snow  Dec 01 - Mar 04    94 d   snow on the ground
 
 These are the dates the landscape changes, not the equinoxes. `--mapping met` uses
 Ukraine's meteorological convention (round month starts) instead.
+
+---
+
+## The calendar underneath
+
+Seasons of the Zone is two independent halves, and you can use either on its own.
+
+| | What it is | Configurable? |
+|---|---|---|
+| **In-engine** | Twenty console values blended across the date. Colour, fog, wind, wetness. | No — it just runs |
+| **Launch-time** | A scheduler that decides which mods MO2 mounts today | Yes — this is the open half |
+
+The launch-time half has nothing seasonal about it. It maps a date to a set of names, and
+mods declare which names they belong to. The five seasons are the default set. You can add
+your own.
+
+**Base periods** partition the year — exactly one is active on any date. **Events** overlay
+whatever period they land in, so they add without displacing:
+
+```python
+# _tools/seasons_config.py
+EVENTS = {
+    "christmas": ((12, 24), (12, 26)),    # start, end - inclusive
+    "halloween": ((10, 31), (10, 31)),    # a single day is fine
+    "twelvetide": ((12, 26), (1, 6)),     # a window may wrap the year end
+}
+
+TOGGLE_MODS = {
+    "Christmas Lights": {"when": ("christmas",), "above": "..."},
+}
+```
+
+On December 25th the game stages deep winter **and** Christmas. The snow does not go
+anywhere — that is what "overlay" means, and it is the difference between a mod that
+does seasons and one that can do occasions.
+
+Nothing about a period has to be a texture. If MO2 can mount it as a folder, it can be put
+on the calendar: a gameplay patch, an audio set, a spawn table, a loading screen. The
+texture packs are just the obvious first use.
+
+```python
+PERIODS = {                    # extra base periods, alongside the seasons
+    "mud_season": (3, 20),     # runs until the next period starts
+}
+```
+
+Full reference: **[docs/SCHEDULING.md](docs/SCHEDULING.md)**.
 
 ---
 
@@ -107,7 +161,7 @@ each season.
 
 ---
 
-## Making other mods seasonal
+## Putting a mod on the calendar
 
 Any installed mod can follow the calendar. You do not modify it; you name it in
 `_tools/seasons_config.py`.
@@ -115,11 +169,14 @@ Any installed mod can follow the calendar. You do not modify it; you name it in
 ```python
 TOGGLE_MODS = {
     "INVERNO Winter Textures": {                  # folder name, exactly as MO2 shows it
-        "seasons": ("winter", "winter_snow"),
+        "when": ("winter", "winter_snow"),        # any period or event name
         "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
     },
 }
 ```
+
+`when` takes any mix of base periods and events. `seasons` is the original spelling of the
+same key and still works, so nothing written for an earlier version needs editing.
 
 Relaunch. The mod is enabled in November and disabled in March, and appears on the Winter
 and Deep winter pages with its file count and size. Nothing is copied — MO2 just
@@ -242,6 +299,7 @@ Details and recovery: [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
 
 | | |
 |---|---|
+| [docs/SCHEDULING.md](docs/SCHEDULING.md) | The calendar: base periods, events, and recipes |
 | [docs/INTERFACE.md](docs/INTERFACE.md) | The MCM pages, option by option |
 | [docs/CONFIGURING.md](docs/CONFIGURING.md) | Making other mods seasonal: fields, commands, troubleshooting |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | The calendar, the blend, the values, the MO2 rule |

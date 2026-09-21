@@ -95,8 +95,15 @@ try:
     LAYOUT = getattr(_cfg, "LAYOUT", {})
     TOGGLE_MODS = getattr(_cfg, "TOGGLE_MODS", {})
     SOUND_SRC = getattr(_cfg, "SOUND_SRC", None)
+    # The calendar itself is configurable. PERIODS adds base periods (they
+    # partition the year alongside the seasons); EVENTS adds windows that OVERLAY
+    # whatever period they fall in, which is what lets a one-day event keep the
+    # season around it.
+    PERIODS = getattr(_cfg, "PERIODS", {})
+    EVENTS = getattr(_cfg, "EVENTS", {})
 except ImportError:
     LAYOUT, TOGGLE_MODS, SOUND_SRC = {}, {}, None
+    PERIODS, EVENTS = {}, {}
 
 
 def _validate_config():
@@ -105,7 +112,8 @@ def _validate_config():
     `"seasons": ("winter")` is a string, not a tuple, and `"winter" in "winter_snow"` is
     true, so without this check that mod would be enabled in deep winter."""
     problems = []
-    valid = ", ".join(SEASONS)
+    known = period_names()
+    valid = ", ".join(known)
 
     if not isinstance(TOGGLE_MODS, dict):
         problems.append("TOGGLE_MODS must be a dict of {mod folder: {...}}")
@@ -115,15 +123,15 @@ def _validate_config():
             if not isinstance(cfg, dict):
                 problems.append(where + " must be a dict with 'seasons' and 'above'")
                 continue
-            seasons = cfg.get("seasons")
-            if isinstance(seasons, str) or not isinstance(seasons, (list, tuple)) or not seasons:
-                problems.append(where + ": 'seasons' must be a tuple of season names - "
+            raw_when = cfg.get("when", cfg.get("seasons"))
+            if isinstance(raw_when, str) or not isinstance(raw_when, (list, tuple)) or not raw_when:
+                problems.append(where + ": 'when' must be a tuple of period names - "
                                 "note the trailing comma in a one-element tuple, "
                                 "(\"winter\",) not (\"winter\")")
             else:
-                bad = [str(x) for x in seasons if x not in SEASONS]
+                bad = [str(x) for x in raw_when if x not in known]
                 if bad:
-                    problems.append(where + ": unknown season(s) %s - valid: %s"
+                    problems.append(where + ": unknown period(s) %s - valid: %s"
                                     % (", ".join(bad), valid))
             above = cfg.get("above")
             if not isinstance(above, str) or not above.strip():
@@ -146,7 +154,7 @@ def _validate_config():
                                 "folder names inside the archive")
             else:
                 for season, folders in opts.items():
-                    if season not in SEASONS:
+                    if season not in known:
                         problems.append(where + ": unknown season %r in 'options' - valid: %s"
                                         % (season, valid))
                     if (isinstance(folders, str) or not isinstance(folders, (list, tuple))
@@ -290,11 +298,13 @@ def read_prefs():
     return out
 
 
-def apply_toggles(season, dry_run=False, prefs=None):
+def apply_toggles(active, dry_run=False, prefs=None):
     """Enable or disable the season-scoped mods and place each above its anchor.
     Returns [(name, from, to)] for what changed. With the texture layer off, every
     season-scoped mod is disabled."""
     prefs = prefs if prefs is not None else read_prefs()
+    active = [active] if isinstance(active, str) else list(active)
+    base, active_set = active[0], set(active)
     p = _modlist_path()
     raw = io.open(p, encoding="utf-8", errors="replace", newline="").read()
     nl = _detect_nl(raw)
@@ -333,9 +343,12 @@ def apply_toggles(season, dry_run=False, prefs=None):
     for name, cfg in TOGGLE_MODS.items():
         if not os.path.isdir(os.path.join(MODS, name)):
             continue
-        on = (season in cfg["seasons"]
+        # A mod is on if ANY period it is scoped to is active today - that is what
+        # makes an event additive on top of its season. MCM holds are per base
+        # period, because that is what has a page.
+        on = (bool(set(_when(cfg)) & active_set)
               and prefs["stage_textures"]
-              and _slug(name) not in prefs["off"].get(season, set()))
+              and _slug(name) not in prefs["off"].get(base, set()))
         place(name, cfg["above"], "+" if on else "-")
 
     # The generated soundscape is placed too: a folder MO2 finds on its own is added
@@ -361,10 +374,12 @@ def apply_toggles(season, dry_run=False, prefs=None):
     return changed
 
 
-def toggle_status(season, prefs=None):
+def toggle_status(active, prefs=None):
     """[(name, installed, state, wanted, held)] for each season-scoped mod. `held` is why
     a wanted mod stays off: "off" (texture layer off), "mod" (switched off in MCM), None."""
     prefs = prefs if prefs is not None else read_prefs()
+    active = [active] if isinstance(active, str) else list(active)
+    base, active_set = active[0], set(active)
     body = (_modlist_lines() or [])[1:]
     out = []
     for name, cfg in TOGGLE_MODS.items():
@@ -373,9 +388,9 @@ def toggle_status(season, prefs=None):
         held = None
         if not prefs["stage_textures"]:
             held = "off"
-        elif _slug(name) in prefs["off"].get(season, set()):
+        elif _slug(name) in prefs["off"].get(base, set()):
             held = "mod"
-        out.append((name, installed, state, season in cfg["seasons"], held))
+        out.append((name, installed, state, bool(set(_when(cfg)) & active_set), held))
     return out
 
 
@@ -528,15 +543,17 @@ def _xml_escape(s):
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def write_mod_panel(season, prefs=None):
+def write_mod_panel(active, prefs=None):
     """Write season_mods.ltx and ui_mcm_seasons_mods.xml, which the MCM page is built
     from. Rewritten every launch from what is on disk."""
     prefs = prefs if prefs is not None else read_prefs()
+    active = [active] if isinstance(active, str) else list(active)
+    base = active[0]
     d = os.path.join(MODS, SOTZ, "gamedata", "configs")
     if not os.path.isdir(d):
         return None
     status = {n: (inst, st, want, held) for n, inst, st, want, held in
-              toggle_status(season, prefs)}
+              toggle_status(active, prefs)}
     crlf = chr(13) + chr(10)
 
     rows = []
@@ -547,14 +564,14 @@ def write_mod_panel(season, prefs=None):
         n, b = _mod_weight(os.path.join(MODS, name))
         rows.append({
             "key": _slug(name), "name": _display(name), "folder": name,
-            "seasons": cfg["seasons"], "files": n, "mb": b / 1048576.0,
+            "seasons": list(_when(cfg)), "files": n, "mb": b / 1048576.0,
             "enabled": state == "+", "wanted": want, "held": held,
         })
 
     # Grouped under the first season each mod serves, in calendar order. An MCM option id
     # can exist only once, so a mod spanning seasons is listed once; its span is in the
     # label and hover text.
-    rows.sort(key=lambda r: (SEASONS.index(r["seasons"][0]), r["name"].lower()))
+    rows.sort(key=lambda r: (_order(r["seasons"][0]), r["name"].lower()))
     for r in rows:
         r["group"] = r["seasons"][0]
         r["caption"] = _drop_season(r["name"])
@@ -562,10 +579,13 @@ def write_mod_panel(season, prefs=None):
     # Dropping the season can leave two mods on one page reading alike - a user may
     # well have "<something> - Winter" and "<something> - Deep winter" both in winter.
     # Where that happens, both keep their full names.
-    for season in SEASONS:
+    # NB: this loop variable must not be called  - it used to shadow the
+    # function parameter, so every later use read the LAST name in SEASONS
+    # ("winter_snow") instead of the period actually being staged.
+    for s_page in SEASONS:
         by_caption = {}
         for r in rows:
-            if season in r["seasons"]:
+            if s_page in r["seasons"]:
                 by_caption.setdefault(r["caption"], []).append(r)
         for clash in by_caption.values():
             if len(clash) > 1:
@@ -576,7 +596,7 @@ def write_mod_panel(season, prefs=None):
     sound_have = bool(_ssrc) and os.path.isdir(_ssrc)
     sound_cuts = 0
     if sound_have and prefs["stage_sound"]:
-        cut = set(SOUND_CUT.get(season, ()))
+        cut = set(SOUND_CUT.get(base, ()))
         for f in sorted(os.listdir(_ssrc)):
             if not f.lower().endswith(".ltx"):
                 continue
@@ -588,7 +608,7 @@ def write_mod_panel(season, prefs=None):
 
     lines = ["; generated by _tools/season.py on every launch - do not edit by hand",
              "[mods]",
-             "staged_for = " + (season or "unknown"),
+             "staged_for = " + (base or "unknown"),
              "stage_textures = " + ("on" if prefs["stage_textures"] else "off"),
              "stage_sound = " + ("on" if prefs["stage_sound"] else "off"),
              "sound_available = " + ("true" if sound_have else "false"),
@@ -677,9 +697,60 @@ def install_presets(write):
     return shipped, present, copied
 
 
+def base_table(mapping="pheno"):
+    """The base periods: the shipped seasons plus anything in PERIODS. These
+    partition the year - exactly one is active on any date."""
+    table = list(PHENO if mapping == "pheno" else MET)
+    for name, when in PERIODS.items():
+        table.append((name, int(when[0]), int(when[1])))
+    return table
+
+
+def period_names(mapping="pheno"):
+    """Every name a mod may be scoped to: base periods first, then events."""
+    return [n for n, _, _ in base_table(mapping)] + list(EVENTS)
+
+
+def _in_window(d, start, end):
+    """Is d inside the inclusive (month, day) window? A window whose start is
+    after its end wraps the year end, so (12, 26)-(1, 6) is Christmas to Epiphany."""
+    a = (int(start[0]), int(start[1]))
+    b = (int(end[0]), int(end[1]))
+    x = (d.month, d.day)
+    return a <= x <= b if a <= b else (x >= a or x <= b)
+
+
+def active_for(d, mapping="pheno", base=None):
+    """Every period active on d: the base period, then every event covering it.
+
+    Events OVERLAY rather than replace. That is the whole point - a Christmas event
+    does not displace winter, so December 25th keeps its snow and adds to it. Pass
+    `base` to honour an MCM pin or --season while events still resolve by date."""
+    out = [base or season_for(d, mapping)]
+    for name, win in EVENTS.items():
+        if _in_window(d, win[0], win[1]) and name not in out:
+            out.append(name)
+    return out
+
+
+def _when(cfg):
+    """The periods a mod is scoped to. 'when' is the current key; 'seasons' is the
+    original and still works, so existing configs need no edit."""
+    v = cfg.get("when")
+    if v is None:
+        v = cfg.get("seasons")
+    return tuple(v) if isinstance(v, (list, tuple)) else ()
+
+
+def _order(name, mapping="pheno"):
+    """Calendar sort key. Events sort after every base period."""
+    names = [n for n, _, _ in base_table(mapping)]
+    return names.index(name) if name in names else len(names)
+
+
 def season_for(d, mapping="pheno"):
-    """The season containing date d."""
-    table = PHENO if mapping == "pheno" else MET
+    """The base period containing date d."""
+    table = base_table(mapping)
     starts = sorted(((datetime.date(d.year, m, dd), name) for name, m, dd in table))
     cur = sorted(table, key=lambda t: (t[1], t[2]))[-1][0]     # the season the year starts in
     for start, name in starts:
@@ -856,7 +927,7 @@ def identify(mod, cfg, tmp, prefer=None):
     if not live:
         return None, "no gamedata"
     matches, detail = [], []
-    for season in SEASONS:
+    for season in cfg["options"]:
         cand = _option_hashes(cfg["archive"], cfg["options"][season], tmp, mod)
         same = sum(1 for k in set(cand) & set(live) if cand[k] == live[k])
         detail.append((season, len(cand), len(set(cand) & set(live)), same))
@@ -980,7 +1051,7 @@ def shadow_check(force=False):
                 continue
             eg = hits[0].replace(os.sep, "/")
             if other in TOGGLE_MODS:
-                shared = set(cfg["seasons"]) & set(TOGGLE_MODS[other]["seasons"])
+                shared = set(_when(cfg)) & set(_when(TOGGLE_MODS[other]))
                 if shared:
                     notes.append((name, other, len(hits), eg, ", ".join(
                         s_ for s_ in SEASONS if s_ in shared)))
@@ -1035,7 +1106,7 @@ def main():
     ap.add_argument("path", nargs="?",
                     help="for `whowins`: a gamedata-relative file path, e.g. "
                          "textures/terrain/terrain_escape.dds")
-    ap.add_argument("--season", choices=SEASONS)
+    ap.add_argument("--season", choices=period_names())
     ap.add_argument("--mapping", choices=["pheno", "met"], default="pheno")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--no-textures", action="store_true",
@@ -1064,6 +1135,9 @@ def main():
     # over another season's ground. An explicit --season still wins over the pin.
     pinned = prefs["mode"] if prefs["mode"] in SEASONS else None
     want = a.season or pinned or season_for(today, a.mapping)
+    # A pin or --season fixes the BASE period; events still resolve by real date,
+    # so pinning summer in December does not cancel a Christmas event.
+    active = active_for(today, a.mapping, base=want)
     tmp = os.path.join(ROOT, "_staging", "season-%d" % os.getpid())    # per process
     if a.no_textures:
         prefs["stage_textures"] = False
@@ -1094,7 +1168,7 @@ def main():
                     print("        %-8s archive %3d | shared %3d | identical %3d" % (s, n, shared, same))
         print()
 
-        for name, inst, state, should, held in toggle_status(want, prefs):
+        for name, inst, state, should, held in toggle_status(active, prefs):
             if not inst:
                 print("  %-30s NOT INSTALLED" % name[:30])
             else:
@@ -1131,7 +1205,7 @@ def main():
         if tex_ok and sound_ok:
             # Toggles are checked even when nothing else moved: a newly installed
             # season-scoped mod is absent from the modlist until something inserts it.
-            tg = apply_toggles(want, not writing, prefs)
+            tg = apply_toggles(active, not writing, prefs)
             for name, was, now in tg:
                 print("  %-58s %s -> %s" % (name[:58], was, now))
             if tg and writing:
@@ -1147,7 +1221,7 @@ def main():
             if writing:
                 write_staged(staged_texture_season(installed) if not stage_tex else want,
                              stage_tex)
-                write_mod_panel(want, prefs)
+                write_mod_panel(active, prefs)
             return
         if not tex_ok:
             print("  => textures: %s" % " and ".join(
@@ -1208,14 +1282,14 @@ def main():
                 done.append("soundscape")
 
         print()
-        tg = apply_toggles(want, False, prefs)
+        tg = apply_toggles(active, False, prefs)
         for name, was, now in tg:
             print("  %-58s %s -> %s" % (name[:58], was, now))
         if tg:
             done.append("season-scoped mods")
         # after the toggles, so the panel reports the modlist as it now stands
         write_staged(staged_texture_season(installed) if not stage_tex else want, stage_tex)
-        write_mod_panel(want, prefs)
+        write_mod_panel(active, prefs)
         print("  => %s staged (%s). Takes effect on next launch." % (want, ", ".join(done) or "nothing to do"))
     finally:
         if os.path.isdir(tmp):

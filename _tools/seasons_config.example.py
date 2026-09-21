@@ -111,3 +111,33 @@ TOGGLE_MODS = {
 }
 
 SOUND_SRC = "304- Dark Signal Weather and Ambiance Audio - Shrike"
+
+
+# --- the calendar ----------------------------------------------------------------
+#
+# The five seasons are the calendar this ships with, not a limit. Add your own.
+# Full reference: docs/SCHEDULING.md
+#
+# PERIODS are BASE periods: they partition the year alongside the seasons, so
+# exactly one is ever active, and each runs until the next one starts.
+#
+#   PERIODS = {
+#       "mud_season": (3, 20),        # name: (month, day) it begins
+#   }
+#
+# EVENTS OVERLAY whatever period they land in - they are added to it, not swapped
+# for it, so a Christmas event keeps deep winter's snow underneath.
+#
+#   EVENTS = {
+#       "christmas":  ((12, 24), (12, 26)),   # (start), (end), both inclusive
+#       "halloween":  ((10, 31), (10, 31)),   # one day is fine
+#       "twelvetide": ((12, 26), (1, 6)),     # start after end wraps the year
+#   }
+#
+# Scope a mod to either with the same key you use for a season:
+#
+#   TOGGLE_MODS = {
+#       "Christmas Lights": {"when": ("christmas",), "above": "..."},
+#   }
+PERIODS = {}
+EVENTS = {}

@@ -13,6 +13,10 @@ cp _tools/seasons_config.example.py _tools/seasons_config.py
 
 That is the only file you edit. The example is a complete working configuration.
 
+Scoping a mod to a season is the common case, but the calendar is open: you can add your
+own base periods and overlapping events, and scope mods to those instead. That is
+**[docs/SCHEDULING.md](SCHEDULING.md)**; this page is the field reference.
+
 ---
 
 ## Commands
@@ -21,7 +25,7 @@ That is the only file you edit. The example is a complete working configuration.
 python _tools/season.py status                 # today's season, what is staged, what is installed
 python _tools/season.py apply                  # stage it (what play.bat runs)
 python _tools/season.py apply --dry-run        # report what would change
-python _tools/season.py apply --season winter  # stage a season other than today's
+python _tools/season.py apply --season winter  # stage a period other than today's
 python _tools/season.py apply --no-textures    # in-engine only, this run
 python _tools/season.py whowins <gamedata path>
 ```
