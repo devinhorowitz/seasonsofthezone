@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 — 2026-09-22
 
 - **Six fixed days**, laid over the season rather than replacing it.
   - *Remembrance*: April 26 (International Chernobyl Disaster Remembrance Day) and
