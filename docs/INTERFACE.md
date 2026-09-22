@@ -1,8 +1,9 @@
-# The MCM pages
+# The interface
 
-**MCM → Seasons of the Zone** has six pages, listed in MCM's second column: Main, then one
-for each season — Spring, Summer, Autumn, Winter, Deep winter. There is no HUD element, no
-pop-up and no key binding.
+Two surfaces. **MCM → Seasons of the Zone** is where the mod is configured: six pages in
+MCM's second column, Main and then one per season — Spring, Summer, Autumn, Winter, Deep
+winter. **The Year** is where it is read, a page inside the PDA. There is no HUD element,
+no pop-up and no key binding.
 
 ---
 
@@ -100,6 +101,31 @@ the Autumn page above, *CCon Autumn* is the autumn set.
 
 The mods shown are third-party texture packs (I.N.V.E.R.N.O, C Consciousness and others). None
 of them are included in this mod.
+
+---
+
+## The Year — the PDA page
+
+Reached from the PDA. With [Mod App Creator](https://www.moddb.com/mods/stalker-anomaly/addons/mod-app-creator)
+installed it appears in the app launcher, its icon the current season's dial; without MAC
+the page is still built but nothing links to it.
+
+It is read-only, and it reports rather than decorates:
+
+- **The Zone** — time to the next emission and the next psi storm, read from the running
+  surge and psi-storm managers. Drawn only when those managers have started, so a fresh
+  save shows nothing here rather than a heading over blanks.
+- **The year** — the five seasons with their dates and lengths, the current one lit.
+- **Days the Zone marks** — the six fixed days, soonest first, each with how far off it is
+  and what it does: *clear sky, quiet* for the two remembrance days, *storm, artifacts*
+  for the four anniversaries.
+- **On the calendar** — the mods the calendar is scheduling, with their spans. A mod the
+  calendar wants but cannot stage is marked `!` rather than dropped silently.
+
+The dial and the accent bar are the mod's own textures. Nothing else on the page is an
+image, which is deliberate: the PDA frame textures that other tab-adding mods borrow are
+declared in no `texture_descr` in a stock GAMMA install, which is why those pages log
+*Can't find texture*. This one has nothing to fail to find.
 
 ---
 

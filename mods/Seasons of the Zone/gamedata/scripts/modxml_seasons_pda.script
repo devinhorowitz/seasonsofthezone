@@ -1,0 +1,54 @@
+-- Seasons of the Zone - make eptSeasons a real PDA section.
+--
+-- Mod App Creator routes a click to our page itself: mac_handle_tabs() monkeypatches
+-- pda.set_active_subdialog and returns app_data.func() for a matching tab. But it gets
+-- there through ActorMenu.get_pda_menu():SetActiveSubdialog(tab), and the engine only
+-- accepts a section that exists as a button in ui/pda*.xml. That is why MAC parks
+-- eptTaskboard, eptInteractive and the rest at x=1000, width 0 - registered, invisible.
+--
+-- This adds eptSeasons the same way, by runtime injection rather than by shipping our
+-- own pda_16.xml. Editing MAC's copy would mean maintaining a fork of a file three other
+-- mods also care about; injecting touches nobody's file and works whichever copy wins.
+--
+-- Parked off-screen on purpose. The page is reached from the MAC launcher, and adding a
+-- visible button is exactly what makes the tab bar clip once several mods do it.
+
+local INJECTED = false
+
+local function inject(xml_obj)
+    local tab = xml_obj:query("tab")
+    if not (tab and tab[1]) then return end
+    local tab_el = tab[1]
+
+    -- already there? a second copy would give the engine a duplicate id
+    if tab_el.kids then
+        for _, child in ipairs(tab_el.kids) do
+            if child.name == "button" and child.attribs
+               and child.attribs.id == "eptSeasons" then
+                return
+            end
+        end
+    end
+
+    xml_obj:insertFromXMLString([[
+        <button x="1000" y="0" width="0" height="0" id="eptSeasons" frame_mode="0">
+            <text align="c" vert_align="c" x="0" y="0" font="letterica16">pda_btn_seasons</text>
+        </button>
+    ]], tab_el)
+    INJECTED = true
+end
+
+function on_game_start()
+    RegisterScriptCallback("on_xml_read", function(xml_file_name, xml_obj)
+        -- the top tab bar lives in ui/pda.xml and ui/pda_16.xml; pda_apps and pda_xcvb
+        -- are the launcher and the 3D PDA rail, which are not ours to touch
+        if string.find(xml_file_name, "ui[\\/]pda.*%.xml")
+           and not string.find(xml_file_name, "pda_apps")
+           and not string.find(xml_file_name, "pda_xcvb") then
+            local ok, err = pcall(inject, xml_obj)
+            if not ok then
+                printf("%s", "[seasons-pda] xml inject failed: " .. tostring(err))
+            end
+        end
+    end)
+end

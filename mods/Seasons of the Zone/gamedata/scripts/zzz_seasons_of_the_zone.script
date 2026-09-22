@@ -1291,6 +1291,141 @@ function load_state(m_data)
     arte_done = m_data.sotz_arte_done or {}
 end
 
+-- --- data for the PDA page ---------------------------------------------------------------
+--
+-- calendar_rows() above returns finished sentences for an MCM desc list. A page needs the
+-- pieces apart - date, length, days away - so it can lay them out and mark today's. This
+-- is that, and nothing else reads it.
+
+local MONTH = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+
+local function md(m, d)
+    return string.format("%s %d", MONTH[m] or "?", d)
+end
+
+-- Days from today to (m, d), looking forward and wrapping the year end.
+local function days_until(m, d)
+    local now  = os.date("*t")
+    local year = now.year
+    local doy  = tonumber(os.date("%j"))
+    local tgt  = doy_of(m, d, year)
+    if tgt >= doy then return tgt - doy end
+    return (doy_of(12, 31, year) - doy) + doy_of(m, d, year + 1)
+end
+
+function calendar_page()
+    local now  = os.date("*t")
+    local year = now.year
+    local doy  = tonumber(os.date("%j"))
+    local cur  = season_at(doy, year)
+
+    local out = {
+        today   = today_text(),
+        season  = cur,
+        label   = name_of(cur),
+        dial    = dial_texture(),
+        seasons = {},
+        days    = {},
+        extra   = {},
+    }
+
+    -- the five shipped seasons, in calendar order, with length and range
+    local yl = doy_of(12, 31, year)
+    for i, b in ipairs(BOUNDS) do
+        local nxt = BOUNDS[i % #BOUNDS + 1]
+        local a, z = doy_of(b.m, b.d, year), doy_of(nxt.m, nxt.d, year)
+        local len = z - a
+        if len <= 0 then len = len + yl end         -- the one that wraps the year end
+        out.seasons[#out.seasons + 1] = {
+            key     = b.season,
+            label   = name_of(b.season),
+            from    = md(b.m, b.d),
+            to      = md(nxt.m, nxt.d),
+            days    = len,
+            current = (b.season == cur),
+            starts_in = days_until(b.m, b.d),
+        }
+    end
+
+    -- the six fixed days
+    for key, day in pairs(REMEMBRANCE) do
+        local m, d = math.floor(key / 100), key % 100
+        out.days[#out.days + 1] = {
+            key    = day.key,
+            kind   = day.kind,
+            date   = md(m, d),
+            month  = m,
+            day    = d,
+            away   = days_until(m, d),
+            today  = (m == now.month and d == now.day),
+            lines  = (day.opens and #day.opens or 0) + (day.lines and #day.lines or 0),
+        }
+    end
+    table.sort(out.days, function(a, b) return a.away < b.away end)
+
+    -- the turning: which season is next and how far off. seasons[] is in calendar
+    -- order, so the next one is whichever has the smallest non-zero starts_in.
+    for _, s in ipairs(out.seasons) do
+        if not s.current and s.starts_in > 0 then
+            if not out.next or s.starts_in < out.next.days then
+                out.next = {label = s.label, days = s.starts_in, key = s.key}
+            end
+        end
+    end
+
+    -- is one of the six marked days today? the page leads with it if so
+    for _, day in ipairs(out.days) do
+        if day.today then out.marked = day end
+    end
+
+    -- the accent bar for the current season; one of this mod's own 256x16 strips
+    out.bar = "ui_season_hdr_" .. tostring(cur)
+
+    -- The Zone's own clocks. Anomaly tasks carry no completion deadlines - 621 base tasks
+    -- and every installed task mod were checked, and not one has a time limit - but
+    -- emissions and psi storms are genuinely scheduled, and those are what a stalker
+    -- actually needs the date for.
+    --
+    -- Both managers compute the next one as _delta minus the time elapsed since the last,
+    -- which is exactly what CSurgeManager:new_surge_time and its psi-storm twin do
+    -- internally. Read from the module's own singleton rather than through
+    -- get_surge_manager(), because the getter CONSTRUCTS the manager when none exists and
+    -- CSurgeManager:__init allocates a dozen sound_object handles. This only ever reads a
+    -- manager the game already made; before that the field is nil and the page omits the
+    -- row. _delta is itself nil until initialize() runs, so it is type-checked too.
+    local function seconds_until(mgr, since)
+        if type(mgr) ~= "table" or type(mgr._delta) ~= "number" or not mgr[since] then
+            return nil
+        end
+        local ok, left = pcall(function()
+            return math.floor(mgr._delta - game.get_game_time():diffSec(mgr[since]))
+        end)
+        if ok and type(left) == "number" and left > 0 then return left end
+        return nil
+    end
+
+    pcall(function()
+        out.surge = seconds_until(surge_manager and surge_manager.SurgeManager,
+                                  "last_surge_time")
+    end)
+    pcall(function()
+        out.psi = seconds_until(psi_storm_manager and psi_storm_manager.PsiStormManager,
+                                "last_psi_storm_time")
+    end)
+
+    -- anything the player added in seasons_config.py reaches the game only as staged
+    -- mods, so the page reports what was staged rather than guessing at the config
+    local ok, ml = pcall(mod_list)
+    if ok and ml then
+        out.staged_for = ml.staged_for
+        out.extra = ml.mods or {}
+    end
+
+    return out
+end
+
+
 function on_game_start()
     RegisterScriptCallback("save_state", save_state)
     RegisterScriptCallback("load_state", load_state)

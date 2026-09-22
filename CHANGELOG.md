@@ -1,6 +1,25 @@
 # Changelog
 
+## Unreleased
+
+- **A page in the PDA.** The calendar is now readable in game: the next emission and psi
+  storm, the five seasons with the current one lit, the six marked days with how far off
+  each is, and the mods the calendar is scheduling. Read-only.
+  - Registered with Mod App Creator when it is present, so the page lives in the app
+    launcher instead of taking space on the PDA tab bar. Without MAC nothing links to it
+    and nothing breaks. The tab id is injected into `ui/pda*.xml` at runtime rather than
+    by shipping a fork of a file three other mods also edit.
+  - The emission and psi-storm countdowns read the surge and psi-storm managers' existing
+    singletons directly. Calling `get_surge_manager()` would *construct* one, and that
+    constructor allocates a dozen `sound_object` handles; the page never does that.
+  - Textureless but for the mod's own dial and accent bar. The shared PDA frame textures
+    other tab-adding mods reach for are declared in no `texture_descr` in a stock install,
+    which is why those pages log *Can't find texture*.
+
 ## 1.4.0 — 2026-09-22
+
+The launch-time half was never seasonal — it maps a date to a set of names and stages the
+mods scoped to them. This release stops pretending otherwise: the calendar is now open.
 
 - **Six fixed days**, laid over the season rather than replacing it.
   - *Remembrance*: April 26 (International Chernobyl Disaster Remembrance Day) and
@@ -44,11 +63,6 @@
 - `build_release.py` refuses to build while a test rig is still armed in the mod's
   scripts. A remapped date and shortened message intervals, left in place after live
   testing, had otherwise gone into several builds unnoticed.
-## 1.4.0 — 2026-09-21
-
-The launch-time half was never seasonal — it maps a date to a set of names and stages the
-mods scoped to them. This release stops pretending otherwise: the calendar is now open.
-
 - **`PERIODS`** adds base periods alongside the five seasons. They partition the year the
   same way: one is active at a time, each runs until the next begins.
 - **`EVENTS`** adds windows that *overlay* whatever period they land in rather than
@@ -69,6 +83,7 @@ mods scoped to them. This release stops pretending otherwise: the calendar is no
 - New **[docs/SCHEDULING.md](docs/SCHEDULING.md)**: the model, the config reference,
   recipes, and an honest list of what the calendar cannot express yet (weekday and
   nth-of-month recurrence, moveable feasts, per-event MCM ticks).
+
 ## 1.3.0 — 2026-09-20
 
 - The season pinned in MCM now drives the staged layers too. MCM offers "automatic, or

@@ -1,0 +1,33 @@
+-- Seasons of the Zone - Mod App Creator registration.
+--
+-- MAC moves extra PDA pages off the top tab bar and onto an app launcher, which is how
+-- this page gets in without fighting every other tab-adding mod for bar space. If MAC is
+-- absent this file does nothing at all and the rest of the mod is unaffected.
+--
+-- The icon is one of this mod's own ui_seasons_dial_NN.dds files, picked for today, so
+-- the app icon shows the season it is. MAC calls InitTexture on it directly - a single
+-- texture, not a four-state button - so no _e/_h/_t/_d set is needed and nothing has to
+-- be shipped beyond what the dial already uses.
+
+local function dial_now()
+    local ok, tex = pcall(function() return zzz_seasons_of_the_zone.dial_texture() end)
+    if ok and type(tex) == "string" and tex ~= "" then
+        return (tex:gsub("%.dds$", ""))          -- InitTexture wants it without extension
+    end
+    return "ui_seasons_dial_00"
+end
+
+function on_game_start()
+    if not (mac_mcm and mac_mcm.add_app) then return end
+    local ok, err = pcall(function()
+        mac_mcm.add_app("app_seasons", {
+            name    = "pda_btn_seasons",
+            texture = dial_now(),
+            tab     = "eptSeasons",
+            func    = ui_seasons_pda.get_ui,
+        })
+    end)
+    if not ok then
+        printf("%s", "[seasons-pda] MAC registration failed: " .. tostring(err))
+    end
+end

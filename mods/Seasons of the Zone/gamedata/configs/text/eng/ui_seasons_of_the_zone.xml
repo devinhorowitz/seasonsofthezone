@@ -128,6 +128,9 @@
 	<string id="ui_mcm_seasons_zone_rem_anniversary_desc">
 		<text>March 20, August 22, October 2 and November 20 - the release dates of the four mainline games. One line on the PDA counting the years. Unlike the remembrance days, nothing in the world changes.</text>
 	</string>
+	<string id="pda_btn_seasons">
+		<text>The Year</text>
+	</string>
 	<string id="ui_mcm_seasons_zone_rem_weather">
 		<text>Remembrance days: clear sky</text>
 	</string>
