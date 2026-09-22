@@ -112,15 +112,47 @@ the page is still built but nothing links to it.
 
 It is read-only, and it reports rather than decorates:
 
-- **The Zone** — time to the next emission and the next psi storm, read from the running
-  surge and psi-storm managers. Drawn only when those managers have started, so a fresh
-  save shows nothing here rather than a heading over blanks.
+- **Ecologist forecast** — the next emission and psi storm, at a resolution you earn.
+  See [below](#the-forecast).
 - **The year** — the five seasons with their dates and lengths, the current one lit.
 - **Days the Zone marks** — the six fixed days, soonest first, each with how far off it is
   and what it does: *clear sky, quiet* for the two remembrance days, *storm, artifacts*
   for the four anniversaries.
 - **On the calendar** — the mods the calendar is scheduling, with their spans. A mod the
   calendar wants but cannot stage is marked `!` rather than dropped silently.
+
+### The forecast
+
+Emissions are the one genuinely scheduled thing in the Zone, and the ecologists are the
+faction that measures them. So the page will tell you — but how precisely depends on how
+they feel about you. Standing is `relation_registry.community_goodwill("ecolog", …)`,
+which runs from -1000 at war to +1000 at friendly.
+
+| Ecologist standing | What the page says |
+|---|---|
+| below 200 | *They keep their readings to themselves*, and your current standing |
+| 200 | `close` · `building` · `no sign` — a warning, never a time |
+| 700 | the hour |
+
+Both thresholds are MCM tracks; those are the defaults.
+
+The locked row is drawn deliberately rather than hidden. A reward the player cannot see
+is not one they can work towards, so the row names the standing they have and the
+standing they need.
+
+The bands are a **fraction of the current period, not fixed hours**, so they keep their
+meaning if you move the frequency slider: with `emission_frequency` at the stock 24,
+*building* is a few hours; at 168 it is most of a day.
+
+**Why this is not on the calendar.** It was going to be, and the numbers said no. At
+`emission_frequency = 24` the manager rolls a delay of 12–24 *game* hours, and GAMMA runs
+`time_factor = 6` — one emission every 2–4 real hours, six to twelve per real calendar
+day. A day-scale calendar entry would read "emission likely" every single day, which is
+not a forecast. The live readout is the only honest place for it.
+
+`_tools/test_forecast.py` runs the shipped script under a real Lua interpreter and checks
+all three tiers, the band boundaries, and that a locked or coarse page never leaks the
+exact time.
 
 The dial and the accent bar are the mod's own textures. Nothing else on the page is an
 image, which is deliberate: the PDA frame textures that other tab-adding mods borrow are

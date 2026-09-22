@@ -1291,6 +1291,12 @@ function load_state(m_data)
     arte_done = m_data.sotz_arte_done or {}
 end
 
+-- Ecologist goodwill buying forecast resolution. Faction goodwill runs -1000 (enemy) to
+-- +1000 (friend) and starts near nought, so 200 is a few jobs done for them and 700 is a
+-- real investment. Both are MCM tracks; these are only the defaults.
+local FORECAST_COARSE = 200
+local FORECAST_EXACT  = 700
+
 -- --- data for the PDA page ---------------------------------------------------------------
 --
 -- calendar_rows() above returns finished sentences for an MCM desc list. A page needs the
@@ -1382,18 +1388,34 @@ function calendar_page()
     -- the accent bar for the current season; one of this mod's own 256x16 strips
     out.bar = "ui_season_hdr_" .. tostring(cur)
 
-    -- The Zone's own clocks. Anomaly tasks carry no completion deadlines - 621 base tasks
-    -- and every installed task mod were checked, and not one has a time limit - but
-    -- emissions and psi storms are genuinely scheduled, and those are what a stalker
-    -- actually needs the date for.
+    -- --- what the ecologists will tell you ------------------------------------------------
     --
-    -- Both managers compute the next one as _delta minus the time elapsed since the last,
-    -- which is exactly what CSurgeManager:new_surge_time and its psi-storm twin do
-    -- internally. Read from the module's own singleton rather than through
-    -- get_surge_manager(), because the getter CONSTRUCTS the manager when none exists and
-    -- CSurgeManager:__init allocates a dozen sound_object handles. This only ever reads a
-    -- manager the game already made; before that the field is nil and the page omits the
-    -- row. _delta is itself nil until initialize() runs, so it is type-checked too.
+    -- Anomaly tasks carry no completion deadlines - 621 base tasks and every installed
+    -- task mod were checked, and not one has a time limit - so there is nothing there to
+    -- put on a calendar. Emissions ARE scheduled, but they do not belong on one either:
+    -- emission_frequency 24 makes _delta a random 12-24 GAME hours, and time_factor 6
+    -- turns that into one every 2-4 real hours. Six to twelve per real calendar day. The
+    -- answer to "is there an emission in the next few days" is always yes, several times,
+    -- which is no answer at all.
+    --
+    -- The live reading is worth having; the question is how much of it you have earned.
+    -- The ecologists are the faction that actually measures this, so the resolution is
+    -- bought with standing among them rather than with a detector. Below the first
+    -- threshold the page says so and names the number, because a locked thing the player
+    -- cannot see is not something they can play towards.
+    local function standing()
+        local ok, v = pcall(function()
+            return relation_registry.community_goodwill("ecolog", db.actor:id())
+        end)
+        if ok and type(v) == "number" then return v end
+        return nil
+    end
+
+    -- Both managers compute the next event as _delta minus the time since the last, which
+    -- is what CSurgeManager:new_surge_time and its psi-storm twin do internally. Read the
+    -- module's own singleton rather than calling get_surge_manager(), because the getter
+    -- CONSTRUCTS the manager when none exists and CSurgeManager:__init allocates a dozen
+    -- sound_object handles. This only ever reads a manager the game already made.
     local function seconds_until(mgr, since)
         if type(mgr) ~= "table" or type(mgr._delta) ~= "number" or not mgr[since] then
             return nil
@@ -1405,14 +1427,50 @@ function calendar_page()
         return nil
     end
 
-    pcall(function()
-        out.surge = seconds_until(surge_manager and surge_manager.SurgeManager,
-                                  "last_surge_time")
-    end)
-    pcall(function()
-        out.psi = seconds_until(psi_storm_manager and psi_storm_manager.PsiStormManager,
-                                "last_psi_storm_time")
-    end)
+    -- The period the frequency option implies, in game seconds. Both managers roll
+    -- _delta in [freq/2, freq] hours, so freq hours is the longest wait there can be.
+    local function period(key, fallback)
+        local ok, v = pcall(function() return ui_options.get(key) end)
+        if not (ok and type(v) == "number" and v > 0) then v = fallback end
+        return v * 3600
+    end
+
+    -- A band is a FRACTION of the period, never an hour count, so it keeps its meaning
+    -- whoever moves the frequency slider: at the stock 24 "building" is a few hours, at
+    -- 168 it is most of a day. This is the whole point of the coarse tier - it tells you
+    -- to get indoors without telling you exactly when, which is what the ecologists would
+    -- actually say over a radio.
+    local function band(left, full)
+        if not (left and full and full > 0) then return nil end
+        local f = left / full
+        if f <= 0.15 then return "imminent" end
+        if f <= 0.45 then return "building"  end
+        return "quiet"
+    end
+
+    if mcm("forecast", true) then
+        local st   = standing()
+        local need = mcm("forecast_coarse", FORECAST_COARSE)
+        local full = mcm("forecast_exact",  FORECAST_EXACT)
+        local tier = "locked"
+        if st then
+            if st >= full then tier = "exact" elseif st >= need then tier = "coarse" end
+        end
+        out.forecast = {tier = tier, standing = st, need = need, need_exact = full}
+
+        if tier ~= "locked" then
+            local s = seconds_until(surge_manager and surge_manager.SurgeManager,
+                                    "last_surge_time")
+            local p = seconds_until(psi_storm_manager and psi_storm_manager.PsiStormManager,
+                                    "last_psi_storm_time")
+            if tier == "exact" then
+                out.surge, out.psi = s, p
+            else
+                out.surge_band = band(s, period("alife/event/emission_frequency",  24))
+                out.psi_band   = band(p, period("alife/event/psi_storm_frequency", 48))
+            end
+        end
+    end
 
     -- anything the player added in seasons_config.py reaches the game only as staged
     -- mods, so the page reports what was staged rather than guessing at the config

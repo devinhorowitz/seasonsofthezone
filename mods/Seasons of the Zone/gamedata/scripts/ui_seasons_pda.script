@@ -62,6 +62,14 @@ local function countdown(sec)
     return "any moment"
 end
 
+-- The coarse tier's whole job is to warn without timing. These are what a reading
+-- relayed over a radio would sound like, and none of them implies an hour.
+local BAND = {
+    imminent = "close",
+    building = "building",
+    quiet    = "no sign",
+}
+
 local function page()
     local ok, data = pcall(function() return zzz_seasons_of_the_zone.calendar_page() end)
     if ok and type(data) == "table" then return data end
@@ -164,17 +172,32 @@ function SeasonsPDA:Fill()
         end
     end
 
-    -- --- the Zone's own schedule ----------------------------------------------------------
-    -- Only drawn when a manager actually answered. A save loaded before the surge manager
-    -- initialises leaves both nil, and the section simply is not there - better than a
-    -- heading over two dashes.
-    if d.surge or d.psi then
-        self:Row("row_head", "The Zone")
-        if d.surge then
-            self:Row("row_line", string.format("%-18s %s", "Emission", countdown(d.surge)))
-        end
-        if d.psi then
-            self:Row("row_line", string.format("%-18s %s", "Psi storm", countdown(d.psi)))
+    -- --- the ecologist forecast ------------------------------------------------------------
+    -- Three states, and the locked one is drawn on purpose: a reward the player cannot
+    -- see is not one they can work towards, so the row names the standing they have and
+    -- the standing they need.
+    local fc = d.forecast
+    if fc then
+        self:Row("row_head", "Ecologist forecast")
+
+        if fc.tier == "locked" then
+            self:Row("row_dim", "They keep their readings to themselves.")
+            self:Row("row_dim", fc.standing
+                     and string.format("%-18s %d, need %d", "Standing", fc.standing, fc.need)
+                     or  "No contact.")
+        else
+            -- exact tier gets the hour, coarse gets a band and never a number
+            local e = fc.tier == "exact" and (d.surge and countdown(d.surge))
+                                         or  (d.surge_band and BAND[d.surge_band])
+            local p = fc.tier == "exact" and (d.psi   and countdown(d.psi))
+                                         or  (d.psi_band   and BAND[d.psi_band])
+            self:Row(e and "row_line" or "row_dim",
+                     string.format("%-18s %s", "Emission",  e or "no reading"))
+            self:Row(p and "row_line" or "row_dim",
+                     string.format("%-18s %s", "Psi storm", p or "no reading"))
+            if fc.tier == "coarse" then
+                self:Row("row_dim", string.format("%d standing buys the hour.", fc.need_exact))
+            end
         end
         self:Gap()
     end

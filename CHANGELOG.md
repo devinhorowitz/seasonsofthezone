@@ -12,6 +12,19 @@
   - The emission and psi-storm countdowns read the surge and psi-storm managers' existing
     singletons directly. Calling `get_surge_manager()` would *construct* one, and that
     constructor allocates a dozen `sound_object` handles; the page never does that.
+- **The forecast is earned.** How precisely the page reports the next emission depends on
+  your standing with the ecologists — the faction that would actually be taking the
+  readings. Below 200 goodwill it shows the number you need and nothing else; at 200 it
+  warns without timing (`close` / `building` / `no sign`); at 700 it gives the hour. Both
+  thresholds are MCM tracks.
+  - The bands are a fraction of the live `emission_frequency`, not fixed hours, so they
+    still mean something at any setting.
+  - Emissions are deliberately **not** calendar entries. At the stock frequency and
+    `time_factor = 6` they land every 2–4 real hours — six to twelve per real calendar
+    day — so a day-scale entry would say "likely" every day forever.
+- New **`_tools/test_forecast.py`**: runs the shipped script under a real Lua interpreter
+  with the engine bindings stubbed, covering the three tiers, the band boundaries, and
+  that neither locked nor coarse ever leaks the exact time.
   - Textureless but for the mod's own dial and accent bar. The shared PDA frame textures
     other tab-adding mods reach for are declared in no `texture_descr` in a stock install,
     which is why those pages log *Can't find texture*.

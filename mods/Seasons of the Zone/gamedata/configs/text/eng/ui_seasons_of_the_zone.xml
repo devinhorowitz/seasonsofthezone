@@ -192,4 +192,22 @@
 	<string id="ui_mcm_seasons_zone_preset_desc"><text>Which cfg preset this season's color grade comes from. Built-in is the season table; the rest are presets in appdata - yours, Atmospherics', and the mod's own. Only the grade changes; takes effect on Apply.</text></string>
 	<string id="ui_mcm_seasons_zone_preset_neutral"><text>Neutral preset (intensity 0)</text></string>
 	<string id="ui_mcm_seasons_zone_preset_neutral_desc"><text>The preset the neutral baseline uses, what intensity 0 renders. Only the grade changes; takes effect on Apply.</text></string>
+	<string id="ui_mcm_seasons_zone_forecast">
+		<text>Ecologist emission forecast</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_desc">
+		<text>Show the next emission and psi storm on the PDA page. How precisely is bought with standing among the ecologists - they are the ones taking the readings.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_coarse">
+		<text>Forecast: standing for a warning</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_coarse_desc">
+		<text>Ecologist goodwill needed before they warn you at all. At this level the page says close, building or no sign, and never an hour.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_exact">
+		<text>Forecast: standing for the hour</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_exact_desc">
+		<text>Ecologist goodwill needed before they give you the time. Goodwill runs to 1000 at friendly, so 700 is a real investment.</text>
+	</string>
 </string_table>

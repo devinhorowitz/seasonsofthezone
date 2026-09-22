@@ -114,6 +114,16 @@ local function page_main()
     add({id = "rem_ann_weather", type = "check", val = 1, def = true})
     add({id = "rem_ann_artefacts", type = "check", val = 1, def = true})
 
+    add({id = "line_fc", type = "line"})
+    -- The emission forecast on the PDA page, and what it costs in ecologist goodwill.
+    -- Goodwill runs -1000 to +1000; below the first threshold the page shows the number
+    -- rather than hiding the row, so the player can see what they are working towards.
+    add({id = "forecast", type = "check", val = 1, def = true})
+    add({id = "forecast_coarse", type = "track", val = 2, min = 0, max = 1000, step = 50,
+         def = 200})
+    add({id = "forecast_exact", type = "track", val = 2, min = 0, max = 1000, step = 50,
+         def = 700})
+
     add({id = "line3", type = "line"})
     add({id = "notify", type = "check", val = 1, def = true})
     add({id = "pda_greeting", type = "check", val = 1, def = true})
