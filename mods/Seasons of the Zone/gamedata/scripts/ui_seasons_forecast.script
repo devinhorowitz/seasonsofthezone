@@ -149,15 +149,31 @@ function SeasonsForecast:Fill()
     local okg = pcall(function() self.gauge:InitTexture("ui_seasons_forecast") end)
     if not okg then say("gauge texture failed") end
 
-    -- the headline: what it is doing outside, right now
+    -- the headline: what it is doing outside, right now. Temperature comes through
+    -- sotz_api so the page and any wearable device read the same number from the same
+    -- model, rather than each deriving its own and disagreeing by a degree.
     local w = d.weather
-    self.now:SetText(w and w.now and cycle_name(w.now) or "")
+    local temp = nil
+    local okt, tv = pcall(function() return sotz_api.temperature() end)
+    if okt then temp = tv end
+
+    local head = w and w.now and cycle_name(w.now) or ""
+    if temp and temp.now then
+        head = (head ~= "" and (head .. ",  ") or "") .. string.format("%d C", temp.now)
+    end
+    self.now:SetText(head)
     self.gauge_caption:SetText(w and w.now and "outside now" or "no reading")
 
     -- --- the weather ----------------------------------------------------------------------
     -- Not a guess. Atmospherics plans the next 24 game hours in advance and this is that
     -- plan, so the times are the times it will actually change.
     self:Row("row_head", "The next day")
+    -- the day's endpoints, not just the current number: the cycle is accelerated, so
+    -- "-3" on its own says nothing about whether the night is survivable
+    if temp then
+        self:Row("row_line", string.format("%-7s high %d, low %d, %s", "Air",
+                 temp.high, temp.low, temp.rising and "rising" or "falling"))
+    end
     if w and w.segments and #w.segments > 0 then
         for _, seg in ipairs(w.segments) do
             self:Row("row_line", string.format("%-7s %-15s %s",

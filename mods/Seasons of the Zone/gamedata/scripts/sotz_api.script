@@ -1,0 +1,267 @@
+-- Seasons of the Zone - the public read API.
+--
+-- Everything else in this mod is internal and may be rearranged. THIS file is the
+-- contract: a small, cheap, side-effect-free surface that other mods can read to put the
+-- Zone's schedule on a wrist device, a HUD, a custom PDA page, or anything else, without
+-- opening ours.
+--
+-- X-Ray gives every .script file its own table, exposed to other files under the FILE's
+-- name. So a consumer calls:
+--
+--     local t = sotz_api.temperature()
+--     local b = sotz_api.blowout()
+--
+-- never the bare function name. (The Wearable Devices PDA Messages mod documents the same
+-- rule the hard way in zz_wd_pda_redirect.script.)
+--
+-- Contract:
+--   * Every function is a pure read. Nothing here changes game state.
+--   * Nothing throws. A missing manager, a missing mod, a save loaded before the world is
+--     up - all return nil or a marked "unknown", never an error.
+--   * Everything is cached for CACHE_MS, so a device may call these every frame.
+--   * VERSION only goes up, and only when a field changes meaning. New fields are added
+--     without a bump, so check `>=`, not `==`.
+
+VERSION = 1
+
+local CACHE_MS = 2000
+local cache = {}
+
+-- time_global() is real milliseconds since launch, which is what a frame-rate cache
+-- wants; game time would stretch and compress with the time factor.
+local function cached(key, build)
+    local now = 0
+    local ok, t = pcall(time_global)
+    if ok and type(t) == "number" then now = t end
+
+    local hit = cache[key]
+    if hit and (now - hit.at) < CACHE_MS then return hit.val end
+
+    local good, val = pcall(build)
+    if not good then val = nil end
+    cache[key] = {at = now, val = val}
+    return val
+end
+
+-- =========================================================================================
+-- Temperature
+-- =========================================================================================
+--
+-- There is no ambient temperature anywhere in Anomaly or GAMMA - every "thermal" in the
+-- install is a thermal anomaly or a thermal scope. So this is a MODEL, and it says so:
+-- every reading carries source = "model". It is not a sensor reading dressed up as one.
+--
+-- What it models is the real Zone. The daily high and low come from climate normals for
+-- the Polesia region around Chornobyl, interpolated between months so nothing jumps on
+-- the 1st. The mod already runs its calendar on real dates, so the real month is the
+-- right input.
+--
+-- The curve between those two is driven by the GAME clock, not the real one. The day is
+-- accelerated, so a fixed number would be wrong twice over - it would ignore the night,
+-- and it would move at the wrong speed. Minimum sits just before dawn and maximum in the
+-- middle of the afternoon, and the rise is steeper than the fall, which is how a real day
+-- actually behaves.
+--
+-- Highs and lows are published alongside the current value on purpose. A consumer that
+-- wants a band, a gauge or a "feels like" has the endpoints; one that wants a number has
+-- `now`. Nothing has to re-derive the model to draw something different.
+
+-- mean daily high / low in Celsius, by month, for the Chornobyl area. Approximate
+-- normals, not a live reading - see source = "model".
+local NORMALS = {
+    {-2, -8}, {-1, -8}, {5, -3}, {14, 3},  {20, 9},  {23, 13},
+    {25, 14}, {24, 13}, {18, 9}, {12, 4},  {4, -1},  {-1, -6},
+}
+
+local T_MIN_HOUR = 5.0        -- coldest, just before dawn
+local T_MAX_HOUR = 15.0       -- warmest, mid afternoon
+
+-- Cloud holds heat in at night and keeps it out by day, so it squeezes the swing toward
+-- the mean; rain and storms also drag the whole day down a little.
+local WEATHER_T = {
+    clear  = {swing = 1.00, offset =  0.0},
+    partly = {swing = 0.88, offset = -0.3},
+    cloudy = {swing = 0.65, offset = -1.0},
+    foggy  = {swing = 0.55, offset = -1.5},
+    rain   = {swing = 0.55, offset = -2.5},
+    storm  = {swing = 0.50, offset = -3.5},
+}
+
+local function month_normals()
+    local now = os.date("*t")
+    local m = now.month
+    local days = tonumber(os.date("%d")) or 15
+    -- slide toward the neighbouring month across the month, so 31 Jan is nearly February
+    local span = 30.0
+    local f = (days - 15) / span
+    local other = m
+    if f >= 0 then other = (m % 12) + 1 else other = ((m - 2) % 12) + 1; f = -f end
+    f = math.min(f, 1.0)
+
+    local a, b = NORMALS[m], NORMALS[other]
+    if not (a and b) then return 10, 0 end
+    return a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f
+end
+
+-- 0 at the daily minimum, 1 at the daily maximum. Asymmetric: the ten hours of warming
+-- are compressed against fourteen of cooling.
+local function diurnal(hour)
+    local rise = T_MAX_HOUR - T_MIN_HOUR
+    local fall = 24.0 - rise
+    local h = hour % 24
+    if h >= T_MIN_HOUR and h < T_MAX_HOUR then
+        return 0.5 - 0.5 * math.cos(math.pi * (h - T_MIN_HOUR) / rise)
+    end
+    local x = ((h - T_MAX_HOUR) % 24) / fall
+    return 0.5 + 0.5 * math.cos(math.pi * x)
+end
+
+local function game_hour()
+    local ok, h, m = pcall(function()
+        return level.get_time_hours(), level.get_time_minutes()
+    end)
+    if ok and type(h) == "number" then return h + (tonumber(m) or 0) / 60.0 end
+    return 12.0
+end
+
+-- The current weather cycle, straight from Atmospherics. nil when it is not running.
+local function cycle_now()
+    local ok, c = pcall(function()
+        if not (level_weathers and level_weathers.get_weather_manager) then return nil end
+        local wm = level_weathers.get_weather_manager()
+        return wm and wm.cycle
+    end)
+    if ok then return c end
+    return nil
+end
+
+--- Modelled air temperature.
+-- @return {low, high, now, hour, rising, cycle, unit = "C", source = "model"}
+--         low/high are today's endpoints AFTER the weather adjustment, so a consumer can
+--         draw a band without knowing anything about the model. `rising` is true while
+--         the curve is climbing, which is what a device needs to draw an arrow.
+function temperature()
+    return cached("temperature", function()
+        local high, low = month_normals()
+        local mean = (high + low) / 2.0
+
+        local w = WEATHER_T[tostring(cycle_now() or "")] or WEATHER_T.partly
+        high = mean + (high - mean) * w.swing + w.offset
+        low  = mean - (mean - low)  * w.swing + w.offset
+
+        local h = game_hour()
+        local f = diurnal(h)
+        local hh = h % 24
+        local rising = (hh >= T_MIN_HOUR and hh < T_MAX_HOUR)
+
+        return {
+            low    = math.floor(low + 0.5),
+            high   = math.floor(high + 0.5),
+            now    = math.floor(low + (high - low) * f + 0.5),
+            hour   = h,
+            rising = rising,
+            cycle  = cycle_now(),
+            unit   = "C",
+            source = "model",
+        }
+    end)
+end
+
+-- =========================================================================================
+-- Weather
+-- =========================================================================================
+
+--- What it is doing now and what it does next.
+-- @return {now, next = {cycle, at, away_min}, plan = {…}} or nil without Atmospherics.
+--         This is not a prediction: Atmospherics plans the next 24 game hours in
+--         WeatherManager.day_plan and this reads that plan, so `at` is when it will
+--         actually change. Repeats of the current cycle are not changes and are skipped.
+function weather()
+    return cached("weather", function()
+        local page = zzz_seasons_of_the_zone.forecast_page()
+        if not (page and page.weather) then return nil end
+        local w = page.weather
+        return {
+            now  = w.now,
+            next = w.segments and w.segments[1] and {
+                cycle    = w.segments[1].cycle,
+                at       = w.segments[1].at,
+                away_min = w.segments[1].away,
+            } or nil,
+            plan = w.segments,
+        }
+    end)
+end
+
+-- =========================================================================================
+-- Blowout
+-- =========================================================================================
+
+--- Time to the next emission and psi storm, at the resolution the player has earned.
+-- @return {tier, standing, need, need_exact,
+--          emission = {seconds|band}, psi = {seconds|band}}
+--
+--         tier is "locked", "coarse" or "exact".
+--           locked - the ecologists do not share. `seconds` and `band` are both nil, and a
+--                    consumer MUST NOT infer anything from that; showing a blank is the
+--                    point.
+--           coarse - `band` is "imminent", "building" or "quiet". No number, deliberately.
+--           exact  - `seconds` is game seconds to the event.
+--
+--         `fraction` is present on every unlocked tier: 0 at the event, 1 a full period
+--         away. That is the field to drive a gauge, a bar or a pulse rate from - it needs
+--         no unit conversion and it stays correct when the frequency option moves.
+--         wd_sensor_pulse.get_delay(1 - fraction, min, max) is a blowout sensor.
+function blowout()
+    return cached("blowout", function()
+        local page = zzz_seasons_of_the_zone.forecast_page()
+        if not (page and page.forecast) then return nil end
+        local f = page.forecast
+
+        local function part(seconds, band, key, fallback)
+            local out = {seconds = seconds, band = band}
+            if seconds then
+                local ok, hours = pcall(function() return ui_options.get(key) end)
+                if not (ok and type(hours) == "number" and hours > 0) then hours = fallback end
+                out.fraction = math.min(1.0, seconds / (hours * 3600))
+            elseif band then
+                -- the coarse tier deliberately has no number, but a gauge still needs
+                -- somewhere to sit; these are the midpoints of the three bands
+                out.fraction = (band == "imminent" and 0.08)
+                            or (band == "building" and 0.30) or 0.70
+            end
+            return out
+        end
+
+        return {
+            tier       = f.tier,
+            standing   = f.standing,
+            need       = f.need,
+            need_exact = f.need_exact,
+            emission   = part(page.surge, page.surge_band,
+                              "alife/event/emission_frequency", 24),
+            psi        = part(page.psi, page.psi_band,
+                              "alife/event/psi_storm_frequency", 48),
+        }
+    end)
+end
+
+-- =========================================================================================
+-- Calendar
+-- =========================================================================================
+
+--- Where the year stands, and whether today is one of the days the Zone marks.
+-- @return {season, label, today, next = {label, days}, marked = {kind, key}}
+function calendar()
+    return cached("calendar", function()
+        local page = zzz_seasons_of_the_zone.calendar_page()
+        if not page then return nil end
+        return {
+            season = page.season,
+            label  = page.label,
+            today  = page.today,
+            next   = page.next,
+            marked = page.marked,
+        }
+    end)
+end

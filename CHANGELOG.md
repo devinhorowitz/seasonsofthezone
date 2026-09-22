@@ -12,6 +12,30 @@
   - The emission and psi-storm countdowns read the surge and psi-storm managers' existing
     singletons directly. Calling `get_surge_manager()` would *construct* one, and that
     constructor allocates a dozen `sound_object` handles; the page never does that.
+- **A read API — `sotz_api.script`.** The mod keeps a schedule nothing else in the game
+  does, and until now the only way to see it was our own pages. This publishes it: four
+  pure, non-throwing, cached accessors any mod can read. `sotz_api.VERSION` is the
+  compatibility check. New in [docs/API.md](docs/API.md).
+  - `temperature()` — a **model**, and labelled one: nothing in Anomaly or GAMMA has an
+    ambient temperature to read. Daily high and low come from climate normals for the
+    Polesia region and slide between months; the curve between them runs on the *game*
+    clock, because the day is accelerated and a fixed number would be wrong twice over.
+    Cloud squeezes the swing, rain and storms drag the day down. Endpoints are published
+    next to the current value so a consumer can draw a band without re-deriving anything.
+  - `weather()` — now, next and the plan, straight from Atmospherics' own schedule.
+  - `blowout()` — the emission and psi countdowns at the tier the player has earned, plus
+    a `fraction` (0 at the event, 1 a period away) meant for driving a gauge or a pulse
+    rate. A locked tier exposes nothing, deliberately.
+  - `calendar()` — season, next turn, and today's marked day.
+  - **No Wearable Devices bridge ships here, on purpose.** WD gates sensors on the device
+    tier config, so adding one would make this mod a fork of it. API.md gives the ~15-line
+    pulse sensor a separate compat mod would use — the device ticking faster as an
+    emission closes, and staying silent for a stalker the ecologists do not trust.
+- New **`_tools/test_api.py`**: twelve cases under a real Lua interpreter, in a harness
+  that reproduces X-Ray's per-file namespacing, so a cross-file reference that would
+  silently fail in game fails here too.
+- The forecast page now shows air temperature through the same API, rather than deriving
+  its own and disagreeing with a device by a degree.
 - **A second page: Forecast.** The calendar answers *when is it* and runs on real dates;
   the forecast answers *what is about to happen* and runs on the game clock. Splitting
   them also gives the mod a place to put near-term world state that is not a date —
