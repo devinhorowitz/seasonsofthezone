@@ -104,6 +104,16 @@ local function page_main()
     add({id = "stage_textures", type = "check", val = 1, def = true})
     add({id = "stage_sound", type = "check", val = 1, def = true})
 
+    add({id = "line_rem", type = "line"})
+    -- Days of remembrance: April 26 and December 14. Each is a day laid over
+    -- whatever season is running; none of these touch the season layers.
+    add({id = "rem_weather", type = "check", val = 1, def = true})
+    add({id = "rem_messages", type = "check", val = 1, def = true})
+    -- the four mainline release dates; a line on the PDA and nothing else
+    add({id = "rem_anniversary", type = "check", val = 1, def = true})
+    add({id = "rem_ann_weather", type = "check", val = 1, def = true})
+    add({id = "rem_ann_artefacts", type = "check", val = 1, def = true})
+
     add({id = "line3", type = "line"})
     add({id = "notify", type = "check", val = 1, def = true})
     add({id = "pda_greeting", type = "check", val = 1, def = true})

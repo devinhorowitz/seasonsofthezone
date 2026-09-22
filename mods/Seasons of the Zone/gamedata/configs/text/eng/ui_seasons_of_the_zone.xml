@@ -110,6 +110,36 @@
 	<string id="ui_mcm_seasons_zone_desc_mods_unavailable">
 		<text>Mod list unavailable - launch with play.bat and it will be built.</text>
 	</string>
+	<string id="ui_mcm_seasons_zone_rem_ann_weather">
+		<text>Anniversaries: the Zone gets loud</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_ann_weather_desc">
+		<text>The weather is pushed to the storm cycle for the day, not held calm. The two remembrance days do the opposite.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_ann_artefacts">
+		<text>Anniversaries: a crop of artefacts</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_ann_artefacts_desc">
+		<text>An extra spawn of artefacts on each level you visit that day, through Dynamic Anomalies Overhaul's own spawner. These persist in your save, like any other spawned artefact. Needs that mod; does nothing without it.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_anniversary">
+		<text>Anniversaries: PDA line</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_anniversary_desc">
+		<text>March 20, August 22, October 2 and November 20 - the release dates of the four mainline games. One line on the PDA counting the years. Unlike the remembrance days, nothing in the world changes.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_weather">
+		<text>Remembrance days: clear sky</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_weather_desc">
+		<text>April 26 and December 14. The weather is held on the clear cycle for the day. April 26 is International Chernobyl Disaster Remembrance Day; December 14 is Liquidators' Day. The season underneath is unchanged.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_messages">
+		<text>Remembrance days: PDA line</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_messages_desc">
+		<text>One line on the PDA when you load in on either day. Nothing else is announced.</text>
+	</string>
 	<string id="ui_mcm_seasons_zone_stage_textures">
 		<text>Swap textures with the season</text>
 	</string>

@@ -36,7 +36,39 @@ would rather tune yourself can be switched off on its own.
 Below those are the two launch-time switches, which cannot change mid-session. **Swap
 textures with the season** is the texture layer's master switch: off, the in-engine seasons
 continue and no texture mod is mounted or unmounted. **Gate ambient sound by season** is
-the soundscape's. Last come the PDA message settings.
+the soundscape's.
+
+### Days
+
+Six fixed dates sit on top of whatever season is running. None of them change the season:
+April 26 is still spring, December 14 still deep winter.
+
+Two are **remembrance days** — April 26, International Chernobyl Disaster Remembrance Day,
+and December 14, Ukraine's Liquidators' Day. On these the Zone goes still.
+
+- **Remembrance days: clear sky** — the weather is held on the clear cycle for the day.
+Every transmission is signed and carries that speaker's portrait — Barman, Sidorovich,
+Owl, Beard, Sakharov, Forester, Nimble, or an unnamed guide — so the day arrives as
+people talking rather than as the game narrating.
+
+- **Remembrance days: PDA traffic** — an opening transmission shortly after you load in,
+  then further lines at random intervals of eight to twenty minutes, drawn from that
+  day's pool. The pool is shuffled rather than rolled, so nothing repeats until it is
+  exhausted.
+
+Four are **anniversaries** — the release dates of the mainline games: March 20, August 22,
+October 2 and November 20. These pull the other way, and the Zone gets loud.
+
+- **Anniversaries: PDA traffic** — the same, opening with a line counting the years
+  since that release. The count is computed from the date, so it never goes stale.
+- **Anniversaries: the Zone gets loud** — the weather is pushed to the storm cycle.
+- **Anniversaries: a few extra artefacts** — roughly nought to five on each level you
+  visit that day, through Dynamic Anomalies Overhaul's own spawner. Lightly noticeable
+  rather than a windfall. Unlike everything else here these persist in your save, exactly
+  as ordinary spawned artefacts do, and only once per level per day even across reloads.
+  Needs that mod; does nothing without it.
+
+Last come the PDA message settings.
 
 Every option has hover text, as shown above for *Drive wetness*.
 

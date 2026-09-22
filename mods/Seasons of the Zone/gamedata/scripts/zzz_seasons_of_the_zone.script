@@ -770,9 +770,420 @@ local function pda_announce()
     say("PDA: " .. msg)
 end
 
+-- --- days of remembrance -----------------------------------------------------------------
+--
+-- Two fixed dates the Zone marks by going still. Both are real observances:
+--
+--     April 26      International Chernobyl Disaster Remembrance Day (UN, 2016)
+--     December 14   Liquidators' Day (Ukraine, 2006)
+--
+-- They are DAYS, not seasons. Each sits on top of whatever season is running and changes
+-- nothing about it - April 26 is still spring, December 14 is still deep winter. Nothing
+-- here touches the season table, the blend, or the staged mods.
+--
+-- Deliberately no reward, no drop, no map marker. The day is carried by the sky going
+-- quiet and the PDA carrying the day.
+--
+-- The date is read with os.date(), the same real-world clock the seasons use. The in-game
+-- clock runs at time_factor 10 and its calendar drifts from the real one permanently, so
+-- nothing here is tied to an in-game hour.
+
+local REM_MS  = 5000          -- how often the day is re-checked; cheap either way
+local next_rem = 0
+local rem_said = false        -- the PDA line is once per session, not once per tick
+
+-- Two kinds of day, deliberately not treated alike.
+--
+--   memorial     a real observance for a real disaster. The sky is held clear and the
+--                PDA carries the day's transmissions.
+--   anniversary  the release date of a mainline game. A nod, nothing more: the PDA line
+--                and nothing else. Giving a game's birthday the same still sky as the
+--                26th of April would flatten the difference between them.
+--
+-- `since` is the release year; the line is formatted with the elapsed count, so it stays
+-- correct every year instead of going stale.
+-- `open` is sent shortly after you load in. `lines` is a pool drawn from at random
+-- intervals after that, shuffled so nothing repeats until the pool is exhausted. Any
+-- line containing %d is formatted with the years elapsed since `since`, so the count is
+-- computed rather than written down and cannot go stale.
+local REMEMBRANCE = {
+    -- memorial
+    [426]  = {kind = "memorial", key = "chernobyl",
+              opens = {
+                  "Owl: No traffic on any channel. Nobody is working today.",
+                  "Owl: Channel has been open since dawn. Nobody has used it.",
+                  "Sidorovich: Quiet on every band. You will not find work today.",
+              },
+              lines = {
+                  "Owl: Someone is reading names on the long wave. Has been for an hour.",
+                  "Sidorovich: The old hands are not going out. Not today.",
+                  "Nimble: Barman poured one and left it on the counter. Did not say who for.",
+                  "Forester: There is a candle at the fire nobody will admit to lighting.",
+                  "Beard: Two stalkers at the fire, neither of them talking.",
+                  "Barman: One of the traders shut up shop at noon. No reason given.",
+                  "Forester: Flowers at the foot of a rusted sign. They will not last the night.",
+                  "Owl: The reading on the long wave has not stopped. Different voice now.",
+                  "Guide: Nobody has fired a shot near the checkpoint all day. Unusual.",
+                  "Barman: Old man at the bar has been nursing the same drink since morning.",
+                  "Nimble: Some rookie asked what day it was. Nobody answered him.",
+                  "Sidorovich: Squad went out at first light and came straight back. Did not say why.",
+                  "Sakharov: The dosimeters read the same as any other day. Feels wrong that they do.",
+                  "Beard: A date scratched into the table. No year with it.",
+                  "Forester: The dogs have not started up once.",
+              }},
+    -- memorial
+    [1214] = {kind = "memorial", key = "liquidators",
+              opens = {
+                  "Sakharov: Clear over the reactor. First time in weeks.",
+                  "Forester: Sky is open all the way north. You can see the sarcophagus from the ridge.",
+                  "Owl: No cloud, no wind. They say it always clears on this date.",
+              },
+              lines = {
+                  "Sakharov: They went in knowing. That is the part nobody says out loud.",
+                  "Barman: Sky is wrong today. Too clean.",
+                  "Beard: Old man at the fire keeps looking north.",
+                  "Owl: Someone read a list this morning. Short list. All the same year.",
+                  "Forester: No wind. The Zone is holding its breath.",
+                  "Nimble: Trader at the bar is giving vodka away. Will not take payment.",
+                  "Owl: Long wave has a man in a lead apron on it. A recording, not a live one.",
+                  "Guide: You can see a long way today. Not sure that is a mercy.",
+                  "Beard: Three of them at the fire, all facing the reactor.",
+                  "Forester: A shovel standing upright in the dirt. Nobody has moved it.",
+                  "Barman: Man at the bar says his grandfather came here in eighty-six. Did not say more.",
+                  "Sakharov: The air is still enough to hear the plant from the ridge.",
+                  "Nimble: An old respirator on the bar, polished, hours of it.",
+                  "Sidorovich: Squad passed through without a word. All of them clean-shaven.",
+                  "Sidorovich: Nobody is selling today. A few are buying drinks.",
+              }},
+    -- anniversary
+    [320]  = {kind = "anniversary", key = "soc", since = 2012,
+              opens = {
+                  "Sidorovich: %d years since a man with no memory woke up in a death truck.",
+                  "Barman: Bar is loud tonight. Somebody started the old arguments again.",
+                  "Forester: Storm building. Same as it did %d years back, they say.",
+              },
+              lines = {
+                  "Sidorovich: Trader's truck came through with bodies in the back, they say. Old story. Comes round every year.",
+                  "Barman: Old hands get strange this week. Something about a man who walked into the Sarcophagus and did not come out.",
+                  "Nimble: Sidorovich has had his bunker door shut since morning.",
+                  "Barman: Two rookies arguing about who really did it. Neither of them was here.",
+                  "Sakharov: Anomalies are busy tonight. Good hunting, if you are mad enough.",
+                  "Beard: Bar is full and loud. Nobody is going out.",
+                  "Nimble: Man in the corner bet his whole artefact case that the wish granter is real.",
+                  "Sakharov: Electros lit up across the whole field. Never seen so many at once.",
+                  "Sidorovich: A man came in asking directions to the reactor. Got laughed out.",
+                  "Nimble: There is a tattered jacket for sale and a long story attached to it.",
+                  "Forester: The wire hums tonight. Older stalkers say that is normal for the date.",
+                  "Guide: Squad heading out at this hour. Someone talked them into it.",
+                  "Owl: Traders raised their prices and blamed the weather.",
+                  "Owl: Repeater went down for ten minutes. Came back with nobody on it.",
+                  "Barman: Every rookie in the bar has a theory. None of them were there.",
+              }},
+    -- anniversary
+    [822]  = {kind = "anniversary", key = "cs", since = 2011,
+              opens = {
+                  "Sakharov: %d years since Clear Sky went into the swamps. Not many came out.",
+                  "Guide: The marshes took a whole faction. %d years, and nobody has taken the ground back.",
+                  "Sakharov: Emission season. The swamp crews knew this one better than anybody.",
+              },
+              lines = {
+                  "Sakharov: Emission readings up over the marshes. Nothing on the surface yet.",
+                  "Barman: A merc in the bar claims he served in the swamps back then. Nobody believes him.",
+                  "Barman: Faction war talk again. Someone always brings it up this time of year.",
+                  "Guide: Swamp is restless. The ones who used to work it are long gone.",
+                  "Sakharov: Barometer dropped through the floor an hour ago. The marshes always did know first.",
+                  "Nimble: Waterlogged rifle came out of the reeds. Old pattern, nobody makes it now.",
+                  "Barman: Two factions nearly went at it in the bar over something long buried.",
+                  "Owl: The old radio masts in the marsh are picking something up again.",
+                  "Sidorovich: Swamp-salvaged gear on sale and no answer about where from.",
+                  "Beard: A guide refuses to take anyone south today. Will not say why.",
+                  "Sakharov: Anomaly field shifted overnight. The whole marsh edge has moved.",
+                  "Beard: Man in the corner keeps checking a detector that is not switched on.",
+                  "Forester: Rain coming. The kind that does not stop.",
+                  "Owl: Voices on a dead channel out by the reeds, if you believe him.",
+                  "Guide: Nobody has walked the far side of the marsh in a week.",
+              }},
+    -- anniversary
+    [1002] = {kind = "anniversary", key = "cop", since = 2012,
+              opens = {
+                  "Owl: %d years since Operation Fairway went down over Pripyat.",
+                  "Beard: Five helicopters. %d years and they still argue about the fifth.",
+                  "Owl: Military band has been busy all morning. Old frequencies.",
+              },
+              lines = {
+                  "Beard: Five helicopters. They still argue about the fifth.",
+                  "Owl: The Fairway transmission is playing again. Static and a man counting.",
+                  "Forester: Military flying low over Zaton. Looking for something old.",
+                  "Owl: Scrappers still pull pieces out of Stingray Five. Still worth carrying.",
+                  "Guide: Anyone heading north today is going for the wrong reasons.",
+                  "Beard: A man at Skadovsk is buying anything with military markings. Paying over the odds.",
+                  "Nimble: Flight recorder, allegedly. He will not show it to anyone.",
+                  "Guide: The old evac route is busy tonight. Nobody is evacuating.",
+                  "Beard: Two ex-military drinking together. Neither has said a word in an hour.",
+                  "Owl: There is a map going round with five crosses on it. Four crossed out.",
+                  "Sakharov: Pripyat is quiet on the scanners. Too quiet for the date.",
+                  "Sidorovich: Trader says a pilot's watch came through here once. Sold it fast.",
+                  "Barman: Someone is asking about Yanov like they expect it to be different.",
+                  "Beard: A squad went north at dusk without hiring a guide.",
+                  "Owl: Static on the military band. Just static. Someone is listening to it anyway.",
+              }},
+    -- anniversary
+    [1120] = {kind = "anniversary", key = "hoc",
+              opens = {
+                  "Forester: Wire has moved again. Further out than the last time.",
+                  "Guide: Maps in the bar are wrong and nobody has drawn new ones.",
+                  "Sidorovich: Something is coming up from the south. Nobody can say what.",
+              },
+              lines = {
+                  "Guide: Zone is bigger than the maps say. Has been a while now.",
+                  "Sidorovich: Newcomers with gear nobody recognises, coming up from the south.",
+                  "Sakharov: Scanner picked up something it had no name for.",
+                  "Forester: A sphere out past the ridge. Looked again and there was nothing.",
+                  "Barman: New faction colours at the checkpoint. Nobody asked whose.",
+                  "Nimble: Traders are stocking things that were not made here.",
+                  "Sidorovich: Hiring notice on the board with no destination written on it.",
+                  "Barman: Old hands do not like how many people are coming in.",
+                  "Forester: Something went through the treeline at speed. Left no prints.",
+                  "Beard: A guide walked a route he has known for years and did not recognise it.",
+                  "Sakharov: Anomaly two clicks east that nobody has a name for. One of them will name it.",
+                  "Nimble: Detector at the bar reads something the others do not. Owner will not sell it.",
+                  "Owl: Three expeditions went out this week. One has reported back.",
+                  "Barman: The newcomers talk about the Zone like it is a job.",
+                  "Beard: Two guides gave different answers for the same route today.",
+              }},
+}
+
+local function remembrance_today()
+    local t = os.date("*t")
+    return REMEMBRANCE[t.month * 100 + t.day]
+end
+
+-- Hold the weather on a named cycle.
+--
+-- A memorial holds "clear"; an anniversary holds "storm". The two kinds of day pull
+-- in opposite directions on purpose - one goes still, the other goes loud.
+--
+-- This goes through Atmospherics' own manager - the accessor surge_manager.script already
+-- uses - rather than writing console values, so it does not fight the weather system. The
+-- day plan reassigns self.cycle as segments advance, which is why this re-asserts on a
+-- tick instead of setting it once; it only writes when the cycle has actually drifted, so
+-- a clear day costs nothing.
+local function hold_cycle(name)
+    if not (level_weathers and level_weathers.get_weather_manager) then
+        return "Atmospherics not present"
+    end
+    local ok, err = pcall(function()
+        local wm = level_weathers.get_weather_manager()
+        if not wm then error("no weather manager") end
+        if wm.cycle == name then return end
+        if not (wm.presets and wm.presets[name]) then error("no " .. name .. " cycle") end
+        wm.cycle = name
+        if random_key_table then
+            wm.preset = random_key_table(wm.presets[name])
+        end
+        if type(wm.forced_weather_change) == "function" then
+            wm:forced_weather_change()
+        end
+    end)
+    return ok and "ok" or tostring(err)
+end
+
+-- An anniversary seeds an extra crop of artefacts on each level you visit that day.
+--
+-- This calls Dynamic Anomalies Overhaul's own public entry point - the same one
+-- grok_artefacts_random_spawner already calls behind a chance roll - rather than
+-- touching its spawn-chance setting, which is a local and unreachable anyway. That
+-- also means there is nothing to restore: a crash mid-day cannot leave a rate
+-- turned up for good.
+--
+-- NOTE: these artefacts go into the alife and persist in the save, exactly as the
+-- ordinary random spawner's do. Once per level per session, latched, so walking in
+-- and out of a level does not keep seeding it.
+-- Keyed "YYYY-MM-DD|level" and saved with the game, so the promise in the docs - one
+-- crop per level per DAY - survives a reload. A plain in-memory table reset on every
+-- load, and repeated loads are normal here.
+arte_done = {}                 -- module-scope: save_state/load_state reach it
+local ARTE_PASSES = 5          -- see the note in anniversary_artefacts
+
+-- Count every artefact the simulation knows about. alife():iterate_objects, never a
+-- 0..65534 sweep - that is the pattern that had to be removed from Homestead for the
+-- hitches it caused. Returns nil if the engine will not co-operate.
+local function count_artefacts()
+    local n = 0
+    local ok = pcall(function()
+        alife():iterate_objects(function(se)
+            if se and IsArtefact(nil, se:clsid()) then n = n + 1 end
+        end)
+    end)
+    return ok and n or nil
+end
+
+local function anniversary_artefacts()
+    if not (drx_da_main and drx_da_main.spawn_artefacts_on_level) then
+        return "Dynamic Anomalies Overhaul not present"
+    end
+    local okl, lvl = pcall(function() return level.name() end)
+    if not (okl and lvl) then return "no level" end
+
+    local key = os.date("%Y-%m-%d") .. "|" .. lvl
+    if arte_done[key] then return nil end
+    arte_done[key] = true
+
+    -- One call is a ~15% dice roll per eligible smart, so it yields 0-1 artefacts -
+    -- measured at 28 -> 29 once and 28 -> 28 twice on Garbage. The chance itself lives
+    -- in a file local inside DAO and cannot be reached, so repeating the call is the
+    -- only lever. Five passes gives a light 0-5, which is the intended dose for a day
+    -- that comes round once a year.
+    local before = count_artefacts()
+    for _ = 1, ARTE_PASSES do
+        local ok, err = pcall(drx_da_main.spawn_artefacts_on_level)
+        if not ok then return tostring(err) end
+    end
+    local after = count_artefacts()
+
+    if before and after then
+        return string.format("seeded %s on %s over %s passes (artefacts %s -> %s)",
+                             tostring(after - before), lvl, tostring(ARTE_PASSES),
+                             tostring(before), tostring(after))
+    end
+    return "seeded artefacts on " .. lvl .. " (count unavailable)"
+end
+
+-- The opening transmission lands shortly after you load in; the pool is drawn from at
+-- intervals somewhere between these two, so two days running never sound the same.
+local REM_OPEN_MS = 25000
+local REM_GAP_MIN = 8 * 60000
+local REM_GAP_MAX = 20 * 60000
+
+local rem_bag  = nil          -- shuffled indices remaining in today's pool
+local rem_next = 0            -- time_global of the next transmission
+
+-- The in-game year, not the real one. Anomaly starts on 26.10.2018 and its calendar
+-- advances with play, so a line about how long ago something happened has to be measured
+-- from where the player actually is. Returns nil if the engine will not give it up.
+local function game_year()
+    local ok, y = pcall(function() return game.get_game_time():get() end)
+    if ok and type(y) == "number" and y > 1900 and y < 4000 then return y end
+    return nil
+end
+
+local function rem_format(day, s)
+    if not s:find("%%d") then return s end
+    if not day.since then return nil end          -- a count with nothing to count from
+    local y = game_year()
+    if not y then return nil end                  -- caller picks a line without a count
+    local ok, out = pcall(string.format, s, y - day.since)
+    return ok and out or nil
+end
+
+-- Speaker -> the key added by mod_news_tips_icons_sotz.ltx. Lines are written as
+-- "Owl: ..." so the name is already in the text; this puts the face beside it.
+local SPEAKER_ICON = {
+    Barman     = "sotz_barman",
+    Sidorovich = "sotz_sidorovich",
+    Owl        = "sotz_owl",
+    Beard      = "sotz_beard",
+    Sakharov   = "sotz_sakharov",
+    Forester   = "sotz_forester",
+    Nimble     = "sotz_nimble",
+    Guide      = "sotz_guide",
+}
+
+local function rem_send(day, s)
+    if not (db.actor and news_manager and news_manager.send_tip) then return end
+    local msg = rem_format(day, s)
+    if not msg then return false end              -- unusable; the caller tries another
+    -- the speaker is the word before the first colon
+    local who = msg:match("^([%a]+):")
+    local icon = who and SPEAKER_ICON[who] or nil
+    news_manager.send_tip(db.actor, msg, nil, icon, 14000)
+    say("remembrance PDA: " .. msg)
+    return true
+end
+
+-- A shuffle bag rather than a plain random pick: with five lines and a straight roll you
+-- would hear the same one twice in a row often enough to notice, which reads as a bug.
+local function rem_refill(day)
+    rem_bag = {}
+    for i = 1, #(day.lines or {}) do
+        rem_bag[i] = i
+    end
+    for i = #rem_bag, 2, -1 do
+        local j = math.random(i)
+        rem_bag[i], rem_bag[j] = rem_bag[j], rem_bag[i]
+    end
+end
+
+local function remembrance_announce(day)
+    local tg = time_global()
+    if not rem_said then
+        rem_said = true
+        rem_next = tg + REM_OPEN_MS
+        return                       -- the opening waits out the load, it does not race it
+    end
+    if tg < rem_next then return end
+
+    if rem_bag == nil then           -- first fire after the opening delay: send `open`
+        -- If the in-game year is unavailable, every opening carrying a count is
+        -- unusable; fall back to one that does not need it rather than printing "%d".
+        local ops = day.opens or {}
+        local start = math.random(#ops)
+        for k = 0, #ops - 1 do
+            if rem_send(day, ops[(start + k - 1) % #ops + 1]) then break end
+        end
+        rem_refill(day)
+    else
+        if #rem_bag == 0 then rem_refill(day) end
+        local idx = table.remove(rem_bag)
+        local pool = day.lines or {}
+        if idx and pool[idx] then rem_send(day, pool[idx]) end
+    end
+    rem_next = tg + math.random(REM_GAP_MIN, REM_GAP_MAX)
+end
+
+local rem_logged = false
+
+local function remembrance_tick()
+    local day = remembrance_today()
+    if not day then return end
+
+    if not rem_logged then
+        rem_logged = true
+        say("remembrance day active: " .. day.key .. " (" .. tostring(day.kind) .. ")")
+    end
+
+    -- An anniversary is a line and nothing else; only a memorial touches the world.
+    local memorial = (day.kind == "memorial")
+
+    if mcm(memorial and "rem_messages" or "rem_anniversary", true) then
+        remembrance_announce(day)
+    end
+    if memorial then
+        if mcm("rem_weather", true) then
+            local r = hold_cycle("clear")
+            if r ~= "ok" and r ~= nil then say("remembrance weather: " .. r) end
+        end
+    else
+        if mcm("rem_ann_weather", true) then
+            local r = hold_cycle("storm")
+            if r ~= "ok" and r ~= nil then say("anniversary weather: " .. r) end
+        end
+        if mcm("rem_ann_artefacts", true) then
+            local r = anniversary_artefacts()
+            if r then say("anniversary: " .. r) end
+        end
+    end
+end
+
+
 local function actor_on_update()
     if not P then return end
     local tg = time_global()
+    -- before the calendar branch below, which returns early on its own tick
+    if tg >= next_rem then
+        next_rem = tg + REM_MS
+        remembrance_tick()
+    end
     if tg >= next_date then
         next_date = tg + DATE_MS
         apply(false)                 -- re-resolve the calendar; no-ops if nothing moved
@@ -866,7 +1277,23 @@ local function actor_on_first_update()
     end
 end
 
+-- The artefact latch rides in the save. Only today's keys are kept, so the table does
+-- not grow for the life of a playthrough.
+function save_state(m_data)
+    local today, keep = os.date("%Y-%m-%d"), {}
+    for k, v in pairs(arte_done) do
+        if v and k:sub(1, #today) == today then keep[k] = true end
+    end
+    m_data.sotz_arte_done = keep
+end
+
+function load_state(m_data)
+    arte_done = m_data.sotz_arte_done or {}
+end
+
 function on_game_start()
+    RegisterScriptCallback("save_state", save_state)
+    RegisterScriptCallback("load_state", load_state)
     RegisterScriptCallback("actor_on_first_update", actor_on_first_update)
     RegisterScriptCallback("actor_on_update", actor_on_update)
     RegisterScriptCallback("on_option_change", on_option_change)

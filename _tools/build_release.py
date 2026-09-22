@@ -36,7 +36,7 @@ TOOL_FILES = [
     "build_seasons_ltx.py",
 ]
 
-EMPTY_CONFIG = '''"""Which mods this install stages per season. The only file to edit.
+EMPTY_CONFIG = '''"""Which mods this install stages, and when. The only file to edit.
 
 Empty is the default and is fine: the in-engine layer (light, color, fog, wind, wetness,
 the dial, the MCM page) needs nothing here. These tables add the launch-time layers,
@@ -48,12 +48,39 @@ which use mods you install yourself. seasons_config.example.py is a complete exa
                  mods that ship one folder per season. Gigabytes move; prefer TOGGLE_MODS.
   SOUND_SRC      the ambience mod whose presets are gated by season. Must be the mod
                  that wins those files.
+  PERIODS        extra base periods, alongside the seasons. name: (month, day) start.
+  EVENTS         windows that OVERLAY whatever period they land in, so a one-day event
+                 keeps its season around it. name: ((m, d) start, (m, d) end), inclusive;
+                 a start after its end wraps the year. See docs/SCHEDULING.md.
 """
 
 LAYOUT = {}
 TOGGLE_MODS = {}
 SOUND_SRC = None
+PERIODS = {}
+EVENTS = {}
 '''
+
+
+def refuse_test_rigs():
+    """Stop a build that would ship a test rig.
+
+    build_release copies the mod straight out of mods/, so anything armed there for a
+    live test ships. On 2026-09-21 a remapped remembrance date and 20-second PDA
+    intervals went into several builds before anyone looked.
+    """
+    import glob
+    bad = []
+    for p in glob.glob(os.path.join(ROOT, 'mods', MOD, 'gamedata', 'scripts',
+                                    '*.script')):
+        txt = io.open(p, encoding='utf-8', errors='replace').read()
+        for marker in ('LIVETEST', 'TESTDAY', 'TEST open:'):
+            if marker in txt:
+                bad.append('%s contains %s' % (os.path.basename(p), marker))
+    if bad:
+        raise SystemExit('  ** refusing to build - test rig still armed:' + chr(10)
+                         + chr(10).join('      ' + b for b in bad))
+    print('  no test rig armed     OK')
 
 
 def verify_engine_only():
@@ -214,6 +241,7 @@ def check_savedgames_repair(moddir):
 
 
 def main():
+    refuse_test_rigs()
     verify_engine_only()
 
     shutil.rmtree(STAGE, ignore_errors=True)

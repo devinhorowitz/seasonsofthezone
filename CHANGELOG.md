@@ -1,5 +1,49 @@
 # Changelog
 
+## Unreleased
+
+- **Six fixed days**, laid over the season rather than replacing it.
+  - *Remembrance*: April 26 (International Chernobyl Disaster Remembrance Day) and
+    December 14 (Liquidators' Day). The weather is held clear and the PDA carries the
+    day's transmissions. No reward, no drop, no marker.
+  - *Anniversaries*: March 20, August 22, October 2 and November 20 - the mainline
+    releases. These pull the opposite way: the weather is pushed to storm, and an extra
+    few extra artefacts are seeded on each level visited - roughly nought to five, once
+    per level per day and persisted across reloads. The opening line counts the years and
+    is computed from the date, so it never goes stale.
+  - **Every line is signed and carries its speaker's portrait.** Eight voices, each
+    given the lines its vantage point fits: bar gossip from the Bar, readings from
+    Yantar, military traffic from Skadovsk, routes from a guide. A speaker never narrates
+    themselves, so "Barman poured one and left it on the counter" comes from Nimble.
+    Portraits come from `configs/plugins/mod_news_tips_icons_sotz.ltx`, a DLTX overlay of
+    the base tips-icon table; every texture it names is one the base game already
+    references, and an unknown key falls back to the default icon rather than failing.
+  - Each day has three opening transmissions and a pool of fifteen more - 108 in all -
+    sent at random intervals of eight to twenty minutes. Roughly 15,000 distinct sets per
+    day, so a playthrough hears about a third of a pool and no two sound alike. The pool
+    is a shuffle bag rather than a straight roll: with a plain random pick, repeats land
+    often enough to read as a bug.
+  - **The anniversary counts are measured in-world, not out of it.** The four dates are
+    release dates, which is deliberate - but the lines are spoken by stalkers, so the
+    arithmetic is the in-game year against the year the game is SET in, not the release
+    year against the real one. Shadow of Chernobyl is set in May 2012, Clear Sky in 2011,
+    Call of Pripyat in August 2012; Anomaly starts on 26.10.2018. A fresh save therefore
+    hears "6 years since Operation Fairway", and the count advances as the save ages.
+  - Heart of Chornobyl is set in 2021-22, which is still ahead of Anomaly's calendar, so
+    it carries no count at all - its transmissions are premonitory rather than
+    remembered. That also stops all four anniversaries striking the same nostalgic note.
+  - Every day keeps at least one opening with no count in it, so an unreadable in-game
+    year falls back to a line that renders instead of printing a format specifier.
+  - Six MCM switches, all on by default.
+- The artefact crop calls Dynamic Anomalies Overhaul's own public spawner rather than its
+  spawn-chance setting, which is a file local and unreachable - and which, written to MCM,
+  would have survived a crash and left the rate raised for good. Those artefacts do
+  persist in the save, as any spawned artefact does.
+- The weather is driven through Atmospherics' own weather manager, the accessor
+  surge_manager.script already uses, and only written when the cycle has drifted.
+- `build_release.py` refuses to build while a test rig is still armed in the mod's
+  scripts. A remapped date and shortened message intervals, left in place after live
+  testing, had otherwise gone into several builds unnoticed.
 ## 1.4.0 — 2026-09-21
 
 The launch-time half was never seasonal — it maps a date to a set of names and stages the

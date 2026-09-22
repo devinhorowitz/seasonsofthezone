@@ -1,0 +1,33 @@
+; Seasons of the Zone - portraits for the voices that carry the remembrance days.
+;
+; news_manager.send_tip's fourth argument is a sender. Given a string it is looked up in
+; this table; given an NPC game object it calls character_icon() instead. A string is the
+; right choice here: these transmissions arrive whether or not the speaker happens to be
+; spawned and online near the player.
+;
+; DLTX merge. The base file is configs/plugins/news_tips_icons.ltx, which news_manager
+; reads with ini_file() at on_game_start and copies key by key into tips_icons. "380-
+; Anomaly Subtitles" already overlays this same file the same way, which is what proves
+; the merge works here.
+;
+; Every texture below is referenced by the base game's own configs - none is shipped by
+; this mod, and none is invented. An unknown key is harmless: send_tip falls back to
+; ui_iconsTotal_grouping rather than failing.
+
+![news_tips_icons]
+
+; exact portraits - these characters have their own
+sotz_barman     = ui_inGame2_barman
+sotz_sakharov   = ui_inGame2_sakharov
+sotz_forester   = ui_inGame2_forester
+sotz_nimble     = ui_inGame2_nimble
+sotz_owl        = ui_inGame2_csky_trade
+
+; no dedicated portrait exists for these two, so they take the closest by role:
+; Sidorovich the trader, Beard the barman - a different barman texture from the one
+; above, so the two are still distinguishable on screen.
+sotz_sidorovich = ui_iconsNpc_trader
+sotz_beard      = ui_iconsNpc_barman
+
+; the unnamed voice
+sotz_guide      = ui_icon_news_trx_stalker
