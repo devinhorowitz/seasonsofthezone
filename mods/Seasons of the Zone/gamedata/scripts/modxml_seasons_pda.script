@@ -20,22 +20,31 @@ local function inject(xml_obj)
     if not (tab and tab[1]) then return end
     local tab_el = tab[1]
 
+    local WANT = {
+        {id = "eptSeasons",  label = "pda_btn_seasons"},
+        {id = "eptForecast", label = "pda_btn_forecast"},
+    }
+
     -- already there? a second copy would give the engine a duplicate id
+    local have = {}
     if tab_el.kids then
         for _, child in ipairs(tab_el.kids) do
-            if child.name == "button" and child.attribs
-               and child.attribs.id == "eptSeasons" then
-                return
+            if child.name == "button" and child.attribs and child.attribs.id then
+                have[child.attribs.id] = true
             end
         end
     end
 
-    xml_obj:insertFromXMLString([[
-        <button x="1000" y="0" width="0" height="0" id="eptSeasons" frame_mode="0">
-            <text align="c" vert_align="c" x="0" y="0" font="letterica16">pda_btn_seasons</text>
-        </button>
-    ]], tab_el)
-    INJECTED = true
+    for _, w in ipairs(WANT) do
+        if not have[w.id] then
+            xml_obj:insertFromXMLString(string.format([[
+                <button x="1000" y="0" width="0" height="0" id="%s" frame_mode="0">
+                    <text align="c" vert_align="c" x="0" y="0" font="letterica16">%s</text>
+                </button>
+            ]], w.id, w.label), tab_el)
+            INJECTED = true
+        end
+    end
 end
 
 function on_game_start()

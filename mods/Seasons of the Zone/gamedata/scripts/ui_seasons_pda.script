@@ -4,6 +4,9 @@
 -- the marked days are coming, and what the calendar is holding for today. Everything
 -- comes from zzz_seasons_of_the_zone.calendar_page(); nothing is computed twice.
 --
+-- Dates only. Anything running on the GAME clock - the weather plan, the next emission -
+-- lives on the forecast page instead, because those are not calendar questions.
+--
 -- Mod App Creator calls get_ui() and expects a CUIScriptWnd back. Registration lives in
 -- z_seasons_pda_mac.script, so this file does not care whether MAC is installed.
 --
@@ -51,24 +54,6 @@ local function when_text(days)
     if days == 1 then return "tomorrow" end
     return string.format("in %d days", days)
 end
-
--- Emission and psi-storm countdowns arrive as GAME seconds, which is what the player
--- reckons in - a surge is "about four hours off", never "24 real minutes". Round to the
--- hour above one hour, to the minute below it.
-local function countdown(sec)
-    if sec >= 7200 then return string.format("%d hours",  math.floor(sec / 3600 + 0.5)) end
-    if sec >= 3600 then return "an hour" end
-    if sec >=  120 then return string.format("%d minutes", math.floor(sec / 60)) end
-    return "any moment"
-end
-
--- The coarse tier's whole job is to warn without timing. These are what a reading
--- relayed over a radio would sound like, and none of them implies an hour.
-local BAND = {
-    imminent = "close",
-    building = "building",
-    quiet    = "no sign",
-}
 
 local function page()
     local ok, data = pcall(function() return zzz_seasons_of_the_zone.calendar_page() end)
@@ -170,36 +155,6 @@ function SeasonsPDA:Fill()
         if s.current then
             self.dial_caption:SetText(string.format("%s - %s", s.from, s.to))
         end
-    end
-
-    -- --- the ecologist forecast ------------------------------------------------------------
-    -- Three states, and the locked one is drawn on purpose: a reward the player cannot
-    -- see is not one they can work towards, so the row names the standing they have and
-    -- the standing they need.
-    local fc = d.forecast
-    if fc then
-        self:Row("row_head", "Ecologist forecast")
-
-        if fc.tier == "locked" then
-            self:Row("row_dim", "They keep their readings to themselves.")
-            self:Row("row_dim", fc.standing
-                     and string.format("%-18s %d, need %d", "Standing", fc.standing, fc.need)
-                     or  "No contact.")
-        else
-            -- exact tier gets the hour, coarse gets a band and never a number
-            local e = fc.tier == "exact" and (d.surge and countdown(d.surge))
-                                         or  (d.surge_band and BAND[d.surge_band])
-            local p = fc.tier == "exact" and (d.psi   and countdown(d.psi))
-                                         or  (d.psi_band   and BAND[d.psi_band])
-            self:Row(e and "row_line" or "row_dim",
-                     string.format("%-18s %s", "Emission",  e or "no reading"))
-            self:Row(p and "row_line" or "row_dim",
-                     string.format("%-18s %s", "Psi storm", p or "no reading"))
-            if fc.tier == "coarse" then
-                self:Row("row_dim", string.format("%d standing buys the hour.", fc.need_exact))
-            end
-        end
-        self:Gap()
     end
 
     -- --- the year ------------------------------------------------------------------------

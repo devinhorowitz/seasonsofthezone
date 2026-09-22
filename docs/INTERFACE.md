@@ -2,8 +2,8 @@
 
 Two surfaces. **MCM → Seasons of the Zone** is where the mod is configured: six pages in
 MCM's second column, Main and then one per season — Spring, Summer, Autumn, Winter, Deep
-winter. **The Year** is where it is read, a page inside the PDA. There is no HUD element,
-no pop-up and no key binding.
+winter. **The Year** and **Forecast** are where it is read: two pages inside the PDA. There is
+no HUD element, no pop-up and no key binding.
 
 ---
 
@@ -104,16 +104,15 @@ of them are included in this mod.
 
 ---
 
-## The Year — the PDA page
+## The Year — the calendar page
 
-Reached from the PDA. With [Mod App Creator](https://www.moddb.com/mods/stalker-anomaly/addons/mod-app-creator)
+Dates only. Anything running on the game clock lives on [Forecast](#forecast--the-pda-page)
+instead. Reached from the PDA. With [Mod App Creator](https://www.moddb.com/mods/stalker-anomaly/addons/mod-app-creator)
 installed it appears in the app launcher, its icon the current season's dial; without MAC
 the page is still built but nothing links to it.
 
 It is read-only, and it reports rather than decorates:
 
-- **Ecologist forecast** — the next emission and psi storm, at a resolution you earn.
-  See [below](#the-forecast).
 - **The year** — the five seasons with their dates and lengths, the current one lit.
 - **Days the Zone marks** — the six fixed days, soonest first, each with how far off it is
   and what it does: *clear sky, quiet* for the two remembrance days, *storm, artifacts*
@@ -121,7 +120,37 @@ It is read-only, and it reports rather than decorates:
 - **On the calendar** — the mods the calendar is scheduling, with their spans. A mod the
   calendar wants but cannot stage is marked `!` rather than dropped silently.
 
-### The forecast
+The dial and the accent bar are the mod's own textures. Nothing else on the page is an
+image, which is deliberate: the PDA frame textures that other tab-adding mods borrow are
+declared in no `texture_descr` in a stock GAMMA install, which is why those pages log
+*Can't find texture*. This one has nothing to fail to find.
+
+---
+
+## Forecast — the PDA page
+
+The second page, and a different question: the calendar answers *when is it*, this
+answers *what is about to happen*. They ran as one page briefly and it read badly —
+nobody opens a calendar to find out whether it is going to rain this afternoon.
+
+It is also the extension point. Anything that is near-term world state rather than a date
+belongs here; adding a reading means a section in `Fill()` and a field on
+`forecast_page()`, and nothing else changes.
+
+### The next day
+
+Not a guess. Atmospherics does not roll the weather as it goes — `WeatherManager:roll_day_plan`
+plans `self.day_plan` out to a full 24 game hours ahead as a list of `{minute, cycle}`.
+The page reads that plan, so the times shown are the times it will actually change.
+
+Only *changes* are listed. The plan repeats a cycle to extend a spell, and six rows of
+"rain" is not a forecast. A plan with no change in it reads *Settled*.
+
+This one is **not** gated. Weather is something a stalker reads by looking up, the
+ecologists have no special claim on it, and it gives the page something to say at zero
+standing rather than a single locked row.
+
+### The ecologist forecast
 
 Emissions are the one genuinely scheduled thing in the Zone, and the ecologists are the
 faction that measures them. So the page will tell you — but how precisely depends on how
@@ -154,10 +183,6 @@ not a forecast. The live readout is the only honest place for it.
 all three tiers, the band boundaries, and that a locked or coarse page never leaks the
 exact time.
 
-The dial and the accent bar are the mod's own textures. Nothing else on the page is an
-image, which is deliberate: the PDA frame textures that other tab-adding mods borrow are
-declared in no `texture_descr` in a stock GAMMA install, which is why those pages log
-*Can't find texture*. This one has nothing to fail to find.
 
 ---
 

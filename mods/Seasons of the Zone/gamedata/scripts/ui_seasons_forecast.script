@@ -1,0 +1,221 @@
+-- Seasons of the Zone - the forecast page.
+--
+-- The calendar page answers questions about dates and runs on real time. This one runs on
+-- the game clock and answers "what is about to happen": the weather Atmospherics has
+-- already planned, and - if the ecologists rate you highly enough - the next emission.
+--
+-- It is also the extension point. Anything that is near-term world state rather than a
+-- date belongs here, so adding a reading means adding a section to Fill() and a field to
+-- zzz_seasons_of_the_zone.forecast_page(). Nothing else has to change.
+--
+-- Mod App Creator calls get_ui() and expects a CUIScriptWnd back. Registration lives in
+-- z_seasons_pda_mac.script, so this file does not care whether MAC is installed.
+
+local SINGLETON = nil
+
+local function say(msg)
+    printf("%s", "[seasons-forecast] " .. tostring(msg))
+end
+
+-- InitTexture does not apply width_factor, so a square asset renders as an ellipse
+-- unless the width is corrected by (4:3) / screen aspect - 0.75 at 16:9.
+local function aspect()
+    local f = 0.75
+    local ok, w, h = pcall(function() return device().width, device().height end)
+    if ok and w and h and h > 0 then
+        f = (1024 / 768) / (w / h)
+    end
+    return f
+end
+
+-- Loose .dds files with no texture_descr entry, so the engine resolves them by path and
+-- wants the bare stem. Some names arrive with the extension and some without.
+local function tex(name)
+    name = tostring(name or "")
+    if name == "" then return nil end
+    return (name:gsub("%.dds$", ""))
+end
+
+-- Atmospherics' internal cycle names, as a stalker would say them.
+local CYCLE = {
+    clear   = "Clear",
+    partly  = "Broken cloud",
+    cloudy  = "Overcast",
+    foggy   = "Fog",
+    rain    = "Rain",
+    storm   = "Storm",
+}
+
+local function cycle_name(c)
+    c = tostring(c or "")
+    return CYCLE[c] or (c:sub(1, 1):upper() .. c:sub(2))
+end
+
+-- The coarse tier's whole job is to warn without timing. These are what a reading relayed
+-- over a radio would sound like, and none of them implies an hour.
+local BAND = {
+    imminent = "close",
+    building = "building",
+    quiet    = "no sign",
+}
+
+-- Emission countdowns arrive as GAME seconds, which is what the player reckons in - a
+-- surge is "about four hours off", never "24 real minutes".
+local function countdown(sec)
+    if sec >= 7200 then return string.format("%d hours",  math.floor(sec / 3600 + 0.5)) end
+    if sec >= 3600 then return "an hour" end
+    if sec >=  120 then return string.format("%d minutes", math.floor(sec / 60)) end
+    return "any moment"
+end
+
+-- The weather plan's lead times arrive as game MINUTES.
+local function lead(min)
+    if min >= 120 then return string.format("in %d hours", math.floor(min / 60 + 0.5)) end
+    if min >=  60 then return "in an hour" end
+    return string.format("in %d min", math.max(1, math.floor(min)))
+end
+
+local function page()
+    local ok, data = pcall(function() return zzz_seasons_of_the_zone.forecast_page() end)
+    if ok and type(data) == "table" then return data end
+    say("forecast_page() unavailable: " .. tostring(data))
+    return nil
+end
+
+class "SeasonsForecast" (CUIScriptWnd)
+
+function SeasonsForecast:__init() super()
+    self:InitControls()
+end
+
+function SeasonsForecast:__finalize()
+    SINGLETON = nil
+end
+
+function SeasonsForecast:InitControls()
+    self:SetWndRect(Frect():set(0, 0, 1024, 768))
+
+    local xml = CScriptXmlInit()
+    xml:ParseFile("ui_seasons_forecast.xml")
+    self.xml = xml
+
+    xml:InitStatic("background", self)
+    self.header    = xml:InitTextWnd("header", self)
+    self.bar       = xml:InitStatic("bar", self)
+    self.subheader = xml:InitTextWnd("subheader", self)
+    self.now       = xml:InitTextWnd("now", self)
+
+    self.gauge = xml:InitStatic("gauge", self)
+    local r = self.gauge:GetWndRect()
+    local h = r.y2 - r.y1
+    self.gauge:SetWndSize(vector2():set(h * aspect(), h))
+    self.gauge_caption = xml:InitTextWnd("gauge_caption", self)
+
+    self.scroll = xml:InitScrollView("scroll", self)
+end
+
+function SeasonsForecast:Row(style, text)
+    local w = self.xml:InitTextWnd(style, nil)
+    w:SetText(text or "")
+    self.scroll:AddWindow(w, true)
+    w:SetAutoDelete(true)
+end
+
+function SeasonsForecast:Gap()
+    local g = self.xml:InitStatic("row_gap", nil)
+    self.scroll:AddWindow(g, true)
+    g:SetAutoDelete(true)
+end
+
+function SeasonsForecast:Fill()
+    self.scroll:Clear()
+
+    local d = page()
+    if not d then
+        self.header:SetText("Forecast")
+        self.subheader:SetText("Nothing is reading right now.")
+        self.now:SetText("")
+        return
+    end
+
+    self.header:SetText("Forecast")
+    self.subheader:SetText(d.today or "")
+
+    if d.bar then
+        local okb = pcall(function() self.bar:InitTexture(tex(d.bar)) end)
+        if not okb then say("accent bar failed: " .. tostring(d.bar)) end
+    end
+
+    local okg = pcall(function() self.gauge:InitTexture("ui_seasons_forecast") end)
+    if not okg then say("gauge texture failed") end
+
+    -- the headline: what it is doing outside, right now
+    local w = d.weather
+    self.now:SetText(w and w.now and cycle_name(w.now) or "")
+    self.gauge_caption:SetText(w and w.now and "outside now" or "no reading")
+
+    -- --- the weather ----------------------------------------------------------------------
+    -- Not a guess. Atmospherics plans the next 24 game hours in advance and this is that
+    -- plan, so the times are the times it will actually change.
+    self:Row("row_head", "The next day")
+    if w and w.segments and #w.segments > 0 then
+        for _, seg in ipairs(w.segments) do
+            self:Row("row_line", string.format("%-7s %-15s %s",
+                     seg.at, cycle_name(seg.cycle), lead(seg.away)))
+        end
+    elseif w then
+        self:Row("row_dim", "Settled - no change planned.")
+    else
+        self:Row("row_dim", "No weather plan. Atmospherics is not running.")
+    end
+    self:Gap()
+
+    -- --- the ecologist forecast -------------------------------------------------------------
+    -- Three states, and the locked one is drawn on purpose: a reward the player cannot
+    -- see is not one they can work towards, so the row names the standing they have and
+    -- the standing they need.
+    local fc = d.forecast
+    if fc then
+        self:Row("row_head", "Ecologist forecast")
+
+        if fc.tier == "locked" then
+            self:Row("row_dim", "They keep their readings to themselves.")
+            self:Row("row_dim", fc.standing
+                     and string.format("%-18s %d, need %d", "Standing", fc.standing, fc.need)
+                     or  "No contact.")
+        else
+            -- exact tier gets the hour, coarse gets a band and never a number
+            local e = fc.tier == "exact" and (d.surge and countdown(d.surge))
+                                         or  (d.surge_band and BAND[d.surge_band])
+            local p = fc.tier == "exact" and (d.psi   and countdown(d.psi))
+                                         or  (d.psi_band   and BAND[d.psi_band])
+            self:Row(e and "row_line" or "row_dim",
+                     string.format("%-18s %s", "Emission",  e or "no reading"))
+            self:Row(p and "row_line" or "row_dim",
+                     string.format("%-18s %s", "Psi storm", p or "no reading"))
+            if fc.tier == "coarse" then
+                self:Row("row_dim", string.format("%d standing buys the hour.", fc.need_exact))
+            end
+        end
+    end
+end
+
+function SeasonsForecast:Reset()
+    local ok, err = pcall(function() self:Fill() end)
+    if not ok then say("Fill failed: " .. tostring(err)) end
+end
+
+function SeasonsForecast:OnKeyboard(dik, action)
+    local res = CUIScriptWnd.OnKeyboard(self, dik, action)
+    if res then return res end
+    if action == ui_events.WINDOW_KEY_PRESSED and dik == DIK_keys.DIK_ESCAPE then
+        return true
+    end
+    return false
+end
+
+function get_ui()
+    SINGLETON = SINGLETON or SeasonsForecast()
+    SINGLETON:Reset()
+    return SINGLETON
+end

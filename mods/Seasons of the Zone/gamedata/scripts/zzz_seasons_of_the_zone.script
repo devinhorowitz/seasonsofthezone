@@ -1388,6 +1388,37 @@ function calendar_page()
     -- the accent bar for the current season; one of this mod's own 256x16 strips
     out.bar = "ui_season_hdr_" .. tostring(cur)
 
+
+    -- anything the player added in seasons_config.py reaches the game only as staged
+    -- mods, so the page reports what was staged rather than guessing at the config
+    local ok, ml = pcall(mod_list)
+    if ok and ml then
+        out.staged_for = ml.staged_for
+        out.extra = ml.mods or {}
+    end
+
+    return out
+end
+
+
+-- --- data for the forecast page ----------------------------------------------------------
+--
+-- Split from calendar_page on purpose. The calendar answers questions about DATES and runs
+-- on real time; everything here runs on the game clock and answers "what is about to
+-- happen". They were one page for a while and that read badly: nobody opens a calendar to
+-- find out whether it is going to rain this afternoon.
+
+function forecast_page()
+    local out = {today = today_text()}
+
+    -- the same accent strip the calendar page wears, so the two read as one mod rather
+    -- than two addons that happen to be installed together
+    pcall(function()
+        local cur = season_at(tonumber(os.date("%j")), os.date("*t").year)
+        out.season = cur
+        out.bar    = "ui_season_hdr_" .. tostring(cur)
+    end)
+
     -- --- what the ecologists will tell you ------------------------------------------------
     --
     -- Anomaly tasks carry no completion deadlines - 621 base tasks and every installed
@@ -1472,17 +1503,49 @@ function calendar_page()
         end
     end
 
-    -- anything the player added in seasons_config.py reaches the game only as staged
-    -- mods, so the page reports what was staged rather than guessing at the config
-    local ok, ml = pcall(mod_list)
-    if ok and ml then
-        out.staged_for = ml.staged_for
-        out.extra = ml.mods or {}
+    -- --- the weather plan ------------------------------------------------------------------
+    -- Atmospherics does not guess the weather, it PLANS it: WeatherManager:roll_day_plan
+    -- extends self.day_plan to DAY_PLAN_WINDOW_MINUTES - 24 game hours - ahead, as a list
+    -- of {minute, cycle}. So this is not a derived forecast; it is the schedule the game
+    -- is going to follow, read straight off.
+    --
+    -- Ungated, unlike the emission tiers. Weather is something a stalker reads by looking
+    -- up, the ecologists have no special claim on it, and it gives the page something to
+    -- say at zero standing rather than a single locked row.
+    --
+    -- weather_manager is a FILE-LOCAL in level_weathers, so unlike the surge managers it
+    -- can only be reached through its getter. That is safe here: Atmospherics constructs
+    -- it itself to drive the weather, so it exists long before a PDA is open, and this
+    -- mod already calls the same getter in hold_cycle().
+    local function clock(abs_minute)
+        local m = abs_minute % 1440
+        return string.format("%02d:%02d", math.floor(m / 60), m % 60)
     end
+
+    pcall(function()
+        if not (level_weathers and level_weathers.get_weather_manager) then return end
+        local wm = level_weathers.get_weather_manager()
+        if not (wm and wm.day_plan and wm.abs_schedule_minute) then return end
+
+        local now = wm:abs_schedule_minute()
+        local w   = {now = wm.cycle, segments = {}}
+        local last = wm.cycle
+        for i = (wm.day_plan_index or 1), #wm.day_plan do
+            local seg = wm.day_plan[i]
+            -- the plan repeats a cycle to extend a spell; only the CHANGES are forecast
+            if seg and seg.minute and seg.minute > now and seg.cycle ~= last then
+                w.segments[#w.segments + 1] = {
+                    at = clock(seg.minute), cycle = seg.cycle, away = seg.minute - now,
+                }
+                last = seg.cycle
+                if #w.segments >= 6 then break end
+            end
+        end
+        out.weather = w
+    end)
 
     return out
 end
-
 
 function on_game_start()
     RegisterScriptCallback("save_state", save_state)

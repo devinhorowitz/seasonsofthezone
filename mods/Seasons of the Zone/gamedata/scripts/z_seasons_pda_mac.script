@@ -26,6 +26,17 @@ function on_game_start()
             tab     = "eptSeasons",
             func    = ui_seasons_pda.get_ui,
         })
+        -- The forecast is a separate app rather than a section of the calendar: it
+        -- answers a different question, on a different clock, and a player checking
+        -- whether a storm is coming should not have to scroll past the year to find out.
+        -- Its icon is a fixed barometer - not a live readout, because an app icon that
+        -- changed every few minutes would just be noise in the launcher.
+        mac_mcm.add_app("app_seasons_forecast", {
+            name    = "pda_btn_forecast",
+            texture = "ui_seasons_forecast",
+            tab     = "eptForecast",
+            func    = ui_seasons_forecast.get_ui,
+        })
     end)
     if not ok then
         printf("%s", "[seasons-pda] MAC registration failed: " .. tostring(err))
