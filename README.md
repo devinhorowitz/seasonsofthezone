@@ -98,6 +98,47 @@ Full reference: **[docs/SCHEDULING.md](docs/SCHEDULING.md)**.
 
 ---
 
+## Six days the Zone marks
+
+Six fixed dates ship with the mod, each laid over whatever season is running rather than
+replacing it. April 26 is still spring underneath; December 14 is still deep winter.
+
+Two are **remembrance days** and the Zone goes quiet:
+
+| | |
+|---|---|
+| **April 26** | International Chernobyl Disaster Remembrance Day |
+| **December 14** | Liquidators' Day |
+
+The weather is held clear and the PDA carries the day. No reward, no drop, no map marker.
+
+Four are **anniversaries** — the release dates of the mainline games — and they pull the
+other way. The weather is pushed to storm and a few extra artefacts are seeded on each
+level you visit, roughly nought to five, once per level per day.
+
+| | |
+|---|---|
+| **March 20** | Shadow of Chernobyl |
+| **August 22** | Clear Sky |
+| **October 2** | Call of Pripyat |
+| **November 20** | Heart of Chornobyl |
+
+Each day carries its own PDA traffic — an opening transmission shortly after you load in,
+then more at intervals of eight to twenty minutes, drawn from that day's pool. 108 lines
+in all, across eight voices, each signed and carrying that speaker's portrait: Barman,
+Sidorovich, Owl, Beard, Sakharov, Forester, Nimble, and an unnamed guide.
+
+The anniversary lines count the years **in-world**, from the in-game clock against the
+year each game is set in — Shadow of Chernobyl in May 2012, Clear Sky in 2011, Call of
+Pripyat in August 2012. A fresh save hears *"6 years since Operation Fairway"*, and the
+count advances as the save ages. Heart of Chornobyl is set in 2021-22, still ahead of
+Anomaly's own calendar, so it carries no count at all.
+
+Five switches on the MCM Main page turn any of it off. The artefact seed is the only part
+of the mod that writes to your save.
+
+---
+
 ## Requirements
 
 - S.T.A.L.K.E.R. Anomaly with **G.A.M.M.A.**, through **Mod Organizer 2** (portable)
