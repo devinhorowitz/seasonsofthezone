@@ -389,6 +389,13 @@ function weather()
                 away_min = w.segments[1].away,
             } or nil,
             plan = w.segments,
+            -- "plan": Atmospherics' day planner, and `plan` is every change ahead.
+            -- "stock": base Anomaly, which is what GAMMA ships. It knows when the sky
+            --          turns but picks what it turns into at random at that moment, so
+            --          `next` is nil and `window` = {lo, hi} game minutes says when.
+            -- An empty plan with source "plan" is a settled day. With "stock" it is not.
+            source = w.source,
+            window = w.window,
         }
     end)
 end
@@ -415,7 +422,8 @@ local BRACKET_AT = {
 --           locked - the ecologists do not share. `seconds` and `band` are both nil, and a
 --                    consumer MUST NOT infer anything from that; showing a blank is the
 --                    point.
---           coarse - `band` is "imminent", "building" or "quiet". No number, deliberately.
+--           coarse - `band` is "ALL CLEAR", "8 to 16 hours", "2 to 8 hours" or
+--                    "WITHIN 2 HOURS". A bracket, deliberately; never the hour.
 --           exact  - `seconds` is game seconds to the event.
 --
 --         `fraction` is present on every unlocked tier: 0 at the event, 1 a full period

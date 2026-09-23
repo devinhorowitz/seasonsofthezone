@@ -110,6 +110,27 @@ local function lead(min)
     return string.format("in %d min", math.max(1, math.floor(min)))
 end
 
+-- Stock weather knows WHEN it will turn to within a window, and not what it turns into. The
+-- window is minutes, like a planned change's lead. Past its far edge the stock manager flips
+-- on its next hourly check, so "any moment" is the honest reading rather than a negative.
+local function window_text(win)
+    if not win then return "" end
+    local lo, hi = win.lo or 0, win.hi or 0
+    if hi <= 0 then return "turning any moment" end
+    local H = math.max(1, math.floor(hi / 60 + 0.5))
+    -- one hour is "the hour" / "an hour", never "1 hours"
+    if lo < 60 then
+        if H <= 1 then return "turns within the hour" end
+        return string.format("turns within %d hours", H)
+    end
+    local L = math.floor(lo / 60 + 0.5)
+    if L >= H then
+        if H <= 1 then return "turns in about an hour" end
+        return string.format("turns in about %d hours", H)
+    end
+    return string.format("turns in %d to %d hours", L, H)
+end
+
 -- CScriptXmlInit:ParseFile does NOT raise when the xml cannot be used - it returns, and
 -- every Init* afterwards quietly hands back nil. The first method call on one of those
 -- nils is a hard engine FATAL, not a Lua error pcall can absorb, which is exactly how a
@@ -519,7 +540,20 @@ function SeasonsForecast:DrawChart(d, temp)
     -- Segment boundaries are the planned changes; the first band is whatever is outside
     -- right now. A plan that runs out before the day does simply leaves its last band
     -- running to the edge, which is what "settled" looks like.
-    if w then
+    -- Stock weather: the current sky solid until its window opens, faded through the
+    -- window, then nothing. Drawing it to the edge would say "this all day", which is the
+    -- one thing the stock manager is certain NOT to do.
+    if w and w.source == "stock" then
+        local c = CYCLE_RGB[tostring(w.now)] or CYCLE_RGB.cloudy
+        local lo = math.min((w.window and w.window.lo) or 0, SPAN_MIN)
+        local hi = math.min((w.window and w.window.hi) or 0, SPAN_MIN)
+        if lo > 0 then
+            self:Bar(px(0), RIBBON_Y, px(lo) - px(0), RIBBON_H, c[1], c[2], c[3], 235)
+        end
+        if hi > lo then
+            self:Bar(px(lo), RIBBON_Y, px(hi) - px(lo), RIBBON_H, c[1], c[2], c[3], 110)
+        end
+    elseif w then
         local marks = {}
         local cur = w.now
         local at = 0
@@ -688,9 +722,17 @@ function SeasonsForecast:Fill()
         if nxt then pcall(function() self.wx_next:InitTexture(wx_tex(nxt.cycle)) end) end
         self.wx_next:Show(nxt ~= nil)
     end
-    put(self.wx_next_label, nxt
-        and string.format("%s, %s", cycle_name(nxt.cycle), lead(nxt.away))
-        or (w and "settled" or ""))
+    -- On stock there is no next glyph - it has not been picked yet - but there is a
+    -- window, and saying "settled" would promise a sky that is certain to change.
+    local next_text = ""
+    if nxt then
+        next_text = string.format("%s, %s", cycle_name(nxt.cycle), lead(nxt.away))
+    elseif w and w.source == "stock" then
+        next_text = window_text(w.window)
+    elseif w then
+        next_text = "settled"
+    end
+    put(self.wx_next_label, next_text)
 
     -- --- where the numbers came from ----------------------------------------------------
     -- "14.5 / 7.8" read off the real Chornobyl and the same figures taken from a climate
@@ -731,12 +773,19 @@ function SeasonsForecast:Fill()
             self:Put(1, {{0, seg.at}, {76, cycle_name(seg.cycle)},
                          {232, lead(seg.away)}})
         end
+    elseif w and w.source == "stock" then
+        -- literally what the stock manager does: the next sky is a random pick, made at
+        -- the moment of change. MCM carries the technical why; the PDA stays in the Zone.
+        self:Put(1, {{0, "What comes after that is anyone's guess."}}, DIM_RGB)
     elseif w and #(w.segments or {}) == 1 then
         self:Put(1, {{0, "Nothing further planned."}}, DIM_RGB)
     elseif w then
         self:Put(1, {{0, "Settled - no change planned."}}, DIM_RGB)
     else
-        self:Put(1, {{0, "No weather plan. Atmospherics is not running."}}, DIM_RGB)
+        -- No manager at all - rare, and not the same thing as stock weather. It used to
+        -- say "Atmospherics is not running", which every stock GAMMA install was told
+        -- while running exactly the weather GAMMA ships.
+        self:Put(1, {{0, "No weather reading."}}, DIM_RGB)
     end
 
     -- --- tomorrow --------------------------------------------------------------------

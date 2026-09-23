@@ -1450,6 +1450,35 @@ end
 -- happen". They were one page for a while and that read badly: nobody opens a calendar to
 -- find out whether it is going to rain this afternoon.
 
+-- Which weather this install can read. "plan" is Atmospherics' day planner, which knows
+-- every change for the next 24 game hours. "stock" is base Anomaly's manager, which knows
+-- the sky now and when it will turn, but rolls what comes next with math.random at the
+-- moment of change - so there is nothing further to read. "none" is no manager at all.
+--
+-- GAMMA ships "stock". Neither of its two Atmospherics mods includes level_weathers.script;
+-- the planner arrives only with a newer Atmospherics installed separately. The page used to
+-- call that case "Atmospherics is not running", which was wrong about a mod the user could
+-- see ticked in MO2.
+--
+-- In a level the live manager is authoritative, so it is read. At the main menu it must not
+-- be: base's get_weather_manager() BUILDS one when none exists - the same side effect this
+-- mod refuses to trigger for the surge manager - so the planner is recognised instead by a
+-- file-scope function only it defines. MCM calls this from the menu; the page from a level.
+function weather_source()
+    if not level_weathers then return "none" end
+    local in_level = (db and db.actor) and true or false
+    if in_level and level_weathers.get_weather_manager then
+        local ok, wm = pcall(level_weathers.get_weather_manager)
+        if ok and wm then
+            return (wm.day_plan and wm.abs_schedule_minute) and "plan" or "stock"
+        end
+        return "none"
+    end
+    if level_weathers.record_day_history then return "plan" end
+    if level_weathers.get_weather_manager then return "stock" end
+    return "none"
+end
+
 function forecast_page()
     local out = {today = today_text()}
 
@@ -1659,13 +1688,43 @@ function forecast_page()
         return string.format("%02d:%02d", math.floor(m / 60), m % 60)
     end
 
+    out.weather_source = weather_source()
+
+    -- Stock weather. The sky now, and the window it turns in: base re-rolls the change
+    -- time each hour between two thirds of the period and all of it, so the change lands
+    -- somewhere in that window and nowhere else. What it turns TO is picked at random at
+    -- the moment of change, so no next sky is given - there is not one to give.
+    if out.weather_source == "stock" then
+        pcall(function()
+            local wm = level_weathers.get_weather_manager()
+            if not (wm and wm.cycle) then return end
+            local w = {now = wm.cycle, segments = {}, source = "stock"}
+            local okp, len = pcall(function()
+                return ui_options.get("video/weather/" .. tostring(wm.cycle) .. "_period")
+            end)
+            len = (okp and tonumber(len)) or 6
+            local oke, elapsed = pcall(function()
+                return game.get_game_time():diffSec(wm.last_period_change_date)
+            end)
+            if oke and type(elapsed) == "number" then
+                local lo = math.ceil(len * 2 / 3) * 3600 - elapsed
+                local hi = len * 3600 - elapsed
+                -- minutes, like a planned segment's `away`, so one formatter serves both
+                w.window = {lo = math.max(0, math.floor(lo / 60)),
+                            hi = math.max(0, math.floor(hi / 60))}
+            end
+            out.weather = w
+        end)
+        return out
+    end
+
     pcall(function()
         if not (level_weathers and level_weathers.get_weather_manager) then return end
         local wm = level_weathers.get_weather_manager()
         if not (wm and wm.day_plan and wm.abs_schedule_minute) then return end
 
         local now = wm:abs_schedule_minute()
-        local w   = {now = wm.cycle, segments = {}}
+        local w   = {now = wm.cycle, segments = {}, source = "plan"}
         local last = wm.cycle
         for i = (wm.day_plan_index or 1), #wm.day_plan do
             local seg = wm.day_plan[i]

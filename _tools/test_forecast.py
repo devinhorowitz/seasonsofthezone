@@ -21,8 +21,16 @@ HOUR = 3600
 def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True,
           coarse=200, exact=700, have_surge=True, have_psi=True, plan=None,
           weather="storm", now_minute=600, have_weather=True, hide_global=False,
-          surge_obj_override=None):
-    """A sandbox with the engine bindings the script reaches for."""
+          surge_obj_override=None, stock=False, period=6, elapsed_h=1.0,
+          in_level=True, planner_globals=None, calls=None):
+    """A sandbox with the engine bindings the script reaches for.
+
+    stock=True builds base Anomaly's weather manager instead of Atmospherics' planner:
+    a cycle and the date it last changed, and no day_plan - which is what every stock
+    GAMMA install runs, since neither of GAMMA's Atmospherics mods ships a manager.
+    `calls`, if given, is a list the getter appends to, so a case can prove the manager
+    was never built from the main menu.
+    """
     lua = LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
 
@@ -39,14 +47,18 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
             "get": lambda self, *a: 2026,
         }),
     })
-    g.db = lua.table_from({"actor": lua.table_from({"id": lambda self: 0})})
+    # No actor is the main menu, which is where MCM is usually opened from.
+    g.db = lua.table_from({"actor": lua.table_from({"id": lambda self: 0})}) if in_level \
+        else lua.table_from({})
     g.relation_registry = lua.table_from({
         "community_goodwill": (lambda faction, aid:
                                standing if faction == "ecolog" else 0)
         if standing is not None else (lambda faction, aid: None),
     })
     opts = {"alife/event/emission_frequency": freq,
-            "alife/event/psi_storm_frequency": psi_freq}
+            "alife/event/psi_storm_frequency": psi_freq,
+            # base Anomaly reads each cycle's length from here, in hours
+            "video/weather/%s_period" % weather: period}
     g.ui_options = lua.table_from({"get": lambda k: opts.get(k)})
 
     # Both the module global and the public getter, because the code tries the global
@@ -80,7 +92,26 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
     })
     # Atmospherics' WeatherManager. day_plan is a list of {minute, cycle} rolled 24 game
     # hours ahead; day_plan_index is how far through it the game is.
-    if have_weather:
+    def getter(wm):
+        def get():
+            if calls is not None:
+                calls.append("get_weather_manager")
+            return wm
+        return get
+
+    if have_weather and stock:
+        # base Anomaly: a cycle, and when it last changed. Nothing planned, because the
+        # stock scheduler picks the next cycle at random at the moment of change.
+        wm = lua.table_from({
+            "cycle": weather,
+            "last_period_change_date": stamp(elapsed_h * HOUR),
+            "presets": lua.table_from({}),
+        })
+        lw = {"get_weather_manager": getter(wm)}
+        if planner_globals:
+            lw["record_day_history"] = lambda *a: None
+        g.level_weathers = lua.table_from(lw)
+    elif have_weather:
         segs = plan if plan is not None else [
             (now_minute - 120, "clear"),   # already fired, must be ignored
             (now_minute + 90, "rain"),
@@ -96,7 +127,12 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
             "abs_schedule_minute": lambda self: now_minute,
             "presets": lua.table_from({}),
         })
-        g.level_weathers = lua.table_from({"get_weather_manager": lambda: wm})
+        lw = {"get_weather_manager": getter(wm)}
+        # The planner defines this at file scope; weather_source() recognises it by that
+        # from the main menu, where it must not build a manager to find out.
+        if planner_globals is not False:
+            lw["record_day_history"] = lambda *a: None
+        g.level_weathers = lua.table_from(lw)
     else:
         g.level_weathers = lua.table_from({})
 
@@ -387,6 +423,122 @@ def t_manager_states():
     assert field(p, "surge") == 0, field(p, "surge")
     return "ok / no-mgr / due are told apart, and 'due' reports zero rather than nothing"
 
+# --- stock GAMMA's weather ---------------------------------------------------------------
+#
+# Every case above builds Atmospherics' day planner. Stock GAMMA does not have it: neither of
+# GAMMA's Atmospherics mods ships a weather manager, so a stock install runs base Anomaly's,
+# which has a cycle and a change date and nothing planned. The forecast told every one of
+# those players "Atmospherics is not running". These cases build that manager instead.
+
+SCRIPTS = os.path.dirname(SRC)
+
+
+def expose(fname, names, setup=None):
+    """Load a shipped script and hand back some of its file-locals, without editing it.
+
+    The same move test_wd_bridge makes on the markdown: what runs is the shipped text, with
+    one `return` appended so a local helper can be called directly.
+    """
+    lua = LuaRuntime(unpack_returned_tuples=True)
+    g = lua.globals()
+    lua.execute("""
+        class = function(name)
+            return function(base) local t = {}; t.__index = t; _G[name] = t; return t end
+        end
+        super = function() end
+    """)
+    g.CUIScriptWnd = lua.table_from({})
+    g.printf = lambda *a: None
+    if setup:
+        setup(lua, g)
+    src = io.open(os.path.join(SCRIPTS, fname), encoding="utf-8").read()
+    src += "\nreturn {" + ", ".join("%s = %s" % (n, n) for n in names) + "}\n"
+    return lua, g, lua.execute(src)
+
+
+def t_stock_weather():
+    # storm, a six-hour period, one hour in: base turns it somewhere between hour four
+    # and hour six, so three to five hours from now
+    _, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, stock=True,
+                 weather="storm", period=6, elapsed_h=1)
+    p = g.forecast_page()
+    assert field(p, "weather_source") == "stock", field(p, "weather_source")
+    w = field(p, "weather")
+    assert w is not None, "stock weather produced no reading - the old 'not running' bug"
+    assert field(w, "now") == "storm", field(w, "now")
+    assert field(w, "source") == "stock", field(w, "source")
+    assert len(field(w, "segments")) == 0, "stock invented a planned change"
+    win = field(w, "window")
+    assert (field(win, "lo"), field(win, "hi")) == (180, 300), \
+        (field(win, "lo"), field(win, "hi"))
+    # the control: the planner, same save otherwise, is read as a plan
+    _, g2 = build(standing=0, surge_left=HOUR, psi_left=HOUR)
+    p2 = g2.forecast_page()
+    assert field(p2, "weather_source") == "plan", field(p2, "weather_source")
+    assert len(field(field(p2, "weather"), "segments")) == 2
+    return "stock reads storm, no next, turning in 180-300 min; the planner still plans"
+
+
+def t_stock_window_edges():
+    def win(period, elapsed_h):
+        _, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, stock=True,
+                     period=period, elapsed_h=elapsed_h)
+        w = field(field(g.forecast_page(), "weather"), "window")
+        return field(w, "lo"), field(w, "hi")
+    # inside the window: it may turn any hour now, but not later than the period
+    assert win(6, 5) == (0, 60), win(6, 5)
+    # past the period: base turns it on its next hourly check
+    assert win(6, 7) == (0, 0), win(6, 7)
+    # freshly changed, nine-hour period: not before six, not after nine
+    assert win(9, 0) == (360, 540), win(9, 0)
+    return "window opens at 2/3 of the period, closes at the period, never negative"
+
+
+def t_source_from_menu():
+    # MCM is mostly opened from the main menu. There is no actor, and base's getter BUILDS
+    # a manager when none exists - so it must not be called to find out which one this is.
+    for label, kw, want in (
+            ("planner", dict(), "plan"),
+            ("stock", dict(stock=True), "stock"),
+            ("nothing", dict(have_weather=False), "none")):
+        calls = []
+        _, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, in_level=False,
+                     calls=calls, **kw)
+        got = g.weather_source()
+        assert got == want, "%s at the menu read as %r" % (label, got)
+        assert calls == [], "%s: built a weather manager from the main menu" % label
+    # the control: in a level the live manager IS read, so the counter above can fire
+    calls = []
+    _, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, stock=True, calls=calls)
+    assert g.weather_source() == "stock" and calls, "the live read never happened"
+    return "menu tells plan / stock / none apart without ever building a manager"
+
+
+def t_stock_page_text():
+    lua, _, fx = expose("ui_seasons_forecast.script", ["window_text"])
+
+    def wt(lo, hi):
+        # the table has to come from the same runtime the helper lives in
+        return fx.window_text(lua.table_from({"lo": lo, "hi": hi}))
+    got = {w: wt(*w) for w in ((180, 300), (0, 60), (0, 200), (60, 60), (0, 0))}
+    want = {
+        (180, 300): "turns in 3 to 5 hours",
+        (0, 60): "turns within the hour",
+        (0, 200): "turns within 3 hours",
+        (60, 60): "turns in about an hour",
+        (0, 0): "turning any moment",
+    }
+    assert got == want, got
+    for s in got.values():
+        assert " 1 hours" not in s, "a singular hour came out plural: %r" % s
+    page = io.open(os.path.join(SCRIPTS, "ui_seasons_forecast.script"),
+                   encoding="utf-8").read()
+    # code only: a comment explaining the old bug may quote it, the page may not say it
+    code = "\n".join(line.split("--", 1)[0] for line in page.splitlines())
+    assert "not running" not in code, "the false claim is still on the page"
+    return "window reads in plain English, and the page never blames Atmospherics"
+
+
 for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("exact tier", t_exact), ("bands scale", t_bands_scale),
              ("band edges", t_band_edges), ("no manager", t_no_manager),
@@ -398,7 +550,11 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("manager states", t_manager_states),
              ("getter fallback", t_getter_fallback),
              ("userdata manager", t_userdata_manager),
-             ("alert flag", t_alert_flag)):
+             ("alert flag", t_alert_flag),
+             ("stock weather", t_stock_weather),
+             ("stock window", t_stock_window_edges),
+             ("source at menu", t_source_from_menu),
+             ("stock page text", t_stock_page_text)):
     case(n, f)
 
 if __name__ == "__main__":

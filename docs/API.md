@@ -101,27 +101,50 @@ water, not of the unit being read.
 ## `weather()`
 
 ```lua
-{ now = "storm",
+{ now = "storm", source = "plan",
   next = { cycle = "rain", at = "11:30", away_min = 90 },
   plan = { … up to six segments … } }
 ```
 
-`nil` without Atmospherics.
+`source` says which scheduler is being read, and the two can answer different questions.
 
-**Not a prediction.** Atmospherics does not roll the weather as it goes —
-`WeatherManager:roll_day_plan` fills `day_plan` a full 24 game hours ahead. This reads that
-plan, so `at` is when it will actually change. Repeats of the current cycle are not
+**`"plan"` — Atmospherics' day planner.** It does not roll the weather as it goes:
+`WeatherManager:roll_day_plan` fills `day_plan` a full 24 game hours ahead, and this reads
+that plan, so `at` is when it will actually change. Repeats of the current cycle are not
 changes and are skipped, so `next` is always a real transition. `away_min` is game minutes.
 
-Cycle names are Atmospherics' own: `clear`, `partly`, `cloudy`, `foggy`, `rain`, `storm`.
+**`"stock"` — base Anomaly's scheduler, which is what GAMMA ships.** GAMMA's Atmospherics
+mods supply the weathers themselves but no weather manager, so a stock install schedules
+them with the base game's. That one *does* roll as it goes: it picks the next cycle at
+random at the moment of change, so there is no `next` to give and `plan` is empty. What it
+does know is when the change will land:
+
+```lua
+{ now = "storm", source = "stock", next = nil, plan = {},
+  window = { lo = 120, hi = 240 } }   -- turns in 2 to 4 game hours
+```
+
+**Check `source` before reading an empty `plan` as calm.** Under `"plan"` it is a settled
+day. Under `"stock"` it means only that nothing past the next turn can be known.
+
+`nil` only when there is no weather manager at all.
+
+Cycle names are the same under both — `clear`, `partly`, `cloudy`, `foggy`, `rain`,
+`storm` — because both schedulers read them from the same `[weather_cycles]` section, which
+GAMMA's Atmospherics mod ships.
 
 ## `blowout()`
 
 ```lua
-{ tier = "exact", standing = 780, need = 200, need_exact = 700,
-  emission = { seconds = 14400, fraction = 0.17 },
-  psi      = { band = "building", fraction = 0.30 } }
+{ tier = "coarse", standing = 240, need = 200, need_exact = 700,
+  emission = { band = "2 to 8 hours",   fraction = 0.20, alert = false },
+  psi      = { band = "WITHIN 2 HOURS", fraction = 0.06, alert = true } }
 ```
+
+The two bands are a live reading, taken in game at the LIMITED tier. At CLEARED the same
+two parts carry `seconds` instead of `band`, and a reading of the same save twenty minutes
+later gave 25,092 and 3,976 — each inside the bracket LIMITED had given it. (The standing
+shown is illustrative, set inside the default LIMITED range.)
 
 Resolution depends on the player's standing with the ecologists — see
 [INTERFACE.md](INTERFACE.md#the-ecologist-forecast).
