@@ -1,15 +1,22 @@
 <w>
 <!--
-    Seasons of the Zone - the PDA page.
+    Seasons of the Zone - the calendar page.
 
-    Textureless except for two things this mod already ships and therefore cannot be
-    missing: the year dial (ui_seasons_dial_NN, 384x384) and the season accent bar
-    (ui_season_hdr_<season>, 256x16 - the same strip MCM puts atop each season page).
+    Laid out on the same grid as ui_seasons_forecast.xml, because the two sit beside each
+    other in the launcher and a player should not have to learn the page twice: a chamfered
+    frame with the corners left open, a rule under the header block, and a vertical split
+    with the year on the left and the dial on the right.
 
-    Everything else is text. The PDA frame textures the other tab-adding mods reach for -
-    ui_inGame2_pda_buttons_background, ui_inGame2_pda_line_vertical - are declared in NO
-    texture_descr anywhere in this install, which is why opening those pages logs
-    "Can't find texture". Borrowing them would have inherited the same fault.
+    Dates only. Anything running on the GAME clock - the weather plan, the next emission -
+    lives on the forecast page, because those are not calendar questions. Nothing about the
+    MOD belongs here either: which texture mods are staged is a question about an install
+    rather than about the Zone, and MCM's per-season pages already answer it.
+
+    Textureless except for two things this mod ships and therefore cannot be missing: the
+    year dial (ui_seasons_dial_NN, 384x384) and the season accent bar
+    (ui_season_hdr_<season>, 256x16). The shared PDA frame textures other tab-adding mods
+    borrow are declared in NO texture_descr in a stock install, which is why opening those
+    pages logs "Can't find texture".
 
     Colours follow the Anomaly PDA convention: amber 238,196,112 for headings, light grey
     for body, dim grey for things that are off. Fonts are letterica, as everywhere else.
@@ -17,58 +24,78 @@
     <background x="28" y="106" width="764" height="603" stretch="1"/>
 
     <!-- season name, then the accent bar in that season's colour -->
-    <header x="48" y="120" width="470" height="28">
+    <header x="52" y="120" width="440" height="28">
         <text font="letterica18" r="238" g="196" b="112" align="l" vert_align="c" complex_mode="1"/>
     </header>
 
-    <bar x="48" y="150" width="470" height="8" stretch="1"/>
+    <bar x="52" y="152" width="452" height="8" stretch="1"/>
 
-    <subheader x="48" y="162" width="470" height="20">
+    <subheader x="52" y="164" width="452" height="18">
         <text font="letterica16" r="170" g="170" b="170" align="l" vert_align="c" complex_mode="1"/>
     </subheader>
 
-    <!-- the turning: what the year does next -->
-    <turning x="48" y="186" width="470" height="22">
+    <!-- the turning, and - when today is one of the six - what today is. They share a
+         line because only one of them is ever the interesting one. -->
+    <turning x="52" y="180" width="258" height="16">
         <text font="letterica16" r="255" g="255" b="255" align="l" vert_align="c" complex_mode="1"/>
     </turning>
-
-    <!-- shown only when today is one of the marked days -->
-    <marked x="48" y="210" width="470" height="22">
-        <text font="letterica18" r="238" g="196" b="112" align="l" vert_align="c" complex_mode="1"/>
+    <marked x="314" y="180" width="190" height="16">
+        <text font="letterica16" r="238" g="196" b="112" align="r" vert_align="c" complex_mode="1"/>
     </marked>
 
-    <!-- the year dial; square, width corrected for aspect from script -->
-    <dial x="556" y="130" width="200" height="200" stretch="1"/>
+    <!-- The year, as a year looks: twelve month rows of day cells tinted by season, with
+         today lit and the days the Zone marks underlined. This page's equivalent of the
+         forecast's chart - the thing that answers "where are we" without being read.
 
-    <dial_caption x="540" y="336" width="232" height="18">
+         Cells are tinted copies of <px> parented to this element. A month is drawn as one
+         block per season rather than one block per day, and the day divisions are 30
+         hairlines over the whole grid: the same picture for a twelfth of the widgets. -->
+    <grid x="52" y="216" width="452" height="258"/>
+
+    <grid_cap_l x="52" y="478" width="220" height="16">
+        <text font="letterica16" r="150" g="156" b="150" align="l" vert_align="c" complex_mode="1"/>
+    </grid_cap_l>
+    <grid_cap_r x="284" y="478" width="220" height="16">
+        <text font="letterica16" r="150" g="156" b="150" align="r" vert_align="c" complex_mode="1"/>
+    </grid_cap_r>
+
+    <!-- the month names down the left of the grid, and the day scale across its top. Both
+         are cloned and repositioned in script, exactly as the forecast does with its
+         hours. -->
+    <grid_month x="0" y="0" width="32" height="16">
+        <text font="letterica16" r="170" g="170" b="170" align="r" vert_align="c" complex_mode="1"/>
+    </grid_month>
+
+    <axis_x x="0" y="0" width="54" height="14">
+        <text font="letterica16" r="150" g="156" b="150" align="c" vert_align="c" complex_mode="1"/>
+    </axis_x>
+
+    <!-- the year dial; square, so the width is corrected for aspect from script -->
+    <dial x="566" y="168" width="236" height="236" stretch="1"/>
+
+    <dial_caption x="546" y="414" width="216" height="18">
         <text font="letterica16" r="170" g="170" b="170" align="c" vert_align="c" complex_mode="1"/>
     </dial_caption>
 
-    <scroll x="48" y="242" width="480" height="452" always_show_scroll="0" stretch="1"/>
+    <!-- one white block, tinted per cell. X-Ray has no fill-rect. -->
+    <px x="0" y="0" width="8" height="8" stretch="1">
+        <texture>sotz_px</texture>
+    </px>
+
+    <!-- No scroll view. Everything fits, and a page you have to scroll to read the date
+         off is a document rather than a device. -->
 
     <!-- the back button; its texture is set from script, as MAC does for its tiles -->
-    <back x="740" y="652" width="34" height="34" stretch="1"/>
+    <back x="730" y="636" width="34" height="34" stretch="1"/>
 
-    <!-- rows are cloned from these at runtime. row_holder carries the columns: one text
-         widget per column at a fixed x, because letterica is proportional and padded
-         strings do not line up. -->
-    <row_holder x="0" y="0" width="470" height="18"/>
-
-    <row_head x="0" y="0" width="460" height="26">
+    <!-- Rows and headings are allocated from these once and repositioned. Colour carries
+         the emphasis a font change would normally carry, because a widget cannot be
+         restyled after it is built. -->
+    <row_head x="0" y="0" width="460" height="24">
         <text font="letterica18" r="238" g="196" b="112" align="l" vert_align="c" complex_mode="1"/>
     </row_head>
 
-    <row_line x="0" y="0" width="460" height="18">
+    <row_line x="0" y="0" width="460" height="17">
         <text font="letterica16" r="200" g="200" b="200" align="l" vert_align="c" complex_mode="1"/>
     </row_line>
-
-    <row_now x="0" y="0" width="460" height="18">
-        <text font="letterica16" r="255" g="255" b="255" align="l" vert_align="c" complex_mode="1"/>
-    </row_now>
-
-    <row_dim x="0" y="0" width="460" height="18">
-        <text font="letterica16" r="140" g="140" b="140" align="l" vert_align="c" complex_mode="1"/>
-    </row_dim>
-
-    <row_gap x="0" y="0" width="460" height="12"/>
 </w>

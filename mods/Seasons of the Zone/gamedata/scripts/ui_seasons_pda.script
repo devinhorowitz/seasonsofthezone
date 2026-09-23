@@ -1,18 +1,26 @@
--- Seasons of the Zone - the PDA page.
+-- Seasons of the Zone - the calendar page.
 --
--- A read-only view of the calendar: where the year stands, when it turns next, which of
--- the marked days are coming, and what the calendar is holding for today. Everything
--- comes from zzz_seasons_of_the_zone.calendar_page(); nothing is computed twice.
+-- A read-only view of the calendar: where the year stands, when it turns next, and which
+-- of the days the Zone marks are coming. Everything comes from
+-- zzz_seasons_of_the_zone.calendar_page(); nothing is computed twice.
 --
--- Dates only. Anything running on the GAME clock - the weather plan, the next emission -
--- lives on the forecast page instead, because those are not calendar questions.
+-- Dates only, and nothing about the MOD. An earlier version listed the staged texture
+-- mods by name, which put MO2 folder strings on a stalker's PDA - and there is no
+-- reliable way to turn an author-chosen folder name into something the Zone would say.
+-- MCM's per-season pages already list them, which is where a question about an install
+-- belongs. Anything on the GAME clock - the weather plan, the next emission - lives on
+-- the forecast page for the same reason: it is not a calendar question.
+--
+-- Laid out on the forecast page's grid, down to the frame constants: the two sit side by
+-- side in the launcher and should read as one device seen twice. No scroll view - a page
+-- you have to scroll to read the date off is a document, not a device.
 --
 -- Mod App Creator calls get_ui() and expects a CUIScriptWnd back. Registration lives in
 -- z_seasons_pda_mac.script, so this file does not care whether MAC is installed.
 --
 -- House style: the page should read like a device, not a readout. Terse lines, the
--- Zone's own amber, no ornament. The two images are this mod's own - the year dial and
--- the season accent bar - so nothing here can reference a texture that does not exist.
+-- Zone's own amber, no ornament. The one image is this mod's own - the year dial - so
+-- nothing here can reference a texture that does not exist.
 
 local SINGLETON = nil
 
@@ -54,6 +62,15 @@ local function when_text(days)
     if days == 1 then return "tomorrow" end
     return string.format("in %d days", days)
 end
+
+-- What each kind of marked day actually does, said the way the Zone would say it. Both
+-- are true rather than flavour: a memorial holds the sky clear and quiets the traffic on
+-- every channel, an anniversary holds a storm and seeds an extra crop of artefacts on
+-- each level visited that day.
+local DAY_TEXT = {
+    memorial    = "Clear sky. The Zone goes quiet.",
+    anniversary = "Storm. Artefacts surface.",
+}
 
 -- CScriptXmlInit:ParseFile does NOT raise when the xml cannot be used - it returns, and
 -- every Init* afterwards quietly hands back nil. The first method call on one of those
@@ -106,7 +123,13 @@ function SeasonsPDA:InitControls()
     end
     self.dial_caption = xml:InitTextWnd("dial_caption", self)
 
-    self.scroll = xml:InitScrollView("scroll", self)
+    self.grid       = xml:InitStatic("grid", self)
+    self.grid_cap_l = xml:InitTextWnd("grid_cap_l", self)
+    self.grid_cap_r = xml:InitTextWnd("grid_cap_r", self)
+    self:InitFrame()
+    self:InitGrid()
+    self:InitScales()
+    self:InitRows()
 
     self.back = xml:Init3tButton("back", self)
     if self.back then
@@ -115,6 +138,7 @@ function SeasonsPDA:InitControls()
         self:AddCallback("back", ui_events.BUTTON_CLICKED, self.OnBack, self)
     end
 end
+
 -- Back to the launcher. MAC reaches its own tab the same way, and it binds a key for it
 -- too, but a page you can only leave by keyboard reads as a dead end.
 function SeasonsPDA:OnBack()
@@ -124,47 +148,420 @@ function SeasonsPDA:OnBack()
     if not ok then say("back to launcher failed: " .. tostring(err)) end
 end
 
--- letterica is a PROPORTIONAL font: a space is narrower than most glyphs, so padding a
--- string with string.format("%-12s") does NOT line anything up. It looked fine in a
--- monospaced editor and ragged on the PDA. Each column is its own text widget at a fixed
--- x inside a row holder, which is how MAC positions its launcher tiles too.
-function SeasonsPDA:Cols(style, cols)
-    if not self.scroll then return end
-    local holder = self.xml:InitStatic("row_holder", nil)
-    if not holder then return end
-    for i = 1, #cols do
-        local c = cols[i]
-        local w = self.xml:InitTextWnd(style, holder)
+
+-- --- the frame ----------------------------------------------------------------------------
+--
+-- The PDA's own framing language, taken off the Statistics page: a chamfered outer frame
+-- with the corners left open, and thin rules splitting the content into cells. The lines
+-- sit close to the background on purpose - they are there to group things, not to be
+-- looked at. Identical constants to the forecast page, because the two pages are the same
+-- page with different contents.
+--
+-- Allocated once. The frame never moves, so rebuilding it per redraw would be a slow leak.
+local RULE   = {74, 80, 74}
+local RULE_A = 210
+
+-- the content box, inset from the page background at 28,106 - 792,709
+local FR_L, FR_T, FR_R, FR_B = 38, 112, 782, 700
+local CHAMFER   = 14        -- how far each line stops short of a corner
+local SPLIT_X   = 526       -- between the year column and the dial column
+local FR_HEAD_Y = 202       -- under the title, accent bar, date and the turning
+local FR_DIAL_Y = 446       -- under the dial and its caption, right column only
+local FR_GRID_Y = 506       -- under the grid and its captions, left column only
+
+function SeasonsPDA:InitFrame()
+    self.frame = {}
+    local function line(x, y, w, h, a)
+        local s = self.xml:InitStatic("px", self)
+        if not s then return end
+        s:SetWndPos(vector2():set(x, y))
+        s:SetWndSize(vector2():set(w, h))
+        s:SetTextureColor(GetARGB(a or RULE_A, RULE[1], RULE[2], RULE[3]))
+        self.frame[#self.frame + 1] = s
+    end
+
+    -- outer frame, corners left open so it reads as the chamfer the game's own panels
+    -- have rather than as a plain box
+    line(FR_L + CHAMFER, FR_T, FR_R - FR_L - CHAMFER * 2, 1)
+    line(FR_L + CHAMFER, FR_B, FR_R - FR_L - CHAMFER * 2, 1)
+    line(FR_L, FR_T + CHAMFER, 1, FR_B - FR_T - CHAMFER * 2)
+    line(FR_R, FR_T + CHAMFER, 1, FR_B - FR_T - CHAMFER * 2)
+
+    -- The header rule covers the LEFT column only, as on the forecast page: the dial
+    -- occupies the right column from well above this line.
+    line(FR_L + CHAMFER, FR_HEAD_Y, SPLIT_X - FR_L - CHAMFER, 1)
+
+    -- the split runs the whole height, so the dial column is one tall cell
+    line(SPLIT_X, FR_T + CHAMFER, 1, FR_B - FR_T - CHAMFER * 2)
+
+    -- and each column's own divider: the dial from its list, the grid from its list
+    line(SPLIT_X + CHAMFER, FR_DIAL_Y, FR_R - SPLIT_X - CHAMFER * 2, 1)
+    line(FR_L + CHAMFER, FR_GRID_Y, SPLIT_X - FR_L - CHAMFER * 2, 1)
+end
+
+
+-- --- rows ---------------------------------------------------------------------------------
+--
+-- Two fixed columns, no scrolling, one list in each. Colour carries the emphasis a font
+-- change would normally carry, because a widget cannot be restyled after it is built.
+local HEAD_RGB = {238, 196, 112}
+local LINE_RGB = {200, 200, 200}
+local NOW_RGB  = {255, 255, 255}
+
+-- Each column starts where the thing above it ends rather than on a shared line: the
+-- left one is under the grid, the right one under the dial, which is far taller.
+local COL_X  = {52, 556}
+-- What is left of the frame after each column's left edge and its own padding. row_line
+-- is declared at the LEFT column's width, so a right-hand field inherited a 460px rect
+-- running half a screen past the page edge; every field is sized to its cell instead.
+local COL_W  = {460, 212}
+local FIELD_MIN = 44
+local COL_Y0 = {518, 458}     -- the heading in each column
+local COL_Y1 = {692, 628}     -- and where it must stop; the back button owns that corner
+local HEAD_H = 24
+local ROW_H  = 17
+-- six marked days on the left, five seasons on the right, with slack
+local ROWS   = {10, 8}
+local HEADS  = 4
+
+-- Rows are placed against a moving cursor rather than a fixed first-row y, so a list can
+-- change length without every constant below it moving too.
+function SeasonsPDA:InitRows()
+    self.heads = {}
+    for i = 1, HEADS do
+        local h = self.xml:InitTextWnd("row_head", self)
+        if h then h:Show(false) end
+        self.heads[i] = h
+    end
+    self.rows, self.used, self.cursor = {}, {}, {}
+    for col = 1, 2 do
+        self.rows[col] = {}
+        for i = 1, ROWS[col] do
+            local set = {}
+            for f = 1, 3 do
+                local w = self.xml:InitTextWnd("row_line", self)
+                if w then
+                    w:Show(false)
+                    set[f] = w
+                end
+            end
+            self.rows[col][i] = set
+        end
+        self.used[col] = 0
+        self.cursor[col] = COL_Y0[col]
+    end
+    self.head_n = 0
+end
+
+function SeasonsPDA:Section(col, title)
+    local y = self.cursor[col] or COL_Y0[col]
+    self.head_n = (self.head_n or 0) + 1
+    local h = self.heads and self.heads[self.head_n]
+    if h and y + HEAD_H <= COL_Y1[col] then
+        h:SetText(title or "")
+        h:SetWndPos(vector2():set(COL_X[col], y))
+        h:SetWndSize(vector2():set(COL_W[col], HEAD_H))
+        h:SetTextColor(GetARGB(255, HEAD_RGB[1], HEAD_RGB[2], HEAD_RGB[3]))
+        h:Show(true)
+    end
+    self.cursor[col] = y + HEAD_H
+end
+
+-- fields is {{dx, text}, ...}, dx measured from the column's left edge. letterica is a
+-- PROPORTIONAL font: padding a string with string.format("%-12s") does NOT line anything
+-- up. It looked fine in a monospaced editor and ragged on the PDA.
+function SeasonsPDA:Put(col, fields, rgb)
+    if not (self.rows and self.rows[col]) then return end
+    local n = (self.used[col] or 0) + 1
+    local y = self.cursor[col] or COL_Y0[col]
+    -- never grow, and never run past the cell: a full column simply stops
+    if n > ROWS[col] or y + ROW_H > COL_Y1[col] then return end
+    self.used[col] = n
+    self.cursor[col] = y + ROW_H
+    local set = self.rows[col][n]
+    rgb = rgb or LINE_RGB
+    for f = 1, 3 do
+        local w = set and set[f]
         if w then
-            w:SetText(tostring(c[2] or ""))
-            w:SetWndPos(vector2():set(c[1], 0))
+            local spec = fields[f]
+            if spec then
+                w:SetText(tostring(spec[2] or ""))
+                w:SetWndPos(vector2():set(COL_X[col] + spec[1], y))
+                w:SetWndSize(vector2():set(
+                    math.max(FIELD_MIN, COL_W[col] - spec[1]), ROW_H))
+                w:SetTextColor(GetARGB(255, rgb[1], rgb[2], rgb[3]))
+                w:Show(true)
+            else
+                w:Show(false)
+            end
         end
     end
-    self.scroll:AddWindow(holder, true)
-    holder:SetAutoDelete(true)
+end
+
+function SeasonsPDA:ClearRows()
+    for i = 1, HEADS do
+        if self.heads and self.heads[i] then self.heads[i]:Show(false) end
+    end
+    self.head_n = 0
+    for col = 1, 2 do
+        for i = 1, ROWS[col] do
+            local set = self.rows and self.rows[col] and self.rows[col][i]
+            for f = 1, 3 do
+                if set and set[f] then set[f]:Show(false) end
+            end
+        end
+        self.used[col] = 0
+        self.cursor[col] = COL_Y0[col]
+    end
 end
 
 
--- One row appended to the scroll view. `style` picks the colour from the xml.
-function SeasonsPDA:Row(style, text)
-    if not self.scroll then return end
-    local w = self.xml:InitTextWnd(style, nil)
-    if not w then return end
-    w:SetText(text or "")
-    self.scroll:AddWindow(w, true)
-    w:SetAutoDelete(true)
+-- --- the year grid ------------------------------------------------------------------------
+--
+-- Twelve month rows of day cells, tinted by season, today lit and the marked days
+-- underlined. A year drawn the way a year looks, which a single strip never quite is: on
+-- a strip "late October" is a position you have to measure, and on a grid it is a place.
+--
+-- Drawn as one block per SEASON RUN rather than one block per day. Twelve months of 31
+-- days would be 372 statics held for the life of the session; the same picture comes out
+-- of about fifteen blocks plus thirty hairlines for the day divisions, because within one
+-- month the days of one season are always contiguous.
+--
+-- X-Ray has no fill-rect: a CUIStatic carrying a plain white block and tinted with
+-- SetTextureColor is how every other mod in the install draws one. The blocks are
+-- allocated ONCE and reused, because get_ui() calls Reset() on every open and a fresh set
+-- per redraw would pile up and never release.
+local GRID_X, GRID_Y = 52, 216      -- must match <grid> in the xml
+local GRID_W  = 452
+local GUT     = 38                  -- the month-name column, left of the cells
+local CELL_W  = 13                  -- 31 days at 13 is 403, inside 452 - 38
+local CELL_H  = 16
+local PITCH   = 20                  -- month to month, so the rows read as twelve bands
+local ROW_Y0  = 18                  -- under the day scale, in grid-local y
+local BAR_POOL = 72                 -- ~15 runs + 30 day rules + 6 marked + today
+
+-- The dial's own arc colours, so the grid and the dial are one picture of the year seen
+-- twice rather than two that merely sit near each other. These are exactly what
+-- _tools/build_season_dial.py season_colors() computes from the season grades, scaled by
+-- SEASON_DIM: the dial draws thin arcs and can carry full brightness, while a third of
+-- the grid at (234,235,234) would be the loudest thing on the page. One factor for all
+-- five keeps the hues and their order intact.
+--
+-- test_calendar recomputes them from the generator and fails if the two ever drift, so
+-- changing a season's grade is a one-line follow-up here rather than a silent lie.
+local SEASON_DIM = 0.78
+local SEASON_RGB = {
+    spring      = {136, 183, 136},
+    summer      = {173, 183, 126},
+    autumn      = {183, 155,  95},
+    winter      = {145, 161, 183},
+    winter_snow = {182, 183, 182},
+}
+
+-- The one red in the mod - the same one the forecast page strobes an emission alert
+-- in - because it is the only hue nowhere in the season palette and so the only one a
+-- month cannot camouflage. Amber marks vanished into autumn and slate marks into deep
+-- winter, which are exactly the months they most needed to be seen on.
+local MARK_RGB   = {238, 96, 72}
+local MARK_H     = 5                -- the underline; 4 read as an artefact of the cell
+
+local MONTH_LEN  = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+local MONTH_ABBR = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+-- five day marks, like the forecast's five hours: more than this and they collide
+local DAY_AT     = {1, 8, 15, 22, 29}
+
+-- Leap years are read off the length the data layer reported rather than recomputed, so
+-- the grid cannot disagree with the day number printed beneath it.
+local function month_len(m, year_len)
+    local leap = (year_len and year_len >= 366) and 1 or 0
+    return MONTH_LEN[m] + ((m == 2) and leap or 0)
 end
 
-function SeasonsPDA:Gap()
-    if not self.scroll then return end
-    local g = self.xml:InitStatic("row_gap", nil)
-    if not g then return end
-    self.scroll:AddWindow(g, true)
-    g:SetAutoDelete(true)
+local function month_starts(year_len)
+    local out, acc = {}, 1
+    for m = 1, 12 do
+        out[m] = acc
+        acc = acc + month_len(m, year_len)
+    end
+    return out
 end
+
+-- Which season owns each day of the year. Built by walking each season's span rather than
+-- by comparing boundaries, so the one that runs December into March needs no special case
+-- at all - the modulo carries it round the year end.
+local function season_map(d, year_len)
+    local map = {}
+    for _, s in ipairs(d.seasons or {}) do
+        local a, n = tonumber(s.doy_from), tonumber(s.span)
+        if a and n then
+            for i = 0, n - 1 do
+                map[((a + i - 1) % year_len) + 1] = s.key
+            end
+        end
+    end
+    return map
+end
+
+-- Today's month and day, from the day number the page already reports. The data layer
+-- does not publish them and does not need to: the grid is built from the same month
+-- table, so deriving them here cannot disagree with the cells they land on.
+local function md_of(doy, starts, year_len)
+    for m = 12, 1, -1 do
+        if doy >= starts[m] and doy < starts[m] + month_len(m, year_len) then
+            return m, doy - starts[m] + 1
+        end
+    end
+    return nil, nil
+end
+
+function SeasonsPDA:InitGrid()
+    self.bars, self.bar_n = {}, 0
+    if not self.grid then return end
+    for i = 1, BAR_POOL do
+        local s = self.xml:InitStatic("px", self.grid)
+        if not s then break end
+        s:Show(false)
+        self.bars[i] = s
+    end
+end
+
+function SeasonsPDA:InitScales()
+    self.months, self.axis_x = {}, {}
+    for i = 1, 12 do
+        local w = self.xml:InitTextWnd("grid_month", self)
+        if w then w:Show(false) end
+        self.months[i] = w
+    end
+    for i = 1, #DAY_AT do
+        local w = self.xml:InitTextWnd("axis_x", self)
+        if w then w:Show(false) end
+        self.axis_x[i] = w
+    end
+end
+
+function SeasonsPDA:Bar(x, y, w, h, r, g, b, alpha)
+    self.bar_n = (self.bar_n or 0) + 1
+    local s = self.bars and self.bars[self.bar_n]
+    if not s then return nil end               -- pool exhausted: draw nothing, never grow
+    if w < 1 then w = 1 end
+    s:SetWndPos(vector2():set(x, y))
+    s:SetWndSize(vector2():set(w, h))
+    s:SetTextureColor(GetARGB(alpha or 255, r, g, b))
+    s:Show(true)
+    return s
+end
+
+function SeasonsPDA:BlankGrid()
+    self.today_bar = nil
+    for i = 1, #(self.bars or {}) do
+        if self.bars[i] then self.bars[i]:Show(false) end
+    end
+    for i = 1, #(self.months or {}) do
+        if self.months[i] then self.months[i]:Show(false) end
+    end
+    for i = 1, #(self.axis_x or {}) do
+        if self.axis_x[i] then self.axis_x[i]:Show(false) end
+    end
+    self.bar_n = 0
+end
+
+function SeasonsPDA:DrawGrid(d)
+    self:BlankGrid()
+    if not self.grid then return end
+
+    local len = tonumber(d.year_len) or 365
+    if len < 1 then len = 365 end
+    local starts = month_starts(len)
+    local owner  = season_map(d, len)
+    local rows_h = 11 * PITCH + CELL_H
+
+    local function cell_x(day) return GUT + (day - 1) * CELL_W end
+    local function row_y(m)    return ROW_Y0 + (m - 1) * PITCH end
+
+    -- --- the months -------------------------------------------------------------------
+    for m = 1, 12 do
+        local y, n = row_y(m), month_len(m, len)
+        local run_from, run_key = 1, owner[starts[m]]
+        local function flush(upto)
+            local c = SEASON_RGB[tostring(run_key)] or {150, 150, 150}
+            self:Bar(cell_x(run_from), y, (upto - run_from + 1) * CELL_W - 1, CELL_H,
+                     c[1], c[2], c[3], 235)
+        end
+        for day = 2, n do
+            local k = owner[starts[m] + day - 1]
+            if k ~= run_key then
+                flush(day - 1)
+                run_from, run_key = day, k
+            end
+        end
+        flush(n)
+
+        local w = self.months and self.months[m]
+        if w then
+            w:SetText(MONTH_ABBR[m])
+            w:SetWndPos(vector2():set(GRID_X, GRID_Y + y))
+            w:Show(true)
+        end
+    end
+
+    -- --- the day divisions ------------------------------------------------------------
+    -- One hairline per day boundary, over the whole grid. Drawing 372 separate cells
+    -- would look identical and cost twelve times the widgets, so the gaps are drawn
+    -- instead of the cells. Dark enough to read as a gap over a month, faint enough to
+    -- be almost nothing over the days a short month does not have.
+    for day = 1, 30 do
+        self:Bar(cell_x(day + 1) - 1, ROW_Y0, 1, rows_h, 26, 28, 26, 220)
+    end
+
+    -- --- the days the Zone marks ------------------------------------------------------
+    -- Underlined rather than filled: the cell already carries its season, and a day that
+    -- changes the weather has not stopped being a day in that season. The underline is
+    -- also what keeps a marked day distinct from today, which fills - on a day that is
+    -- both, one colour with two meanings would have to pick one.
+    --
+    -- One red for every kind. The memorial-against-anniversary split the colour used to
+    -- carry is said in words in the list below, which has room to say it properly.
+    for _, day in ipairs(d.days or {}) do
+        local m, dd = tonumber(day.month), tonumber(day.day)
+        if m and dd then
+            self:Bar(cell_x(dd), row_y(m) + CELL_H - MARK_H, CELL_W - 1, MARK_H,
+                     MARK_RGB[1], MARK_RGB[2], MARK_RGB[3], 255)
+        end
+    end
+
+    -- --- today ------------------------------------------------------------------------
+    -- Drawn last, so the day division through it is covered and it reads as one lit cell
+    -- rather than two halves. Kept on the side so Update can breathe it: the only moving
+    -- thing on the page, and the only one that earns it.
+    local tm, td = md_of(tonumber(d.doy) or 0, starts, len)
+    if tm and td then
+        self.today_bar = self:Bar(cell_x(td), row_y(tm), CELL_W - 1, CELL_H,
+                                  MARK_RGB[1], MARK_RGB[2], MARK_RGB[3], 255)
+    end
+
+    -- --- the day scale ----------------------------------------------------------------
+    for i, day in ipairs(DAY_AT) do
+        local w = self.axis_x and self.axis_x[i]
+        if w then
+            w:SetText(tostring(day))
+            -- Centred on its column, the label being 54 wide and the cell 13, then
+            -- clamped inside the grid. The forecast page needed the same clamp for the
+            -- same reason: its 24-hour label used to hang half its width past the chart
+            -- and into the next column.
+            local lx = GRID_X + cell_x(day) + math.floor(CELL_W / 2) - 27
+            local hi = GRID_X + GRID_W - 54
+            if lx > hi then lx = hi end
+            if lx < GRID_X then lx = GRID_X end
+            w:SetWndPos(vector2():set(lx, GRID_Y))
+            w:Show(true)
+        end
+    end
+end
+
 
 function SeasonsPDA:Fill()
-    if self.scroll then self.scroll:Clear() end
+    self:ClearRows()
 
     local d = page()
     if not d then
@@ -172,6 +569,11 @@ function SeasonsPDA:Fill()
         put(self.subheader, "The calendar is not reading right now.")
         put(self.turning, "")
         put(self.marked, "")
+        put(self.grid_cap_l, "")
+        put(self.grid_cap_r, "")
+        -- and clear the grid, or the last good year stays on screen with today's cell
+        -- still breathing over it: a stale reading that looks live
+        self:BlankGrid()
         return
     end
 
@@ -192,11 +594,13 @@ function SeasonsPDA:Fill()
         put(self.turning, "")
     end
 
-    -- today is one of the marked days, so say so before anything else
+    -- today is one of the marked days, so say so on the same line: only one of the two
+    -- is ever the interesting one, and a line of its own for a thing that is blank 359
+    -- days a year is a hole in the header
     if d.marked then
         put(self.marked, (d.marked.kind == "memorial")
-                         and "Today the Zone is quiet."
-                         or  "Today the Zone is loud.")
+                         and "The Zone is quiet"
+                         or  "The Zone is loud")
     else
         put(self.marked, "")
     end
@@ -207,48 +611,68 @@ function SeasonsPDA:Fill()
     end
 
     -- the dial shows where the year stands; the caption gives the current span
+    put(self.dial_caption, "")
     for _, s in ipairs(d.seasons or {}) do
         if s.current then
             put(self.dial_caption, string.format("%s - %s", s.from, s.to))
         end
     end
 
-    -- --- the year ------------------------------------------------------------------------
-    self:Row("row_head", "The year")
-    for _, s in ipairs(d.seasons or {}) do
-        self:Cols(s.current and "row_now" or "row_line",
-                  {{0, cap_first(s.label)}, {110, s.from .. " - " .. s.to},
-                   {270, s.days .. " days"}})
-    end
-    self:Gap()
+    -- --- the grid -----------------------------------------------------------------------
+    self:DrawGrid(d)
+    -- The month names and the day scale carry the axes, so the captions only say what
+    -- they cannot: where today falls as a number, and what the underlines are.
+    put(self.grid_cap_l, string.format("Day %d of %d",
+                                       tonumber(d.doy) or 0, tonumber(d.year_len) or 0))
+    put(self.grid_cap_r, "today lit, marked days underlined")
 
-    -- --- the marked days, soonest first ---------------------------------------------------
-    self:Row("row_head", "Days the Zone marks")
+    -- --- the marked days, soonest first -----------------------------------------------
+    -- The wide column, so each day can say what it actually does rather than leaving it
+    -- to a colour the player has to learn.
+    self:Section(1, "Days the Zone marks")
     for _, day in ipairs(d.days or {}) do
-        local what = (day.kind == "memorial") and "clear sky, quiet"
-                                              or  "storm, artifacts"
-        self:Cols(day.today and "row_now" or "row_line",
-                  {{0, day.date}, {70, when_text(day.away)}, {180, what}})
+        self:Put(1, {{0, day.date}, {110, when_text(day.away)},
+                     {210, DAY_TEXT[tostring(day.kind)] or ""}},
+                 day.today and NOW_RGB or LINE_RGB)
     end
-    self:Gap()
 
-    -- --- what the calendar is holding -----------------------------------------------------
-    local mods = d.extra or {}
-    self:Row("row_head", "On the calendar")
-    if #mods == 0 then
-        self:Row("row_dim", "Nothing scoped to a period yet.")
-        self:Row("row_dim", "Mods are named in _tools/seasons_config.py.")
-    else
-        -- name, span, and a marker when the calendar wants a mod but something is
-        -- holding it back: an MCM tick, or the texture layer switched off
-        for _, m in ipairs(mods) do
-            local mark = m.enabled and "on " or (m.wanted and " ! " or "off")
-            local span = (m.span ~= "" and m.span) or m.seasons
-            self:Cols(m.enabled and "row_line" or "row_dim",
-                      {{0, mark}, {30, tostring(m.name):sub(1, 30)},
-                       {270, tostring(span)}})
-        end
+    -- --- the year, beside the dial that draws it ----------------------------------------
+    -- Start dates, not lengths. The dial directly above prints every season's length
+    -- already - illegibly, at 236px, but it prints them - and the grid on the left shows
+    -- each span at its true width. What neither can state exactly is the date a season
+    -- turns, which is the thing a stalker would actually want off this page.
+    self:Section(2, "The year")
+    for _, s in ipairs(d.seasons or {}) do
+        self:Put(2, {{0, cap_first(s.label)}, {118, "from " .. tostring(s.from)}},
+                 s.current and NOW_RGB or LINE_RGB)
     end
+
+    -- One line per open, naming what the page actually resolved. This page has the same
+    -- invisible failure mode the forecast does: a grid that drew nothing and a page that
+    -- was never opened look identical from the log, so three quiet sessions proved only
+    -- that nothing had crashed. cells is the count DrawGrid placed, which is the one
+    -- number that cannot be produced by a page that failed to build.
+    say(string.format("season=%s day=%s/%s cells=%s days=%s seasons=%s",
+        tostring(d.season), tostring(d.doy), tostring(d.year_len),
+        tostring(self.bar_n), tostring(self.used[1]), tostring(self.used[2])))
+end
+
+-- A slow breath on today's cell, not a blink: it says "you are here", it is not an
+-- alarm. One colour write per frame on one cell, which is the same budget the forecast
+-- page's live dot runs on.
+local PULSE_MS = 2400
+
+function SeasonsPDA:Update()
+    CUIScriptWnd.Update(self)
+    if not self.today_bar then return end
+    local ok, ms = pcall(time_global)
+    if not (ok and type(ms) == "number") then return end
+    -- 190 rather than 150 at the bottom of the breath: the old floor took the cell far
+    -- enough down that it stopped reading as red at all for a third of every cycle,
+    -- which is the opposite of what marking today is for.
+    local f = 0.5 + 0.5 * math.sin((ms % PULSE_MS) / PULSE_MS * 6.2831853)
+    self.today_bar:SetTextureColor(GetARGB(math.floor(190 + 65 * f),
+                                           MARK_RGB[1], MARK_RGB[2], MARK_RGB[3]))
 end
 
 function SeasonsPDA:Reset()

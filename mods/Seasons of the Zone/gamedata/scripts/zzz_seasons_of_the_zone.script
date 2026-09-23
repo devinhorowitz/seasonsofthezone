@@ -1364,6 +1364,10 @@ function calendar_page()
     local out = {
         today   = today_text(),
         season  = cur,
+        -- for the year ribbon: where today sits, and how long the year is. Both are
+        -- cheap here and awkward on the page, which has no calendar of its own.
+        doy      = doy,
+        year_len = doy_of(12, 31, year),
         label   = name_of(cur),
         dial    = dial_texture(),
         seasons = {},
@@ -1379,6 +1383,8 @@ function calendar_page()
         local len = z - a
         if len <= 0 then len = len + yl end         -- the one that wraps the year end
         out.seasons[#out.seasons + 1] = {
+            doy_from = a,               -- day of year it begins, for the ribbon
+            span     = len,
             key     = b.season,
             label   = name_of(b.season),
             from    = md(b.m, b.d),
@@ -1393,6 +1399,7 @@ function calendar_page()
     for key, day in pairs(REMEMBRANCE) do
         local m, d = math.floor(key / 100), key % 100
         out.days[#out.days + 1] = {
+            doy    = doy_of(m, d, year),   -- where it falls, for the ribbon's ticks
             key    = day.key,
             kind   = day.kind,
             date   = md(m, d),
