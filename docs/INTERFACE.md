@@ -113,17 +113,37 @@ the page is still built but nothing links to it.
 
 It is read-only, and it reports rather than decorates:
 
-- **The year** — the five seasons with their dates and lengths, the current one lit.
+- **The year grid** — twelve month rows of day cells, tinted by season. Because the rows are
+  real months, February stops at 28 and the thirty-day months one cell short of the rest,
+  which is what makes it read as a calendar rather than as a bar chart. Today's cell is lit
+  and breathes; the six days the Zone marks are underlined.
 - **Days the Zone marks** — the six fixed days, soonest first, each with how far off it is
-  and what it does: *clear sky, quiet* for the two remembrance days, *storm, artifacts*
-  for the four anniversaries.
-- **On the calendar** — the mods the calendar is scheduling, with their spans. A mod the
-  calendar wants but cannot stage is marked `!` rather than dropped silently.
+  and what it does: *Clear sky. The Zone goes quiet.* for the two remembrance days,
+  *Storm. Artefacts surface.* for the four anniversaries.
+- **The year** — the five seasons and the date each one begins, beside the dial that draws
+  them, the current one lit.
+
+Today and the marked days are **red**, which is the only hue nowhere in the season palette
+and so the only one a month cannot camouflage — an amber mark sat invisibly on autumn and a
+slate one on deep winter, the two months they most needed to be seen against. It is the same
+red the forecast strobes an emission alert in, so the mod has one red and it always means
+look here. Today fills its cell and a marked day underlines its own, so the two stay apart
+on a day that is both.
+
+**Nothing about the mod appears here.** An earlier version listed the staged texture mods by
+name, which put MO2 folder strings on a stalker's PDA — and there is no reliable way to turn
+an author-chosen folder name into something the Zone would say. MCM's season pages already
+list them, which is where a question about an install belongs.
 
 The dial and the accent bar are the mod's own textures. Nothing else on the page is an
 image, which is deliberate: the PDA frame textures that other tab-adding mods borrow are
 declared in no `texture_descr` in a stock GAMMA install, which is why those pages log
 *Can't find texture*. This one has nothing to fail to find.
+
+`_tools/test_calendar.py` loads the shipped page under a real Lua interpreter and runs its
+drawing code, checking that every month row is filled to its own length, that the season
+running December into March owns cells at both ends of the grid, that a leap year gives
+February its day, and that the mark colour is not one any season wears.
 
 ---
 
@@ -179,21 +199,31 @@ clearance you hold:
 
 | Ecologist standing | | What the panel says |
 |---|---|---|
-| below 200 | **CLASSIFIED** | *Network readings withheld*, and the standing you need |
-| 200 | **RESTRICTED** | `very soon` · `building` · `nothing yet` — a warning, never a time |
-| 700 | **CLEARED** | the hour |
+| below 200 | **CLASSIFIED** | the faction's emblem and the word, and nothing else |
+| 200 | **LIMITED** | a bracket — `ALL CLEAR` · `8 to 16 hours` · `2 to 8 hours` · `WITHIN 2 HOURS` |
+| 700 | **CLEARED** | the hour, and a red strobe under two of them |
 
 Both thresholds are MCM tracks; those are the defaults. Setting the first to 0 and the
 second to 50 is the quickest way to see the middle tier without changing your standing.
 
-The locked state is drawn deliberately rather than hidden. A reward the player cannot see
-is not one they can work towards, so the panel names the standing they have and the
-standing they need — it reads as something being withheld, not as a row that happens to be
-dim.
+The locked state is drawn deliberately rather than hidden. A reward the player cannot see is
+not one they can work towards, so the emblem and the clearance word are on the page from the
+first day — but that is all they are. Spelling out what the emblem implies, or printing
+*0 of 200*, turns something you might one day be trusted with into a progress bar. The
+border is sized to what that tier actually draws, so it reads as a thing withheld rather
+than as an empty box.
 
-The bands are a **fraction of the current period, not fixed hours**, so they keep their
-meaning if you move the frequency slider: with `emission_frequency` at the stock 24,
-*building* is a few hours; at 168 it is most of a day.
+The brackets are **fixed hours, not a fraction of the period**. A fraction quietly became a
+different warning whenever the frequency slider moved, and *two to eight hours* has to mean
+two to eight hours. Eight hours of slop is not a limitation — it is what a warning relayed
+off someone else's instrument is worth, and it still tells a stalker whether to start
+walking back.
+
+Under two hours both open tiers raise the same flag, because a LIMITED *WITHIN 2 HOURS*
+means what a CLEARED *1 hour* means. It is published as `alert` on `blowout()`, already
+gated by tier, so a wearable device has one boolean to pulse on rather than re-deriving the
+threshold — see [WEARABLE-DEVICES.md](WEARABLE-DEVICES.md). It is never true at CLASSIFIED,
+where a pulse would leak the one thing being withheld.
 
 **Why this is not on the calendar.** It was going to be, and the numbers said no. At
 `emission_frequency = 24` the manager rolls a delay of 12–24 *game* hours, and GAMMA runs
@@ -202,8 +232,8 @@ A day-scale calendar entry would read "emission likely" every single day, which 
 forecast. The live readout is the only honest place for it.
 
 `_tools/test_forecast.py` runs the shipped script under a real Lua interpreter and checks
-all three tiers, the band boundaries, and that a locked or coarse page never leaks the
-exact time.
+all three tiers, the bracket boundaries, the alert flag, and that a locked or limited page
+never leaks the exact time.
 
 ---
 

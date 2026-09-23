@@ -2,9 +2,80 @@
 
 ## Unreleased
 
-- **A page in the PDA.** The calendar is now readable in game: the next emission and psi
-  storm, the five seasons with the current one lit, the six marked days with how far off
-  each is, and the mods the calendar is scheduling. Read-only.
+- **The Year is a year now.** The calendar page leads with a twelve-month grid of day
+  cells tinted by season, today's cell lit and the six days the Zone marks underlined.
+  Because the rows are real months, February stops at 28 and the thirty-day months one
+  cell short of the rest, which is what makes it read as a calendar rather than as a bar
+  chart. A single strip came first and was cut: on a strip *late October* is a position
+  you have to measure, and on a grid it is a place.
+  - Drawn as one block per **season run** rather than one per day. Twelve months of 31
+    cells would be 372 statics held for the life of the session; the same picture comes
+    out of about fifteen blocks plus thirty hairlines for the day divisions, because
+    within one month the days of one season are always contiguous.
+  - Today and the marked days are **red** — the only hue nowhere in the season palette,
+    and so the only one a month cannot camouflage. Amber marks vanished into autumn and
+    slate ones into deep winter, the two months they most needed to be seen on. Today
+    fills its cell and a marked day underlines its own, so the two stay apart on a day
+    that is both.
+  - The grid wears the **dial's own arc colours**, dimmed by one factor. They had been a
+    hand-copied approximation that quietly drifted — the dial's spring was (175,235,175)
+    against the page's (122,158,104) — so a test now recomputes them from
+    `build_season_dial.py` and fails if the two disagree again.
+  - **Nothing about the mod is on the page.** It listed the staged texture mods by name,
+    which put MO2 folder strings on a stalker's PDA, and no amount of parsing turns an
+    author-chosen folder name into something the Zone would say. MCM's season pages
+    already list them. The space went to the marked days, which now say what each one
+    does in words rather than leaving it to a colour.
+  - The page logs one line per open naming what it resolved, including the count of cells
+    it drew — the one number a page that failed to build cannot produce. Three sessions
+    were spent reading silence as success before this existed.
+- **The classified border is sized to what that tier draws.** At CLASSIFIED the ecologist
+  panel shows its emblem and one word, by choice; the border stayed sized for the three
+  lines the open tiers fill, so a locked player saw a 162px box holding 48px of content,
+  which reads as broken rather than as withheld.
+- **LIMITED gives a window; CLEARED gives an alarm.** The middle tier said `very soon` /
+  `building` / `nothing yet`, which told you something was coming and gave you nothing to
+  plan around. It reads `ALL CLEAR`, `8 to 16 hours`, `2 to 8 hours` or `WITHIN 2 HOURS`
+  now. Eight hours of slop is not a limitation — it is what a warning relayed off someone
+  else's instrument is worth, and it still tells a stalker whether to start walking back.
+  - The brackets are **fixed hours, not a fraction of the period**. A fraction quietly
+    became a different warning whenever the frequency slider moved.
+  - Under two hours the CLEARED line turns red and strobes. It is the only thing on that
+    page about to happen *to* the player rather than merely being reported, so it is the
+    only thing that moves — a square pulse rather than a fade, because a fade reads as an
+    animation and a pulse reads as an alarm.
+  - Published as `alert` on `blowout()`, already gated by tier, so a device has one
+    boolean to pulse on rather than re-deriving the threshold and drifting out of step.
+    Never true at CLASSIFIED, where a pulse would leak the one thing being withheld.
+  - The tests caught a bug in the rename: `sotz_api` mapped each band to a gauge position
+    by name, and the table was left behind when the names changed — every limited reading
+    fell through to 0.70, a needle near *quiet* beside a panel reading WITHIN 2 HOURS.
+- **A proposal Wearable Devices can evaluate in two minutes.**
+  [docs/WEARABLE-DEVICES.md](docs/WEARABLE-DEVICES.md) leads with what the player gets —
+  a light on the wrist that quickens as an emission closes, no PDA and no menu — then
+  gives the whole cost: one file in their own sensor style, three lines of wiring, one key
+  in a tier table. `_tools/test_wd_bridge.py` lifts the snippet **out of the markdown** and
+  runs it against the real `sotz_api` under a Lua interpreter, so the code in the document
+  cannot drift from the code that was checked.
+- **Two checks that measure what a screenshot would have shown.** Both pages are placed by
+  absolute coordinate, half in the xml and half in the script, and nothing in the game
+  complains when the two disagree — a label past a rule or a row list that only fits
+  because today is quiet renders perfectly happily and looks wrong only to someone
+  standing in front of the screen.
+  - **`_tools/check_layout.py`** measures both pages against their own frames, and
+    reconstructs the calendar's runtime rows from the cursor the script walks, so a rule
+    drawn through one is visible to a check that would otherwise only read the xml. Its
+    self-test requires every way a layout can drift to be caught. It has found four things
+    on its own: the header rule drawn straight across the barometer, a row list with room
+    for seven rows when a full day needs nine, the back button drifting inside the
+    classified panel, and — once taught to measure what a tier actually draws rather than
+    what the xml declares — the classified border around an empty box.
+  - **`_tools/test_calendar.py`** loads both shipped files under a real Lua interpreter and
+    runs the page's drawing code, asserting against the rectangles it produced rather than
+    a re-implementation. Removing the year-wrap branch fails it three separate ways,
+    including a control that reports *January reads as autumn*.
+- **A page in the PDA.** The calendar is readable in game: the five seasons with the
+  current one lit, and the six marked days with how far off each is. Read-only.
   - Registered with Mod App Creator when it is present, so the page lives in the app
     launcher instead of taking space on the PDA tab bar. Without MAC nothing links to it
     and nothing breaks. The tab id is injected into `ui/pda*.xml` at runtime rather than
@@ -61,7 +132,8 @@
     rather than what it said. It names the band the needle is in: `pressure stormy`,
     `unsettled`, `fair`.
   - `Standing 0 need 200` is `You have 0 of 200`; the emission bands are `very soon`,
-    `building`, `nothing yet`.
+    `building`, `nothing yet`. *Both were superseded later in this same cycle — the
+    standing line went away with the locked panel, and the bands became brackets.*
 - **Tomorrow, on the page.** `sotz_api.tomorrow()` reads the `[weather_next]` section
   fetch_weather.py has been writing since the first version and nothing has ever read.
   Observations only - there is deliberately no modelled fallback, because a modelled
