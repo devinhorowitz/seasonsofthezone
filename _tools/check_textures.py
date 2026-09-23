@@ -39,8 +39,10 @@ FAMILIES = [
     ("sotz_needle_", ["clear", "partly", "cloudy", "foggy", "rain", "storm"], False),
     ("sotz_wx_", ["clear", "partly", "cloudy", "foggy", "rain", "storm",
                   "frost", "arrow"], False),
-    ("sotz_app_year_", ["spring", "summer", "autumn", "winter", "winter_snow"], True),
-    ("ui_season_hdr_", ["spring", "summer", "autumn", "winter", "winter_snow"], False),
+    ("sotz_app_year_", ["spring", "summer", "autumn", "winter", "winter_snow",
+                        "late_winter"], True),
+    ("ui_season_hdr_", ["spring", "summer", "autumn", "winter", "winter_snow",
+                        "late_winter"], False),
     ("ui_seasons_dial_", ["%02d" % i for i in range(32)], False),
 ]
 

@@ -127,6 +127,7 @@ local function page_main()
     add({id = "mode", type = "list", val = 0, def = "auto", content = {
         {"auto", "auto"}, {"spring", "spring"}, {"summer", "summer"},
         {"autumn", "autumn"}, {"winter", "winter"}, {"winter_snow", "winter_snow"},
+        {"late_winter", "late_winter"},
     }})
     add({id = "blend_days", type = "track", val = 2, min = 0, max = 30, step = 1, def = 14})
     add({id = "intensity", type = "track", val = 2, min = 0.0, max = 1.0, step = 0.05, def = 1.0})
@@ -225,15 +226,15 @@ function on_mcm_load()
     local okm, info = pcall(function() return zzz_seasons_of_the_zone.mod_list() end)
     if not okm then info = nil end
 
-    local seasons = {}
-    for _, s in ipairs({"spring", "summer", "autumn", "winter", "winter_snow"}) do
-        seasons[#seasons + 1] = {id = s, sh = true,
+    local pages = {
+        {id = "main", sh = true, text = "ui_mcm_seasons_zone_page_main", gr = page_main()},
+    }
+    for _, s in ipairs({"spring", "summer", "autumn", "winter", "winter_snow",
+                        "late_winter"}) do
+        pages[#pages + 1] = {id = s, sh = true,
             text = "ui_mcm_seasons_zone_page_" .. s, gr = page_season(s, choices, info)}
     end
 
-    op = {id = "seasons_zone", sh = false, gr = {
-        {id = "main", sh = true, text = "ui_mcm_seasons_zone_page_main", gr = page_main()},
-        seasons[1], seasons[2], seasons[3], seasons[4], seasons[5],
-    }}
+    op = {id = "seasons_zone", sh = false, gr = pages}
     return op
 end

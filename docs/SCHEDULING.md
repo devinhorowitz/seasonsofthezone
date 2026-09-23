@@ -7,7 +7,7 @@ the date. It is about seasons, it needs no configuration, and it is not what thi
 about.
 
 The **launch-time** half is a scheduler. It maps today's date to a set of names, and mods
-declare which names they belong to. Nothing in it is seasonal. The five seasons are the
+declare which names they belong to. Nothing in it is seasonal. The six seasons are the
 set it ships with, and you can add your own.
 
 ---
@@ -18,7 +18,7 @@ Two kinds of name.
 
 **Base periods** partition the year. Exactly one is active on any date: a period runs from
 its start until the next one begins, and the last of the year wraps around into January.
-The five seasons are base periods.
+The six seasons are base periods.
 
 **Events** overlay. An event is a window with a start and an end, and it does not displace
 the period it lands in — it is added to it.
@@ -43,7 +43,7 @@ Both live in `_tools/seasons_config.py`, and both are optional.
 ```python
 PERIODS = {
     # name: (month, day) that it starts. Runs until the next period begins.
-    "mud_season": (3, 20),
+    "high_summer": (7, 1),
 }
 
 EVENTS = {

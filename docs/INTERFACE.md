@@ -1,8 +1,8 @@
 # The interface
 
-Two surfaces. **MCM → Seasons of the Zone** is where the mod is configured: six pages in
+Two surfaces. **MCM → Seasons of the Zone** is where the mod is configured: seven pages in
 MCM's second column, Main and then one per season — Spring, Summer, Autumn, Winter, Deep
-winter. The **Seasons** app in the PDA is where it is read: one app with two faces, **The
+winter, Late winter. The **Seasons** app in the PDA is where it is read: one app with two faces, **The
 Year** and **Forecast**. There is no HUD element, no pop-up and no key binding.
 
 ---
@@ -87,7 +87,7 @@ Every option has hover text, as shown above for *Drive wetness*.
 Each season gets its own page, headed by a bar in that season's grade.
 
 **Color grade preset** picks the `cfg_load` preset that season's color grade comes from:
-Built-in (the season table), the mod's own six, then every other preset in `appdata/` —
+Built-in (the season table), the mod's own seven, then every other preset in `appdata/` —
 Atmospherics' Cold, Neutral and Warm, and any you have tuned yourself. Only the grade
 changes; it takes effect on Apply.
 
@@ -97,8 +97,8 @@ either `from season table` or the preset you picked. It is rebuilt each time the
 opened, so reopen it after Apply to see a preset take.
 
 **Texture mods for this season** lists the mods `seasons_config.py` scopes to that season,
-each with its own tick. Unticking one leaves it out of *that* season only — a mod used by
-both winters can stay on for deep winter and off for winter. The choice persists. Hover
+each with its own tick. Unticking one leaves it out of *that* season only — a mod used in
+every winter can stay on for deep winter and off for the other two. The choice persists. Hover
 text gives the mod's full span, file count and size.
 
 ![The Autumn page](images/mcm-season-autumn.png)
@@ -134,7 +134,8 @@ It is read-only:
 - **Days the Zone marks** — the six fixed days, soonest first, with how far off each is and
   what it does: *Clear sky. The Zone goes quiet.* for the two remembrance days, *Storm.
   Artefacts surface.* for the four anniversaries.
-- **The year** — the five seasons and the date each begins, beside the dial.
+- **The year** — the six seasons, starting with spring, and the date each begins, beside
+  the dial.
 
 Today and the marked days are red, a color no season uses. Today fills its cell and a marked
 day is underlined, so the two stay distinct when they fall on the same day. On one of the six

@@ -27,16 +27,17 @@ CFG = os.path.join(MOD, "gamedata", "configs", "seasons_of_the_zone.ltx")
 TEXDIR = os.path.join(MOD, "gamedata", "textures")
 SCRATCH = os.path.join(tempfile.gettempdir(), "seasons_of_the_zone")
 
-BOUNDS = [(3, 5, "spring"), (5, 20, "summer"), (9, 15, "autumn"),
+BOUNDS = [(3, 5, "late_winter"), (4, 15, "spring"), (5, 20, "summer"), (9, 15, "autumn"),
           (11, 1, "winter"), (12, 1, "winter_snow")]
 THEMES = {
-    "spring": ("thaw, mist,", "new growth"),
+    "late_winter": ("thaw, mud,", "bare trees"),
+    "spring": ("new leaves,", "showers"),
     "summer": ("dry, still,", "hard sun"),
     "autumn": ("fog, low sun,", "amber light"),
     "winter": ("first snows,", "bare ground"),
     "winter_snow": ("snow cover,", "ice fog"),
 }
-LABEL = {"winter_snow": "Deep Winter"}
+LABEL = {"winter_snow": "Deep Winter", "late_winter": "Late Winter"}
 
 SIZE = 512
 CX = CY = SIZE // 2
@@ -80,7 +81,7 @@ def season_colors():
         if m and cur:
             out[cur][m.group(1)] = float(m.group(2))
 
-    seasons = ("spring", "summer", "autumn", "winter", "winter_snow")
+    seasons = ("spring", "summer", "autumn", "winter", "winter_snow", "late_winter")
     GREEN = (0.42, 0.80, 0.33)
     MIX, POWER = 0.45, 2.0
 
@@ -199,12 +200,19 @@ def render(date, cols):
         narrow = (a1 - a0) < 46.0
         nc = (255, 255, 255, 255) if is_cur else (240, 244, 240, 240)
         tc = (246, 249, 246, 240) if is_cur else (224, 230, 224, 215)
+        # A long name on a short arc shrinks to fit the chord it sits on: "LATE WINTER"
+        # at full size runs out of its 41 days.
+        avail = 2 * R_LABEL * math.sin(math.radians(a1 - a0) / 2) - 10
+        f_n, size = f_name, 21
+        while dr.textbbox((0, 0), name, font=f_n)[2] > avail and size > 14:
+            size -= 1
+            f_n = font(size)
         # a 30-day arc has no room for the theme lines
         if narrow:
-            rows = ((name, f_name, nc, -16),
+            rows = ((name, f_n, nc, -16),
                     ("%d days" % days, f_days, tc, 8))
         else:
-            rows = ((name, f_name, nc, -28),
+            rows = ((name, f_n, nc, -28),
                     (THEMES[s][0], f_theme, tc, -5),
                     (THEMES[s][1], f_theme, tc, 10),
                     ("%d days" % days, f_days, tc, 26))

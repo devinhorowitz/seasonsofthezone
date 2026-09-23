@@ -62,6 +62,12 @@ GRADE = {
                         exposure=0.8, sun_lumscale=2.05, sun_lumscale_hemi=0.75,
                         sun_lumscale_amb=0.65, tonemap_adaptation=3.0, tonemap_lowlum=0.21,
                         tonemap_middlegray=1.1, hud_hemi=0.14, sunshafts_value=0.55),
+    # The thaw: November's light, less icy, a little warmer and flatter over mud and dead
+    # grass. Not tuned in play yet; the per-season preset dropdown can swap it.
+    "late_winter": dict(grade_r=0.76, grade_g=0.72, grade_b=0.62, saturation=0.95,
+                        gamma=1.02, exposure=0.8, sun_lumscale=2.2, sun_lumscale_hemi=0.82,
+                        sun_lumscale_amb=0.66, tonemap_adaptation=3.0, tonemap_lowlum=0.22,
+                        tonemap_middlegray=1.15, hud_hemi=0.14, sunshafts_value=0.55),
 }
 
 # GAMMA's stock grade: what intensity 0 renders.
@@ -83,6 +89,9 @@ FLORA = {
                    spec_trees_wet=0.62, sss_int=0.80, sss_color=0.40),
     "winter_snow": dict(spec_grass=0.58, spec_grass_wet=0.66, spec_trees=0.54,
                         spec_trees_wet=0.66, sss_int=0.55, sss_color=0.30),
+    # bare branches still, and everything wet
+    "late_winter": dict(spec_grass=0.48, spec_grass_wet=0.66, spec_trees=0.48,
+                        spec_trees_wet=0.66, sss_int=0.70, sss_color=0.40),
 }
 
 # Autumn is the foggy season in Polesia. Height is capped at 20 by the engine, so the
@@ -93,20 +102,24 @@ FOG = {
     "autumn": dict(fog_height=20.0, fog_density=3.0, fog_suncolor=0.080, fog_scattering=1.0),
     "winter": dict(fog_height=17.0, fog_density=2.4, fog_suncolor=0.015, fog_scattering=1.0),
     "winter_snow": dict(fog_height=14.0, fog_density=2.9, fog_suncolor=0.010, fog_scattering=1.0),
+    # thaw mist off melting snow: denser than November or spring, short of autumn
+    "late_winter": dict(fog_height=16.0, fog_density=2.7, fog_suncolor=0.030, fog_scattering=1.0),
 }
 
-# ssfx_wetness_multiplier (build-up speed, drying speed). The thaw makes spring wet;
-# summer dries almost as fast as it wets. This is the only runtime lever on wetness;
-# puddle size and reflectivity are compile-time shader defines.
+# ssfx_wetness_multiplier (build-up speed, drying speed). The thaw makes late winter the
+# wettest season, all mud, and spring stays wet after it; summer dries almost as fast as
+# it wets. This is the only runtime lever on wetness; puddle size and reflectivity are
+# compile-time shader defines.
 WET = {
     "spring": dict(wet_buildup=2.60, wet_dry=0.18),
     "summer": dict(wet_buildup=1.10, wet_dry=1.20),
     "autumn": dict(wet_buildup=1.80, wet_dry=0.35),
     "winter": dict(wet_buildup=1.30, wet_dry=0.25),
     "winter_snow": dict(wet_buildup=0.60, wet_dry=0.20),
+    "late_winter": dict(wet_buildup=2.80, wet_dry=0.15),
 }
 
-# Spring is the windiest (thaw storms), summer the calmest. Frozen branches are stiff:
+# Spring is the windiest, summer the calmest. Frozen branches are stiff:
 # low trunk and bend values in winter. SSS defaults: grass (9.5, 1.4, 1.5, 0.4),
 # trees (11.0, 0.15, 0.5), min 0.1.
 WIND = {
@@ -125,6 +138,10 @@ WIND = {
     "winter_snow": dict(wind_grass_speed=7.5, wind_grass_turbulence=1.1, wind_grass_push=1.0,
                         wind_grass_wave=0.22, wind_trees_speed=9.5, wind_trees_trunk=0.10,
                         wind_trees_bend=0.24, wind_min_speed=0.10),
+    # the thaw storms begin; branches still bare and stiffer than in leaf
+    "late_winter": dict(wind_grass_speed=10.0, wind_grass_turbulence=1.6, wind_grass_push=1.6,
+                        wind_grass_wave=0.40, wind_trees_speed=11.0, wind_trees_trunk=0.13,
+                        wind_trees_bend=0.40, wind_min_speed=0.12),
 }
 
 # Engine ranges, from the SSS MCM sliders. The console rejects a whole command when any
@@ -143,7 +160,7 @@ RANGES = {
     "wet_buildup": (0.1, 20.0), "wet_dry": (0.1, 20.0),
 }
 
-SEASONS = ["spring", "summer", "autumn", "winter", "winter_snow"]
+SEASONS = ["spring", "summer", "autumn", "winter", "winter_snow", "late_winter"]
 
 # What intensity 0 renders, beyond the grade: SSS's shipped flora and wind defaults,
 # GAMMA's own fog tuning (20 / 2 / 0.015) and wetness (1.4 / 0.5).
@@ -159,7 +176,8 @@ NEUTRAL_EXTRA = dict(
 
 PRESET_FILE = {"spring": "Atmos_Spring.ltx", "summer": "Atmos_Summer.ltx",
                "autumn": "Atmos_Autumn.ltx", "winter": "Atmos_Winter.ltx",
-               "winter_snow": "Atmos_WinterSnow.ltx", "neutral": "Atmos_Neutral.ltx"}
+               "winter_snow": "Atmos_WinterSnow.ltx", "late_winter": "Atmos_LateWinter.ltx",
+               "neutral": "Atmos_Neutral.ltx"}
 
 
 def scan_preset(path):
@@ -233,7 +251,8 @@ CRLF = chr(13) + chr(10)
 # cfg_load-ed by hand, or edited in appdata/ beside Atmospherics' own.
 PRESET_NAME = {"spring": "Seasons_Spring", "summer": "Seasons_Summer",
                "autumn": "Seasons_Autumn", "winter": "Seasons_Winter",
-               "winter_snow": "Seasons_DeepWinter", "neutral": "Seasons_Neutral"}
+               "winter_snow": "Seasons_DeepWinter", "late_winter": "Seasons_LateWinter",
+               "neutral": "Seasons_Neutral"}
 
 
 def preset_text(vals):

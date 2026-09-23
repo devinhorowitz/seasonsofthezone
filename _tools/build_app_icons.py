@@ -38,14 +38,15 @@ SS = 2
 INK = (14, 17, 14, 255)
 AMBER = (238, 196, 112, 255)
 
-# The five seasons in calendar order with the arc colors the year dial uses, so the tile
-# and the page agree at a glance.
+# The six seasons, from spring, with the arc colors the year dial uses, so
+# the tile and the page agree at a glance.
 SEASONS = [
     ("spring",      (122, 158, 104, 255)),
     ("summer",      (178, 166, 104, 255)),
     ("autumn",      (214, 170, 96, 255)),
     ("winter",      (150, 166, 182, 255)),
     ("winter_snow", (176, 182, 188, 255)),
+    ("late_winter", (190, 178, 146, 255)),
 ]
 
 # storm / change / fair, as on the forecast page's gauge
@@ -75,7 +76,7 @@ def needle(dr, cx, cy, deg, length, s, width=5.0, hub_r=6.0):
 
 
 def year_cell(active):
-    """A ring of five season arcs with `active` lit and the hand on it. No text."""
+    """A ring of six season arcs with `active` lit and the hand on it. No text."""
     s = SS
     im = Image.new("RGBA", (CELL * s, CELL * s), (0, 0, 0, 0))
     dr = ImageDraw.Draw(im)

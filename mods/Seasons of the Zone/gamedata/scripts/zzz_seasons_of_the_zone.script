@@ -24,10 +24,12 @@ local DATE_MS    = 600000    -- how often to re-read the calendar (long sessions
 local GIVE_UP    = 5         -- consecutive refusals before we stop retrying a uniform
 
 -- Season starts for Polesia: the dates the landscape changes, not the equinoxes.
--- Month/day, converted per year so leap years stay exact. Winter is split: snow starts
--- falling in November but only settles from December to early March.
+-- Month/day, converted per year so leap years stay exact. Winter comes in three parts:
+-- snow starts falling in November, settles from December, and thaws through March into
+-- mud before anything turns green. In date order; the last one wraps the year end.
 local BOUNDS = {
-    {m = 3,  d = 5,  season = "spring"},       -- 76d,  thaw then green-up
+    {m = 3,  d = 5,  season = "late_winter"},  -- 41d,  thaw: patchy snow, mud, bare trees
+    {m = 4,  d = 15, season = "spring"},       -- 35d,  green-up
     {m = 5,  d = 20, season = "summer"},       -- 118d, full foliage
     {m = 9,  d = 15, season = "autumn"},       -- 47d,  the turn, peaking in October
     {m = 11, d = 1,  season = "winter"},       -- 30d,  first snowfall, bare ground
@@ -112,7 +114,8 @@ local function say(msg)
     printf("%s", "[seasons] " .. msg)
 end
 
-local DISPLAY = {winter_snow = "deep winter"}     -- config keys are not for the player
+-- config keys are not for the player
+local DISPLAY = {winter_snow = "deep winter", late_winter = "late winter"}
 
 local function name_of(s)
     return DISPLAY[s] or tostring(s)
@@ -234,15 +237,17 @@ local PRESET_MAP = {
     ssfx_hud_hemi         = {"hud_hemi"},
     r2_sunshafts_value    = {"sunshafts_value"},
 }
-local PRESET_SEASONS = {"spring", "summer", "autumn", "winter", "winter_snow", "neutral"}
+local PRESET_SEASONS = {"spring", "summer", "autumn", "winter", "winter_snow",
+                        "late_winter", "neutral"}
 local SHIPPED = {"Seasons_Spring", "Seasons_Summer", "Seasons_Autumn", "Seasons_Winter",
-                 "Seasons_DeepWinter", "Seasons_Neutral"}
+                 "Seasons_DeepWinter", "Seasons_LateWinter", "Seasons_Neutral"}
 -- The engine's file table is lowercase, so names come back as "atmos_cold". Shown as
 -- "Atmos Cold"; the mod's own by season.
 local SHIPPED_LABEL = {
     seasons_spring = "Seasons: Spring", seasons_summer = "Seasons: Summer",
     seasons_autumn = "Seasons: Autumn", seasons_winter = "Seasons: Winter",
-    seasons_deepwinter = "Seasons: Deep winter", seasons_neutral = "Seasons: Neutral",
+    seasons_deepwinter = "Seasons: Deep winter", seasons_latewinter = "Seasons: Late winter",
+    seasons_neutral = "Seasons: Neutral",
 }
 
 local function pretty(stem)
@@ -396,7 +401,7 @@ local function load_table()
     if not ini then return nil end
     local out = {}
     for _, s in ipairs({"spring", "summer", "autumn", "winter",
-                        "winter_snow", "neutral"}) do
+                        "winter_snow", "late_winter", "neutral"}) do
         if not ini:section_exist(s) then
             say("!config section [" .. s .. "] missing from " .. CFG)
             return nil
@@ -455,8 +460,9 @@ function snow_factor()
     if tg < snow_cache_until then return snow_cached end
     snow_cache_until = tg + 5000
 
-    -- snow in both winters, harder once the ground is covered
-    local SNOW_WEIGHT = {winter = 0.60, winter_snow = 1.00}
+    -- snow in all three winters, hardest once the ground is covered; the thaw still
+    -- gets showers of it
+    local SNOW_WEIGHT = {winter = 0.60, winter_snow = 1.00, late_winter = 0.40}
 
     local v = 0.0
     if mcm("enabled", true) then
@@ -484,7 +490,8 @@ function season_mix()
     if mix_cached and tg < mix_until then return mix_cached end
     mix_until = tg + 5000
 
-    local m = {spring = 0, summer = 0, autumn = 0, winter = 0, winter_snow = 0}
+    local m = {spring = 0, summer = 0, autumn = 0, winter = 0, winter_snow = 0,
+               late_winter = 0}
     if mcm("enabled", true) then
         local mode = mcm("mode", "auto")
         if mode ~= "auto" and m[mode] then
@@ -1375,7 +1382,7 @@ function calendar_page()
         extra   = {},
     }
 
-    -- the five shipped seasons, in calendar order, with length and range
+    -- the six shipped seasons, with length and range
     local yl = doy_of(12, 31, year)
     for i, b in ipairs(BOUNDS) do
         local nxt = BOUNDS[i % #BOUNDS + 1]
@@ -1393,6 +1400,12 @@ function calendar_page()
             current = (b.season == cur),
             starts_in = days_until(b.m, b.d),
         }
+    end
+    -- listed from spring, like the MCM pages; BOUNDS stays in date order
+    -- because the lookups need it
+    for _ = 1, #out.seasons do
+        if out.seasons[1].key == "spring" then break end
+        table.insert(out.seasons, table.remove(out.seasons, 1))
     end
 
     -- the six fixed days
@@ -1412,8 +1425,8 @@ function calendar_page()
     end
     table.sort(out.days, function(a, b) return a.away < b.away end)
 
-    -- the turning: which season is next and how far off. seasons[] is in calendar
-    -- order, so the next one is whichever has the smallest non-zero starts_in.
+    -- the turning: which season is next and how far off - whichever has the smallest
+    -- non-zero starts_in.
     for _, s in ipairs(out.seasons) do
         if not s.current and s.starts_in > 0 then
             if not out.next or s.starts_in < out.next.days then

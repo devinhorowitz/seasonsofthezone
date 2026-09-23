@@ -316,7 +316,7 @@ def verify_fresh_install(zp, base, name):
     io.open(cfg, "w", encoding="utf-8").write('SOUND_SRC = "Some Ambience Mod"\n')
     preset = os.path.join(root, "mods", "Seasonal Soundscape", "gamedata", *SOUND_REL,
                           "test.ltx")
-    for s in ("spring", "winter"):
+    for s in ("spring", "winter", "late_winter"):
         code, text = run([season, "apply", "--season", s])
         body = io.open(preset, encoding="cp1251").read() if os.path.isfile(preset) else ""
         head, _, rest = body.partition("\n")

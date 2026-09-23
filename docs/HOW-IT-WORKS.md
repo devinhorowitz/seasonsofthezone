@@ -4,15 +4,17 @@
 
 ## The calendar
 
-Five seasons. Winter is split because in Polesia snow starts falling in November but only
-settles from December to early March, and the thaw is what makes spring wet.
+Six seasons. Winter comes in three parts because in Polesia snow starts falling in
+November, settles from December, and thaws through March and early April into mud
+before anything turns green.
 
 ```
-spring       Mar 05 - May 19    76 d   thaw, then green-up
+spring       Apr 15 - May 19    35 d   green-up
 summer       May 20 - Sep 14   118 d   full foliage
 autumn       Sep 15 - Oct 31    47 d   leaves turn; October is the peak
 winter       Nov 01 - Nov 30    30 d   first snowfall, bare ground
 winter_snow  Dec 01 - Mar 04    94 d   snow on the ground
+late_winter  Mar 05 - Apr 14    41 d   the thaw: patchy snow, mud, bare trees
 ```
 
 These are the dates the landscape changes, not the equinoxes. `--mapping met` uses
@@ -49,7 +51,7 @@ engine's.
 foliage red and blue.
 
 The values are in `gamedata/configs/seasons_of_the_zone.ltx`, one section per season plus
-`[neutral]`. `_tools/build_seasons_ltx.py` generates that file from its tables, the six
+`[neutral]`. `_tools/build_seasons_ltx.py` generates that file from its tables, the seven
 `Seasons_*.ltx` presets in `configs/seasons_presets/`, and the dial's colors; edit the
 tables and regenerate rather than editing the file.
 

@@ -2,8 +2,8 @@
 
   INVERNO's snowfall addon plays its particles off the weather alone, so it snows in
   September. This edits your copy so the particles follow the calendar: snow only in
-  the two winters and lighter in the first, seeds in spring, leaves in autumn, dust
-  in the dry months.
+  the three winters, lighter in the first and the last, seeds in spring, leaves in
+  autumn, dust in the dry months, mist in the thaw.
 
   yawm_snowfall.script is not mine (Yet Another Winter Mod by Daedalus-Prime,
   refactored by demonized, edited by Fabio Conte for INVERNO; particles by
@@ -20,7 +20,8 @@
 
 USE
     python apply_seasonal_snowfall.py
-        find the script under mods/ and patch it
+        find the script under mods/ and patch it, or bring a patched copy up to
+        date after a Seasons of the Zone update
     python apply_seasonal_snowfall.py "<path to yawm_snowfall.script>"
         patch one named file
     python apply_seasonal_snowfall.py --disable-weathers
@@ -31,6 +32,10 @@ USE
   The original is copied to yawm_snowfall.script.orig before anything is written, and
   an existing backup is never overwritten - so the first copy taken is always the
   pristine one, however many times this is run.
+
+  A copy that is already patched is updated in place: the patch's own lines are taken
+  out, which leaves the addon's original, and the current patch goes back in. Running
+  it on an up-to-date copy changes nothing.
 """
 import io
 import os
@@ -44,6 +49,14 @@ import sys
 A_HEADER = "function on_game_start()"
 A_UPDATE = "function actor_on_update()"
 A_HOOK = 'switch_particles(weather_to_particles[weather], inside_pos, is_inside)'
+
+# What patch() puts in place of the A_HOOK line, without the caller's indentation.
+HOOK_LINES = [
+    "local w = seasons_weight()",
+    "local resolved = seasonal(weather_to_particles[weather], w)",
+    "report(resolved, weather, w)",
+    "switch_particles(resolved, inside_pos, is_inside)",
+]
 
 # Every particle local the seasonal tables key on. A copy that does not declare all of
 # them would take the patch cleanly and then die at load with "table index is nil".
@@ -135,8 +148,8 @@ local SEASON_OF = {
     -- on screen - pale motes drifting, which is what still read as flurries in autumn
     -- after the seeds were fixed. Assigned by what each effect actually is, and matching
     -- the fog density curve this mod already drives (autumn 3.0 > winter_snow 2.9 >
-    -- winter 2.4 > spring 2.2 > summer 1.4):
-    [snow_particle_fog1] = {"spring", "autumn"},              -- mist: thaw and radiation fog
+    -- late_winter 2.7 > winter 2.4 > spring 2.2 > summer 1.4):
+    [snow_particle_fog1] = {"late_winter", "spring", "autumn"}, -- mist: thaw and radiation fog
     [snow_particle_fog2] = {"summer"},                        -- airborne dust: dry air only
     -- fog3 (lanforse/fog_light) is REMOVED, not season-gated. It was the last particle
     -- playing in clear skies and the one that still read as flurries. It is a PARTICLE
@@ -146,8 +159,8 @@ local SEASON_OF = {
     [snow_particle_fog3] = {},
 }
 
--- Snow: allowed only in the two winters, and thinner in the first of them.
---   tier 1  flakes only            - the thin first snows of November
+-- Snow: allowed only in the three winters, and thinner in the first and the last.
+--   tier 1  flakes only            - the thin snows of November and the thaw
 --   tier 2  whatever the table says - the depth of January
 local SNOW_HEAVY_AT = 0.80
 local SNOW_TIER = {
@@ -254,16 +267,63 @@ def revert(path):
     return 0
 
 
+def unpatch(lines):
+    """The addon's own lines back from a patched copy, or None if the patch's lines are
+    not all where patch() puts them.
+
+    Every version of this patcher has used the same banner rules and title, helper entry
+    point and hook lines, so a copy patched by an older version comes apart the same way.
+    patch() adds a blank line above the helpers only when the original had none there;
+    that blank is left in, since patching either form gives the same file."""
+    rule = re.compile(r"--={20,}$")
+    title = [i for i, l in enumerate(lines)
+             if l.startswith('-- MODIFIED FOR "Seasons of the Zone"')]
+    if len(title) != 1 or title[0] == 0 or not rule.match(lines[title[0] - 1]):
+        return None
+    close = next((i for i in range(title[0] + 1, len(lines)) if rule.match(lines[i])), None)
+    if close is None or close + 1 >= len(lines) or lines[close + 1] != "":
+        return None
+
+    entry = HELPERS.splitlines()[0]
+    helpers = [i for i, l in enumerate(lines) if l == entry]
+    update = [i for i, l in enumerate(lines) if l.strip().startswith(A_UPDATE)]
+    if len(helpers) != 1 or len(update) != 1 or helpers[0] > update[0]:
+        return None
+
+    hook = [i for i, l in enumerate(lines) if l.strip() == HOOK_LINES[0]]
+    if (len(hook) != 1 or [l.strip() for l in lines[hook[0]:hook[0] + len(HOOK_LINES)]]
+            != HOOK_LINES):
+        return None
+    first = lines[hook[0]]
+    indent = first[:len(first) - len(first.lstrip())]
+
+    # (start, end, replacement), applied back to front so the other indices hold
+    cuts = sorted([(title[0] - 1, close + 2, []),
+                   (helpers[0], update[0], []),
+                   (hook[0], hook[0] + len(HOOK_LINES), [indent + A_HOOK])], reverse=True)
+    for (s0, e0, _), (s1, e1, _) in zip(cuts, cuts[1:]):
+        if e1 > s0:
+            return None                             # overlapping: not a copy patch() made
+    out = list(lines)
+    for s, e, rep in cuts:
+        out[s:e] = rep
+    return out
+
+
 def patch(path):
     raw = io.open(path, encoding="latin-1", newline="").read()
     nl = _nl(raw)
     lines = raw.splitlines()
 
-    if "zzz_seasons_of_the_zone" in raw:
-        print("  already patched - nothing to do")
-        print("  (%s)" % path)
-        warn_weathers(path)
-        return 0
+    # A patched copy is updated: take the patch out, then put the current one in.
+    updating = "zzz_seasons_of_the_zone" in raw
+    if updating:
+        lines = unpatch(lines)
+        if lines is None or any("zzz_seasons_of_the_zone" in l for l in lines):
+            raise SystemExit(
+                "  this copy is patched, but not the way this patcher leaves it, so it\n"
+                "  cannot be updated safely. Run --revert or reinstall the addon, then run\n"
+                "  this again. Nothing was changed.")
 
     # Verify this is the file we think it is BEFORE touching anything. A patcher that
     # half-applies is worse than one that refuses.
@@ -278,9 +338,10 @@ def patch(path):
 
     # Refuse a copy that lacks a particle the seasonal tables key on (the FOMOD Light /
     # Heavy variants). Patched, it would load as far as the season table and die there.
+    text = nl.join(lines)
     missing = [n for n in NEEDS
-               if not re.search(r"^\s*local\s+" + n + r"\b", raw, re.M)
-               and not re.search(r"^\s*" + n + r"\s*=", raw, re.M)]
+               if not re.search(r"^\s*local\s+" + n + r"\b", text, re.M)
+               and not re.search(r"^\s*" + n + r"\s*=", text, re.M)]
     if missing:
         raise SystemExit(
             "  this copy of yawm_snowfall.script does not declare %s.\n"
@@ -301,12 +362,7 @@ def patch(path):
     # Keep the caller's own indentation on the lines that replace theirs.
     src = lines[i_hook]
     indent = src[:len(src) - len(src.lstrip())]
-    replacement = [
-        indent + "local w = seasons_weight()",
-        indent + "local resolved = seasonal(weather_to_particles[weather], w)",
-        indent + "report(resolved, weather, w)",
-        indent + "switch_particles(resolved, inside_pos, is_inside)",
-    ]
+    replacement = [indent + l for l in HOOK_LINES]
 
     # Build back to front so the earlier indices stay valid. The helper block gets one
     # blank line on each side whatever the original has there: INVERNO's file runs
@@ -316,6 +372,18 @@ def patch(path):
     lead = [] if (i_update > 0 and out[i_update - 1] == "") else [""]
     out[i_update:i_update] = lead + HELPERS.splitlines() + [""]
     out[i_header:i_header] = BANNER.splitlines() + [""]
+
+    if updating:
+        if nl.join(out) == raw:
+            print("  already up to date - nothing to do")
+            print("  (%s)" % path)
+            warn_weathers(path)
+            return 0
+        io.open(path, "w", encoding="latin-1", newline="").write(nl.join(out))
+        print("  updated   %s" % path)
+        print("  The seasonal layer now matches this version of Seasons of the Zone.")
+        warn_weathers(path)
+        return 0
 
     bak = path + ".orig"
     if not os.path.isfile(bak):

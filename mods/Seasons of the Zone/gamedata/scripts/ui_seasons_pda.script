@@ -256,7 +256,7 @@ local COL_Y0 = {518, 458}     -- the heading in each column
 local COL_Y1 = {692, 628}     -- and where it must stop; the back button owns that corner
 local HEAD_H = 24
 local ROW_H  = 17
--- six marked days on the left, five seasons on the right, with slack
+-- six marked days on the left, six seasons on the right, with slack
 local ROWS   = {10, 8}
 local HEADS  = 4
 
@@ -381,7 +381,7 @@ local BAR_POOL = 72                 -- ~15 runs + 30 day rules + 6 marked + toda
 -- _tools/build_season_dial.py season_colors() computes from the season grades, scaled by
 -- SEASON_DIM: the dial draws thin arcs and can carry full brightness, while a third of
 -- the grid at (234,235,234) would be the loudest thing on the page. One factor for all
--- five keeps the hues and their order intact.
+-- six keeps the hues and their order intact.
 --
 -- test_calendar recomputes them from the generator and fails if the two ever drift, so
 -- changing a season's grade is a one-line follow-up here rather than a silent lie.
@@ -392,6 +392,7 @@ local SEASON_RGB = {
     autumn      = {183, 155,  95},
     winter      = {145, 161, 183},
     winter_snow = {182, 183, 182},
+    late_winter = {183, 175, 150},
 }
 
 -- The one red in the mod - the same one the forecast page strobes an emission alert

@@ -14,7 +14,7 @@
 	</string>
 
 	<string id="ui_mcm_seasons_zone_desc_top">
-		<text>Light, foliage, fog, wind, wetness and snowfall follow the real-world date across Polesia's five seasons, and change as you play. Terrain and grass textures cannot: the engine binds them at load, so they are swapped at launch and need a restart.</text>
+		<text>Light, foliage, fog, wind, wetness and snowfall follow the real-world date across Polesia's six seasons, and change as you play. Terrain and grass textures cannot: the engine binds them at load, so they are swapped at launch and need a restart.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_enabled">
@@ -50,6 +50,9 @@
 	</string>
 	<string id="seasons_zone_main_mode_lst_winter">
 		<text>Winter (first snows)</text>
+	</string>
+	<string id="seasons_zone_main_mode_lst_late_winter">
+		<text>Late Winter (the thaw)</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_blend_days">
@@ -160,7 +163,7 @@
 		<text>Gate ambient sound by season</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_stage_sound_desc">
-		<text>Silences sound channels that do not belong to the season - insects under snow, marsh life in a frozen swamp. Spring and summer keep everything; autumn drops swamp life; winter silences all insects; deep winter also silences daytime birds. Crows and owls are kept year-round on purpose. Wind, storms and interiors are never touched. Off means the soundscape plays unchanged all year. Takes effect on the next launch.</text>
+		<text>Silences sound channels that do not belong to the season - insects under snow, marsh life in a frozen swamp. Spring drops the night crickets; summer keeps everything; autumn drops swamp life; winter silences all insects; deep winter also silences daytime birds; late winter brings the marsh birds back while every insect is still silent. Crows and owls are kept year-round on purpose. Wind, storms and interiors are never touched. Off means the soundscape plays unchanged all year. Takes effect on the next launch.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_notify">
@@ -194,6 +197,7 @@
 	<string id="ui_mcm_seasons_zone_page_autumn"><text>Autumn</text></string>
 	<string id="ui_mcm_seasons_zone_page_winter"><text>Winter</text></string>
 	<string id="ui_mcm_seasons_zone_page_winter_snow"><text>Deep winter</text></string>
+	<string id="ui_mcm_seasons_zone_page_late_winter"><text>Late winter</text></string>
 	<string id="ui_mcm_seasons_zone_preset"><text>Color grade preset</text></string>
 	<string id="ui_mcm_seasons_zone_preset_desc"><text>Which cfg preset this season's color grade comes from. Built-in is the season table; the rest are presets in appdata - yours, Atmospherics', and the mod's own. Only the grade changes; takes effect on Apply.</text></string>
 	<string id="ui_mcm_seasons_zone_preset_neutral"><text>Neutral preset (intensity 0)</text></string>

@@ -41,4 +41,10 @@
 		<texture id="sotz_app_year_winter_snow_t" x="0"   y="256" width="256" height="256" />
 		<texture id="sotz_app_year_winter_snow_d" x="0"   y="256" width="256" height="256" />
 	</file>
+	<file name="ui_sotz_app_year_late_winter">
+		<texture id="sotz_app_year_late_winter_e" x="0"   y="0"   width="256" height="256" />
+		<texture id="sotz_app_year_late_winter_h" x="256" y="0"   width="256" height="256" />
+		<texture id="sotz_app_year_late_winter_t" x="0"   y="256" width="256" height="256" />
+		<texture id="sotz_app_year_late_winter_d" x="0"   y="256" width="256" height="256" />
+	</file>
 </w>

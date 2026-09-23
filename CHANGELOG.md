@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.8.0 — 2026-09-23
+
+- **Late winter, a sixth season.** March 5 to April 14 is the thaw: patchy snow, mud and
+  bare trees, and the wettest weeks of the year. Spring now starts April 15, with the
+  green-up. It has its own grade, fog, wind and wetness, light snow, a `Seasons_LateWinter`
+  preset, an MCM page and a pin, and a place on the dial and The Year. `--mapping met` puts
+  it in March.
+- **Your `seasons_config.py` needs `late_winter`** on the mods that should stay through the
+  thaw. The example adds it to INVERNO, Partly Snowy, the CCon dead set, the winter loading
+  screens and PDA maps, and swamp fog. Without it, those mods switch off on March 5, and
+  spring's don't come on until April 15.
+- **Its own soundscape.** The marsh birds are back and the insects are not.
+- **The snowfall patch updates in place.** Run `apply_seasonal_snowfall.py` again after an
+  update and it replaces the layer in a patched copy; before, it said "already patched" and
+  stopped. Late winter gets its light snow either way, but the thaw mist needs the update.
+- The Year lists the seasons from spring, like the MCM pages.
+- `calendar().season` can be `late_winter`.
+- `play.bat` explains that `SHORTCUT` is the name of an MO2 entry, not an .exe, so a custom
+  exe copied over the stock one needs no change.
+
 ## 1.7.0 — 2026-09-23
 
 - **Installs through MO2.** *Install a new mod from archive* now accepts the zip; before,

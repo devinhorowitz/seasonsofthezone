@@ -196,6 +196,10 @@ moves the frequency slider.
   marked = { kind = "memorial", key = "chornobyl" } }
 ```
 
+`season` is one of `spring`, `summer`, `autumn`, `winter`, `winter_snow` and
+`late_winter` (new in 1.8.0); `label` is the name to show, such as "deep winter". Treat an
+unknown key as a season rather than an error, since the calendar can grow.
+
 `marked` is nil on ordinary days. `kind` is `memorial` or `anniversary`.
 
 ---

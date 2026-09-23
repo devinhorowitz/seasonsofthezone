@@ -27,8 +27,10 @@ if not exist "_tools\season.py" (
     exit /b 1
 )
 
-REM  The MO2 shortcut to launch. GAMMA ships: Anomaly (DX11-AVX), Anomaly (DX11),
-REM  Anomaly (DX10-AVX), Anomaly Launcher. Change this line if you use another.
+REM  The entry to launch, by its name in MO2's executable dropdown, not the .exe file.
+REM  GAMMA ships Anomaly (DX11-AVX), (DX11), (DX10-AVX), (DX10) and (DX9-AVX). A custom
+REM  exe copied over the stock one in bin\ needs no change here; one added to MO2 as
+REM  its own entry does.
 set "SHORTCUT=Anomaly (DX11-AVX)"
 
 findstr /C:"title=%SHORTCUT%" ModOrganizer.ini >nul 2>&1

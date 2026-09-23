@@ -6,13 +6,13 @@ comes round, and unloads when it passes.**
 The Zone follows the real-world calendar. Boot the game in late October, and it is autumn,
 because Chornobyl is in autumn.
 
-![One spot in Garbage under the same sky, from spring through summer, autumn and winter to deep winter](docs/images/seasons.webp)
+![One spot in Garbage under the same sky, from spring through summer, autumn, winter and deep winter to late winter](docs/images/seasons.webp)
 
 Light, color, fog, wind, wetness, snowfall, and ambient sound change with the date and
 blend across each season boundary. Nothing to download beyond this mod, nothing to
 configure.
 
-That is the part that works out of the box. Underneath it is a scheduler, and the five
+That is the part that works out of the box. Underneath it is a scheduler, and the six
 seasons are simply the calendar it ships with — see
 **[the calendar underneath](#the-calendar-underneath)**.
 
@@ -31,19 +31,20 @@ each boundary:
 | Foliage | specular and sun-through-leaf (`ssfx_florafixes_1/2`) |
 | Fog | `ssfx_fog`, `ssfx_fog_scattering` |
 | Wind | `ssfx_wind_grass`, `ssfx_wind_trees` |
-| Wetness | `ssfx_wetness_multiplier` — spring stays wet after the thaw, summer dries fast |
+| Wetness | `ssfx_wetness_multiplier` — the thaw is the wettest, summer dries fast |
 
 There is a year dial on the Main page and a PDA message when you load in.
 
-**Five seasons.** Winter is split in two: in Polesia snow starts falling in November but
-only settles from December to early March.
+**Six seasons.** Winter comes in three parts: in Polesia snow starts falling in November,
+settles from December, and thaws through March into mud before anything turns green.
 
 ```
-spring       Mar 05 - May 19    76 d   thaw, then green-up
+spring       Apr 15 - May 19    35 d   green-up
 summer       May 20 - Sep 14   118 d   full foliage
 autumn       Sep 15 - Oct 31    47 d   leaves turn; October is the peak
 winter       Nov 01 - Nov 30    30 d   first snowfall, bare ground
 winter_snow  Dec 01 - Mar 04    94 d   snow on the ground
+late_winter  Mar 05 - Apr 14    41 d   the thaw: patchy snow, mud, bare trees
 ```
 
 These are the dates the landscape changes, not the equinoxes. `--mapping met` uses
@@ -61,7 +62,7 @@ Seasons of the Zone is two independent halves, and you can use either on its own
 | **Launch-time** | A scheduler that decides which mods MO2 mounts today | Yes — this is the open half |
 
 The launch-time half has nothing seasonal about it. It maps a date to a set of names, and
-mods declare which names they belong to. The five seasons are the default set. You can add
+mods declare which names they belong to. The six seasons are the default set. You can add
 your own.
 
 **Base periods** partition the year — exactly one is active on any date. **Events** overlay
@@ -90,7 +91,7 @@ texture packs are just the obvious first use.
 
 ```python
 PERIODS = {                    # extra base periods, alongside the seasons
-    "mud_season": (3, 20),     # runs until the next period starts
+    "high_summer": (7, 1),     # runs until the next period starts
 }
 ```
 
@@ -183,8 +184,9 @@ follows from what its engine lacks.
 2. For real-world temperatures and the texture and sound layers, copy `_tools/` and
    `play.bat` from the mod's folder into your GAMMA folder, next to `ModOrganizer.exe`. (In
    MO2, right-click the mod and choose **Open in Explorer**.)
-3. Open `play.bat` and check that `SHORTCUT=` names the Anomaly entry you launch from MO2
-   (default `Anomaly (DX11-AVX)`).
+3. Open `play.bat` and check that `SHORTCUT=` names the entry you launch in MO2's
+   executable dropdown (default `Anomaly (DX11-AVX)`). It is the entry's name, not the
+   .exe file, so a custom exe copied over the stock one in `bin\` needs no change.
 4. Launch with `play.bat` from now on.
 
 `play.bat` fetches Chornobyl's weather, checks the date, stages anything that needs staging,
@@ -220,7 +222,7 @@ If you never use the texture layer, launch however you like.
 
 ## The MCM pages
 
-**Mod Configuration Menu → Seasons of the Zone** has six pages: Main, then one for
+**Mod Configuration Menu → Seasons of the Zone** has seven pages: Main, then one for
 each season.
 
 - **Main** — the year dial and today's date; the master switch; season (automatic, or
@@ -228,8 +230,9 @@ each season.
   intensity (0 is GAMMA's stock look, 1 the full season); one switch per layer: color,
   foliage, fog, wind, and wetness; the two launch-time switches, for textures and
   ambient sound; the PDA message.
-- **Spring, Summer, Autumn, Winter, Deep winter** — that season's color grade preset,
-  a read-out of the values it resolves to, and a tick for each texture mod scoped to it.
+- **Spring, Summer, Autumn, Winter, Deep winter, Late winter** — that season's color
+  grade preset, a read-out of the values it resolves to, and a tick for each texture
+  mod scoped to it.
 
 ---
 
@@ -241,7 +244,7 @@ Any installed mod can follow the calendar. You do not modify it; you name it in
 ```python
 TOGGLE_MODS = {
     "INVERNO Winter Textures": {                  # folder name, exactly as MO2 shows it
-        "when": ("winter", "winter_snow"),        # any period or event name
+        "when": ("winter", "winter_snow", "late_winter"),   # any period or event name
         "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
     },
 }
@@ -250,8 +253,8 @@ TOGGLE_MODS = {
 `when` takes any mix of base periods and events. `seasons` is the original spelling of the
 same key and still works, so nothing written for an earlier version needs editing.
 
-Relaunch. The mod is enabled in November and disabled in March, and appears on the Winter
-and Deep winter pages with its file count and size. Nothing is copied — MO2 just
+Relaunch. The mod is enabled in November and disabled in mid-April, and appears on the
+Winter, Deep winter and Late winter pages with its file count and size. Nothing is copied — MO2 just
 stops mounting the folder — so an 11 GB texture set costs nothing to switch.
 
 ![The Winter page, with a tick for each mod winter uses](docs/images/mcm-season-winter.png)
@@ -282,13 +285,13 @@ Use that name. If no mod ships the file, any position works.
 
 | Mod | Seasons | Notes |
 |---|---|---|
-| Project I.N.V.E.R.N.O — winter textures | `winter`, `winter_snow` | Terrain, flora and levels. Must outrank your grass mod and Atmospherics/SSS; it carries its own shader headers. |
-| I.N.V.E.R.N.O — "Partly snowy" ground detail | `winter` | Patchy ground while the snow arrives. Above the base INVERNO. |
-| C Consciousness Grass & Trees | `spring` / `summer` / `autumn` / `winter` | Four sets, one entry each; the Dead set covers both winters under the snow. Its grass placement does not change with the season, so that part stays mounted year-round and is not a seasonal entry. |
+| Project I.N.V.E.R.N.O — winter textures | `winter`, `winter_snow`, `late_winter` | Terrain, flora and levels. Must outrank your grass mod and Atmospherics/SSS; it carries its own shader headers. |
+| I.N.V.E.R.N.O — "Partly snowy" ground detail | `winter`, `late_winter` | Patchy ground while the snow arrives and while it melts. Above the base INVERNO. |
+| C Consciousness Grass & Trees | `spring` / `summer` / `autumn` / the three winters | Four sets, one entry each; the Dead set covers all three winters, under the snow and through the thaw. Its grass placement does not change with the season, so that part stays mounted year-round and is not a seasonal entry. |
 | Grass and Trees by PanceRide | `summer` / `autumn` | Matching Summer and Autumn editions; two entries, one per season. |
-| Winter loading screens | `winter`, `winter_snow` | Above your loading-screen mod. |
-| Winter PDA maps | `winter`, `winter_snow` | Above every mod that ships map textures, INVERNO included. |
-| Swamp / ground fog | `spring`, `autumn` | |
+| Winter loading screens | `winter`, `winter_snow`, `late_winter` | Above your loading-screen mod. |
+| Winter PDA maps | `winter`, `winter_snow`, `late_winter` | Above every mod that ships map textures, INVERNO included. |
+| Swamp / ground fog | `late_winter`, `spring`, `autumn` | |
 
 If MO2 can mount it as a folder, it can be seasonal: footstep audio, menu art, a flower pack.
 
@@ -307,10 +310,11 @@ move, so use `TOGGLE_MODS` wherever a mod can simply be switched off.
 
 Point `SOUND_SRC` at the ambience mod that wins your
 `configs/environment/ambients/presets/` files. Its sound channels are then gated per
-season, so each of the five sounds different: spring keeps the dawn chorus and loses the
+season, so each of the six sounds different: spring keeps the dawn chorus and loses the
 crickets, summer has everything, autumn loses the daytime insects but keeps crickets
-calling until the frost, and the winters lose the insects entirely. Wind and storms are
-untouched. Crows and owls stay all year.
+calling until the frost, and the winters lose the insects entirely. Deep winter loses
+the daytime birds too, and the thaw brings the marsh birds back before any insect. Wind
+and storms are untouched. Crows and owls stay all year.
 
 The gated presets are generated from your own files at launch. Switchable on the Main page.
 
@@ -320,8 +324,8 @@ The gated presets are generated from your own files at launch. Switchable on the
 
 Project I.N.V.E.R.N.O's snowfall addon plays its particles off the weather alone, so it
 snows in September. `patches/apply_seasonal_snowfall.py` adds a seasonal layer: snow only
-in the two winters and lighter in the first, seeds in spring, leaves in autumn, dust in the
-dry months.
+in the three winters, lighter in the first and the last, seeds in spring, leaves in autumn,
+dust in the dry months, mist in the thaw.
 
 It edits your own copy of the addon; none of INVERNO's code is shipped here. Install the
 standalone "Snowfall (light + Dynamic Fog)" addon, then:
@@ -331,8 +335,9 @@ python patches/apply_seasonal_snowfall.py
 ```
 
 It finds the script under `mods/`, backs it up to `yawm_snowfall.script.orig`, and inserts
-the layer. `--revert` restores the backup. Running it twice does nothing, and it refuses a
-file that does not look like INVERNO's script.
+the layer. `--revert` restores the backup. Run it again after updating this mod to bring
+the layer up to date; on a current copy it does nothing. It refuses a file that does not
+look like INVERNO's script.
 
 The addon also ships an old `level_weathers.script`. Remove it: the patcher warns, and
 `--disable-weathers` renames it. See [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
@@ -342,12 +347,12 @@ The addon also ships an old `level_weathers.script`. Remove it: the patcher warn
 ## Optional: color grade presets
 
 Each season's color grade can come from a `cfg_load` preset instead of the mod's season
-table: pick one on that season's own page. The dropdown lists every preset
-in the game's `appdata/` — Atmospherics' `Atmos_Cold`, `Atmos_Neutral` and `Atmos_Warm`, and any you
-have tuned yourself — plus the mod's own `Seasons_Spring`, `Seasons_Summer`,
-`Seasons_Autumn`, `Seasons_Winter`, `Seasons_DeepWinter` and `Seasons_Neutral`. `play.bat`
-copies those six into `appdata/` beside the others, so you can `cfg_load` or edit them
-too. Only the grade changes; fog, wind and wetness stay with the season table.
+table: pick one on that season's own page. The dropdown lists every preset in the game's
+`appdata/` — Atmospherics' `Atmos_Cold`, `Atmos_Neutral` and `Atmos_Warm`, and any you have
+tuned yourself — plus the mod's own `Seasons_Spring`, `Seasons_Summer`, `Seasons_Autumn`,
+`Seasons_Winter`, `Seasons_DeepWinter`, `Seasons_LateWinter` and `Seasons_Neutral`.
+`play.bat` copies those seven into `appdata/` beside the others, so you can `cfg_load` or
+edit them too. Only the grade changes; fog, wind and wetness stay with the season table.
 
 ---
 

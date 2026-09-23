@@ -13,11 +13,12 @@ them for the session. So texture mods are enabled, disabled or restaged here, be
 game starts. Configuration is in seasons_config.py; with none, nothing is staged.
 
 Seasons (phenological, for Polesia):
-  spring       Mar 05 - May 19    76 d
+  spring       Apr 15 - May 19    35 d   green-up
   summer       May 20 - Sep 14   118 d
   autumn       Sep 15 - Oct 31    47 d
   winter       Nov 01 - Nov 30    30 d   first snowfall, bare ground
   winter_snow  Dec 01 - Mar 04    94 d   snow on the ground
+  late_winter  Mar 05 - Apr 14    41 d   the thaw: patchy snow, mud, bare trees
 --mapping met uses Ukraine's meteorological convention instead.
 
 What is installed is identified by hashing the mod folder against the archive's options,
@@ -43,7 +44,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODS = os.path.join(ROOT, "mods")
 DOWNLOADS = os.path.join(ROOT, "downloads")
 SOTZ = "Seasons of the Zone"
-SEASONS = ("spring", "summer", "autumn", "winter", "winter_snow")
+SEASONS = ("spring", "summer", "autumn", "winter", "winter_snow", "late_winter")
 
 
 def _find_unrar():
@@ -285,7 +286,15 @@ def _drop_season(name):
 
 
 def season_label(s):
-    return "deep winter" if s == "winter_snow" else s
+    return {"winter_snow": "deep winter", "late_winter": "late winter"}.get(s, s)
+
+
+def seasons_text(seasons):
+    """"winter", "winter and deep winter", "winter, deep winter and late winter"."""
+    words = [season_label(s) for s in seasons]
+    if len(words) < 3:
+        return " and ".join(words)
+    return ", ".join(words[:-1]) + " and " + words[-1]
 
 
 def read_prefs():
@@ -435,15 +444,18 @@ SOUND_REL = ("configs", "environment", "ambients", "presets")
 #                first frost, so Insects_night stays; the waders have left the marshes
 #   winter       nothing stridulates below freezing
 #   winter_snow  corvids and owls only
+#   late_winter  the thaw brings the waterfowl back to the marshes before any insect
+#                stirs
 #
 # Each season must leave a different set of channels standing, or two of them sound
-# alike; scratchpad/test_soundscape.py checks that.
+# alike; _tools/test_soundscape.py checks that.
 SOUND_CUT = {
     "spring":      ("Insects_night",),
     "summer":      (),
     "autumn":      ("Insects", "insects", "birds_swamp"),
     "winter":      ("Insects", "insects", "Insects_night", "birds_swamp"),
     "winter_snow": ("Insects", "insects", "Insects_night", "birds_swamp", "birds"),
+    "late_winter": ("Insects", "insects", "Insects_night"),
 }
 
 SOUND_TAG = ";; seasonal-soundscape season="
@@ -600,9 +612,8 @@ def write_mod_panel(active, prefs=None):
     # Dropping the season can leave two mods on one page reading alike - a user may
     # well have "<something> - Winter" and "<something> - Deep winter" both in winter.
     # Where that happens, both keep their full names.
-    # NB: this loop variable must not be called  - it used to shadow the
-    # function parameter, so every later use read the LAST name in SEASONS
-    # ("winter_snow") instead of the period actually being staged.
+    # NB: this loop variable must not be called `season`. It once shadowed the season
+    # being staged, so every later use read the LAST name in SEASONS instead.
     for s_page in SEASONS:
         by_caption = {}
         for r in rows:
@@ -644,7 +655,7 @@ def write_mod_panel(active, prefs=None):
                   # underscore, not a space: X-Ray strips internal whitespace from an ltx
                   # value. The mod turns it back into a space.
                   "group_label = " + cap_first(season_label(r["group"])).replace(" ", "_"),
-                  "span = " + " and ".join(season_label(s) for s in r["seasons"]),
+                  "span = " + seasons_text(r["seasons"]),
                   "files = %d" % r["files"],
                   "mb = " + ("%.1f" % r["mb"] if r["mb"] < 10 else "%.0f" % r["mb"]),
                   "enabled = " + ("true" if r["enabled"] else "false"),
@@ -659,7 +670,7 @@ def write_mod_panel(active, prefs=None):
          "     mod, so the MCM page lists whatever is actually present. -->",
          "<string_table>"]
     for r in rows:
-        seas = " and ".join(season_label(s) for s in r["seasons"])
+        seas = seasons_text(r["seasons"])
         mb = ("{:,.1f}".format(r["mb"]) if r["mb"] < 10 else "{:,.0f}".format(r["mb"]))
         desc = ("%s. %s files, %s MB. Untick to leave it out of this season."
                 % (cap_first(seas), "{:,}".format(r["files"]), mb))
@@ -687,10 +698,10 @@ def staged_texture_season(installed):
 
 
 # (season, month, day) - the start of each season
-PHENO = [("winter_snow", 12, 1), ("spring", 3, 5), ("summer", 5, 20),
-         ("autumn", 9, 15), ("winter", 11, 1)]
-MET = [("winter_snow", 12, 1), ("spring", 3, 1), ("summer", 6, 1),
-       ("autumn", 9, 1), ("winter", 11, 1)]
+PHENO = [("winter_snow", 12, 1), ("late_winter", 3, 5), ("spring", 4, 15),
+         ("summer", 5, 20), ("autumn", 9, 15), ("winter", 11, 1)]
+MET = [("winter_snow", 12, 1), ("late_winter", 3, 1), ("spring", 4, 1),
+       ("summer", 6, 1), ("autumn", 9, 1), ("winter", 11, 1)]
 
 # The earlier prototype. It drives the same flora and fog values as the mod, so the two
 # must never be enabled together; this name is only used to warn.
@@ -748,9 +759,10 @@ def weather_flags():
     or unreadable, this is empty and nothing changes - the file is an enhancement, never
     a dependency, and a launch must not care whether the network was up.
 
-    Today only "freezing" is produced, for a day whose observed low dips to or below
-    zero. It behaves exactly like an event: it overlays whatever season is running rather
-    than replacing it, so a freezing day in autumn is still autumn.
+    "freezing" is a day whose observed low dips to or below zero, "thaw" one that also
+    climbs above zero by afternoon, and "heat" one that reaches 28 C. Each behaves exactly
+    like an event: it overlays whatever season is running rather than replacing it, so a
+    freezing day in autumn is still autumn.
     """
     path = os.path.join(MODS, SOTZ, "gamedata", "configs", "season_weather.ltx")
     if not os.path.exists(path):
@@ -1003,7 +1015,7 @@ def _option_hashes(archive, options, tmp, mod):
 
 def identify(mod, cfg, tmp, prefer=None):
     """The season on disk, by hash: (season or None, detail). Two seasons can be the same
-    bytes (Aydin ships four sets for five seasons), so the requested season is preferred
+    bytes (Aydin ships four sets for six seasons), so the requested season is preferred
     when it is among the matches."""
     live = hashes(os.path.join(MODS, mod, "gamedata"))
     if not live:

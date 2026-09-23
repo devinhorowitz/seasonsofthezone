@@ -24,9 +24,11 @@ LAYOUT = {
                        "Aydin's Grass Tweaks - AUTUMN TREES 3.0"],
             "winter": ["Aydin's Grass Tweaks - WINTER 3.0",
                        "Aydin's Grass Tweaks - WINTER TREES 3.0"],
-            # Aydin ships four sets, so both winters stage the same textures; INVERNO
-            # (below) is what separates them.
+            # Aydin ships four sets, so all three winters stage the same textures;
+            # INVERNO (below) is what separates them.
             "winter_snow": ["Aydin's Grass Tweaks - WINTER 3.0",
+                            "Aydin's Grass Tweaks - WINTER TREES 3.0"],
+            "late_winter": ["Aydin's Grass Tweaks - WINTER 3.0",
                             "Aydin's Grass Tweaks - WINTER TREES 3.0"],
         },
     },
@@ -35,7 +37,7 @@ LAYOUT = {
         "options": {
             "spring": ["Spring"], "summer": ["Summer"],
             "autumn": ["Autumn"], "winter": ["Winter"],
-            "winter_snow": ["Winter"],
+            "winter_snow": ["Winter"], "late_winter": ["Winter"],
         },
     },
 }
@@ -45,17 +47,18 @@ TOGGLE_MODS = {
     # (it carries settings_screenspace_TERRAIN.h and _PUDDLES.h). 388 sits above all of
     # them.
     "INVERNO Winter Textures (seasonal)": {
-        "seasons": ("winter", "winter_snow"),
+        "seasons": ("winter", "winter_snow", "late_winter"),
         "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
     },
-    # Patchy ground while the snow arrives; deep winter gets full cover from the base
-    # INVERNO. Overrides only ground detail textures, so it sits above INVERNO.
+    # Patchy ground while the snow arrives and again while it melts; deep winter gets
+    # full cover from the base INVERNO. Overrides only ground detail textures, so it
+    # sits above INVERNO.
     "INVERNO Partly Snowy (winter only)": {
-        "seasons": ("winter",),
+        "seasons": ("winter", "late_winter"),
         "above": "INVERNO Winter Textures (seasonal)",
     },
     "Winter Loading Screens (seasonal)": {
-        "seasons": ("winter", "winter_snow"),
+        "seasons": ("winter", "winter_snow", "late_winter"),
         "above": "282- GAMMA Loading Screens - CS Eden",
     },
     # A pack that ships several seasonal variants of the SAME files is the easy case:
@@ -79,9 +82,9 @@ TOGGLE_MODS = {
         "seasons": ("autumn",),
         "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
     },
-    # Bare, dead foliage under INVERNO's snow.
+    # Bare, dead foliage under INVERNO's snow, until the green-up.
     "CCon Dead (seasonal)": {
-        "seasons": ("winter", "winter_snow"),
+        "seasons": ("winter", "winter_snow", "late_winter"),
         "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
     },
 
@@ -90,10 +93,11 @@ TOGGLE_MODS = {
     # seasons plus placement. Swapping one pack for another is editing these entries -
     # nothing is copied and nothing else has to change.
 
-    # Ground fog over standing water: thaw in spring, cool nights over warm water in
-    # autumn. Collides with nothing; the anchor only keeps it with the visual mods.
+    # Ground fog over standing water: the thaw and the spring after it, and cool nights
+    # over warm water in autumn. Collides with nothing; the anchor only keeps it with
+    # the visual mods.
     "Swamp Ground Fog (seasonal)": {
-        "seasons": ("spring", "autumn"),
+        "seasons": ("late_winter", "spring", "autumn"),
         "above": "Atmospherics 2.69 RC7.2 SSS24",
     },
     # Deep winter only: `winter` is first snowfall on bare ground. Four mods ship
@@ -105,7 +109,7 @@ TOGGLE_MODS = {
     # Above both INVERNO mods, not just the map mods: INVERNO ships its own grayscale
     # textures/ui/ui_global_map.dds and is on in the same seasons.
     "Winter PDA Maps (seasonal)": {
-        "seasons": ("winter", "winter_snow"),
+        "seasons": ("winter", "winter_snow", "late_winter"),
         "above": "INVERNO Partly Snowy (winter only)",
     },
 }
@@ -115,14 +119,14 @@ SOUND_SRC = "304- Dark Signal Weather and Ambiance Audio - Shrike"
 
 # --- the calendar ----------------------------------------------------------------
 #
-# The five seasons are the calendar this ships with, not a limit. Add your own.
+# The six seasons are the calendar this ships with, not a limit. Add your own.
 # Full reference: docs/SCHEDULING.md
 #
 # PERIODS are BASE periods: they partition the year alongside the seasons, so
 # exactly one is ever active, and each runs until the next one starts.
 #
 #   PERIODS = {
-#       "mud_season": (3, 20),        # name: (month, day) it begins
+#       "high_summer": (7, 1),        # name: (month, day) it begins
 #   }
 #
 # EVENTS OVERLAY whatever period they land in - they are added to it, not swapped

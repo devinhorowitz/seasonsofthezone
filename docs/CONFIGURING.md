@@ -43,7 +43,7 @@ folder. Prefer this.
 ```python
 TOGGLE_MODS = {
     "INVERNO Winter Textures (seasonal)": {        # folder name, exactly as MO2 shows it
-        "seasons": ("winter", "winter_snow"),
+        "seasons": ("winter", "winter_snow", "late_winter"),
         "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
     },
 }
@@ -52,7 +52,7 @@ TOGGLE_MODS = {
 | Field | Meaning |
 |---|---|
 | *key* | The mod folder name under `mods/`. A folder that is not installed is skipped. |
-| `seasons` | Seasons in which the mod is enabled: `spring`, `summer`, `autumn`, `winter`, `winter_snow`. Note the trailing comma in a one-element tuple: `("winter",)`. |
+| `seasons` | Seasons in which the mod is enabled: `spring`, `summer`, `autumn`, `winter`, `winter_snow`, `late_winter`. Note the trailing comma in a one-element tuple: `("winter",)`. |
 | `above` | The mod this one must outrank. |
 
 Each mod listed here gets its own tick on the page of every season it serves, with its
@@ -141,10 +141,12 @@ soundscape mods ship the same presets; use `whowins`). `season.py` generates a
 | autumn | daytime insects, swamp birds |
 | winter | all insects, swamp birds |
 | deep winter | all insects, swamp birds, daytime birds |
+| late winter | all insects |
 
 Wind, storms, thunder and interiors are never touched. Crows and owls stay all year.
 Crickets belong to summer and autumn nights, so spring is carried by the dawn chorus
 alone; autumn keeps them calling until the first frost but loses the daytime insects.
+The thaw brings the marsh birds back before any insect stirs.
 
 The generated files record which channels they were cut with, so editing this table
 rebuilds them at the next launch rather than waiting for the season to turn.

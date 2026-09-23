@@ -250,18 +250,27 @@ def t_cover_owns_both_ends_of_the_year():
 
 @case
 def t_a_split_month_is_two_runs():
-    """March turns on the 5th, so its row is four days of cover then the rest spring."""
+    """March turns on the 5th, so its row is four days of cover then late winter; April
+    turns on the 15th, so fourteen days of late winter then spring."""
     bars, _, _, page, _ = draw(*build()[:2])
     today = {"x": int(page.today_bar.x), "y": int(page.today_bar.y),
              "w": int(page.today_bar.w)}
     mar = runs_in(bars, 3, today)
+    apr = runs_in(bars, 4, today)
     assert len(mar) == 2, "March is drawn in %d pieces, expected 2" % len(mar)
+    assert len(apr) == 2, "April is drawn in %d pieces, expected 2" % len(apr)
     first = (mar[0]["w"] + 1) // CELL_W
     assert first == 4, "cover holds %d days of March, expected 4" % first
-    assert mar[0]["rgb"] != mar[1]["rgb"], "both halves of March are the same colour"
+    first = (apr[0]["w"] + 1) // CELL_W
+    assert first == 14, "late winter holds %d days of April, expected 14" % first
+    assert mar[0]["rgb"] != mar[1]["rgb"], "both halves of March are the same color"
+    assert apr[0]["rgb"] != apr[1]["rgb"], "both halves of April are the same color"
+    # the thaw runs across the month end: the end of March and the start of April are
+    # one season, and it is neither the cover before it nor the spring after
+    assert mar[1]["rgb"] == apr[0]["rgb"], "late winter changes color on April 1"
     # a month with no boundary in it is one piece
     assert len(runs_in(bars, 6, today)) == 1, "June is split"
-    return "March splits 4 + 27 on the turn, June stays whole"
+    return "March splits 4 + 27, April 14 + 16, and the thaw spans the month end"
 
 
 @case
@@ -381,14 +390,15 @@ def t_the_grid_wears_the_dial_s_colours():
     have = {k: tuple(int(v) for v in vs.split(","))
             for k, vs in re.findall(r"(\w+)\s*=\s*\{([^}]+)\}", block)}
     want = build_season_dial.season_colors()
-    assert set(have) == {"spring", "summer", "autumn", "winter", "winter_snow"}, have
+    assert set(have) == {"spring", "summer", "autumn", "winter", "winter_snow",
+                         "late_winter"}, have
     for k, got in sorted(have.items()):
         exp = tuple(int(round(c * dim)) for c in want[k])
         assert all(abs(a - b) <= 1 for a, b in zip(got, exp)), \
             "%s is %s, the dial dimmed by %.2f gives %s" % (k, got, dim, exp)
     # and the control: the factor has to be doing something, or "dimmed" is a fiction
     assert 0.5 <= dim < 1.0, dim
-    return "all five seasons match the dial's arcs dimmed by %.2f" % dim
+    return "all six seasons match the dial's arcs dimmed by %.2f" % dim
 
 
 @case
@@ -396,10 +406,41 @@ def t_the_page_reports_where_today_falls():
     _, _, _, _, d = draw(*build(2026, 9, 22)[:2])
     assert d["doy"] == 265, d["doy"]
     assert d["year_len"] == 365, d["year_len"]
+    assert len(d["seasons"]) == 6, "%d seasons on the page" % len(d["seasons"])
     spans = sum(s["span"] for s in d["seasons"].values())
     assert spans == d["year_len"], "the seasons total %d days, the year is %d" % (
         spans, d["year_len"])
-    return "day 265 of 365, and the five seasons total exactly one year"
+    return "day 265 of 365, and the six seasons total exactly one year"
+
+
+@case
+def t_the_list_starts_with_spring():
+    """The page lists the seasons from spring, like the MCM pages, while BOUNDS stays in
+    date order for the lookups. Each season has to start where the one before it ends."""
+    _, _, _, _, d = draw(*build()[:2])
+    rows = [d["seasons"][i] for i in range(1, len(d["seasons"]) + 1)]
+    keys = [r["key"] for r in rows]
+    assert keys == ["spring", "summer", "autumn", "winter", "winter_snow", "late_winter"], \
+        keys
+    for a, b in zip(rows, rows[1:] + rows[:1]):
+        assert a["to"] == b["from"], "%s ends %s but %s starts %s" % (
+            a["key"], a["to"], b["key"], b["from"])
+    return "spring first, and each season starts where the last one ends"
+
+
+@case
+def t_each_season_is_found_on_its_own_days():
+    """season_at() on either side of every turn, including the two that were added."""
+    want = [((3, 4), "winter_snow"), ((3, 5), "late_winter"), ((4, 14), "late_winter"),
+            ((4, 15), "spring"), ((5, 19), "spring"), ((5, 20), "summer"),
+            ((9, 14), "summer"), ((9, 15), "autumn"), ((10, 31), "autumn"),
+            ((11, 1), "winter"), ((11, 30), "winter"), ((12, 1), "winter_snow"),
+            ((1, 1), "winter_snow")]
+    for (m, day), season in want:
+        _, g = build(2026, m, day)
+        got = g.zzz_seasons_of_the_zone.calendar_page()["season"]
+        assert got == season, "%d/%d reads as %s, expected %s" % (m, day, got, season)
+    return "%d dates either side of the six turns" % len(want)
 
 
 @case

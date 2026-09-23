@@ -71,9 +71,9 @@ CALENDAR = {
              "grid_cap_l", "grid_cap_r"},
     "RIGHT": {"dial", "dial_caption", "back",
               "toggle_year", "toggle_fc", "toggle_year_label", "toggle_fc_label"},
-    # one list per column now: the six marked days under the grid, the five seasons
+    # one list per column now: the six marked days under the grid, the six seasons
     # beside the dial that draws them.
-    "SECTIONS": [(1, 6), (2, 5)],
+    "SECTIONS": [(1, 6), (2, 6)],
 }
 
 
