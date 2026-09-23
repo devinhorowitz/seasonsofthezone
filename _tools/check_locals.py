@@ -69,6 +69,36 @@ def functions(lines):
     return out
 
 
+def file_scope_dupes(lines):
+    """(name, first, second) for a file-scope local declared twice.
+
+    Lua allows it and the second simply shadows the first from that point on, so whether
+    it breaks depends entirely on where the readers sit. That makes it work by luck: a
+    second HEAD_Y added 40 lines below the first was harmless only because every use of
+    the original happened to come earlier in the file.
+    """
+    seen, out, depth = {}, [], 0
+    for i, raw in enumerate(lines):
+        if FUNC.match(raw):
+            depth = 1
+        elif depth and raw.rstrip() == "end":
+            depth = 0
+        if depth or raw.startswith((" ", "	")):
+            continue
+        m = LOCAL.match(strip_code(raw))
+        if not m:
+            continue
+        for name in m.group(1).split(","):
+            name = name.strip()
+            if not name:
+                continue
+            if name in seen:
+                out.append((name, seen[name] + 1, i + 1))
+            else:
+                seen[name] = i
+    return out
+
+
 def file_scope_locals(lines):
     """name -> line index, for `local NAME` at column 0 (outside any function)."""
     out, depth = {}, 0
@@ -98,6 +128,13 @@ def scan_file(path):
     # function: the name resolves as a global and comes back nil, with no error and no
     # log line. Same trap as the in-body rule, one scope up and far easier to miss,
     # because the declaration is often hundreds of lines away.
+    for name, first, second in file_scope_dupes(lines):
+        problems.append(
+            "%s:%d: file-scope `%s` is declared again, having been declared on line %d - "
+            "the second shadows the first from there down, so which one a reader gets "
+            "depends on where it sits"
+            % (os.path.basename(path), second, name, first))
+
     fs = file_scope_locals(lines)
     for a, b in functions(lines):
         for name, decl in fs.items():
@@ -194,6 +231,11 @@ end
 local LIMIT = 200
 """
 
+SELFTEST_DUPE = """local WIDTH = 10
+
+local WIDTH = 20
+"""
+
 SELFTEST_FILESCOPE_OK = """local LIMIT = 200
 
 function Page:Fill()
@@ -211,7 +253,8 @@ def selftest():
                              ("file-scope declared after",
                               SELFTEST_FILESCOPE_BAD, True),
                              ("file-scope declared before",
-                              SELFTEST_FILESCOPE_OK, False)):
+                              SELFTEST_FILESCOPE_OK, False),
+                             ("file-scope declared twice", SELFTEST_DUPE, True)):
         fd, p = tempfile.mkstemp(suffix=".script")
         os.close(fd)
         io.open(p, "w", encoding="utf-8").write(src)

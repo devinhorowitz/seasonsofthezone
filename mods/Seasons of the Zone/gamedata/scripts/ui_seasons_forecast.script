@@ -192,6 +192,7 @@ function SeasonsForecast:InitControls()
     self.chart       = xml:InitStatic("chart", self)
     self.chart_cap_l = xml:InitTextWnd("chart_cap_l", self)
     self.chart_cap_r = xml:InitTextWnd("chart_cap_r", self)
+    self:InitFrame()
     self:InitChart()
     self:InitAxes()
 
@@ -307,6 +308,46 @@ end
 
 -- The panel border: four tinted blocks, built once. A frame is the cheapest way to say
 -- "this is a separate instrument" on a page that is otherwise one flat surface.
+-- The PDA's own framing language, taken off the Statistics page: a chamfered outer
+-- frame, and thin rules splitting the content into cells. The lines are deliberately
+-- close to the background - they are there to group things, not to be looked at.
+--
+-- Allocated once. The frame never moves, so rebuilding it per redraw would be the same
+-- leak the chart bars had before they were pooled.
+local RULE = {74, 80, 74}
+local RULE_A = 210
+
+-- the content box, inset from the page background at 28,106 - 792,709
+local FR_L, FR_T, FR_R, FR_B = 38, 112, 782, 700
+local CHAMFER = 14          -- how far each line stops short of a corner
+local SPLIT_X = 526         -- between the chart column and the instrument column
+local FR_HEAD_Y = 192       -- under the title, accent bar, date and source line
+
+function SeasonsForecast:InitFrame()
+    self.frame = {}
+    local function line(x, y, w, h, a)
+        local s = self.xml:InitStatic("px", self)
+        if not s then return end
+        s:SetWndPos(vector2():set(x, y))
+        s:SetWndSize(vector2():set(w, h))
+        s:SetTextureColor(GetARGB(a or RULE_A, RULE[1], RULE[2], RULE[3]))
+        self.frame[#self.frame + 1] = s
+    end
+
+    -- outer frame, corners left open so it reads as the chamfer the game's own panels
+    -- have rather than as a plain box
+    line(FR_L + CHAMFER, FR_T, FR_R - FR_L - CHAMFER * 2, 1)
+    line(FR_L + CHAMFER, FR_B, FR_R - FR_L - CHAMFER * 2, 1)
+    line(FR_L, FR_T + CHAMFER, 1, FR_B - FR_T - CHAMFER * 2)
+    line(FR_R, FR_T + CHAMFER, 1, FR_B - FR_T - CHAMFER * 2)
+
+    -- the header block gets its own cell, as the stats rows do
+    line(FR_L + CHAMFER, FR_HEAD_Y, FR_R - FR_L - CHAMFER * 2, 1)
+
+    -- and the two columns are separated rather than merely spaced apart
+    line(SPLIT_X, FR_HEAD_Y + CHAMFER, 1, FR_B - FR_HEAD_Y - CHAMFER * 2)
+end
+
 function SeasonsForecast:InitEcoFrame()
     self.eco_frame = {}
     local edges = {
@@ -321,7 +362,10 @@ function SeasonsForecast:InitEcoFrame()
         if s then
             s:SetWndPos(vector2():set(e[1], e[2]))
             s:SetWndSize(vector2():set(e[3], e[4]))
-            s:SetTextureColor(GetARGB(255, 96, 82, 52))
+            -- the same grey as the page frame: this was the only border speaking a
+            -- different language, and the CLASSIFIED heading inside already carries the
+            -- faction colour
+            s:SetTextureColor(GetARGB(RULE_A, RULE[1], RULE[2], RULE[3]))
             s:Show(false)
             self.eco_frame[#self.eco_frame + 1] = s
         end
