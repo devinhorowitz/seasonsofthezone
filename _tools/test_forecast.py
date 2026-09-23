@@ -8,6 +8,7 @@ Every case below has a negative control - a standing or a manager state that MUS
 produce the tier under test - so a function that returned a constant would be caught.
 """
 import io, sys
+import tempfile
 from lupa import LuaRuntime
 
 import os
@@ -16,6 +17,7 @@ SRC = (os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
        "zzz_seasons_of_the_zone.script"))
 
 HOUR = 3600
+SCRATCH = tempfile.mkdtemp(prefix="sotz_forecast_")
 
 
 def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True,
@@ -23,7 +25,7 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
           weather="storm", now_minute=600, have_weather=True, hide_global=False,
           surge_obj_override=None, stock=False, period=6, elapsed_h=1.0,
           in_level=True, planner_globals=None, calls=None, storage=(),
-          occurrence=None, wx_exact=False, tail=None):
+          occurrence=None, wx_exact=False, tail=None, disk=None):
     """A sandbox with the engine bindings the script reaches for.
 
     stock=True builds base Anomaly's weather manager instead of Atmospherics' planner:
@@ -35,9 +37,19 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
     was never built from the main menu.
     `tail`, if given, is appended to the script, and whatever it returns is handed back
     as a third value - the way a case reaches the script's file-locals.
+    `disk` is level_weathers.script as MO2 serves it, which is all the main menu reads:
+    its text for a loose copy, None for the base game's packed one, False for none.
     """
     lua = LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
+
+    lw_file = os.path.join(SCRATCH, "level_weathers_%d.script" % len(os.listdir(SCRATCH)))
+    if isinstance(disk, str):
+        io.open(lw_file, "w", encoding="utf-8").write(disk)
+    g.getFS = lambda: lua.table_from({
+        "exist": lambda self, alias, name: disk is not False,
+        "update_path": lambda self, alias, name: lw_file,
+    })
 
     # In game, mgr.last_surge_time is a CTime and diffSec(that) returns how long ago it
     # was. Model it as a table carrying its own elapsed value, which is what the real
@@ -513,24 +525,49 @@ def t_stock_window_edges():
     return "window opens at 2/3 of the period, closes at the period, never negative"
 
 
+TRAP = """
+-- Reads of the global level_weathers, counted. In game the first read LOADS the script:
+-- the engine resolves a missing global by loading the file of that name.
+function trap_level_weathers()
+    local stub, touched = rawget(_G, "level_weathers"), {n = 0}
+    rawset(_G, "level_weathers", nil)
+    setmetatable(_G, {__index = function(t, k)
+        if k == "level_weathers" then touched.n = touched.n + 1; return stub end
+    end})
+    return touched
+end
+"""
+
+
 def t_source_from_menu():
-    # MCM is mostly opened from the main menu. There is no actor, and base's getter BUILDS
-    # a manager when none exists - so it must not be called to find out which one this is.
-    for label, kw, want in (
-            ("planner", dict(), "plan"),
-            ("stock", dict(stock=True), "stock"),
-            ("nothing", dict(have_weather=False), "none")):
+    """MCM calls this while it builds its pages, at the main menu. Reading level_weathers
+    there loads it, and Atmospherics 2.69's copy reads MCM as it loads, so the load failed
+    and the page said no weather manager was found. The menu reads the file instead, and
+    must never touch the script, or build a manager, which base's getter does if none
+    exists."""
+    PLANNER = "function record_day_history(weather_type)\nend\n"
+    for label, disk, want in (
+            ("the planner, loose", PLANNER, "plan"),
+            ("another loose copy", "function get_weather_manager()\nend\n", "stock"),
+            ("the base game's, packed", None, "stock"),
+            ("no script at all", False, "none")):
         calls = []
-        _, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, in_level=False,
-                     calls=calls, **kw)
+        lua, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, in_level=False,
+                       calls=calls, disk=disk)
+        lua.execute(TRAP)
+        touched = g.trap_level_weathers()
         got = g.weather_source()
         assert got == want, "%s at the menu read as %r" % (label, got)
+        assert touched.n == 0, "%s: the menu touched level_weathers" % label
         assert calls == [], "%s: built a weather manager from the main menu" % label
-    # the control: in a level the live manager IS read, so the counter above can fire
+    # the control: in a level the live manager IS read, so both counters can fire
     calls = []
-    _, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, stock=True, calls=calls)
+    lua, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, stock=True, calls=calls)
+    lua.execute(TRAP)
+    touched = g.trap_level_weathers()
     assert g.weather_source() == "stock" and calls, "the live read never happened"
-    return "menu tells plan / stock / none apart without ever building a manager"
+    assert touched.n > 0, "the trap never fired, so it proves nothing at the menu"
+    return "menu tells plan / stock / none apart from the file alone"
 
 
 def t_stock_page_text():

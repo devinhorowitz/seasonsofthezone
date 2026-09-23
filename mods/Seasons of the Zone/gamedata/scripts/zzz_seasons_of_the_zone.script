@@ -1471,14 +1471,30 @@ end
 -- GAMMA ships "stock". Neither of its two Atmospherics mods includes level_weathers.script;
 -- the planner comes only with a newer Atmospherics installed separately.
 --
--- In a level the live manager is authoritative, so it is read. At the main menu it must not
--- be: base's get_weather_manager() BUILDS one when none exists - the same side effect this
--- mod refuses to trigger for the surge manager - so the planner is recognised instead by a
--- file-scope function only it defines. MCM calls this from the menu; the page from a level.
+-- In a level the live manager is authoritative, so it is read. At the main menu the script
+-- must not even be touched. MCM calls this while it builds its pages, and Atmospherics
+-- 2.69's level_weathers reads MCM at file scope, so loading it then fails ("Failed to load
+-- script level_weathers") and the page said no weather manager was found. Base's
+-- get_weather_manager() would also BUILD a manager, the side effect this mod refuses for
+-- the surge manager. So at the menu the file is read instead: the planner is the copy
+-- that defines record_day_history, and a copy that is not a loose file is the base game's.
+local function weather_source_on_disk()
+    local fs = getFS()
+    if not fs:exist("$game_scripts$", "level_weathers.script") then return "none" end
+    local f = io.open(fs:update_path("$game_scripts$", "level_weathers.script"), "r")
+    if not f then return "stock" end
+    local src = f:read("*a") or ""
+    f:close()
+    return src:find("function record_day_history", 1, true) and "plan" or "stock"
+end
+
 function weather_source()
+    if not (db and db.actor) then
+        local ok, src = pcall(weather_source_on_disk)
+        return ok and src or "stock"
+    end
     if not level_weathers then return "none" end
-    local in_level = (db and db.actor) and true or false
-    if in_level and level_weathers.get_weather_manager then
+    if level_weathers.get_weather_manager then
         local ok, wm = pcall(level_weathers.get_weather_manager)
         if ok and wm then
             return (wm.day_plan and wm.abs_schedule_minute) and "plan" or "stock"
@@ -1486,7 +1502,6 @@ function weather_source()
         return "none"
     end
     if level_weathers.record_day_history then return "plan" end
-    if level_weathers.get_weather_manager then return "stock" end
     return "none"
 end
 

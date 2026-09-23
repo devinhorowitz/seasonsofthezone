@@ -208,10 +208,10 @@
 	<string id="ui_mcm_seasons_zone_units_desc">
 		<text>Celsius or Fahrenheit, on the forecast page and through the read API. The button on the page writes this same setting.</text>
 	</string>
-	<string id="ui_mcm_seasons_zone_units_c">
+	<string id="seasons_zone_main_units_lst_celsius">
 		<text>Celsius</text>
 	</string>
-	<string id="ui_mcm_seasons_zone_units_f">
+	<string id="seasons_zone_main_units_lst_fahrenheit">
 		<text>Fahrenheit</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast">

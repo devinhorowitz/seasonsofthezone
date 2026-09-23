@@ -159,9 +159,11 @@ local function page_main()
 
     -- The forecast page has a button that writes this same option, so the two can
     -- never drift apart.
+    -- MCM labels each entry "seasons_zone_main_units_lst_" .. its second field, so that
+    -- field is a suffix, not a string id; a full id there showed as the raw key.
     add({id = "units", type = "list", val = 0, def = "celsius", content = {
-        {"celsius", "ui_mcm_seasons_zone_units_c"},
-        {"fahrenheit", "ui_mcm_seasons_zone_units_f"},
+        {"celsius", "celsius"},
+        {"fahrenheit", "fahrenheit"},
     }})
 
     add({id = "line_fc", type = "line"})

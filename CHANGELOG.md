@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.8.3 — 2026-09-23
+
+- **Fixed: MCM said no weather manager was found** on installs with Atmospherics 2.69. The
+  Main page loaded Atmospherics' weather script while MCM was still building its menus,
+  which fails there and left "Failed to load script level_weathers" in the log. At the
+  main menu the page now reads the file instead of loading it.
+- **Fixed: the Temperature units dropdown showed a raw key** instead of Celsius and
+  Fahrenheit.
+- When `when` is one name with commas in it, like `("summer,spring")`, `season.py` now
+  says to give each season its own quotes, instead of pointing at a trailing comma.
+
 ## 1.8.2 — 2026-09-23
 
 - **A mistake in `seasons_config.py` is reported in one plain message** with the line at

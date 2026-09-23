@@ -84,6 +84,22 @@ def t_a_name_without_quotes_says_to_quote_it():
 
 
 @case
+def t_two_seasons_in_one_string_say_to_split_them():
+    """("summer,spring") is one name with a comma inside. The trailing-comma advice is
+    right for ("winter") and useless here - a user read it and could not find the
+    problem."""
+    cfg = GOOD.replace('("winter", "winter_snow")', '("summer,spring")')
+    rc, out, who = status(cfg)
+    assert rc != 0, "accepted"
+    assert 'Give each season its own quotes: ("summer", "spring")' in out, out
+    assert "trailing comma" not in out, "still gave the trailing-comma advice"
+    # the control: a single name still gets the trailing-comma advice
+    rc, out, _ = status(GOOD.replace('("winter", "winter_snow")', '("winter")'))
+    assert rc != 0 and "trailing comma" in out, out
+    return "split advice for \"summer,spring\"; comma advice kept for (\"winter\")"
+
+
+@case
 def t_a_table_set_twice_is_caught():
     """Valid Python, so only reading the file can find it: the last assignment wins and
     the real table is thrown away without a word."""

@@ -36,7 +36,7 @@ Below the dial:
 - **Intensity** — 0 is GAMMA's stock look, 1 the full season.
 - **Neutral preset (intensity 0)** — which preset the neutral baseline uses.
 
-![Per-layer switches, the launch-time section, and hover help](images/mcm-main-layers.png)
+![Per-layer switches and the launch-time section](images/mcm-main-layers.png)
 
 Then one switch per layer — color and light, foliage, fog, wind, wetness — so a layer you
 would rather tune yourself can be switched off on its own.
@@ -78,7 +78,7 @@ October 2 and November 20. These pull the other way, and the Zone gets loud.
 
 Last come the PDA message settings.
 
-Every option has hover text, as shown above for *Drive wetness*.
+Every option has hover text.
 
 ## A season page
 

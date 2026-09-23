@@ -194,7 +194,14 @@ def _validate_config():
                 problems.append(where + " must be a dict with 'seasons' and 'above'")
                 continue
             raw_when = cfg.get("when", cfg.get("seasons"))
-            if isinstance(raw_when, str) or not isinstance(raw_when, (list, tuple)) or not raw_when:
+            if isinstance(raw_when, str) and "," in raw_when:
+                # ("summer,spring") is one name with a comma in it, not two
+                parts = [p.strip() for p in raw_when.split(",") if p.strip()]
+                problems.append(where + ": 'when' is the single name \"%s\". Give each "
+                                "season its own quotes: (%s)"
+                                % (raw_when, ", ".join('"%s"' % p for p in parts)))
+            elif (isinstance(raw_when, str) or not isinstance(raw_when, (list, tuple))
+                    or not raw_when):
                 problems.append(where + ": 'when' must be a tuple of period names - "
                                 "note the trailing comma in a one-element tuple, "
                                 "(\"winter\",) not (\"winter\")")
