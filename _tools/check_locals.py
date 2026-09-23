@@ -37,6 +37,33 @@ PARAMS = re.compile(r"\bfunction\b[^(]*\(([^)]*)\)")
 FORVARS = re.compile(r"^\s*for\s+([\w\s,]+?)\s+in\s|^\s*for\s+(\w+)\s*=")
 
 
+KEY = re.compile(r"([{,])(\s*[A-Za-z_]\w*\s*=)(?!=)")
+
+
+def strip_table_keys(line):
+    """Drop the keys of a table written on one line: `{now = wm.cycle}` reads `wm` only.
+
+    Only where the `{` or `,` in front of the key is INSIDE braces. A comma outside them is
+    a multiple assignment - `local a, b = f()` - and stripping `b =` there destroys the
+    declaration, which is the regression the trailing-comma rule below was written to
+    avoid. Depth is counted per character, so a key in a nested table is still a key.
+    """
+    depth_at, d = [], 0
+    for ch in line:
+        if ch == "{":
+            d += 1
+        depth_at.append(d)
+        if ch == "}":
+            d -= 1
+    out, last = [], 0
+    for m in KEY.finditer(line):
+        if depth_at[m.start(1)] >= 1:
+            out.append(line[last:m.start(2)])
+            last = m.end(2)
+    out.append(line[last:])
+    return "".join(out)
+
+
 def strip_code(line):
     """Whittle a line down to the names it actually READS.
 
@@ -48,6 +75,7 @@ def strip_code(line):
     line = re.sub(r'"[^"]*"', '""', line)
     line = re.sub(r"'[^']*'", "''", line)
     line = re.sub(r"[.:]\s*\w+", "", line)          # b.m, obj:Method
+    line = strip_table_keys(line)                   # {now = x} reads x, not now
     # A table-constructor key is not a read: in `key = b.season,` only `b` is read. The
     # trailing comma is what separates an entry from an assignment, and it is the only
     # signal available without parsing - `local a, z = f()` has no trailing comma and
@@ -236,6 +264,32 @@ SELFTEST_DUPE = """local WIDTH = 10
 local WIDTH = 20
 """
 
+# An inline table's KEYS are not reads, even when a later local shares the name. This is
+# the shape that was flagged as a bug when a stock-weather branch was added above the
+# plan branch's `local now`.
+SELFTEST_INLINE_KEY = """function Page:Fill()
+    local w = {now = wm.cycle, segments = {}, source = "stock"}
+    local now = wm:abs_schedule_minute()
+    return w, now
+end
+"""
+
+# ...but a table VALUE is a read, and must still be caught above its local.
+SELFTEST_INLINE_VALUE = """function Page:Fill()
+    local t = {at = now}
+    local now = 5
+    return t
+end
+"""
+
+# And a multiple assignment keeps both names declared: stripping `b =` after the comma
+# here would lose `b` and flag the `return b` below as a read before its local.
+SELFTEST_MULTI = """function Page:Fill()
+    local a, b = f()
+    return b
+end
+"""
+
 SELFTEST_FILESCOPE_OK = """local LIMIT = 200
 
 function Page:Fill()
@@ -254,7 +308,10 @@ def selftest():
                               SELFTEST_FILESCOPE_BAD, True),
                              ("file-scope declared before",
                               SELFTEST_FILESCOPE_OK, False),
-                             ("file-scope declared twice", SELFTEST_DUPE, True)):
+                             ("file-scope declared twice", SELFTEST_DUPE, True),
+                             ("inline table key", SELFTEST_INLINE_KEY, False),
+                             ("inline table value", SELFTEST_INLINE_VALUE, True),
+                             ("multiple assignment", SELFTEST_MULTI, False)):
         fd, p = tempfile.mkstemp(suffix=".script")
         os.close(fd)
         io.open(p, "w", encoding="utf-8").write(src)
