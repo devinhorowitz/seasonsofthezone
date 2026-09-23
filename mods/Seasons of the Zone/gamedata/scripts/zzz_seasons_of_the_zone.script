@@ -1502,11 +1502,33 @@ function forecast_page()
         -- Read ALWAYS, expose by tier. Computing only when the tier allowed it meant a
         -- locked page and an unreachable surge manager produced identical nils, so there
         -- was no way to tell "withheld" from "broken" without standing over the screen.
-        local s, s_why = seconds_until(surge_manager and surge_manager.SurgeManager,
-                                       "last_surge_time")
-        local p, p_why = seconds_until(psi_storm_manager
-                                       and psi_storm_manager.PsiStormManager,
-                                       "last_psi_storm_time")
+        -- Reach the manager by the module global first, and fall back to the public
+        -- getter.
+        --
+        -- The getter was avoided originally because it CONSTRUCTS on a miss and
+        -- CSurgeManager:__init allocates a dozen sound_object handles. That caution was
+        -- misplaced: surge_manager.main_loop runs on AddUniqueCall and calls
+        -- get_surge_manager():update() every second once the actor has had its first
+        -- update, so by the time a PDA can be open the manager already exists and the
+        -- getter is a plain read. Avoiding it only meant reading a global that was
+        -- coming back nil and reporting no forecast at all.
+        local function reach(mod, global_name, getter_name)
+            if not mod then return nil, "no-mod" end
+            local g = rawget(mod, global_name)
+            if type(g) == "table" then return g, "global" end
+            local ok, made = pcall(function() return mod[getter_name]() end)
+            if ok and type(made) == "table" then return made, "getter" end
+            return nil, "unreachable"
+        end
+
+        local sm, s_how = reach(surge_manager, "SurgeManager", "get_surge_manager")
+        local pm, p_how = reach(psi_storm_manager, "PsiStormManager",
+                                "get_psi_storm_manager")
+
+        local s, s_why = seconds_until(sm, "last_surge_time")
+        local p, p_why = seconds_until(pm, "last_psi_storm_time")
+        s_why = s_how .. ":" .. s_why
+        p_why = p_how .. ":" .. p_why
         -- why each one reads the way it does. Engine state rather than timing, so it is
         -- not something the gate is keeping from anyone.
         out.mgr_surge = s_why

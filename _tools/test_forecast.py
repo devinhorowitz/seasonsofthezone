@@ -20,7 +20,7 @@ HOUR = 3600
 
 def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True,
           coarse=200, exact=700, have_surge=True, have_psi=True, plan=None,
-          weather="storm", now_minute=600, have_weather=True):
+          weather="storm", now_minute=600, have_weather=True, hide_global=False):
     """A sandbox with the engine bindings the script reaches for."""
     lua = LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
@@ -48,16 +48,27 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
             "alife/event/psi_storm_frequency": psi_freq}
     g.ui_options = lua.table_from({"get": lambda k: opts.get(k)})
 
-    g.surge_manager = lua.table_from(
-        {"SurgeManager": lua.table_from({
-            "_delta": freq * HOUR,
-            "last_surge_time": stamp(freq * HOUR - surge_left),
-        })} if have_surge else {})
-    g.psi_storm_manager = lua.table_from(
-        {"PsiStormManager": lua.table_from({
-            "_delta": psi_freq * HOUR,
-            "last_psi_storm_time": stamp(psi_freq * HOUR - psi_left),
-        })} if have_psi else {})
+    # Both the module global and the public getter, because the code tries the global
+    # first and falls back. have_surge=False means the module exists but neither route
+    # yields a manager - the real "nothing has built it yet" case.
+    surge_obj = lua.table_from({
+        "_delta": freq * HOUR,
+        "last_surge_time": stamp(freq * HOUR - surge_left),
+    }) if have_surge else None
+    psi_obj = lua.table_from({
+        "_delta": psi_freq * HOUR,
+        "last_psi_storm_time": stamp(psi_freq * HOUR - psi_left),
+    }) if have_psi else None
+
+    sm = {"get_surge_manager": lambda: surge_obj}
+    if surge_obj is not None and not hide_global:
+        sm["SurgeManager"] = surge_obj
+    g.surge_manager = lua.table_from(sm)
+
+    pm = {"get_psi_storm_manager": lambda: psi_obj}
+    if psi_obj is not None:
+        pm["PsiStormManager"] = psi_obj
+    g.psi_storm_manager = lua.table_from(pm)
 
     mcm_vals = {"forecast": forecast_on, "forecast_coarse": coarse,
                 "forecast_exact": exact}
@@ -106,6 +117,25 @@ def field(t, k):
 
 
 
+def t_getter_fallback():
+    """The module global can be unreadable while the getter still works.
+
+    This is the live case: surge_manager.main_loop builds the manager every second, yet
+    reading surge_manager.SurgeManager from another script came back nil, so the page
+    reported no forecast at all. Falling back to the public getter costs nothing - it
+    returns the manager the game already built - and the route is logged so the two are
+    never confused again.
+    """
+    _, g = build(standing=900, surge_left=4 * HOUR, psi_left=9 * HOUR, hide_global=True)
+    p = g.forecast_page()
+    assert field(p, "mgr_surge") == "getter:ok", field(p, "mgr_surge")
+    assert field(p, "surge") == 4 * HOUR, field(p, "surge")
+    # and the control: with the global present it must NOT need the fallback
+    _, g = build(standing=900, surge_left=4 * HOUR, psi_left=9 * HOUR)
+    assert field(g.forecast_page(), "mgr_surge") == "global:ok"
+    return "getter fallback returns the same manager, and is only used when needed"
+
+
 CASES = []
 
 
@@ -129,7 +159,7 @@ def t_locked():
     # become a back door to the number itself.
     # The reason is reported at every tier so a withheld reading can be told from a
     # broken one in the log - but it is a description of engine state, never a number.
-    assert field(p, "mgr_surge") == "ok", field(p, "mgr_surge")
+    assert field(p, "mgr_surge") == "global:ok", field(p, "mgr_surge")
     assert field(p, "surge") is None and field(p, "surge_band") is None
     return "standing 150 < 200 -> locked; manager reported ok, nothing leaked"
 
@@ -283,16 +313,16 @@ def t_manager_states():
     """
     # a healthy manager
     _, g = build(standing=900, surge_left=4 * HOUR, psi_left=9 * HOUR)
-    assert field(g.forecast_page(), "mgr_surge") == "ok"
+    assert field(g.forecast_page(), "mgr_surge") == "global:ok"
 
     # nothing has built it yet
     _, g = build(standing=900, surge_left=0, psi_left=9 * HOUR, have_surge=False)
-    assert field(g.forecast_page(), "mgr_surge") == "no-mgr",         field(g.forecast_page(), "mgr_surge")
+    assert field(g.forecast_page(), "mgr_surge") == "unreachable:no-mgr",         field(g.forecast_page(), "mgr_surge")
 
     # the wait has already elapsed: an emission is imminent, which is information
     _, g = build(standing=900, surge_left=-600, psi_left=9 * HOUR)
     p = g.forecast_page()
-    assert field(p, "mgr_surge") == "due", field(p, "mgr_surge")
+    assert field(p, "mgr_surge") == "global:due", field(p, "mgr_surge")
     assert field(p, "surge") == 0, field(p, "surge")
     return "ok / no-mgr / due are told apart, and 'due' reports zero rather than nothing"
 
@@ -304,7 +334,8 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("weather plan", t_weather_plan), ("weather absent", t_weather_absent),
              ("weather settled", t_weather_settled), ("weather cap", t_weather_cap),
              ("weather ungated", t_weather_ungated),
-             ("manager states", t_manager_states)):
+             ("manager states", t_manager_states),
+             ("getter fallback", t_getter_fallback)):
     case(n, f)
 
 if __name__ == "__main__":
