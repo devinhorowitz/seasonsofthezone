@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.8.1 — 2026-09-23
+
+- **Fixed: `whowins` could name your own mod as its anchor.** MO2 enables a new install at
+  the top of the list, so the mod you asked about was often the one winning the file, and
+  `whowins` told you to put it above itself. Name your mod with `--for "<your mod>"` and it
+  is left out of the answer. Without `--for`, the mod under the top one is named as well.
+- `whowins` runs even when `seasons_config.py` has a mistake in it, since it's the tool
+  you fill in `above` with.
+- When an `above` mod isn't in the modlist, the warning gives the `whowins` command that
+  finds the right one.
+
 ## 1.8.0 — 2026-09-23
 
 - **Late winter, a sixth season.** March 5 to April 14 is the thaw: patchy snow, mud and

@@ -83,9 +83,10 @@ The anchors on the reference install:
 | Winter Footsteps | `472- Dark Signal Amplified Footsteps Extended` | Beats all four footstep mods. |
 | Swamp Ground Fog | `Atmospherics 2.69 RC7.2 SSS24` | Shares nothing; the anchor is only for grouping. |
 
-**Choosing an anchor.** Run `python _tools/season.py whowins <gamedata-relative path>` on
-a file the mod ships. It lists every mod shipping that file, enabled or not, in priority
-order, and the winner. Anchor on the highest enabled shipper. It cannot see inside `.db`
+**Choosing an anchor.** Run `python _tools/season.py whowins <gamedata-relative path>
+--for "<the mod>"` on a file the mod ships. It lists every mod shipping that file, enabled
+or not, in priority order, and names the highest enabled one other than the mod itself.
+Anchor on that. It cannot see inside `.db`
 archives, and it needs the full path: `configs/environment/ambients/presets/x.ltx`, not
 `x.ltx`.
 

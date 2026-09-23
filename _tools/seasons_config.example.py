@@ -4,7 +4,8 @@ Empty is the default and is fine: the in-engine layer needs nothing here. These 
 add the launch-time layers, which use mods you install yourself.
 
   TOGGLE_MODS    mods switched on or off per season. Nothing is copied. `above` is the
-                 mod yours must outrank; find it with `season.py whowins <file>`.
+                 mod yours must outrank; find it with
+                 `season.py whowins <file> --for "<your mod>"`.
   LAYOUT         mods whose contents are restaged per season from their archive, for
                  mods that ship one folder per season. Gigabytes move; prefer TOGGLE_MODS.
   SOUND_SRC      the ambience mod whose presets are gated by season. Must be the mod

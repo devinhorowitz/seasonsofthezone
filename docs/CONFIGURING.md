@@ -27,7 +27,7 @@ python _tools/season.py apply                  # stage it (what play.bat runs)
 python _tools/season.py apply --dry-run        # report what would change
 python _tools/season.py apply --season winter  # stage a period other than today's
 python _tools/season.py apply --no-textures    # in-engine only, this run
-python _tools/season.py whowins <gamedata path>
+python _tools/season.py whowins <gamedata path> --for "<your mod>"
 ```
 
 `status` changes nothing. `apply` does nothing when the staged season already matches the
@@ -62,21 +62,26 @@ same mod can stay on for another season.
 ### Choosing `above`
 
 MO2 gives a shared file to the highest enabled mod that ships it. If a mod above yours
-ships the same file, yours loses and nothing tells you. Pick a file your mod ships and ask:
+ships the same file, yours loses and nothing tells you. Pick a file your mod ships and ask,
+naming your mod with `--for`:
 
 ```bash
-python _tools/season.py whowins textures/map/map_escape.dds
+python _tools/season.py whowins textures/map/map_escape.dds --for "Winter PDA Maps (seasonal)"
 ```
 
 ```
   file: gamedata/textures/map/map_escape.dds
 
-    line   522  [-]  Winter PDA Maps (seasonal)                    2097280 B
-    line   523  [+]  358- Global Map Rework - DeadEnvoy            8388736 B   <-- WINS
-    line   840  [+]  26- High Res PDA Maps - Bazingarrey           8388736 B
+    line   190  [-]  Winter PDA Maps (seasonal)                   2097280 B   <-- yours
+    line   539  [+]  358- Global Map Rework - DeadEnvoy           8388736 B   <-- to outrank
+    line   862  [+]  26- High Res PDA Maps - Bazingarrey          8388736 B
 
-  Put your seasonal mod ABOVE:  358- Global Map Rework - DeadEnvoy
+  Put Winter PDA Maps (seasonal) ABOVE:  358- Global Map Rework - DeadEnvoy
+  i.e.  "above": "358- Global Map Rework - DeadEnvoy"
 ```
+
+`--for` keeps your mod out of the answer. Without it, the top enabled mod is named, and
+the one under it too, in case the top one is yours: MO2 puts a fresh install at the top.
 
 Use that name. If no mod ships the file, any position works.
 

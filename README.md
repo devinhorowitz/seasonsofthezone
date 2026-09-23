@@ -265,21 +265,23 @@ stops mounting the folder — so an 11 GB texture set costs nothing to switch.
 
 `above` is the mod yours must outrank. MO2 gives a shared file to the highest enabled mod
 that ships it; if a mod above yours ships the same file, yours loses and nothing tells you.
-Pick a file your mod ships and ask:
+Pick a file your mod ships and ask, naming your mod with `--for`:
 
 ```
-python _tools/season.py whowins textures/map/map_escape.dds
+python _tools/season.py whowins textures/map/map_escape.dds --for "Winter PDA Maps (seasonal)"
 ```
 
 ```
-  line   522  [-]  Winter PDA Maps (seasonal)                    2097280 B
-  line   523  [+]  358- Global Map Rework - DeadEnvoy            8388736 B   <-- WINS
-  line   840  [+]  26- High Res PDA Maps - Bazingarrey           8388736 B
+  line   190  [-]  Winter PDA Maps (seasonal)                   2097280 B   <-- yours
+  line   539  [+]  358- Global Map Rework - DeadEnvoy           8388736 B   <-- to outrank
+  line   862  [+]  26- High Res PDA Maps - Bazingarrey          8388736 B
 
-  Put your seasonal mod ABOVE:  358- Global Map Rework - DeadEnvoy
+  Put Winter PDA Maps (seasonal) ABOVE:  358- Global Map Rework - DeadEnvoy
 ```
 
-Use that name. If no mod ships the file, any position works.
+Use that name. If no other mod ships the file, any position works. `--for` keeps your mod
+out of the answer, which matters when it is enabled at the top of the list, where MO2 puts
+a fresh install.
 
 ### Mods that work well this way
 

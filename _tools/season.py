@@ -5,7 +5,7 @@
   python _tools/season.py apply                  stage it (what play.bat runs)
   python _tools/season.py apply --season winter
   python _tools/season.py apply --dry-run
-  python _tools/season.py whowins <gamedata path>
+  python _tools/season.py whowins <gamedata path> [--for "<your mod>"]
 
 The in-engine layers (light, fog, wind, wetness) follow the calendar on their own.
 Textures cannot: X-Ray loads them from MO2's virtual file system at level load and keeps
@@ -136,7 +136,8 @@ def _validate_config():
             above = cfg.get("above")
             if not isinstance(above, str) or not above.strip():
                 problems.append(where + ": 'above' must name the mod this one has to "
-                                "outrank (find it with: season.py whowins <file>)")
+                                "outrank (find it with: season.py whowins <a file it "
+                                "ships> --for \"%s\")" % name)
 
     if not isinstance(LAYOUT, dict):
         problems.append("LAYOUT must be a dict of {mod folder: {...}}")
@@ -353,8 +354,8 @@ def apply_toggles(active, dry_run=False, prefs=None):
         idx, ref = find(name), find(above)
         if ref is None:
             print("  ! %s: anchor %r is not in the modlist - SKIPPED. Fix 'above' in"
-                  " seasons_config.py (season.py whowins <file> names the right mod)."
-                  % (name[:40], above))
+                  " seasons_config.py (season.py whowins <a file it ships> --for"
+                  " \"%s\" names the right mod)." % (name[:40], above, name))
             return
         if idx is None:
             body.insert(ref, want + name)
@@ -1032,9 +1033,14 @@ def identify(mod, cfg, tmp, prefer=None):
     return (prefer if prefer in matches else matches[0]), detail
 
 
-def who_wins(rel):
-    """Print every mod shipping `rel`, enabled or disabled, in priority order, and the
-    winner among the enabled ones."""
+def who_wins(rel, mine=None):
+    """Print every mod shipping `rel`, enabled or disabled, in priority order, and the mod
+    a seasonal mod has to sit above to win it.
+
+    `mine` is the mod being placed, and it is left out of the answer. Anchored above
+    itself, a mod stays where it is, and the next mod to ship the file above it wins
+    without a word. Without `mine` the top enabled mod may be the one being placed - MO2
+    enables a new install at the top - so the next one down is named too."""
     rel = rel.replace(chr(92), "/").strip("/")
     for lead in ("gamedata/", "mods/"):
         if rel.startswith(lead):
@@ -1045,10 +1051,14 @@ def who_wins(rel):
         print("  cannot read the modlist")
         return 1
     body = [l for l in lines if l[:1] in ("+", "-")]
+    if mine is not None and not any(l[1:] == mine for l in body):
+        print("  no mod named %r in the modlist - use the name exactly as MO2 shows it"
+              % mine)
+        return 1
 
     print("  file: gamedata/%s" % rel)
     print()
-    hits, winner = 0, None
+    hits, ships, enabled = 0, False, []
     for i, line in enumerate(body):
         name = line[1:]
         p = os.path.join(MODS, name, "gamedata", *rel.split("/"))
@@ -1056,22 +1066,44 @@ def who_wins(rel):
             continue
         hits += 1
         mark = ""
-        if line[:1] == "+" and winner is None:
-            winner = name
-            mark = "   <-- WINS"
+        if name == mine:
+            ships = True
+            mark = "   <-- yours"
+        elif line[:1] == "+":
+            enabled.append(name)
+            if len(enabled) == 1:
+                mark = "   <-- WINS" if mine is None else "   <-- to outrank"
         print("    line %5d  [%s]  %-46s %9d B%s"
               % (i + 2, line[:1], name[:46], os.path.getsize(p), mark))
 
     print()
-    if not hits:
+    if mine is not None:
+        if not ships:
+            print("  %s does not ship this file. Pick a file it does ship." % mine)
+            return 1
+        if not enabled:
+            print("  No other enabled mod ships it, so any anchor keeps %s winning it."
+                  % mine)
+        else:
+            print("  Put %s ABOVE:  %s" % (mine, enabled[0]))
+            print("  i.e.  \"above\": \"%s\"" % enabled[0])
+    elif not hits:
         print("  No enabled or disabled mod ships it as a loose file - the base game .db")
         print("  provides it (archives under db/ are not inspected). A mod of your own")
         print("  shipping this file would win outright.")
-    elif winner is None:
+    elif not enabled:
         print("  Only disabled mods ship it; the base game .db is providing it.")
     else:
-        print("  Put your seasonal mod ABOVE:  %s" % winner)
-        print("  i.e.  \"above\": \"%s\"" % winner)
+        print("  Put your seasonal mod ABOVE:  %s" % enabled[0])
+        print("  i.e.  \"above\": \"%s\"" % enabled[0])
+        print()
+        if len(enabled) > 1:
+            print("  If that is the mod you are placing, use the next one down:")
+            print("  i.e.  \"above\": \"%s\"" % enabled[1])
+        else:
+            print("  If that is the mod you are placing, no other enabled mod ships this")
+            print("  file, so any anchor keeps it winning.")
+        print("  (--for \"<your mod>\" leaves your mod out and gives one answer.)")
     return 0
 
 
@@ -1205,6 +1237,8 @@ def main():
     ap.add_argument("path", nargs="?",
                     help="for `whowins`: a gamedata-relative file path, e.g. "
                          "textures/terrain/terrain_escape.dds")
+    ap.add_argument("--for", dest="mine", metavar="MOD",
+                    help="for `whowins`: the mod you are placing, left out of the answer")
     ap.add_argument("--season", choices=period_names())
     ap.add_argument("--mapping", choices=["pheno", "met"], default="pheno")
     ap.add_argument("--dry-run", action="store_true")
@@ -1214,15 +1248,17 @@ def main():
     a = ap.parse_args()
 
     _check_install()
-    _validate_config()
 
+    # before the config check: whowins is how the config gets its anchors, so a
+    # half-written seasons_config.py must not lock it out
     if a.cmd == "whowins":
         if not a.path:
             raise SystemExit("  whowins needs a gamedata-relative path, e.g.\n"
                              "    python _tools/season.py whowins "
                              "textures/terrain/terrain_escape.dds")
-        raise SystemExit(who_wins(a.path))
+        raise SystemExit(who_wins(a.path, a.mine))
 
+    _validate_config()
     _check_mod_state()
     shadow_check(force=(a.cmd == "status"))
 
