@@ -146,15 +146,20 @@ PERIODS = getattr(_cfg, "PERIODS", {})
 EVENTS = getattr(_cfg, "EVENTS", {})
 
 
-def _set_twice():
+def _set_twice(text=None):
     """Problems for each table the config sets more than once. Python keeps the last, so a
     table written above the template's own `TOGGLE_MODS = {}` counts for nothing, and
-    nothing says so."""
-    path = getattr(_cfg, "__file__", None)
-    if not path:
-        return []
+    nothing says so. `text` is a config's source; the default is the installed file."""
+    if text is None:
+        path = getattr(_cfg, "__file__", None)
+        if not path:
+            return []
+        try:
+            text = io.open(path, encoding="utf-8-sig").read()
+        except OSError:
+            return []
     try:
-        tree = ast.parse(io.open(path, encoding="utf-8-sig").read())
+        tree = ast.parse(text)
     except Exception:
         return []
     first, out = {}, []
@@ -181,9 +186,20 @@ def _validate_config():
                          "    - " + CONFIG_ERROR[0]
                          + "".join("\n        " + l for l in CONFIG_ERROR[1:])
                          + "\n  Nothing has been changed.")
-    problems = _set_twice()
-    known = period_names()
+    problems = _set_twice() + config_problems(TOGGLE_MODS, LAYOUT, SOUND_SRC, PERIODS, EVENTS)
+    if problems:
+        raise SystemExit("  seasons_config.py needs fixing before anything runs:\n"
+                         + "\n".join("    - " + p for p in problems)
+                         + "\n  Nothing has been changed.")
+
+
+def config_problems(toggle_mods, layout, sound_src, periods, events):
+    """What is wrong with a set of config tables, one sentence per entry at fault. The
+    configure tool checks a file with this before it writes one."""
+    problems = []
+    known = [n for n, _, _ in PHENO] + list(periods or {}) + list(events or {})
     valid = ", ".join(known)
+    TOGGLE_MODS, LAYOUT, SOUND_SRC = toggle_mods, layout, sound_src
 
     if not isinstance(TOGGLE_MODS, dict):
         problems.append("TOGGLE_MODS must be a dict of {mod folder: {...}}")
@@ -242,11 +258,7 @@ def _validate_config():
 
     if SOUND_SRC is not None and (not isinstance(SOUND_SRC, str) or not SOUND_SRC):
         problems.append("SOUND_SRC must be None or a mod folder name")
-
-    if problems:
-        raise SystemExit("  seasons_config.py needs fixing before anything runs:\n"
-                         + "\n".join("    - " + p for p in problems)
-                         + "\n  Nothing has been changed.")
+    return problems
 
 
 def _detect_nl(raw):

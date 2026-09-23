@@ -7,11 +7,16 @@ Configuration adds what cannot change at runtime: swapping texture mods, switchi
 season-scoped mods, and gating ambient sound. `_tools/season.py` does that before the game
 starts; `play.bat` runs it for you.
 
+The quickest way in is `configure.bat` in your GAMMA folder. It lists your MO2 mods;
+tick the seasons each one belongs to, and it writes `_tools/seasons_config.py` for you,
+with the `above` for each mod worked out from the files the mods share. To start from a
+full working setup instead:
+
 ```bash
 cp _tools/seasons_config.example.py _tools/seasons_config.py
 ```
 
-That is the only file you edit. The example is a complete working configuration.
+`seasons_config.py` is the only file you edit, by hand or with the tool.
 
 Scoping a mod to a season is the common case, but the calendar is open: you can add your
 own base periods and overlapping events, and scope mods to those instead. That is
@@ -32,6 +37,28 @@ python _tools/season.py whowins <gamedata path> --for "<your mod>"
 
 `status` changes nothing. `apply` does nothing when the staged season already matches the
 date. `--mapping met` uses Ukraine's meteorological calendar (round month starts).
+
+The configure tool, as commands:
+
+```bash
+python _tools/configure.py                    # the window (what configure.bat opens)
+python _tools/configure.py list               # what is on the calendar
+python _tools/configure.py add "<mod>" --when winter "deep winter" [--above "<mod>"]
+python _tools/configure.py remove "<mod>"
+python _tools/configure.py event christmas 12-24 12-26
+python _tools/configure.py event christmas --remove
+```
+
+`add` puts a mod on the calendar, or replaces its seasons if it is already there. The
+name is checked against MO2's list, with suggestions for a near miss. `--when` takes
+season names as MCM shows them or as the config spells them, and any event or period.
+Without `--above`, the anchor is the highest enabled mod that ships any of the same
+files; when another seasonal mod on in the same season shares files, `add` names it and
+leaves the choice to you.
+
+Every save checks the result with `season.py`'s own rules first, keeps the previous file
+as `seasons_config.py.bak`, and rewrites only the entries that changed, so comments and
+anything written by hand stay as they were.
 
 ---
 

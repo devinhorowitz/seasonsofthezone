@@ -69,6 +69,14 @@ the same key and still works — configurations written for earlier versions nee
 Names are checked at startup. A typo names itself and stops the run before anything is
 staged, rather than silently never firing.
 
+Events can also be made without editing the file: **New event...** in `configure.bat`,
+or from a command prompt in your GAMMA folder:
+
+```
+python _tools\configure.py event christmas 12-24 12-26
+python _tools\configure.py add "Christmas Lights" --when christmas
+```
+
 ---
 
 ## Recipes

@@ -181,9 +181,9 @@ follows from what its engine lacks.
 
 1. In MO2, use **Install a new mod from archive** on the release zip, then enable the mod.
    That's everything in game: the light and weather, the marked days, the PDA app and MCM.
-2. For real-world temperatures and the texture and sound layers, copy `_tools/` and
-   `play.bat` from the mod's folder into your GAMMA folder, next to `ModOrganizer.exe`. (In
-   MO2, right-click the mod and choose **Open in Explorer**.)
+2. For real-world temperatures and the texture and sound layers, copy `_tools/`,
+   `play.bat` and `configure.bat` from the mod's folder into your GAMMA folder, next to
+   `ModOrganizer.exe`. (In MO2, right-click the mod and choose **Open in Explorer**.)
 3. Open `play.bat` and check that `SHORTCUT=` names the entry you launch in MO2's
    executable dropdown (default `Anomaly (DX11-AVX)`). It is the entry's name, not the
    .exe file, so a custom exe copied over the stock one in `bin\` needs no change.
@@ -194,7 +194,7 @@ and starts the game. Most days it changes nothing. Paths come from `ModOrganizer
 the drive, game folder and profile are read rather than assumed.
 
 **Updating:** install the new zip over the old one and choose **Replace**, then copy
-`_tools/` and `play.bat` again. Your `seasons_config.py` isn't in the zip, so copying
+`_tools/`, `play.bat` and `configure.bat` again. Your `seasons_config.py` isn't in the zip, so copying
 `_tools/` leaves it alone. Versions before 1.7.0 were installed by copying the
 `mods/Seasons of the Zone` folder: name the new install `Seasons of the Zone` so it
 replaces that copy.
@@ -238,8 +238,24 @@ each season.
 
 ## Putting a mod on the calendar
 
-Any installed mod can follow the calendar. You do not modify it; you name it in
-`_tools/seasons_config.py`.
+Any installed mod can follow the calendar. You do not modify it; you say when it belongs.
+
+**With `configure.bat`.** It opens a window listing your MO2 mods. Pick one, tick the
+seasons it belongs to, and save. The window works out the mod it has to sit above, and
+checks the file before it writes it.
+
+![The configure window: MO2's mods on the left, the chosen mod's seasons and anchor on the right](docs/images/configure.png)
+
+The same from a command prompt in your GAMMA folder, which is handy when someone is
+helping you:
+
+```
+python _tools\configure.py add "INVERNO Winter Textures" --when winter "deep winter"
+python _tools\configure.py event christmas 12-24 12-26
+python _tools\configure.py list
+```
+
+**By hand.** Both write `_tools/seasons_config.py`, which you can also edit yourself:
 
 ```python
 TOGGLE_MODS = {

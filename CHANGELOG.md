@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.9.0 — 2026-09-23
+
+- **`configure.bat` puts mods on the calendar without editing Python.** A window lists your
+  MO2 mods; tick the seasons each one belongs to, and save. It works out the mod each one
+  has to sit above from the files they share, names any other seasonal mod it overlaps
+  with in the same season, and makes events such as Christmas. Copy it into your GAMMA
+  folder along with `_tools/` and `play.bat`.
+- **The same from a command prompt,** for when someone is helping you: `configure.py add`,
+  `remove`, `event` and `list`. A mod name MO2 doesn't have gets suggestions instead of a
+  silent skip.
+- **Every save is checked with `season.py`'s own rules first,** keeps the previous file as
+  `seasons_config.py.bak`, and rewrites only the entries that changed, so comments and
+  anything written by hand stay. It also repairs two common mistakes: an empty
+  `TOGGLE_MODS = {}` left below the real table, and `("summer,spring")`.
+- Fixed: the 1.8 zips carried the old `play.bat` comment about `SHORTCUT`.
+
 ## 1.8.3 — 2026-09-23
 
 - **Fixed: MCM said no weather manager was found** on installs with Atmospherics 2.69. The

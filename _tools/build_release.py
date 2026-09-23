@@ -5,7 +5,8 @@ below are reviewable, but it is not part of the package: it expects a GAMMA inst
 around it (`mods/`, `_tools/`, `_release/`), so running it from a clone will not work.
 Copy it to `<your GAMMA>/_tools/` to build.
 
-Ships: the mod, the tools, play.bat, the patcher, README, CHANGELOG, LICENSE and docs.
+Ships: the mod, the tools, play.bat, configure.bat, the patcher, README, CHANGELOG, LICENSE
+and docs.
 Does not ship: any third-party asset, the generated Seasonal Soundscape mod, this
 install's seasons_config.py (it ships as the example), MO2's meta.ini, or the fetched
 weather.
@@ -48,6 +49,8 @@ MO2_DATA_DIRS = ("appdata", "bin", "db", "gamedata")
 # bars). luacheck.py and check_mcm_strings.py are general X-Ray tools and stay out.
 TOOL_FILES = [
     "season.py",
+    "configure.py",
+    "config_edit.py",
     "fetch_weather.py",
     "build_season_dial.py",
     "build_season_headers.py",
@@ -178,7 +181,8 @@ def selftest_mo2_base():
 
 def check_contents(names, base):
     """What the zip must carry, and what it must never carry."""
-    must = [MARKER, "play.bat", "_tools/season.py", "_tools/fetch_weather.py"]
+    must = [MARKER, "play.bat", "configure.bat", "_tools/season.py",
+            "_tools/fetch_weather.py", "_tools/configure.py", "_tools/config_edit.py"]
     never = ["meta.ini",                            # MO2 writes its own
              "_tools/seasons_config.py",            # would overwrite the user's on update
              "gamedata/configs/season_weather.ltx"  # one machine's fetched day
@@ -213,15 +217,16 @@ def check_doc_images(stage):
 
 
 def check_play_bat(stage):
-    """Every script play.bat runs must be in the package. 1.5.0 and 1.6.0 shipped without
-    fetch_weather.py, and play.bat carried on without it."""
-    bat = io.open(os.path.join(stage, "play.bat"), encoding="latin-1").read()
-    wanted = sorted(set(re.findall(r"_tools\\(\w+\.py)", bat)))
-    missing = [f for f in wanted if not os.path.isfile(os.path.join(stage, "_tools", f))]
-    if not wanted or missing:
-        raise SystemExit("  refusing to package: play.bat runs %s, which is not in _tools/"
-                         % (", ".join(missing) or "nothing from _tools"))
-    print("  play.bat               %3d tools it runs, all packaged" % len(wanted))
+    """Every script the batch files run must be in the package. 1.5.0 and 1.6.0 shipped
+    without fetch_weather.py, and play.bat carried on without it."""
+    for bat_name in ("play.bat", "configure.bat"):
+        bat = io.open(os.path.join(stage, bat_name), encoding="latin-1").read()
+        wanted = sorted(set(re.findall(r"_tools\\(\w+\.py)", bat)))
+        missing = [f for f in wanted if not os.path.isfile(os.path.join(stage, "_tools", f))]
+        if not wanted or missing:
+            raise SystemExit("  refusing to package: %s runs %s, which is not in _tools/"
+                             % (bat_name, ", ".join(missing) or "nothing from _tools"))
+        print("  %-22s %3d tools it runs, all packaged" % (bat_name, len(wanted)))
 
 
 def write_crlf(src, dst):
@@ -270,6 +275,7 @@ def verify_fresh_install(zp, base, name):
                     shutil.copyfileobj(src, dst)
     copytree(os.path.join(mod, "_tools"), os.path.join(root, "_tools"))
     shutil.copy2(os.path.join(mod, "play.bat"), os.path.join(root, "play.bat"))
+    shutil.copy2(os.path.join(mod, "configure.bat"), os.path.join(root, "configure.bat"))
 
     def run(args):
         r = subprocess.run([sys.executable] + args, capture_output=True, text=True,
@@ -324,6 +330,23 @@ def verify_fresh_install(zp, base, name):
                      code == 0 and "Traceback" not in text and ("season=" + s) in head
                      and "wind" in rest and "Insects_night" not in rest, text)
     os.remove(cfg)
+
+    # The configure tool, as the window uses it: a mod put on the calendar has to give
+    # a file season.py accepts. Nothing shares the ambience mod's files, so this also
+    # takes the stay-where-it-is anchor.
+    configure = os.path.join(root, "_tools", "configure.py")
+    code, text = run([configure, "add", "some ambience mod", "--when", "winter"])
+    wrote = os.path.isfile(cfg) and "Some Ambience Mod" in io.open(
+        cfg, encoding="utf-8").read()
+    ok &= report("configure.py add", code == 0 and wrote and "Traceback" not in text, text)
+    code, text = run([season, "status"])
+    ok &= report("season.py accepts what it wrote",
+                 code == 0 and "needs fixing" not in text, text)
+    code, text = run([configure, "list"])
+    ok &= report("configure.py list", code == 0 and "Some Ambience Mod" in text, text)
+    for f in (cfg, cfg + ".bak"):
+        if os.path.isfile(f):
+            os.remove(f)
 
     # A second copy under the old name, lower in the list: season.py says so and keeps
     # using the copy MO2 loads.
@@ -408,6 +431,7 @@ def main():
     print("  tools                  %3d files  (+ worked example)" % len(TOOL_FILES))
 
     write_crlf(os.path.join(ROOT, "play.bat"), os.path.join(STAGE, "play.bat"))
+    write_crlf(os.path.join(ROOT, "configure.bat"), os.path.join(STAGE, "configure.bat"))
     check_play_bat(STAGE)
     shutil.copy2(os.path.join(OUT, "README.md"), os.path.join(STAGE, "README.md"))
     for extra in ("CHANGELOG.md", "LICENSE"):
