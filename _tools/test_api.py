@@ -22,7 +22,8 @@ HOUR = 3600
 
 
 def build(hour=12.0, cycle="clear", month=None, day=15, standing=900,
-          surge_left=4 * HOUR, psi_left=9 * HOUR, clock_ms=0, observed=None):
+          surge_left=4 * HOUR, psi_left=9 * HOUR, clock_ms=0, observed=None,
+          units=None):
     lua = LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
 
@@ -57,9 +58,12 @@ def build(hour=12.0, cycle="clear", month=None, day=15, standing=900,
         "abs_schedule_minute": lambda self: 600,
     })
     g.level_weathers = lua.table_from({"get_weather_manager": lambda: wm})
-    g.ui_mcm = lua.table_from({"get": lambda p: {
-        "forecast": True, "forecast_coarse": 200, "forecast_exact": 700,
-    }.get(str(p).split("/")[-1])})
+    mcm_vals = {"forecast": True, "forecast_coarse": 200, "forecast_exact": 700}
+    if units is not None:
+        mcm_vals["units"] = units
+    g.ui_mcm = lua.table_from({
+        "get": lambda p: mcm_vals.get(str(p).split("/")[-1]),
+    })
     # ini_file, section-aware like the engine's. `observed` is a dict of the [weather]
     # section, or None for "the file is not there".
     def make_ini(name):
@@ -347,6 +351,41 @@ def t_tomorrow():
     return "tomorrow read from its own section, no modelled fallback"
 
 
+def t_units_both_shapes():
+    """MCM hands a list option back as a string OR as an index, depending.
+
+    Reading only for the string is what made the page's degrees button work once and
+    then stop: every later click saw something that was not "fahrenheit" and wrote
+    "fahrenheit" again. Both shapes have to mean the same thing.
+    """
+    obs = {"high": 10.0, "low": 0.0, "cycle": "clear", "date": _pinned(9, 15),
+           "place": "Chornobyl"}
+    seen = {}
+    for label, val in (("default", None), ("string c", "celsius"),
+                       ("string f", "fahrenheit"), ("index 1", 1)):
+        _, g = build(hour=15.0, month=9, cycle="clear", observed=obs, units=val)
+        seen[label] = F(g.sotz_api.temperature(), "unit")
+    assert seen["default"] == "C", seen
+    assert seen["string c"] == "C", seen
+    assert seen["string f"] == "F", seen
+    assert seen["index 1"] == "F", seen
+    return "C by default and for 'celsius'; F for 'fahrenheit' and for index 1"
+
+
+def t_units_convert():
+    obs = {"high": 10.0, "low": 0.0, "cycle": "clear", "date": _pinned(9, 15),
+           "place": "Chornobyl"}
+    _, g = build(hour=5.0, month=9, cycle="clear", observed=obs, units="celsius")
+    c = g.sotz_api.temperature()
+    _, g = build(hour=5.0, month=9, cycle="clear", observed=obs, units="fahrenheit")
+    f = g.sotz_api.temperature()
+    assert F(c, "low") == 0 and F(f, "low") == 32, (F(c, "low"), F(f, "low"))
+    assert F(c, "high") == 10 and F(f, "high") == 50, (F(c, "high"), F(f, "high"))
+    # zero is a property of water, not of the unit: a 0 C low is frost in both
+    assert F(c, "frost") is True and F(f, "frost") is True, "frost changed with the unit"
+    return "0/10 C reads 32/50 F, and frost is unchanged by the unit"
+
+
 CASES = [
     ("namespacing", t_namespacing),
     ("curve shape", t_curve_shape),
@@ -365,6 +404,8 @@ CASES = [
     ("freezing flags", t_freezing_flags),
     ("mild day", t_no_frost_when_mild),
     ("tomorrow", t_tomorrow),
+    ("units both shapes", t_units_both_shapes),
+    ("units convert", t_units_convert),
 ]
 
 if __name__ == "__main__":

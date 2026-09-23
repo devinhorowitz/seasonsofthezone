@@ -36,7 +36,7 @@ SCRIPTS = os.path.join(MOD, "scripts")
 # Names the scripts build at runtime, so no regex can see them. Each entry is
 # (prefix, [suffixes], is_button).
 FAMILIES = [
-    ("sotz_gauge_", ["clear", "partly", "cloudy", "foggy", "rain", "storm"], False),
+    ("sotz_needle_", ["clear", "partly", "cloudy", "foggy", "rain", "storm"], False),
     ("sotz_wx_", ["clear", "partly", "cloudy", "foggy", "rain", "storm",
                   "frost", "arrow"], False),
     ("sotz_app_year_", ["spring", "summer", "autumn", "winter", "winter_snow"], True),

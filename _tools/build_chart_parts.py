@@ -74,7 +74,8 @@ def polar(cx, cy, deg, r):
     return (cx + r * math.cos(rad), cy + r * math.sin(rad))
 
 
-def gauge(fraction):
+def gauge_face():
+    """Bands and ticks. Identical for every cycle, so it is drawn once."""
     s = SS
     im = Image.new("RGBA", (SIZE * s, SIZE * s), (0, 0, 0, 0))
     dr = ImageDraw.Draw(im)
@@ -98,6 +99,22 @@ def gauge(fraction):
                  polar(cx, cy, a, (R_TICK - (26 if long_tick else 14)) * s)],
                 fill=(236, 240, 234, 235),
                 width=int((4 if long_tick else 2.5) * s))
+    return im.resize((SIZE, SIZE), Image.LANCZOS)
+
+
+def needle(fraction):
+    """The needle alone, on the same canvas as the face so the two share a rect.
+
+    Separate because a baked-in needle cannot move, and a barometer that never moves is
+    a picture of an instrument rather than one. The page nudges this by a pixel now and
+    then; the bands underneath stay put, which is what makes the nudge read as the
+    needle rather than as the whole panel shaking.
+    """
+    s = SS
+    im = Image.new("RGBA", (SIZE * s, SIZE * s), (0, 0, 0, 0))
+    dr = ImageDraw.Draw(im)
+    cx, cy = CX * s, CY * s
+    span = A_END - A_START
 
     def off(pt, deg, d):
         rad = math.radians(deg)
@@ -148,9 +165,11 @@ def main():
     ap.add_argument("--write", action="store_true")
     a = ap.parse_args()
 
-    items = [("ui_sotz_px", "sotz_px", 8, white_block())]
+    items = [("ui_sotz_px", "sotz_px", 8, white_block()),
+             ("ui_sotz_gauge_face", "sotz_gauge_face", SIZE, gauge_face())]
     for cycle, f in sorted(CYCLE_AT.items()):
-        items.append(("ui_sotz_gauge_" + cycle, "sotz_gauge_" + cycle, SIZE, gauge(f)))
+        items.append(("ui_sotz_needle_" + cycle, "sotz_needle_" + cycle, SIZE,
+                      needle(f)))
 
     if a.write:
         os.makedirs(TEXDIR, exist_ok=True)
@@ -162,6 +181,12 @@ def main():
         # the button strip declares four ids into one file, so it is written by hand
         button_strip().save(os.path.join(TEXDIR, "ui_sotz_btn.dds"), "DDS")
         print("  ui_sotz_btn.dds")
+        # The ecologists' emblem, taken from the faction banner G.A.M.M.A. UI already
+        # ships. The whole 383x179 region is a shield on the left and an empty name
+        # plate on the right, and using it whole put a large black box on the page.
+        body += ('\t<file name="ui\\ui_actor_menu_factions">\n'
+                 '\t\t<texture id="sotz_eco_mark" x="8" y="952" width="112" '
+                 'height="112" />\n\t</file>\n')
         body += '\t<file name="ui_sotz_btn">\n'
         for i, suf in enumerate(("e", "h", "t", "d")):
             body += ('\t\t<texture id="sotz_btn_%s" x="%d" y="0" width="16" '

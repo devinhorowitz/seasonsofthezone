@@ -155,6 +155,13 @@ function SeasonsForecast:InitControls()
     self.subheader = xml:InitTextWnd("subheader", self)
     self.now       = xml:InitTextWnd("now", self)
 
+    self.needle = xml:InitStatic("needle", self)
+    if self.needle then
+        local h = self.needle:GetHeight()
+        self.needle:SetWndSize(vector2():set(h * aspect(), h))
+        self.needle_x, self.needle_y = 566, 150
+    end
+
     self.gauge = xml:InitStatic("gauge", self)
     if self.gauge then
         -- GetHeight/GetWidth, not GetWndRect: the latter is not bound in this
@@ -229,11 +236,17 @@ end
 -- after the write to avoid showing the old unit until the cache lapses.
 function SeasonsForecast:OnUnits()
     local ok, err = pcall(function()
-        local now = ui_mcm.get("seasons_zone/main/units")
-        ui_mcm.set("seasons_zone/main/units",
-                   (now == "fahrenheit") and "celsius" or "fahrenheit")
+        -- ui_mcm.get on a list option does not reliably hand back the string the option
+        -- was declared with - it may be the index - so both shapes are accepted. Testing
+        -- only for "fahrenheit" made every click write "fahrenheit" again, which is why
+        -- the button worked once and then stopped.
+        local cur = ui_mcm.get("seasons_zone/main/units")
+        local is_f = (cur == "fahrenheit") or (cur == 1) or (cur == "1")
+        ui_mcm.set("seasons_zone/main/units", is_f and "celsius" or "fahrenheit")
     end)
     if not ok then say("units toggle failed: " .. tostring(err)) end
+    -- the api caches for two seconds; without this the repaint shows the old unit
+    pcall(function() sotz_api.flush() end)
     self:Reset()
 end
 
@@ -257,9 +270,9 @@ local DIM_RGB  = {140, 140, 140}
 -- Each column starts where the thing above it ends rather than on a shared line: the
 -- left one is under the chart, the right one under the barometer, which is 130px higher.
 -- Sharing a top left a hole under the gauge the size of the gauge.
-local COL_X    = {48, 548}
-local HEAD_Y   = {522, 556}
-local ROW_Y0   = {546, 580}
+local COL_X    = {48, 554}       -- the right column lines up with the panel's text
+local HEAD_Y   = {522, 560}
+local ROW_Y0   = {546, 584}
 
 -- the ecologist panel, which the right column now sits beneath
 local ECO_X, ECO_Y, ECO_W, ECO_H = 540, 356, 232, 188
@@ -505,13 +518,17 @@ function SeasonsForecast:Fill()
     local okt, tv = pcall(function() return sotz_api.temperature() end)
     if okt then temp = tv end
 
-    -- one of six, by what is actually outside. A fixed needle was decoration pretending
-    -- to be an instrument.
+    -- The face is one image for every cycle; only the needle moves, which is what lets
+    -- it be nudged without the bands moving with it.
     if self.gauge then
+        local okg = pcall(function() self.gauge:InitTexture("sotz_gauge_face") end)
+        if not okg then say("gauge face failed") end
+    end
+    if self.needle then
         local cyc = (w and w.now) and tostring(w.now) or "cloudy"
         if not CYCLE_RGB[cyc] then cyc = "cloudy" end
-        local okg = pcall(function() self.gauge:InitTexture("sotz_gauge_" .. cyc) end)
-        if not okg then say("gauge texture failed for " .. cyc) end
+        local okn = pcall(function() self.needle:InitTexture("sotz_needle_" .. cyc) end)
+        if not okn then say("needle texture failed for " .. cyc) end
     end
 
     -- the sky is drawn below, so this line carries only what a picture cannot: the
@@ -553,8 +570,9 @@ function SeasonsForecast:Fill()
     -- table are not the same claim, and a page that will not say which is asking to be
     -- trusted further than it has earned.
     if temp and temp.source == "observed" then
-        put(self.src, string.format("%s station, %s",
-                                    temp.place or "Chornobyl", temp.date or "today"))
+        -- "2026-09-23" under "22 September 2026" was two date formats in two lines
+        put(self.src, string.format("%s station  -  live reading",
+                                    temp.place or "Chornobyl"))
     elseif temp then
         put(self.src, "No station data - modelled from regional normals")
     else
@@ -636,18 +654,18 @@ function SeasonsForecast:Fill()
                 put(self.eco_l2, string.format("Standing %d of %d",
                                                fc.standing, fc.need))
                 self:Meter(fc.standing, fc.need)
-                put(self.eco_l3, "")
             else
                 put(self.eco_l2, "No contact")
-                put(self.eco_l3, "")
             end
+            put(self.eco_l3, "")
         else
             local e = fc.tier == "exact" and (d.surge and countdown(d.surge))
                                          or  (d.surge_band and BAND[d.surge_band])
             local p = fc.tier == "exact" and (d.psi   and countdown(d.psi))
                                          or  (d.psi_band   and BAND[d.psi_band])
-            put(self.eco_l1, "Emission   " .. (e or "no reading"))
-            put(self.eco_l2, "Psi storm   " .. (p or "no reading"))
+            -- padded to the same column the rest of the page uses for a value
+            put(self.eco_l1, string.format("Emission    %s", e or "no reading"))
+            put(self.eco_l2, string.format("Psi storm    %s", p or "no reading"))
             put(self.eco_l3, fc.tier == "coarse"
                 and string.format("Clearance %d gives the hour", fc.need_exact) or "")
         end
@@ -665,8 +683,31 @@ end
 
 -- The one moving thing. A live reading breathes; a modelled one sits dark. Update runs
 -- every frame, so this does the least it can: one colour write on a 7px block.
+-- A real barometer never sits perfectly still. Every few seconds the needle gets a
+-- short shiver - a pixel or two, damped out over a fraction of a second - which is the
+-- cheapest honest way to say the reading is being taken rather than remembered. The face
+-- underneath does not move, so it reads as the needle and not as the panel.
+local TWITCH_EVERY = 4700        -- ms between shivers
+local TWITCH_FOR   = 420         -- ms each one lasts
+
+function SeasonsForecast:Twitch(ms)
+    if not (self.needle and self.needle_x) then return end
+    local t = ms % TWITCH_EVERY
+    local dx, dy = 0, 0
+    if t < TWITCH_FOR then
+        -- a decaying wobble: fast at the start, still by the end
+        local k = 1.0 - (t / TWITCH_FOR)
+        local swing = math.sin(t / TWITCH_FOR * 18.0) * 2.0 * k * k
+        dx = swing
+        dy = swing * 0.35
+    end
+    self.needle:SetWndPos(vector2():set(self.needle_x + dx, self.needle_y + dy))
+end
+
 function SeasonsForecast:Update()
     CUIScriptWnd.Update(self)
+    local okt, ms0 = pcall(time_global)
+    if okt and type(ms0) == "number" then self:Twitch(ms0) end
     if not self.live_dot then return end
     if not self.is_live then
         self.live_dot:SetTextureColor(GetARGB(255, 70, 76, 70))
@@ -702,17 +743,17 @@ function SeasonsForecast:Meter(have, need)
             self.meter_fill:SetTextureColor(GetARGB(255, 238, 196, 112))
         end
     end
-    local w, h = 180, 5
-    local y = 492
+    local w, h = 208, 5
+    local y = 496
     local f = math.max(0, math.min(1, (tonumber(have) or 0) / need))
 
     if self.meter_back then
-        self.meter_back:SetWndPos(vector2():set(ECO_X + (ECO_W - w) / 2, y))
+        self.meter_back:SetWndPos(vector2():set(ECO_X + 14, y))
         self.meter_back:SetWndSize(vector2():set(w, h))
         self.meter_back:Show(true)
     end
     if self.meter_fill then
-        self.meter_fill:SetWndPos(vector2():set(ECO_X + (ECO_W - w) / 2, y))
+        self.meter_fill:SetWndPos(vector2():set(ECO_X + 14, y))
         self.meter_fill:SetWndSize(vector2():set(math.max(2, math.floor(w * f)), h))
         self.meter_fill:Show(f > 0)
     end

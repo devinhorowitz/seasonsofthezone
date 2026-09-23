@@ -43,6 +43,13 @@ local function cached(key, build)
     return val
 end
 
+--- Drop everything cached, so the next read is fresh.
+-- The page calls this after writing the units option: without it the repaint returns the
+-- value that was just replaced, and the button looks like it did nothing.
+function flush()
+    cache = {}
+end
+
 -- =========================================================================================
 -- Temperature
 -- =========================================================================================

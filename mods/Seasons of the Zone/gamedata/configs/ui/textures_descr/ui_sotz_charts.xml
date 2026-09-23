@@ -2,23 +2,29 @@
 	<file name="ui_sotz_px">
 		<texture id="sotz_px" x="0" y="0" width="8" height="8" />
 	</file>
-	<file name="ui_sotz_gauge_clear">
-		<texture id="sotz_gauge_clear" x="0" y="0" width="384" height="384" />
+	<file name="ui_sotz_gauge_face">
+		<texture id="sotz_gauge_face" x="0" y="0" width="384" height="384" />
 	</file>
-	<file name="ui_sotz_gauge_cloudy">
-		<texture id="sotz_gauge_cloudy" x="0" y="0" width="384" height="384" />
+	<file name="ui_sotz_needle_clear">
+		<texture id="sotz_needle_clear" x="0" y="0" width="384" height="384" />
 	</file>
-	<file name="ui_sotz_gauge_foggy">
-		<texture id="sotz_gauge_foggy" x="0" y="0" width="384" height="384" />
+	<file name="ui_sotz_needle_cloudy">
+		<texture id="sotz_needle_cloudy" x="0" y="0" width="384" height="384" />
 	</file>
-	<file name="ui_sotz_gauge_partly">
-		<texture id="sotz_gauge_partly" x="0" y="0" width="384" height="384" />
+	<file name="ui_sotz_needle_foggy">
+		<texture id="sotz_needle_foggy" x="0" y="0" width="384" height="384" />
 	</file>
-	<file name="ui_sotz_gauge_rain">
-		<texture id="sotz_gauge_rain" x="0" y="0" width="384" height="384" />
+	<file name="ui_sotz_needle_partly">
+		<texture id="sotz_needle_partly" x="0" y="0" width="384" height="384" />
 	</file>
-	<file name="ui_sotz_gauge_storm">
-		<texture id="sotz_gauge_storm" x="0" y="0" width="384" height="384" />
+	<file name="ui_sotz_needle_rain">
+		<texture id="sotz_needle_rain" x="0" y="0" width="384" height="384" />
+	</file>
+	<file name="ui_sotz_needle_storm">
+		<texture id="sotz_needle_storm" x="0" y="0" width="384" height="384" />
+	</file>
+	<file name="ui\ui_actor_menu_factions">
+		<texture id="sotz_eco_mark" x="8" y="952" width="112" height="112" />
 	</file>
 	<file name="ui_sotz_btn">
 		<texture id="sotz_btn_e" x="0" y="0" width="16" height="16" />
