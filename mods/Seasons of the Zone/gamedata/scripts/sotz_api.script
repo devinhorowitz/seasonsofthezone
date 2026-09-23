@@ -257,6 +257,34 @@ function temperature()
     end)
 end
 
+--- Tomorrow, as the real Zone expects it.
+-- @return {date, high, low, cycle, frost} or nil when there is no fetched file.
+--
+-- Observations only - there is no modelled fallback here on purpose. A modelled "today"
+-- is a reasonable stand-in for a reading, because the shape of a day in this region is
+-- genuinely predictable. A modelled "tomorrow" would be the same curve with a different
+-- label, which is not a forecast of anything.
+function tomorrow()
+    return cached("tomorrow", function()
+        local ok, out = pcall(function()
+            local ini = ini_file("season_weather.ltx")
+            if not (ini and ini:section_exist("weather_next")) then return nil end
+            local hi = ini:r_float_ex("weather_next", "high")
+            local lo = ini:r_float_ex("weather_next", "low")
+            if not (hi and lo) then return nil end
+            return {
+                date  = ini:r_string_ex("weather_next", "date"),
+                high  = math.floor(hi + 0.5),
+                low   = math.floor(lo + 0.5),
+                cycle = ini:r_string_ex("weather_next", "cycle"),
+                frost = lo <= 0.0,
+            }
+        end)
+        if ok then return out end
+        return nil
+    end)
+end
+
 -- =========================================================================================
 -- Weather
 -- =========================================================================================

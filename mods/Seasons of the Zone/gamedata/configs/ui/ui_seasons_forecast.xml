@@ -57,18 +57,20 @@
          corrected for aspect from script. -->
     <gauge x="566" y="150" width="184" height="184" stretch="1"/>
 
-    <gauge_caption x="550" y="340" width="216" height="18">
+    <gauge_caption x="548" y="342" width="220" height="18">
         <text font="letterica16" r="170" g="170" b="170" align="c" vert_align="c" complex_mode="1"/>
     </gauge_caption>
 
     <!-- the day chart lives here: weather ribbon, hour marks, temperature curve. Bars
          are tinted copies of <px> parented to this. -->
-    <chart x="48" y="292" width="462" height="112"/>
+    <!-- The densest thing on the page, so it gets the room. The ribbon and the curve
+         share one x axis: 24 game hours across 462px. -->
+    <chart x="48" y="290" width="462" height="206"/>
 
-    <chart_cap_l x="48" y="392" width="200" height="16">
+    <chart_cap_l x="48" y="500" width="200" height="16">
         <text font="letterica16" r="150" g="150" b="150" align="l" vert_align="c" complex_mode="1"/>
     </chart_cap_l>
-    <chart_cap_r x="310" y="392" width="200" height="16">
+    <chart_cap_r x="310" y="500" width="200" height="16">
         <text font="letterica16" r="150" g="150" b="150" align="r" vert_align="c" complex_mode="1"/>
     </chart_cap_r>
 

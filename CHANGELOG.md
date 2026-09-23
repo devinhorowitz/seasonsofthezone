@@ -12,6 +12,22 @@
   - The emission and psi-storm countdowns read the surge and psi-storm managers' existing
     singletons directly. Calling `get_surge_manager()` would *construct* one, and that
     constructor allocates a dozen `sound_object` handles; the page never does that.
+- **The forecast page fills its panel, and says things in words people use.** The chart
+  was 112px tall in a 603px panel and the bottom third was empty; it nearly doubles, and
+  each column now starts under the thing above it rather than on a shared line, which was
+  leaving a hole under the barometer the size of the barometer.
+  - `rising` begged the question rising-what: it is `getting warmer` / `getting colder`.
+  - `6 to 9 over the day` made the reader work out those were a low and a high: it is
+    `down to 6 C, up to 9 C`, and the row reads `All day · 6 C low, 9 C high · warming`.
+  - The barometer caption said `outside now`, which described where the reading came from
+    rather than what it said. It names the band the needle is in: `pressure stormy`,
+    `unsettled`, `fair`.
+  - `Standing 0 need 200` is `You have 0 of 200`; the emission bands are `very soon`,
+    `building`, `nothing yet`.
+- **Tomorrow, on the page.** `sotz_api.tomorrow()` reads the `[weather_next]` section
+  fetch_weather.py has been writing since the first version and nothing has ever read.
+  Observations only - there is deliberately no modelled fallback, because a modelled
+  tomorrow is just today's curve wearing a different date.
 - **The real Zone's weather.** `play.bat` now runs `_tools/fetch_weather.py` before
   staging, which pulls Chornobyl's observed high and low from open-meteo and leaves them
   in `season_weather.ltx`. The forecast runs between those endpoints instead of regional

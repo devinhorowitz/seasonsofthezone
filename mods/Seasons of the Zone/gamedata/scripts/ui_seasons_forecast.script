@@ -77,9 +77,17 @@ local CYCLE_RGB = {
 -- The coarse tier's whole job is to warn without timing. These are what a reading relayed
 -- over a radio would sound like, and none of them implies an hour.
 local BAND = {
-    imminent = "close",
+    imminent = "very soon",
     building = "building",
-    quiet    = "no sign",
+    quiet    = "nothing yet",
+}
+
+-- What the barometer needle is sitting in. "outside now" described where the reading
+-- came from rather than what it said, which is the one thing a caption is for.
+local GAUGE_BAND = {
+    storm = "stormy", rain = "stormy",
+    foggy = "unsettled", cloudy = "unsettled", partly = "unsettled",
+    clear = "fair",
 }
 
 -- Emission countdowns arrive as GAME seconds, which is what the player reckons in - a
@@ -199,17 +207,21 @@ local LINE_RGB = {200, 200, 200}
 local NOW_RGB  = {255, 255, 255}
 local DIM_RGB  = {140, 140, 140}
 
-local COL_X    = {48, 386}
-local ROW_Y0   = 436
+-- Each column starts where the thing above it ends rather than on a shared line: the
+-- left one is under the chart, the right one under the barometer, which is 130px higher.
+-- Sharing a top left a hole under the gauge the size of the gauge.
+local COL_X    = {48, 540}
+local HEAD_Y   = {522, 376}
+local ROW_Y0   = {546, 400}
 local ROW_H    = 19
-local ROWS     = 12          -- 8 weather changes + air + slack; the right column uses 5
+local ROWS     = 14
 
 function SeasonsForecast:InitRows()
     self.heads, self.rows = {}, {}
     for col = 1, 2 do
         self.heads[col] = self.xml:InitTextWnd("row_head", self)
         if self.heads[col] then
-            self.heads[col]:SetWndPos(vector2():set(COL_X[col], 410))
+            self.heads[col]:SetWndPos(vector2():set(COL_X[col], HEAD_Y[col]))
             self.heads[col]:Show(false)
         end
         self.rows[col] = {}
@@ -242,7 +254,7 @@ function SeasonsForecast:Put(col, fields, rgb)
     if n > ROWS then return end                 -- never grow; a full column just stops
     self.used[col] = n
     local set = self.rows[col][n]
-    local y = ROW_Y0 + (n - 1) * ROW_H
+    local y = ROW_Y0[col] + (n - 1) * ROW_H
     rgb = rgb or LINE_RGB
     for f = 1, 3 do
         local w = set and set[f]
@@ -307,10 +319,10 @@ end
 -- modelled temperature under it on the same axis, so a glance answers both "when does it
 -- turn" and "how cold does it get" without reading a single row.
 local CHART_W   = 462
-local RIBBON_Y  = 6
-local RIBBON_H  = 18
-local CURVE_Y   = 36
-local CURVE_H   = 56
+local RIBBON_Y  = 4
+local RIBBON_H  = 24
+local CURVE_Y   = 40
+local CURVE_H   = 148
 local SPAN_MIN  = 1440          -- one game day
 
 function SeasonsForecast:DrawChart(d, temp)
@@ -424,13 +436,16 @@ function SeasonsForecast:Fill()
 
     -- the sky is drawn below, so this line carries only what a picture cannot: the
     -- number, and which way it is going
+    -- "rising" invites the question rising-what. Say what is happening to the air.
     local head = ""
     if temp and temp.now then
         head = string.format("%d C, %s", temp.now,
-                             temp.rising and "rising" or "falling")
+                             temp.rising and "getting warmer" or "getting colder")
     end
     put(self.now, head)
-    put(self.gauge_caption, w and w.now and "outside now" or "no reading")
+    put(self.gauge_caption, (w and w.now)
+        and ("pressure " .. (GAUGE_BAND[tostring(w.now)] or "unsettled"))
+        or "no reading")
 
     -- --- the sky, now and next --------------------------------------------------------
     -- The arrow and the second glyph only appear when there IS a next: on a settled day
@@ -470,8 +485,9 @@ function SeasonsForecast:Fill()
 
     self:DrawChart(d, temp)
     if temp then
-        put(self.chart_cap_l, string.format("now  %d C", temp.now))
-        put(self.chart_cap_r, string.format("%d to %d over the day", temp.low, temp.high))
+        put(self.chart_cap_l, string.format("%d C right now", temp.now))
+        put(self.chart_cap_r, string.format("down to %d C, up to %d C",
+                                            temp.low, temp.high))
     else
         put(self.chart_cap_l, "")
         put(self.chart_cap_r, "")
@@ -484,13 +500,14 @@ function SeasonsForecast:Fill()
     -- the day's endpoints, not just the current number: the cycle is accelerated, so
     -- "8 C" on its own says nothing about whether the night is survivable
     if temp then
-        self:Put(1, {{0, "Air"}, {66, string.format("%d to %d C", temp.low, temp.high)},
-                     {200, temp.rising and "rising" or "falling"}}, NOW_RGB)
+        self:Put(1, {{0, "All day"},
+                     {76, string.format("%d C low, %d C high", temp.low, temp.high)},
+                     {232, temp.rising and "warming" or "cooling"}}, NOW_RGB)
     end
     if w and w.segments and #w.segments > 0 then
         for _, seg in ipairs(w.segments) do
-            self:Put(1, {{0, seg.at}, {66, cycle_name(seg.cycle)},
-                         {200, lead(seg.away)}})
+            self:Put(1, {{0, seg.at}, {76, cycle_name(seg.cycle)},
+                         {232, lead(seg.away)}})
         end
     elseif w then
         self:Put(1, {{0, "Settled - no change planned."}}, DIM_RGB)
@@ -502,15 +519,38 @@ function SeasonsForecast:Fill()
     -- Three states, and the locked one is drawn on purpose: a reward the player cannot
     -- see is not one they can work towards, so the row names the standing they have and
     -- the standing they need.
+    -- --- tomorrow --------------------------------------------------------------------
+    -- Observed only. There is no modelled tomorrow, because a modelled tomorrow is just
+    -- today's curve wearing a different date.
+    local tm = nil
+    local okm, tv2 = pcall(function() return sotz_api.tomorrow() end)
+    if okm then tm = tv2 end
+    if tm then
+        self:Head(2, "Tomorrow")
+        self:Put(2, {{0, cycle_name(tm.cycle)},
+                     {110, string.format("%d C to %d C", tm.low, tm.high)}}, NOW_RGB)
+        if tm.frost then
+            self:Put(2, {{0, "Below freezing overnight."}}, DIM_RGB)
+        end
+        self:Put(2, {{0, ""}})
+    end
+
     local fc = d.forecast
     if fc then
-        self:Head(2, "Ecologist forecast")
+        -- There is one head widget per column. When Tomorrow has taken it, this second
+        -- heading is written as an ordinary row in the heading colour instead.
+        if tm then
+            self:Put(2, {{0, "Ecologist forecast"}}, HEAD_RGB)
+        else
+            self:Head(2, "Ecologist forecast")
+        end
 
         if fc.tier == "locked" then
             self:Put(2, {{0, "They keep their readings to themselves."}}, DIM_RGB)
             if fc.standing then
-                self:Put(2, {{0, "Standing"}, {120, fc.standing},
-                             {180, "need " .. tostring(fc.need)}}, DIM_RGB)
+                self:Put(2, {{0, "You have"},
+                             {90, string.format("%d of %d", fc.standing, fc.need)}},
+                         DIM_RGB)
                 self:Meter(fc.standing, fc.need)
             else
                 self:Put(2, {{0, "No contact."}}, DIM_RGB)
@@ -526,7 +566,7 @@ function SeasonsForecast:Fill()
             self:Put(2, {{0, "Psi storm"}, {120, p or "no reading"}},
                      p and NOW_RGB or DIM_RGB)
             if fc.tier == "coarse" then
-                self:Put(2, {{0, string.format("%d standing buys the hour.",
+                self:Put(2, {{0, string.format("At %d they give you the hour.",
                                                fc.need_exact)}}, DIM_RGB)
             end
         end
@@ -555,7 +595,7 @@ function SeasonsForecast:Meter(have, need)
         end
     end
     local w, h = 250, 6
-    local y = ROW_Y0 + (self.used[2] or 1) * ROW_H - 4
+    local y = ROW_Y0[2] + (self.used[2] or 1) * ROW_H - 4
     local f = math.max(0, math.min(1, (tonumber(have) or 0) / need))
 
     if self.meter_back then

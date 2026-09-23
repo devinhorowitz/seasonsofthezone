@@ -70,6 +70,8 @@ def build(hour=12.0, cycle="clear", month=None, day=15, standing=900,
                 "r_string_ex": lambda self, s, k: None,
             })
         sec = {"weather": observed}
+        if isinstance(observed, dict) and observed.get("_next"):
+            sec["weather_next"] = observed["_next"]
         return lua.table_from({
             "section_exist": lambda self, s: s in sec,
             "r_float_ex": lambda self, s, k: (
@@ -326,6 +328,25 @@ def t_no_frost_when_mild():
     return "a mild day raises neither flag"
 
 
+def t_tomorrow():
+    obs = {"high": 14.5, "low": 7.8, "cycle": "rain", "date": _pinned(9, 15),
+           "place": "Chornobyl",
+           "_next": {"high": 2.0, "low": -4.0, "cycle": "snow", "date": _pinned(9, 16)}}
+    _, g = build(hour=12.0, month=9, observed=obs)
+    tm = g.sotz_api.tomorrow()
+    assert F(tm, "high") == 2 and F(tm, "low") == -4, (F(tm, "high"), F(tm, "low"))
+    assert F(tm, "cycle") == "snow", F(tm, "cycle")
+    assert F(tm, "frost") is True, "a -4 low did not raise frost"
+    # the control: today must NOT come back as tomorrow. Both sections carry the same
+    # key names, and a flat read hands over the wrong day looking perfectly valid.
+    today = g.sotz_api.temperature()
+    assert F(today, "low") != F(tm, "low"), "today and tomorrow returned the same low"
+    # and with no fetched file at all there is no modelled stand-in
+    _, g = build(hour=12.0, month=9, observed=None)
+    assert g.sotz_api.tomorrow() is None, "invented a tomorrow with no observations"
+    return "tomorrow read from its own section, no modelled fallback"
+
+
 CASES = [
     ("namespacing", t_namespacing),
     ("curve shape", t_curve_shape),
@@ -343,6 +364,7 @@ CASES = [
     ("observed stale", t_observed_stale),
     ("freezing flags", t_freezing_flags),
     ("mild day", t_no_frost_when_mild),
+    ("tomorrow", t_tomorrow),
 ]
 
 if __name__ == "__main__":
