@@ -720,6 +720,51 @@ def _in_window(d, start, end):
     return a <= x <= b if a <= b else (x >= a or x <= b)
 
 
+def weather_flags():
+    """Period names the real Zone's weather is asserting today.
+
+    Reads season_weather.ltx, which _tools/fetch_weather.py leaves behind. Absent, stale
+    or unreadable, this is empty and nothing changes - the file is an enhancement, never
+    a dependency, and a launch must not care whether the network was up.
+
+    Today only "freezing" is produced, for a day whose observed low dips to or below
+    zero. It behaves exactly like an event: it overlays whatever season is running rather
+    than replacing it, so a freezing day in autumn is still autumn.
+    """
+    path = os.path.join(MODS, SOTZ, "gamedata", "configs", "season_weather.ltx")
+    if not os.path.exists(path):
+        return []
+    try:
+        section, low, when = None, None, None
+        for line in io.open(path, encoding="utf-8"):
+            line = line.split(";")[0].strip()
+            if line.startswith("[") and line.endswith("]"):
+                section = line[1:-1].strip()
+                continue
+            if section != "weather" or "=" not in line:
+                continue
+            k, v = (x.strip() for x in line.split("=", 1))
+            if k == "low":
+                low = float(v)
+            elif k == "date":
+                when = v
+    except Exception:
+        return []
+
+    if low is None:
+        return []
+    # A reading for another day is worse than none: it reads as authoritative and
+    # describes weather that has been and gone.
+    if when:
+        try:
+            got = datetime.date(*(int(x) for x in when.split("-")))
+            if abs((datetime.date.today() - got).days) > 1:
+                return []
+        except Exception:
+            return []
+    return ["freezing"] if low <= 0.0 else []
+
+
 def active_for(d, mapping="pheno", base=None):
     """Every period active on d: the base period, then every event covering it.
 
@@ -729,6 +774,9 @@ def active_for(d, mapping="pheno", base=None):
     out = [base or season_for(d, mapping)]
     for name, win in EVENTS.items():
         if _in_window(d, win[0], win[1]) and name not in out:
+            out.append(name)
+    for name in weather_flags():
+        if name not in out:
             out.append(name)
     return out
 

@@ -87,6 +87,71 @@ local WEATHER_T = {
     storm  = {swing = 0.50, offset = -3.5},
 }
 
+-- --- the real Zone ----------------------------------------------------------------------
+--
+-- _tools/fetch_weather.py leaves today's observed high and low in season_weather.ltx,
+-- fetched from open-meteo for Chornobyl. Only the ENDPOINTS are taken: the curve between
+-- them stays modelled, because the game's day runs six times real time and the sky above
+-- the player belongs to Atmospherics rather than to Ukraine.
+--
+-- The file is read through ini_file, which is the engine's own parser and therefore
+-- section-aware - [weather] and [weather_next] carry the same key names, and a flat read
+-- would quietly hand back tomorrow's numbers as today's.
+--
+-- A reading more than a day old is ignored. Stale observations are worse than none: they
+-- look authoritative and describe a day that has been and gone.
+local OBS_MAX_AGE_DAYS = 1
+
+-- Days between two calendar dates, via os.time rather than by subtracting packed
+-- YYYYMMDD integers. The packed form makes 31 August and 1 September look 70 apart, so
+-- a reading fetched last night would be thrown away every month end - the fallback is
+-- safe, but real weather would quietly stop working once a month and nothing would say
+-- why. Noon avoids any daylight-saving edge.
+local function day_diff(y, m, d)
+    local ok, n = pcall(function()
+        local a = os.time({year = y, month = m, day = d, hour = 12})
+        local now = os.date("*t")
+        local b = os.time({year = now.year, month = now.month, day = now.day, hour = 12})
+        return (b - a) / 86400
+    end)
+    if ok and type(n) == "number" then return n end
+    return nil
+end
+
+local function parse_ymd(s)
+    local y, m, d = tostring(s or ""):match("^(%d+)-(%d+)-(%d+)$")
+    if not y then return nil end
+    return tonumber(y), tonumber(m), tonumber(d)
+end
+
+-- {high, low, cycle, date, freezing} from the fetched file, or nil.
+local function observed()
+    local ok, out = pcall(function()
+        local ini = ini_file("season_weather.ltx")
+        if not (ini and ini:section_exist("weather")) then return nil end
+        local hi = ini:r_float_ex("weather", "high")
+        local lo = ini:r_float_ex("weather", "low")
+        if not (hi and lo) then return nil end
+
+        local y, m, d = parse_ymd(ini:r_string_ex("weather", "date"))
+        if y then
+            local age = day_diff(y, m, d)
+            if age == nil then return nil end
+            if age > OBS_MAX_AGE_DAYS or age < -OBS_MAX_AGE_DAYS then return nil end
+        end
+
+        return {
+            high  = hi,
+            low   = lo,
+            cycle = ini:r_string_ex("weather", "cycle"),
+            date  = ini:r_string_ex("weather", "date"),
+            place = ini:r_string_ex("weather", "place"),
+        }
+    end)
+    if ok then return out end
+    return nil
+end
+
 local function month_normals()
     local now = os.date("*t")
     local m = now.month
@@ -142,7 +207,13 @@ end
 --         the curve is climbing, which is what a device needs to draw an arrow.
 function temperature()
     return cached("temperature", function()
-        local high, low = month_normals()
+        local obs = observed()
+        local high, low
+        if obs then
+            high, low = obs.high, obs.low
+        else
+            high, low = month_normals()
+        end
         local mean = (high + low) / 2.0
 
         local w = WEATHER_T[tostring(cycle_now() or "")] or WEATHER_T.partly
@@ -161,16 +232,27 @@ function temperature()
             curve[#curve + 1] = low + (high - low) * diurnal(h + i)
         end
 
+        local now_c = low + (high - low) * f
+
         return {
             low    = math.floor(low + 0.5),
             high   = math.floor(high + 0.5),
-            now    = math.floor(low + (high - low) * f + 0.5),
+            now    = math.floor(now_c + 0.5),
             hour   = h,
             rising = rising,
             curve  = curve,
             cycle  = cycle_now(),
             unit   = "C",
-            source = "model",
+            -- "observed" means the endpoints came from the real Chornobyl; the shape
+            -- between them is modelled either way, and no consumer should read this as
+            -- an in-game sensor.
+            source = obs and "observed" or "model",
+            place  = obs and obs.place or nil,
+            date   = obs and obs.date or nil,
+            real_cycle = obs and obs.cycle or nil,
+            -- the two hooks worth hanging a mod off
+            freezing = now_c <= 0.0,          -- it is below zero right now
+            frost    = low <= 0.0,            -- the day dips below zero at some point
         }
     end)
 end

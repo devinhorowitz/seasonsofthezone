@@ -22,7 +22,7 @@ HOUR = 3600
 
 
 def build(hour=12.0, cycle="clear", month=None, day=15, standing=900,
-          surge_left=4 * HOUR, psi_left=9 * HOUR, clock_ms=0):
+          surge_left=4 * HOUR, psi_left=9 * HOUR, clock_ms=0, observed=None):
     lua = LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
 
@@ -60,6 +60,27 @@ def build(hour=12.0, cycle="clear", month=None, day=15, standing=900,
     g.ui_mcm = lua.table_from({"get": lambda p: {
         "forecast": True, "forecast_coarse": 200, "forecast_exact": 700,
     }.get(str(p).split("/")[-1])})
+    # ini_file, section-aware like the engine's. `observed` is a dict of the [weather]
+    # section, or None for "the file is not there".
+    def make_ini(name):
+        if "season_weather" not in str(name) or observed is None:
+            return lua.table_from({
+                "section_exist": lambda self, s: False,
+                "r_float_ex": lambda self, s, k: None,
+                "r_string_ex": lambda self, s, k: None,
+            })
+        sec = {"weather": observed}
+        return lua.table_from({
+            "section_exist": lambda self, s: s in sec,
+            "r_float_ex": lambda self, s, k: (
+                float(sec.get(s, {}).get(k)) if sec.get(s, {}).get(k) is not None
+                else None),
+            "r_string_ex": lambda self, s, k: (
+                str(sec.get(s, {}).get(k)) if sec.get(s, {}).get(k) is not None
+                else None),
+        })
+    g.ini_file = make_ini
+
     g.alife = lambda: None
     g.axr_main = lua.table_from({})
     g.RegisterScriptCallback = lambda *a: None
@@ -243,6 +264,68 @@ def t_cache():
     return "held inside the window (%d), recomputed after it (%d)" % (same, fresh)
 
 
+# --- the real Zone's numbers -----------------------------------------------------------
+def _pinned(month, day):
+    """The date the harness pins os.date to, as the ltx would spell it.
+
+    build() overrides os.date to a fixed month and day, so a reading stamped with the
+    real calendar date looks days old to the code under test - which is what made the
+    first version of these cases fail against perfectly good code.
+    """
+    import datetime
+    return "%04d-%02d-%02d" % (datetime.date.today().year, month, day)
+
+
+def t_observed_used():
+    obs = {"high": 14.5, "low": 7.8, "cycle": "rain", "date": _pinned(9, 15),
+           "place": "Chornobyl"}
+    _, g = build(hour=15.0, month=9, cycle="clear", observed=obs)
+    t = g.sotz_api.temperature()
+    assert F(t, "source") == "observed", F(t, "source")
+    assert F(t, "place") == "Chornobyl"
+    # clear weather leaves the swing alone, so the endpoints survive to the page
+    assert F(t, "high") == 14 or F(t, "high") == 15, F(t, "high")
+    assert F(t, "low") == 8, F(t, "low")
+    # the control: without the file the same call must fall back and say so
+    _, g = build(hour=15.0, month=9, cycle="clear", observed=None)
+    assert F(g.sotz_api.temperature(), "source") == "model"
+    return "observed endpoints used, and marked observed"
+
+
+def t_observed_stale():
+    obs = {"high": 14.5, "low": 7.8, "cycle": "rain", "date": "2020-01-05",
+           "place": "Chornobyl"}
+    _, g = build(hour=15.0, month=9, observed=obs)
+    t = g.sotz_api.temperature()
+    assert F(t, "source") == "model", "a five-year-old reading was used"
+    return "a reading from another day is ignored"
+
+
+def t_freezing_flags():
+    obs = {"high": 2.0, "low": -6.0, "cycle": "snow", "date": _pinned(1, 15),
+           "place": "Chornobyl"}
+    # 05:00 is the daily minimum, so `now` sits at the low
+    _, g = build(hour=5.0, month=1, cycle="clear", observed=obs)
+    cold = g.sotz_api.temperature()
+    assert F(cold, "frost") is True, "frost false on a day with a sub-zero low"
+    assert F(cold, "freezing") is True, F(cold, "now")
+    # 15:00 is the maximum: the day still dips below zero, but right now it does not
+    _, g = build(hour=15.0, month=1, cycle="clear", observed=obs)
+    warm = g.sotz_api.temperature()
+    assert F(warm, "frost") is True, "frost should describe the whole day"
+    assert F(warm, "freezing") is False, F(warm, "now")
+    return "frost is the day, freezing is the moment"
+
+
+def t_no_frost_when_mild():
+    obs = {"high": 14.5, "low": 7.8, "cycle": "rain", "date": _pinned(9, 15),
+           "place": "Chornobyl"}
+    _, g = build(hour=5.0, month=9, observed=obs)
+    t = g.sotz_api.temperature()
+    assert F(t, "frost") is False and F(t, "freezing") is False, (F(t, "low"), F(t, "now"))
+    return "a mild day raises neither flag"
+
+
 CASES = [
     ("namespacing", t_namespacing),
     ("curve shape", t_curve_shape),
@@ -256,6 +339,10 @@ CASES = [
     ("blowout locked", t_blowout_locked),
     ("blowout coarse", t_blowout_coarse),
     ("cache", t_cache),
+    ("observed used", t_observed_used),
+    ("observed stale", t_observed_stale),
+    ("freezing flags", t_freezing_flags),
+    ("mild day", t_no_frost_when_mild),
 ]
 
 if __name__ == "__main__":

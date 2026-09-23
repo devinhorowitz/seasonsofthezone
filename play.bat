@@ -31,6 +31,12 @@ where py >nul 2>&1 && set "PY=py -3"
 
 echo.
 echo  Checking the season...
+REM  The real Zone's weather, for the forecast page and the "freezing" period. This
+REM  talks to open-meteo for Chornobyl's coordinates - no account, no key, and nothing
+REM  about this machine. It is allowed to fail: without it the game models the
+REM  temperature from regional normals instead, so the error is never fatal.
+%PY% "_tools\fetch_weather.py"
+
 %PY% "_tools\season.py" apply
 if errorlevel 1 (
     echo.

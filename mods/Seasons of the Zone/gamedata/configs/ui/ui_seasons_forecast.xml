@@ -21,25 +21,35 @@
 
     <bar x="48" y="150" width="470" height="8" stretch="1"/>
 
-    <subheader x="48" y="162" width="470" height="20">
+    <subheader x="48" y="160" width="470" height="18">
         <text font="letterica16" r="170" g="170" b="170" align="l" vert_align="c" complex_mode="1"/>
     </subheader>
 
+    <!-- where the numbers came from. Observed and modelled are different claims. -->
+    <src x="48" y="176" width="470" height="16">
+        <text font="letterica16" r="128" g="136" b="128" align="l" vert_align="c" complex_mode="1"/>
+    </src>
+
+    <!-- shown only when the day dips below zero -->
+    <frost x="430" y="190" width="34" height="34" stretch="1">
+        <texture>sotz_wx_frost</texture>
+    </frost>
+
     <!-- The sky, now and next. Square textures, so the width is corrected for aspect
          from script exactly as the dial and the barometer are. -->
-    <wx_now   x="48"  y="182" width="56" height="56" stretch="1"/>
-    <wx_arrow x="118" y="196" width="34" height="34" stretch="1"/>
-    <wx_next  x="166" y="182" width="56" height="56" stretch="1"/>
+    <wx_now   x="48"  y="198" width="56" height="56" stretch="1"/>
+    <wx_arrow x="118" y="212" width="34" height="34" stretch="1"/>
+    <wx_next  x="166" y="198" width="56" height="56" stretch="1"/>
 
-    <wx_now_label x="34" y="242" width="86" height="18">
+    <wx_now_label x="34" y="258" width="86" height="18">
         <text font="letterica16" r="255" g="255" b="255" align="c" vert_align="c" complex_mode="1"/>
     </wx_now_label>
-    <wx_next_label x="140" y="242" width="112" height="18">
+    <wx_next_label x="140" y="258" width="112" height="18">
         <text font="letterica16" r="190" g="190" b="190" align="c" vert_align="c" complex_mode="1"/>
     </wx_next_label>
 
     <!-- the temperature, beside the sky rather than buried in a row -->
-    <now x="278" y="188" width="220" height="44">
+    <now x="278" y="204" width="146" height="44">
         <text font="letterica18" r="255" g="255" b="255" align="l" vert_align="c" complex_mode="1"/>
     </now>
 
@@ -53,12 +63,12 @@
 
     <!-- the day chart lives here: weather ribbon, hour marks, temperature curve. Bars
          are tinted copies of <px> parented to this. -->
-    <chart x="48" y="278" width="462" height="116"/>
+    <chart x="48" y="292" width="462" height="112"/>
 
-    <chart_cap_l x="48" y="382" width="150" height="16">
+    <chart_cap_l x="48" y="392" width="200" height="16">
         <text font="letterica16" r="150" g="150" b="150" align="l" vert_align="c" complex_mode="1"/>
     </chart_cap_l>
-    <chart_cap_r x="360" y="382" width="150" height="16">
+    <chart_cap_r x="310" y="392" width="200" height="16">
         <text font="letterica16" r="150" g="150" b="150" align="r" vert_align="c" complex_mode="1"/>
     </chart_cap_r>
 
@@ -67,7 +77,10 @@
         <texture>sotz_px</texture>
     </px>
 
-    <scroll x="48" y="406" width="480" height="288" always_show_scroll="0" stretch="1"/>
+    <!-- No scroll view. Everything fits, and a page you have to scroll to read the
+         weather off is a document rather than a device. Rows are allocated from
+         row_head / row_line once and repositioned; colour carries the emphasis, because
+         a widget cannot change its font after it is built. -->
 
     <!-- the back button; its texture is set from script, as MAC does for its tiles -->
     <back x="740" y="652" width="34" height="34" stretch="1"/>

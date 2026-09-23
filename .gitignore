@@ -13,3 +13,9 @@ _staging/
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Fetched weather. Unlike season_mods.ltx and season_staged.ltx - which ship neutral
+# because the MCM page reads them - this one is dated observations for one machine on one
+# day, and its ABSENCE is a supported state: the game falls back to climate normals and
+# says so. _tools/fetch_weather.py writes it; play.bat runs that before launch.
+mods/Seasons of the Zone/gamedata/configs/season_weather.ltx

@@ -169,7 +169,9 @@ function SeasonsForecast:InitControls()
     self.chart_cap_r = xml:InitTextWnd("chart_cap_r", self)
     self:InitChart()
 
-    self.scroll = xml:InitScrollView("scroll", self)
+    self.src   = xml:InitTextWnd("src", self)
+    self.frost = xml:InitStatic("frost", self)
+    self:InitRows()
 
     self.back = xml:Init3tButton("back", self)
     if self.back then
@@ -187,26 +189,89 @@ function SeasonsForecast:OnBack()
     if not ok then say("back to launcher failed: " .. tostring(err)) end
 end
 
--- letterica is a PROPORTIONAL font: a space is narrower than most glyphs, so padding a
--- string with string.format("%-12s") does NOT line anything up. It looked fine in a
--- monospaced editor and ragged on the PDA. Each column is its own text widget at a fixed
--- x inside a row holder, which is how MAC positions its launcher tiles too.
-function SeasonsForecast:Cols(style, cols)
-    if not self.scroll then return end
-    local holder = self.xml:InitStatic("row_holder", nil)
-    if not holder then return end
-    for i = 1, #cols do
-        local c = cols[i]
-        local w = self.xml:InitTextWnd(style, holder)
-        if w then
-            w:SetText(tostring(c[2] or ""))
-            w:SetWndPos(vector2():set(c[1], 0))
+
+
+-- Two fixed columns, no scrolling. Colour carries the emphasis a font change would
+-- normally carry, because a widget cannot be restyled after it is built - and three
+-- parallel pools, one per style, would be three times the widgets for the same page.
+local HEAD_RGB = {238, 196, 112}
+local LINE_RGB = {200, 200, 200}
+local NOW_RGB  = {255, 255, 255}
+local DIM_RGB  = {140, 140, 140}
+
+local COL_X    = {48, 386}
+local ROW_Y0   = 436
+local ROW_H    = 19
+local ROWS     = 12          -- 8 weather changes + air + slack; the right column uses 5
+
+function SeasonsForecast:InitRows()
+    self.heads, self.rows = {}, {}
+    for col = 1, 2 do
+        self.heads[col] = self.xml:InitTextWnd("row_head", self)
+        if self.heads[col] then
+            self.heads[col]:SetWndPos(vector2():set(COL_X[col], 410))
+            self.heads[col]:Show(false)
+        end
+        self.rows[col] = {}
+        for i = 1, ROWS do
+            local set = {}
+            for f = 1, 3 do
+                local w = self.xml:InitTextWnd("row_line", self)
+                if w then
+                    w:Show(false)
+                    set[f] = w
+                end
+            end
+            self.rows[col][i] = set
         end
     end
-    self.scroll:AddWindow(holder, true)
-    holder:SetAutoDelete(true)
+    self.used = {0, 0}
 end
 
+function SeasonsForecast:Head(col, text)
+    local h = self.heads and self.heads[col]
+    if not h then return end
+    h:SetText(text or "")
+    h:Show(true)
+end
+
+-- fields is {{dx, text}, ...}, dx measured from the column's left edge
+function SeasonsForecast:Put(col, fields, rgb)
+    if not (self.rows and self.rows[col]) then return end
+    local n = (self.used[col] or 0) + 1
+    if n > ROWS then return end                 -- never grow; a full column just stops
+    self.used[col] = n
+    local set = self.rows[col][n]
+    local y = ROW_Y0 + (n - 1) * ROW_H
+    rgb = rgb or LINE_RGB
+    for f = 1, 3 do
+        local w = set and set[f]
+        if w then
+            local spec = fields[f]
+            if spec then
+                w:SetText(tostring(spec[2] or ""))
+                w:SetWndPos(vector2():set(COL_X[col] + spec[1], y))
+                w:SetTextColor(GetARGB(255, rgb[1], rgb[2], rgb[3]))
+                w:Show(true)
+            else
+                w:Show(false)
+            end
+        end
+    end
+end
+
+function SeasonsForecast:ClearRows()
+    for col = 1, 2 do
+        if self.heads and self.heads[col] then self.heads[col]:Show(false) end
+        for i = 1, ROWS do
+            local set = self.rows and self.rows[col] and self.rows[col][i]
+            for f = 1, 3 do
+                if set and set[f] then set[f]:Show(false) end
+            end
+        end
+        self.used[col] = 0
+    end
+end
 
 -- A solid rectangle. X-Ray has no fill-rect: a CUIStatic carrying a plain white block
 -- and tinted with SetTextureColor is how every other mod in the install draws one.
@@ -317,25 +382,12 @@ function SeasonsForecast:DrawChart(d, temp)
     self:Bar(0, RIBBON_Y - 3, 2, CURVE_Y + CURVE_H - RIBBON_Y + 6, 238, 196, 112, 255)
 end
 
-function SeasonsForecast:Row(style, text)
-    if not self.scroll then return end
-    local w = self.xml:InitTextWnd(style, nil)
-    if not w then return end
-    w:SetText(text or "")
-    self.scroll:AddWindow(w, true)
-    w:SetAutoDelete(true)
-end
 
-function SeasonsForecast:Gap()
-    if not self.scroll then return end
-    local g = self.xml:InitStatic("row_gap", nil)
-    if not g then return end
-    self.scroll:AddWindow(g, true)
-    g:SetAutoDelete(true)
-end
 
 function SeasonsForecast:Fill()
-    if self.scroll then self.scroll:Clear() end
+    self:ClearRows()
+    if self.meter_back then self.meter_back:Show(false) end
+    if self.meter_fill then self.meter_fill:Show(false) end
 
     local d = page()
     if not d then
@@ -399,6 +451,23 @@ function SeasonsForecast:Fill()
         and string.format("%s, %s", cycle_name(nxt.cycle), lead(nxt.away))
         or (w and "settled" or ""))
 
+    -- --- where the numbers came from ----------------------------------------------------
+    -- "14.5 / 7.8" read off the real Chornobyl and the same figures taken from a climate
+    -- table are not the same claim, and a page that will not say which is asking to be
+    -- trusted further than it has earned.
+    if temp and temp.source == "observed" then
+        put(self.src, string.format("%s station, %s",
+                                    temp.place or "Chornobyl", temp.date or "today"))
+    elseif temp then
+        put(self.src, "No station data - modelled from regional normals")
+    else
+        put(self.src, "")
+    end
+
+    -- the crystal marks a day that dips below zero at some point, which is not the same
+    -- as it being below zero now - that is what temp.freezing says
+    if self.frost then self.frost:Show(temp ~= nil and temp.frost == true) end
+
     self:DrawChart(d, temp)
     if temp then
         put(self.chart_cap_l, string.format("now  %d C", temp.now))
@@ -411,25 +480,23 @@ function SeasonsForecast:Fill()
     -- --- the weather ----------------------------------------------------------------------
     -- Not a guess. Atmospherics plans the next 24 game hours in advance and this is that
     -- plan, so the times are the times it will actually change.
-    self:Row("row_head", "The next day")
+    self:Head(1, "The next day")
     -- the day's endpoints, not just the current number: the cycle is accelerated, so
-    -- "-3" on its own says nothing about whether the night is survivable
+    -- "8 C" on its own says nothing about whether the night is survivable
     if temp then
-        self:Cols("row_line", {{0, "Air"}, {64, string.format("%d to %d", temp.low,
-                               temp.high)}, {196, temp.rising and "rising"
-                               or "falling"}})
+        self:Put(1, {{0, "Air"}, {66, string.format("%d to %d C", temp.low, temp.high)},
+                     {200, temp.rising and "rising" or "falling"}}, NOW_RGB)
     end
     if w and w.segments and #w.segments > 0 then
         for _, seg in ipairs(w.segments) do
-            self:Cols("row_line", {{0, seg.at}, {64, cycle_name(seg.cycle)},
-                                   {196, lead(seg.away)}})
+            self:Put(1, {{0, seg.at}, {66, cycle_name(seg.cycle)},
+                         {200, lead(seg.away)}})
         end
     elseif w then
-        self:Row("row_dim", "Settled - no change planned.")
+        self:Put(1, {{0, "Settled - no change planned."}}, DIM_RGB)
     else
-        self:Row("row_dim", "No weather plan. Atmospherics is not running.")
+        self:Put(1, {{0, "No weather plan. Atmospherics is not running."}}, DIM_RGB)
     end
-    self:Gap()
 
     -- --- the ecologist forecast -------------------------------------------------------------
     -- Three states, and the locked one is drawn on purpose: a reward the player cannot
@@ -437,16 +504,16 @@ function SeasonsForecast:Fill()
     -- the standing they need.
     local fc = d.forecast
     if fc then
-        self:Row("row_head", "Ecologist forecast")
+        self:Head(2, "Ecologist forecast")
 
         if fc.tier == "locked" then
-            self:Row("row_dim", "They keep their readings to themselves.")
+            self:Put(2, {{0, "They keep their readings to themselves."}}, DIM_RGB)
             if fc.standing then
-                self:Cols("row_dim", {{0, "Standing"}, {130, fc.standing},
-                                      {196, "need " .. tostring(fc.need)}})
+                self:Put(2, {{0, "Standing"}, {120, fc.standing},
+                             {180, "need " .. tostring(fc.need)}}, DIM_RGB)
                 self:Meter(fc.standing, fc.need)
             else
-                self:Row("row_dim", "No contact.")
+                self:Put(2, {{0, "No contact."}}, DIM_RGB)
             end
         else
             -- exact tier gets the hour, coarse gets a band and never a number
@@ -454,12 +521,13 @@ function SeasonsForecast:Fill()
                                          or  (d.surge_band and BAND[d.surge_band])
             local p = fc.tier == "exact" and (d.psi   and countdown(d.psi))
                                          or  (d.psi_band   and BAND[d.psi_band])
-            self:Cols(e and "row_line" or "row_dim",
-                      {{0, "Emission"}, {130, e or "no reading"}})
-            self:Cols(p and "row_line" or "row_dim",
-                      {{0, "Psi storm"}, {130, p or "no reading"}})
+            self:Put(2, {{0, "Emission"}, {120, e or "no reading"}},
+                     e and NOW_RGB or DIM_RGB)
+            self:Put(2, {{0, "Psi storm"}, {120, p or "no reading"}},
+                     p and NOW_RGB or DIM_RGB)
             if fc.tier == "coarse" then
-                self:Row("row_dim", string.format("%d standing buys the hour.", fc.need_exact))
+                self:Put(2, {{0, string.format("%d standing buys the hour.",
+                                               fc.need_exact)}}, DIM_RGB)
             end
         end
     end
@@ -468,29 +536,38 @@ end
 -- Progress toward the ecologists trusting you, as a bar rather than a number you have
 -- to compare in your head. Goodwill runs to 1000, so a bare "0" says nothing about how
 -- far 200 is.
+-- Progress toward the ecologists trusting you, drawn under whatever row was written
+-- last in the right column. Goodwill runs to 1000, so a bare "0" says nothing about how
+-- far 200 actually is.
+--
+-- The two blocks are built once and moved, like every other bar on this page: Reset()
+-- runs on each visit, and allocating per redraw is how a page leaks.
 function SeasonsForecast:Meter(have, need)
-    if not (self.scroll and need and need > 0) then return end
-    local holder = self.xml:InitStatic("row_holder", nil)
-    if not holder then return end
-    local w, h = 300, 6
-    local f = math.max(0, math.min(1, (tonumber(have) or 0) / need))
-
-    local back = self.xml:InitStatic("px", holder)
-    if back then
-        back:SetWndPos(vector2():set(0, 5))
-        back:SetWndSize(vector2():set(w, h))
-        back:SetTextureColor(GetARGB(255, 46, 52, 46))
-    end
-    if f > 0 then
-        local fill = self.xml:InitStatic("px", holder)
-        if fill then
-            fill:SetWndPos(vector2():set(0, 5))
-            fill:SetWndSize(vector2():set(math.max(2, math.floor(w * f)), h))
-            fill:SetTextureColor(GetARGB(255, 238, 196, 112))
+    if not (need and need > 0) then return end
+    if not self.meter_back then
+        self.meter_back = self.xml:InitStatic("px", self)
+        self.meter_fill = self.xml:InitStatic("px", self)
+        if self.meter_back then
+            self.meter_back:SetTextureColor(GetARGB(255, 46, 52, 46))
+        end
+        if self.meter_fill then
+            self.meter_fill:SetTextureColor(GetARGB(255, 238, 196, 112))
         end
     end
-    self.scroll:AddWindow(holder, true)
-    holder:SetAutoDelete(true)
+    local w, h = 250, 6
+    local y = ROW_Y0 + (self.used[2] or 1) * ROW_H - 4
+    local f = math.max(0, math.min(1, (tonumber(have) or 0) / need))
+
+    if self.meter_back then
+        self.meter_back:SetWndPos(vector2():set(COL_X[2], y))
+        self.meter_back:SetWndSize(vector2():set(w, h))
+        self.meter_back:Show(true)
+    end
+    if self.meter_fill then
+        self.meter_fill:SetWndPos(vector2():set(COL_X[2], y))
+        self.meter_fill:SetWndSize(vector2():set(math.max(2, math.floor(w * f)), h))
+        self.meter_fill:Show(f > 0)
+    end
 end
 
 function SeasonsForecast:Reset()

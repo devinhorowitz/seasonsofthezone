@@ -17,6 +17,9 @@
 	<file name="ui_sotz_wx_storm">
 		<texture id="sotz_wx_storm" x="0" y="0" width="128" height="128" />
 	</file>
+	<file name="ui_sotz_wx_frost">
+		<texture id="sotz_wx_frost" x="0" y="0" width="128" height="128" />
+	</file>
 	<file name="ui_sotz_wx_arrow">
 		<texture id="sotz_wx_arrow" x="0" y="0" width="128" height="128" />
 	</file>

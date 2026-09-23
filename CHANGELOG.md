@@ -12,6 +12,28 @@
   - The emission and psi-storm countdowns read the surge and psi-storm managers' existing
     singletons directly. Calling `get_surge_manager()` would *construct* one, and that
     constructor allocates a dozen `sound_object` handles; the page never does that.
+- **The real Zone's weather.** `play.bat` now runs `_tools/fetch_weather.py` before
+  staging, which pulls Chornobyl's observed high and low from open-meteo and leaves them
+  in `season_weather.ltx`. The forecast runs between those endpoints instead of regional
+  climate normals, and the page says which it is using - "Chornobyl station" or "modelled
+  from regional normals". Only the endpoints are real: the curve between them stays
+  modelled, because the game's day runs six times real time and the sky above the player
+  is Atmospherics'.
+  - No account, no key, and nothing about the machine leaves it - the request carries
+    Chornobyl's coordinates and gets about 500 bytes back.
+  - It cannot break a launch. No network, a slow endpoint, a bad response or a read-only
+    disk all leave the previous file alone and exit 0; the game then models the
+    temperature and marks it as modelled. A reading for another day is ignored rather
+    than believed.
+- **A freezing hook.** `sotz_api.temperature()` publishes `frost` (the day dips below
+  zero) and `freezing` (it is below zero right now), and the staging half turns a
+  sub-zero day into a **`freezing` period**. A mod scopes to it exactly as it scopes to a
+  season - `when = ["freezing"]` - so frozen puddles, ice fog or a winter footstep set can
+  follow the actual cold rather than the calendar. It overlays the season rather than
+  replacing it, so a freezing day in autumn is still autumn.
+- **No scrolling on the forecast page.** A PDA is a device, not a document. The content
+  is two fixed columns now - what the sky does next on the left, what the ecologists will
+  tell you on the right - with every row allocated once and repositioned.
 - **The sky, at the top of the forecast page.** A glyph for what you are under, an arrow,
   a glyph for what you are getting, and when. The page could already say it - in words, in
   a table, four rows down. Seven drawn glyphs in the mod's own palette, from the new

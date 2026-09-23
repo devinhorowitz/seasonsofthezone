@@ -35,6 +35,7 @@ CLOUD_LO = (146, 156, 162, 255)
 RAIN = (138, 172, 204, 255)
 BOLT = (248, 214, 124, 255)
 FOG = (176, 186, 184, 255)
+ICE = (188, 216, 236, 255)
 
 
 def canvas():
@@ -123,6 +124,27 @@ def g_storm():
     return im
 
 
+def g_frost():
+    """Shown when the real Zone's low dips below zero. A six-arm crystal, because a
+    snowflake with any more detail than this turns to mush at 34px."""
+    im, dr = canvas()
+    s = SS
+    cx = cy = N * s * 0.5
+    r = 40 * s
+    for i in range(6):
+        a = math.radians(i * 60.0)
+        x, y = cx + math.cos(a) * r, cy + math.sin(a) * r
+        dr.line([(cx, cy), (x, y)], fill=ICE, width=int(5 * s))
+        # one pair of barbs per arm, two thirds out
+        bx, by = cx + math.cos(a) * r * 0.62, cy + math.sin(a) * r * 0.62
+        for d in (-38, 38):
+            b = math.radians(i * 60.0 + d)
+            dr.line([(bx, by), (bx + math.cos(b) * 13 * s, by + math.sin(b) * 13 * s)],
+                    fill=ICE, width=int(4 * s))
+    dr.ellipse([cx - 6 * s, cy - 6 * s, cx + 6 * s, cy + 6 * s], fill=ICE)
+    return im
+
+
 def g_arrow():
     """Between the two conditions. A chevron pair reads as motion; one does not."""
     im, dr = canvas()
@@ -139,7 +161,7 @@ def g_arrow():
 GLYPHS = [
     ("clear", g_clear), ("partly", g_partly), ("cloudy", g_cloudy),
     ("foggy", g_foggy), ("rain", g_rain), ("storm", g_storm),
-    ("arrow", g_arrow),
+    ("frost", g_frost), ("arrow", g_arrow),
 ]
 
 ENTRY = ('\t<file name="%s">\n\t\t<texture id="%s" x="0" y="0" '
