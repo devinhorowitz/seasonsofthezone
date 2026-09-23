@@ -106,6 +106,8 @@ of them are included in this mod.
 
 ## The Year — the calendar page
 
+![The Year: the grid with today lit, and the days the Zone marks](images/pda-the-year.png)
+
 Dates only. Anything running on the game clock lives on [Forecast](#forecast--the-pda-page)
 instead. Reached from the PDA. With [Mod App Creator](https://www.moddb.com/mods/stalker-anomaly/addons/mod-app-creator)
 installed it appears in the app launcher, its icon the current season's dial; without MAC
@@ -156,6 +158,8 @@ calendar to find out whether it is going to rain this afternoon.
 No scrolling. A PDA is a device, not a document, and scrolling to find out whether a storm
 is coming is the friction that makes a page feel bolted on.
 
+![Forecast, with the ecologists telling this stalker nothing](images/pda-forecast.png)
+
 ### What it shows
 
 **The sky, now and next.** Two drawn glyphs with an arrow between them, and when the change
@@ -202,6 +206,13 @@ clearance you hold:
 | below 200 | **CLASSIFIED** | the faction's emblem and the word, and nothing else |
 | 200 | **LIMITED** | a bracket — `ALL CLEAR` · `8 to 16 hours` · `2 to 8 hours` · `WITHIN 2 HOURS` |
 | 700 | **CLEARED** | the hour, and a red strobe under two of them |
+
+![CLEARED: the hour, and a psi storm inside two of them](images/pda-forecast-cleared.png)
+
+At CLEARED the panel gives the hour, and the `Psi storm` line above is caught mid-strobe:
+that reading was an hour out, inside the two-hour threshold, while `Emission` at seven
+hours sits calm beside it. The alarm is bound to the line that is alerting, not to the
+panel.
 
 Both thresholds are MCM tracks; those are the defaults. Setting the first to 0 and the
 second to 50 is the quickest way to see the middle tier without changing your standing.

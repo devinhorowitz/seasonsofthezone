@@ -29,6 +29,15 @@
   - The page logs one line per open naming what it resolved, including the count of cells
     it drew — the one number a page that failed to build cannot produce. Three sessions
     were spent reading silence as success before this existed.
+- **An event day alerts.** Six days a year the Zone does something, and the calendar said
+  so in the same amber it uses for every column heading. The line that names the day and
+  the cell it falls on both run the 900ms square pulse the forecast strobes an approaching
+  emission in, in the same red, so the mod has one alarm and a player who has met it on
+  one page knows it on the other. The day's row in the list wears that red too.
+  - The cell's **rhythm** is now the tell. An ordinary day breathes slowly — 2.4s, a nod
+    that the page is live rather than a picture of a year. An event day alarms. Which kind
+    of day it is reads from across the room without a word being read, which is most of
+    the argument for drawing the year as a grid at all.
 - **The classified border is sized to what that tier draws.** At CLASSIFIED the ecologist
   panel shows its emblem and one word, by choice; the border stayed sized for the three
   lines the open tiers fill, so a locked player saw a 162px box holding 48px of content,
