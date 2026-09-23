@@ -155,6 +155,14 @@ function SeasonsForecast:InitControls()
     self.subheader = xml:InitTextWnd("subheader", self)
     self.now       = xml:InitTextWnd("now", self)
 
+    -- drawn before the needle so the live hand sits on top of it
+    self.set_hand = xml:InitStatic("set_hand", self)
+    if self.set_hand then
+        local h = self.set_hand:GetHeight()
+        self.set_hand:SetWndSize(vector2():set(h * aspect(), h))
+        self.set_hand:SetTextureColor(GetARGB(150, 150, 140, 110))
+    end
+
     self.needle = xml:InitStatic("needle", self)
     if self.needle then
         local h = self.needle:GetHeight()
@@ -537,8 +545,14 @@ function SeasonsForecast:DrawChart(d, temp)
             local ahead = (i - 1) * 6
             local clock = (math.floor(now_h) + ahead) % 24
             w:SetText(string.format("%02d:00", clock))
-            w:SetWndPos(vector2():set(CHART_X + px(ahead * 60) - 27,
-                                      CHART_Y + CURVE_Y + CURVE_H + 4))
+            -- centred on its rule, then clamped inside the plot: the 24-hour label used
+            -- to hang half its width past the chart and into the SKY/AIR column
+            local lx = CHART_X + px(ahead * 60) - 27
+            local lo_x = CHART_X + AXIS_W - 6
+            local hi_x = CHART_X + CHART_W - 48
+            if lx < lo_x then lx = lo_x end
+            if lx > hi_x then lx = hi_x end
+            w:SetWndPos(vector2():set(lx, CHART_Y + CURVE_Y + CURVE_H + 4))
             w:Show(true)
         end
     end
@@ -588,20 +602,38 @@ function SeasonsForecast:Fill()
         if not okn then say("needle texture failed for " .. cyc) end
     end
 
+    -- the set hand points at what is coming, so the two hands together read as a trend
+    -- rather than as a second way of saying what the glyph already said
+    local nxt_c = w and w.segments and w.segments[1] and w.segments[1].cycle
+    if self.set_hand then
+        if nxt_c and CYCLE_RGB[tostring(nxt_c)] then
+            pcall(function()
+                self.set_hand:InitTexture("sotz_needle_" .. tostring(nxt_c))
+            end)
+            self.set_hand:SetTextureColor(GetARGB(150, 150, 140, 110))
+            self.set_hand:Show(true)
+        else
+            self.set_hand:Show(false)
+        end
+    end
+
     -- the sky is drawn below, so this line carries only what a picture cannot: the
     -- number, and which way it is going
     -- "rising" invites the question rising-what. Say what is happening to the air.
     -- the only place "now" is printed; the chart captions used to repeat it
     local head = ""
     if temp and temp.now then
-        head = string.format("%s  %s", temp_str(temp.now, temp.unit),
+        -- the band joins the headline now that the All day row is gone
+        head = string.format("%s  %s, %s", temp_str(temp.now, temp.unit),
+                             temp.band or "",
                              temp.rising and "getting warmer" or "getting colder")
     end
     put(self.units_label, DEG .. ((temp and temp.unit) or "C"))
     put(self.now, head)
-    put(self.gauge_caption, (w and w.now)
-        and ("pressure " .. (GAUGE_BAND[tostring(w.now)] or "unsettled"))
-        or "no reading")
+    -- The face is labelled STORMY / RAIN / CHANGE / FAIR / DRY and the needle points at
+    -- the word, so a caption underneath repeating it was a third way of saying storm -
+    -- after the glyph and the needle.
+    put(self.gauge_caption, (w and w.now) and "" or "no reading")
 
     -- --- the sky, now and next --------------------------------------------------------
     -- The arrow and the second glyph only appear when there IS a next: on a settled day
@@ -638,11 +670,11 @@ function SeasonsForecast:Fill()
     end
 
     if temp and temp.source == "observed" then
-        -- "2026-09-23" under "22 September 2026" was two date formats in two lines
-        put(self.src, string.format("Sky from the Zone  -  air from %s %s/%s, live",
-                                    temp.place or "Chornobyl",
-                                    temp_str(temp.base_high, temp.unit),
-                                    temp_str(temp.base_low, temp.unit)))
+        -- No numbers here. Printing the station's own high and low next to a chart of
+        -- the ADJUSTED ones put two ranges on screen with nothing to say how they were
+        -- related; the gap is already stated once, as the shift on the AIR label.
+        put(self.src, string.format("Sky from the Zone  -  air from %s, live",
+                                    temp.place or "Chornobyl"))
     elseif temp then
         put(self.src, "Sky from the Zone  -  air modelled from regional normals")
     else
@@ -654,10 +686,10 @@ function SeasonsForecast:Fill()
     if self.frost then self.frost:Show(temp ~= nil and temp.frost == true) end
 
     self:DrawChart(d, temp)
-    -- axis labels, which is what was actually missing. The numbers these used to
-    -- repeat are on the headline and in the All day row.
-    put(self.chart_cap_l, temp and "now" or "")
-    put(self.chart_cap_r, temp and "24 hours ahead" or "")
+    -- Nothing: the x-axis now carries the hours, and "now" beside a label that already
+    -- reads the current hour was the page saying the same thing twice.
+    put(self.chart_cap_l, "")
+    put(self.chart_cap_r, "")
 
     -- --- the weather ----------------------------------------------------------------------
     -- Not a guess. Atmospherics plans the next 24 game hours in advance and this is that
@@ -666,14 +698,6 @@ function SeasonsForecast:Fill()
     self:Head(1, "Later today")
     -- the day's endpoints, not just the current number: the cycle is accelerated, so
     -- "8 C" on its own says nothing about whether the night is survivable
-    if temp then
-        -- the trend is already on the headline, so this row carries only the range
-        -- the band is the word a mod keys off, so the page and the hook say the same
-        self:Put(1, {{0, "All day"},
-                     {76, string.format("%s to %s", temp_str(temp.low, temp.unit),
-                                        temp_str(temp.high, temp.unit))},
-                     {232, temp.thaw and "freeze-thaw" or (temp.band or "")}}, NOW_RGB)
-    end
     if w and w.segments and #w.segments > 1 then
         for i = 2, #w.segments do
             local seg = w.segments[i]
@@ -688,33 +712,36 @@ function SeasonsForecast:Fill()
         self:Put(1, {{0, "No weather plan. Atmospherics is not running."}}, DIM_RGB)
     end
 
-    -- --- the ecologist forecast -------------------------------------------------------------
-    -- Three states, and the locked one is drawn on purpose: a reward the player cannot
-    -- see is not one they can work towards, so the row names the standing they have and
-    -- the standing they need.
     -- --- tomorrow --------------------------------------------------------------------
+    -- Under the weather it continues, not beside the ecologists - it is a forecast, and
+    -- sitting in their column made it look like something they had told you.
+    --
     -- Observed only. There is no modelled tomorrow, because a modelled tomorrow is just
     -- today's curve wearing a different date.
     local tm = nil
     local okm, tv2 = pcall(function() return sotz_api.tomorrow() end)
     if okm then tm = tv2 end
     if tm then
-        self:Head(2, "Tomorrow")
-        self:Put(2, {{0, cycle_name(tm.cycle)},
-                     {110, string.format("%s to %s", temp_str(tm.low, tm.unit),
-                                         temp_str(tm.high, tm.unit))}}, NOW_RGB)
-        if tm.frost then
-            self:Put(2, {{0, "Below freezing overnight."}}, DIM_RGB)
-        end
-        self:Put(2, {{0, ""}})
+        self:Put(1, {{0, ""}})
+        self:Put(1, {{0, "Tomorrow"}}, HEAD_RGB)
+        self:Put(1, {{0, cycle_name(tm.cycle)},
+                     {76, string.format("%s to %s", temp_str(tm.low, tm.unit),
+                                        temp_str(tm.high, tm.unit))},
+                     {232, tm.frost and "frost overnight" or ""}}, NOW_RGB)
     end
 
+    -- --- the ecologist forecast -------------------------------------------------------------
+    -- Three states, and the locked one is drawn on purpose: a reward the player cannot
+    -- see is not one they can work towards, so the row names the standing they have and
+    -- the standing they need.
     -- --- the ecologists ---------------------------------------------------------------
     -- A clearance word rather than a heading: what the tier controls is how much of
     -- their network you are allowed to read, and CLASSIFIED says that in one word where
     -- a dim row said it in none.
     local fc = d.forecast
     self:ShowEcoFrame(fc ~= nil)
+    -- the right column is the panel alone now, so its head slot is free again
+    self:Head(2, "")
     if fc then
         local CLEARANCE = {locked = "CLASSIFIED", coarse = "RESTRICTED",
                            exact = "CLEARED"}
