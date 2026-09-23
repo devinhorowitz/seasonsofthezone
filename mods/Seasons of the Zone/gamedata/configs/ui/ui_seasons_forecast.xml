@@ -25,10 +25,38 @@
         <text font="letterica16" r="170" g="170" b="170" align="l" vert_align="c" complex_mode="1"/>
     </subheader>
 
-    <!-- where the numbers came from. Observed and modelled are different claims. -->
-    <src x="48" y="176" width="470" height="16">
+    <!-- Where the numbers came from. Observed and modelled are different claims.
+         The dot to its left pulses only when the reading is a live one. -->
+    <live_dot x="48" y="181" width="7" height="7" stretch="1">
+        <texture>sotz_px</texture>
+    </live_dot>
+    <src x="62" y="176" width="440" height="16">
         <text font="letterica16" r="128" g="136" b="128" align="l" vert_align="c" complex_mode="1"/>
     </src>
+
+    <!-- Celsius / Fahrenheit. Writes the MCM option rather than keeping its own copy. -->
+    <units x="700" y="118" width="58" height="24" stretch="1"/>
+    <units_label x="700" y="118" width="58" height="24">
+        <text font="letterica16" r="238" g="196" b="112" align="c" vert_align="c" complex_mode="1"/>
+    </units_label>
+
+    <!-- The ecologists get a panel of their own, with their own banner: what it says is
+         being withheld, not merely dim. Border drawn from tinted px blocks in script. -->
+    <eco_logo x="556" y="368" width="116" height="54" stretch="1">
+        <texture>ui_inGame2_ecolog</texture>
+    </eco_logo>
+    <eco_class x="548" y="426" width="216" height="22">
+        <text font="letterica18" r="238" g="196" b="112" align="c" vert_align="c" complex_mode="1"/>
+    </eco_class>
+    <eco_l1 x="550" y="452" width="212" height="18">
+        <text font="letterica16" r="170" g="170" b="170" align="c" vert_align="c" complex_mode="1"/>
+    </eco_l1>
+    <eco_l2 x="550" y="470" width="212" height="18">
+        <text font="letterica16" r="200" g="200" b="200" align="c" vert_align="c" complex_mode="1"/>
+    </eco_l2>
+    <eco_l3 x="550" y="492" width="212" height="18">
+        <text font="letterica16" r="140" g="140" b="140" align="c" vert_align="c" complex_mode="1"/>
+    </eco_l3>
 
     <!-- shown only when the day dips below zero -->
     <frost x="430" y="190" width="34" height="34" stretch="1">

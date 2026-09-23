@@ -195,6 +195,18 @@
 	<string id="ui_mcm_seasons_zone_preset_desc"><text>Which cfg preset this season's color grade comes from. Built-in is the season table; the rest are presets in appdata - yours, Atmospherics', and the mod's own. Only the grade changes; takes effect on Apply.</text></string>
 	<string id="ui_mcm_seasons_zone_preset_neutral"><text>Neutral preset (intensity 0)</text></string>
 	<string id="ui_mcm_seasons_zone_preset_neutral_desc"><text>The preset the neutral baseline uses, what intensity 0 renders. Only the grade changes; takes effect on Apply.</text></string>
+	<string id="ui_mcm_seasons_zone_units">
+		<text>Temperature units</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_units_desc">
+		<text>Celsius or Fahrenheit, on the forecast page and through the read API. The button on the page writes this same setting.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_units_c">
+		<text>Celsius</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_units_f">
+		<text>Fahrenheit</text>
+	</string>
 	<string id="ui_mcm_seasons_zone_forecast">
 		<text>Ecologist emission forecast</text>
 	</string>

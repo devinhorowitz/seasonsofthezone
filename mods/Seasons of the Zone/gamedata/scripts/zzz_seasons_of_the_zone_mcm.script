@@ -114,6 +114,13 @@ local function page_main()
     add({id = "rem_ann_weather", type = "check", val = 1, def = true})
     add({id = "rem_ann_artefacts", type = "check", val = 1, def = true})
 
+    -- The forecast page has a button that writes this same option, so the two can
+    -- never drift apart.
+    add({id = "units", type = "list", val = 0, def = "celsius", content = {
+        {"celsius", "ui_mcm_seasons_zone_units_c"},
+        {"fahrenheit", "ui_mcm_seasons_zone_units_f"},
+    }})
+
     add({id = "line_fc", type = "line"})
     -- The emission forecast on the PDA page, and what it costs in ecologist goodwill.
     -- Goodwill runs -1000 to +1000; below the first threshold the page shows the number

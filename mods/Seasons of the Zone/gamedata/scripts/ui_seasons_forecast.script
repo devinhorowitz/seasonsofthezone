@@ -100,6 +100,16 @@ local function countdown(sec)
 end
 
 -- The weather plan's lead times arrive as game MINUTES.
+-- cp1251 byte 176 is the degree sign, which is how every shipped string table in this
+-- install writes it - there is no UTF-8 degree anywhere in the game's text. Emitting the
+-- byte from Lua sidesteps the question of what encoding this file happens to be saved in.
+local DEG = "\176"
+
+local function temp_str(v, unit)
+    if v == nil then return "" end
+    return string.format("%d%s%s", v, DEG, unit or "C")
+end
+
 local function lead(min)
     if min >= 120 then return string.format("in %d hours", math.floor(min / 60 + 0.5)) end
     if min >=  60 then return "in an hour" end
@@ -177,8 +187,32 @@ function SeasonsForecast:InitControls()
     self.chart_cap_r = xml:InitTextWnd("chart_cap_r", self)
     self:InitChart()
 
-    self.src   = xml:InitTextWnd("src", self)
-    self.frost = xml:InitStatic("frost", self)
+    self.src      = xml:InitTextWnd("src", self)
+    self.frost    = xml:InitStatic("frost", self)
+    self.live_dot = xml:InitStatic("live_dot", self)
+    self.eco_logo = xml:InitStatic("eco_logo", self)
+    self.eco_class = xml:InitTextWnd("eco_class", self)
+
+    -- the faction banner is 383x179, so it needs its own ratio as well as the aspect
+    -- correction every square asset on this page gets
+    if self.eco_logo then
+        local h = self.eco_logo:GetHeight()
+        self.eco_logo:SetWndSize(vector2():set(h * (383 / 179) * aspect(), h))
+    end
+
+    self.units = xml:Init3tButton("units", self)
+    if self.units then
+        -- sotz_btn, not sotz_px: Init3tButton needs four declared states and the bare
+        -- white block satisfies none of them, so the button would draw nothing at all
+        self.units:InitTexture("sotz_btn")
+        self:Register(self.units, "units")
+        self:AddCallback("units", ui_events.BUTTON_CLICKED, self.OnUnits, self)
+    end
+    self.units_label = xml:InitTextWnd("units_label", self)
+    self.eco_l1 = xml:InitTextWnd("eco_l1", self)
+    self.eco_l2 = xml:InitTextWnd("eco_l2", self)
+    self.eco_l3 = xml:InitTextWnd("eco_l3", self)
+    self:InitEcoFrame()
     self:InitRows()
 
     self.back = xml:Init3tButton("back", self)
@@ -190,6 +224,19 @@ function SeasonsForecast:InitControls()
 end
 -- Back to the launcher. MAC reaches its own tab the same way, and it binds a key for it
 -- too, but a page you can only leave by keyboard reads as a dead end.
+-- Writes the MCM option rather than keeping a copy, so the button and the menu are the
+-- same setting seen twice. sotz_api caches for two seconds, so the page is repainted
+-- after the write to avoid showing the old unit until the cache lapses.
+function SeasonsForecast:OnUnits()
+    local ok, err = pcall(function()
+        local now = ui_mcm.get("seasons_zone/main/units")
+        ui_mcm.set("seasons_zone/main/units",
+                   (now == "fahrenheit") and "celsius" or "fahrenheit")
+    end)
+    if not ok then say("units toggle failed: " .. tostring(err)) end
+    self:Reset()
+end
+
 function SeasonsForecast:OnBack()
     local ok, err = pcall(function()
         ActorMenu.get_pda_menu():SetActiveSubdialog("eptLauncher")
@@ -210,9 +257,12 @@ local DIM_RGB  = {140, 140, 140}
 -- Each column starts where the thing above it ends rather than on a shared line: the
 -- left one is under the chart, the right one under the barometer, which is 130px higher.
 -- Sharing a top left a hole under the gauge the size of the gauge.
-local COL_X    = {48, 540}
-local HEAD_Y   = {522, 376}
-local ROW_Y0   = {546, 400}
+local COL_X    = {48, 548}
+local HEAD_Y   = {522, 556}
+local ROW_Y0   = {546, 580}
+
+-- the ecologist panel, which the right column now sits beneath
+local ECO_X, ECO_Y, ECO_W, ECO_H = 540, 356, 232, 188
 local ROW_H    = 19
 local ROWS     = 14
 
@@ -238,6 +288,36 @@ function SeasonsForecast:InitRows()
         end
     end
     self.used = {0, 0}
+end
+
+-- The panel border: four tinted blocks, built once. A frame is the cheapest way to say
+-- "this is a separate instrument" on a page that is otherwise one flat surface.
+function SeasonsForecast:InitEcoFrame()
+    self.eco_frame = {}
+    local edges = {
+        {ECO_X, ECO_Y, ECO_W, 1},
+        {ECO_X, ECO_Y + ECO_H, ECO_W, 1},
+        {ECO_X, ECO_Y, 1, ECO_H},
+        {ECO_X + ECO_W, ECO_Y, 1, ECO_H + 1},
+    }
+    for i = 1, #edges do
+        local e = edges[i]
+        local s = self.xml:InitStatic("px", self)
+        if s then
+            s:SetWndPos(vector2():set(e[1], e[2]))
+            s:SetWndSize(vector2():set(e[3], e[4]))
+            s:SetTextureColor(GetARGB(255, 96, 82, 52))
+            s:Show(false)
+            self.eco_frame[#self.eco_frame + 1] = s
+        end
+    end
+end
+
+function SeasonsForecast:ShowEcoFrame(on)
+    for i = 1, #(self.eco_frame or {}) do
+        if self.eco_frame[i] then self.eco_frame[i]:Show(on and true or false) end
+    end
+    if self.eco_logo then self.eco_logo:Show(on and true or false) end
 end
 
 function SeasonsForecast:Head(col, text)
@@ -437,11 +517,13 @@ function SeasonsForecast:Fill()
     -- the sky is drawn below, so this line carries only what a picture cannot: the
     -- number, and which way it is going
     -- "rising" invites the question rising-what. Say what is happening to the air.
+    -- the only place "now" is printed; the chart captions used to repeat it
     local head = ""
     if temp and temp.now then
-        head = string.format("%d C, %s", temp.now,
+        head = string.format("%s  %s", temp_str(temp.now, temp.unit),
                              temp.rising and "getting warmer" or "getting colder")
     end
+    put(self.units_label, DEG .. ((temp and temp.unit) or "C"))
     put(self.now, head)
     put(self.gauge_caption, (w and w.now)
         and ("pressure " .. (GAUGE_BAND[tostring(w.now)] or "unsettled"))
@@ -484,31 +566,32 @@ function SeasonsForecast:Fill()
     if self.frost then self.frost:Show(temp ~= nil and temp.frost == true) end
 
     self:DrawChart(d, temp)
-    if temp then
-        put(self.chart_cap_l, string.format("%d C right now", temp.now))
-        put(self.chart_cap_r, string.format("down to %d C, up to %d C",
-                                            temp.low, temp.high))
-    else
-        put(self.chart_cap_l, "")
-        put(self.chart_cap_r, "")
-    end
+    -- axis labels, which is what was actually missing. The numbers these used to
+    -- repeat are on the headline and in the All day row.
+    put(self.chart_cap_l, temp and "now" or "")
+    put(self.chart_cap_r, temp and "24 hours ahead" or "")
 
     -- --- the weather ----------------------------------------------------------------------
     -- Not a guess. Atmospherics plans the next 24 game hours in advance and this is that
     -- plan, so the times are the times it will actually change.
-    self:Head(1, "The next day")
+    -- The next change is already stated under the glyphs, so the list starts after it.
+    self:Head(1, "Later today")
     -- the day's endpoints, not just the current number: the cycle is accelerated, so
     -- "8 C" on its own says nothing about whether the night is survivable
     if temp then
+        -- the trend is already on the headline, so this row carries only the range
         self:Put(1, {{0, "All day"},
-                     {76, string.format("%d C low, %d C high", temp.low, temp.high)},
-                     {232, temp.rising and "warming" or "cooling"}}, NOW_RGB)
+                     {76, string.format("%s to %s", temp_str(temp.low, temp.unit),
+                                        temp_str(temp.high, temp.unit))}}, NOW_RGB)
     end
-    if w and w.segments and #w.segments > 0 then
-        for _, seg in ipairs(w.segments) do
+    if w and w.segments and #w.segments > 1 then
+        for i = 2, #w.segments do
+            local seg = w.segments[i]
             self:Put(1, {{0, seg.at}, {76, cycle_name(seg.cycle)},
                          {232, lead(seg.away)}})
         end
+    elseif w and #(w.segments or {}) == 1 then
+        self:Put(1, {{0, "Nothing further planned."}}, DIM_RGB)
     elseif w then
         self:Put(1, {{0, "Settled - no change planned."}}, DIM_RGB)
     else
@@ -528,49 +611,74 @@ function SeasonsForecast:Fill()
     if tm then
         self:Head(2, "Tomorrow")
         self:Put(2, {{0, cycle_name(tm.cycle)},
-                     {110, string.format("%d C to %d C", tm.low, tm.high)}}, NOW_RGB)
+                     {110, string.format("%s to %s", temp_str(tm.low, tm.unit),
+                                         temp_str(tm.high, tm.unit))}}, NOW_RGB)
         if tm.frost then
             self:Put(2, {{0, "Below freezing overnight."}}, DIM_RGB)
         end
         self:Put(2, {{0, ""}})
     end
 
+    -- --- the ecologists ---------------------------------------------------------------
+    -- A clearance word rather than a heading: what the tier controls is how much of
+    -- their network you are allowed to read, and CLASSIFIED says that in one word where
+    -- a dim row said it in none.
     local fc = d.forecast
+    self:ShowEcoFrame(fc ~= nil)
     if fc then
-        -- There is one head widget per column. When Tomorrow has taken it, this second
-        -- heading is written as an ordinary row in the heading colour instead.
-        if tm then
-            self:Put(2, {{0, "Ecologist forecast"}}, HEAD_RGB)
-        else
-            self:Head(2, "Ecologist forecast")
-        end
+        local CLEARANCE = {locked = "CLASSIFIED", coarse = "RESTRICTED",
+                           exact = "CLEARED"}
+        put(self.eco_class, CLEARANCE[tostring(fc.tier)] or "CLASSIFIED")
 
         if fc.tier == "locked" then
-            self:Put(2, {{0, "They keep their readings to themselves."}}, DIM_RGB)
+            put(self.eco_l1, "Network readings withheld")
             if fc.standing then
-                self:Put(2, {{0, "You have"},
-                             {90, string.format("%d of %d", fc.standing, fc.need)}},
-                         DIM_RGB)
+                put(self.eco_l2, string.format("Standing %d of %d",
+                                               fc.standing, fc.need))
                 self:Meter(fc.standing, fc.need)
+                put(self.eco_l3, "")
             else
-                self:Put(2, {{0, "No contact."}}, DIM_RGB)
+                put(self.eco_l2, "No contact")
+                put(self.eco_l3, "")
             end
         else
-            -- exact tier gets the hour, coarse gets a band and never a number
             local e = fc.tier == "exact" and (d.surge and countdown(d.surge))
                                          or  (d.surge_band and BAND[d.surge_band])
             local p = fc.tier == "exact" and (d.psi   and countdown(d.psi))
                                          or  (d.psi_band   and BAND[d.psi_band])
-            self:Put(2, {{0, "Emission"}, {120, e or "no reading"}},
-                     e and NOW_RGB or DIM_RGB)
-            self:Put(2, {{0, "Psi storm"}, {120, p or "no reading"}},
-                     p and NOW_RGB or DIM_RGB)
-            if fc.tier == "coarse" then
-                self:Put(2, {{0, string.format("At %d they give you the hour.",
-                                               fc.need_exact)}}, DIM_RGB)
-            end
+            put(self.eco_l1, "Emission   " .. (e or "no reading"))
+            put(self.eco_l2, "Psi storm   " .. (p or "no reading"))
+            put(self.eco_l3, fc.tier == "coarse"
+                and string.format("Clearance %d gives the hour", fc.need_exact) or "")
         end
+    else
+        put(self.eco_class, "")
+        put(self.eco_l1, "")
+        put(self.eco_l2, "")
+        put(self.eco_l3, "")
     end
+
+    -- --- the live marker ----------------------------------------------------------------
+    self.is_live = (temp ~= nil and temp.source == "observed")
+    if self.live_dot then self.live_dot:Show(temp ~= nil) end
+end
+
+-- The one moving thing. A live reading breathes; a modelled one sits dark. Update runs
+-- every frame, so this does the least it can: one colour write on a 7px block.
+function SeasonsForecast:Update()
+    CUIScriptWnd.Update(self)
+    if not self.live_dot then return end
+    if not self.is_live then
+        self.live_dot:SetTextureColor(GetARGB(255, 70, 76, 70))
+        return
+    end
+    local ok, ms = pcall(time_global)
+    if not ok or type(ms) ~= "number" then return end
+    -- a two-second breath, never fully out: a marker that blinks off reads as a fault
+    local f = 0.55 + 0.45 * math.sin(ms / 2000.0 * 6.2832)
+    self.live_dot:SetTextureColor(
+        GetARGB(255, math.floor(90 + 148 * f), math.floor(150 + 60 * f),
+                math.floor(96 + 24 * f)))
 end
 
 -- Progress toward the ecologists trusting you, as a bar rather than a number you have
@@ -594,17 +702,17 @@ function SeasonsForecast:Meter(have, need)
             self.meter_fill:SetTextureColor(GetARGB(255, 238, 196, 112))
         end
     end
-    local w, h = 250, 6
-    local y = ROW_Y0[2] + (self.used[2] or 1) * ROW_H - 4
+    local w, h = 180, 5
+    local y = 492
     local f = math.max(0, math.min(1, (tonumber(have) or 0) / need))
 
     if self.meter_back then
-        self.meter_back:SetWndPos(vector2():set(COL_X[2], y))
+        self.meter_back:SetWndPos(vector2():set(ECO_X + (ECO_W - w) / 2, y))
         self.meter_back:SetWndSize(vector2():set(w, h))
         self.meter_back:Show(true)
     end
     if self.meter_fill then
-        self.meter_fill:SetWndPos(vector2():set(COL_X[2], y))
+        self.meter_fill:SetWndPos(vector2():set(ECO_X + (ECO_W - w) / 2, y))
         self.meter_fill:SetWndSize(vector2():set(math.max(2, math.floor(w * f)), h))
         self.meter_fill:Show(f > 0)
     end

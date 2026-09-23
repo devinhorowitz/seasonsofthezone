@@ -49,9 +49,24 @@ CYCLE_AT = {
 }
 
 A_START, A_END = 160.0, 380.0
-R_OUT, R_IN, R_TICK = 234, 194, 185
+# These have to FIT the canvas. The first version reused the radii from the 512px app
+# icon on a 384px sheet, so the arc was drawn from x=-42 to x=426 and both ends were
+# simply clipped away - the gauge looked sawn off on the page and nothing warned.
+R_OUT, R_IN, R_TICK = 184, 152, 145
 CX = SIZE // 2
-CY = SIZE // 2 + 62
+CY = 252
+
+# The arc only covers the top of the circle, so its box is not the circle's box: the
+# lowest ink is at CY + R*sin(A_START), about two thirds of the way up from the middle,
+# not at CY + R. Measuring it properly is what lets the gauge be this large and still fit.
+_ANGLES = [A_START, A_END] + [a for a in (180.0, 270.0, 360.0) if A_START <= a <= A_END]
+_XS = [CX + R_OUT * math.cos(math.radians(a)) for a in _ANGLES]
+_YS = [CY + R_OUT * math.sin(math.radians(a)) for a in _ANGLES]
+assert min(_XS) >= 0 and max(_XS) <= SIZE, (
+    "the arc spans x %.0f..%.0f on a %d canvas - both ends would be clipped away, "
+    "which is exactly what shipped once" % (min(_XS), max(_XS), SIZE))
+assert min(_YS) >= 0 and max(_YS) <= SIZE, (
+    "the arc spans y %.0f..%.0f on a %d canvas" % (min(_YS), max(_YS), SIZE))
 
 
 def polar(cx, cy, deg, r):
@@ -91,11 +106,11 @@ def gauge(fraction):
     at = A_START + span * fraction
     perp = at + 90.0
     tip = polar(cx, cy, at, (R_IN - 16) * s)
-    hub = polar(cx, cy, at + 180.0, 34 * s)
-    dr.polygon([off(hub, perp, 7.5), off(tip, perp, 1.8),
-                off(tip, perp, -1.8), off(hub, perp, -7.5)],
+    hub = polar(cx, cy, at + 180.0, 26 * s)
+    dr.polygon([off(hub, perp, 6.0), off(tip, perp, 1.5),
+                off(tip, perp, -1.5), off(hub, perp, -6.0)],
                fill=(255, 255, 255, 250), outline=INK)
-    dr.ellipse([cx - 11 * s, cy - 11 * s, cx + 11 * s, cy + 11 * s],
+    dr.ellipse([cx - 9 * s, cy - 9 * s, cx + 9 * s, cy + 9 * s],
                fill=(252, 252, 252, 255), outline=INK, width=int(3 * s))
     return im.resize((SIZE, SIZE), Image.LANCZOS)
 
@@ -103,6 +118,24 @@ def gauge(fraction):
 def white_block():
     """Tinted with SetTextureColor to draw every bar on both pages."""
     return Image.new("RGBA", (8, 8), (255, 255, 255, 255))
+
+
+def button_strip():
+    """A four-state plate, 4 cells of 16x16 in a row.
+
+    Init3tButton makes the engine append _e/_h/_t/_d and look those up as declared ids -
+    the white block alone satisfies none of them and the button draws nothing, which is
+    the same fault that shipped the empty launcher tiles. Four distinct cells also buys
+    real hover feedback, which one tinted block could not.
+    """
+    cells = [(40, 46, 40, 235),     # e  resting
+             (62, 70, 58, 245),     # h  hovered
+             (86, 74, 44, 255),     # t  pressed, warm like the amber label
+             (30, 34, 30, 180)]     # d  disabled
+    im = Image.new("RGBA", (64, 16), (0, 0, 0, 0))
+    for i, c in enumerate(cells):
+        im.paste(Image.new("RGBA", (16, 16), c), (i * 16, 0))
+    return im
 
 
 ENTRY = ('\t<file name="%s">\n\t\t<texture id="%s" x="0" y="0" '
@@ -126,6 +159,14 @@ def main():
             im.save(os.path.join(TEXDIR, stem + ".dds"), "DDS")
             print("  %s.dds" % stem)
         body = "".join(ENTRY % (stem, idn, n, n) for stem, idn, n, _ in items)
+        # the button strip declares four ids into one file, so it is written by hand
+        button_strip().save(os.path.join(TEXDIR, "ui_sotz_btn.dds"), "DDS")
+        print("  ui_sotz_btn.dds")
+        body += '\t<file name="ui_sotz_btn">\n'
+        for i, suf in enumerate(("e", "h", "t", "d")):
+            body += ('\t\t<texture id="sotz_btn_%s" x="%d" y="0" width="16" '
+                     'height="16" />\n' % (suf, i * 16))
+        body += "\t</file>\n"
         p = os.path.join(DESCR, "ui_sotz_charts.xml")
         with open(p, "w", encoding="utf-8", newline="\n") as fh:
             fh.write("<w>\n" + body + "</w>\n")

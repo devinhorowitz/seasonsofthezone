@@ -19,6 +19,7 @@ thing to update when a new family appears.
   python _tools/check_textures.py
   python _tools/check_textures.py --selftest
 """
+import argparse
 import glob
 import io
 import os
@@ -49,9 +50,35 @@ BUTTON_SUFFIXES = ("_e", "_h", "_t", "_d")
 def declared_ids():
     ids = set()
     for p in glob.glob(os.path.join(DESCR, "*.xml")):
-        ids |= set(re.findall(r'<texture\s+id="([^"]+)"',
+        ids |= set(re.findall(r'<texture[^>]*id="([^"]+)"',
                               io.open(p, encoding="utf-8").read()))
     return ids
+
+
+def foreign_ids(install):
+    """id -> the mod that declares it, for every OTHER mod in the install.
+
+    Borrowing is legitimate - the ecologists' own faction banner is theirs to lend - but
+    it is a dependency, so it gets named. If a GAMMA update ever drops the id, this says
+    so here rather than leaving a blank panel in the game.
+    """
+    out = {}
+    if not install:
+        return out
+    pat = os.path.join(install, "mods", "*", "gamedata", "configs", "ui",
+                       "textures_descr", "*.xml")
+    for p in glob.glob(pat):
+        p = p.replace("\\", "/")
+        if "Seasons of the Zone" in p:
+            continue
+        owner = p.split("/mods/")[-1].split("/")[0]
+        try:
+            body = io.open(p, encoding="utf-8", errors="replace").read()
+        except Exception:
+            continue
+        for i in re.findall(r'<texture[^>]*id="([^"]+)"', body):
+            out.setdefault(i, owner)
+    return out
 
 
 def on_disk():
@@ -99,8 +126,11 @@ def button_uses():
     return out
 
 
-def resolve(name, is_button, ids, files):
+def resolve(name, is_button, ids, files, foreign=None):
     """Why this name would not draw, or None."""
+    foreign = foreign or {}
+    if not is_button and name in foreign:
+        return None                      # borrowed, and present in this install
     if is_button:
         missing = [s for s in BUTTON_SUFFIXES if (name + s) not in ids]
         if missing:
@@ -113,31 +143,35 @@ def resolve(name, is_button, ids, files):
     return "neither declared in a textures_descr nor present as textures/%s.dds" % name
 
 
-def run():
+def run(install=None):
     ids, files = declared_ids(), on_disk()
+    foreign = foreign_ids(install)
     problems = []
+    borrowed = []
     checked = 0
 
     for name, is_btn in sorted(literal_uses()):
         checked += 1
-        why = resolve(name, is_btn, ids, files)
+        if not is_btn and name not in ids and name not in files and name in foreign:
+            borrowed.append((name, foreign[name]))
+        why = resolve(name, is_btn, ids, files, foreign)
         if why:
             problems.append("%s: %s" % (name, why))
 
     for name in sorted(button_uses()):
         checked += 1
-        why = resolve(name, True, ids, files)
+        why = resolve(name, True, ids, files, foreign)
         if why:
             problems.append("%s: %s" % (name, why))
 
     for prefix, suffixes, is_button in FAMILIES:
         for s in suffixes:
             checked += 1
-            why = resolve(prefix + s, is_button, ids, files)
+            why = resolve(prefix + s, is_button, ids, files, foreign)
             if why:
                 problems.append("%s: %s" % (prefix + s, why))
 
-    return checked, problems, len(ids), len(files)
+    return checked, problems, len(ids), len(files), borrowed
 
 
 def selftest():
@@ -165,8 +199,14 @@ if __name__ == "__main__":
         print("  self-test: a loose .dds must NOT satisfy a four-state button")
         sys.exit(1 if selftest() else 0)
 
-    checked, problems, n_ids, n_files = run()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--install", default=os.environ.get("GAMMA_INSTALL", "D:/GAMMA"))
+    a = ap.parse_args([x for x in sys.argv[1:] if x != "--selftest"])
+
+    checked, problems, n_ids, n_files, borrowed = run(a.install)
     print("  %d declared ids, %d .dds on disk" % (n_ids, n_files))
+    for name, owner in borrowed:
+        print("  borrowed  %s  (declared by %s)" % (name, owner[:46]))
     if problems:
         for p in problems:
             print("  FAIL  %s" % p)

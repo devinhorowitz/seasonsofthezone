@@ -200,6 +200,19 @@ local function cycle_now()
     return nil
 end
 
+-- Celsius or Fahrenheit, from the MCM option the page's button also writes. One stored
+-- value, so a page preference can never shadow a menu preference.
+local function want_f()
+    local ok, v = pcall(function()
+        return ui_mcm and ui_mcm.get and ui_mcm.get("seasons_zone/main/units")
+    end)
+    return ok and (v == "fahrenheit" or v == 1) or false
+end
+
+local function to_f(c)
+    return c * 9.0 / 5.0 + 32.0
+end
+
 --- Modelled air temperature.
 -- @return {low, high, now, hour, rising, cycle, unit = "C", source = "model"}
 --         low/high are today's endpoints AFTER the weather adjustment, so a consumer can
@@ -234,6 +247,17 @@ function temperature()
 
         local now_c = low + (high - low) * f
 
+        -- freezing and frost are decided in Celsius BEFORE any conversion: zero is a
+        -- property of water, not of the unit the player happens to be reading.
+        local is_freezing, is_frost = now_c <= 0.0, low <= 0.0
+
+        local unit = "C"
+        if want_f() then
+            unit = "F"
+            low, high, now_c = to_f(low), to_f(high), to_f(now_c)
+            for i = 1, #curve do curve[i] = to_f(curve[i]) end
+        end
+
         return {
             low    = math.floor(low + 0.5),
             high   = math.floor(high + 0.5),
@@ -242,7 +266,7 @@ function temperature()
             rising = rising,
             curve  = curve,
             cycle  = cycle_now(),
-            unit   = "C",
+            unit   = unit,
             -- "observed" means the endpoints came from the real Chornobyl; the shape
             -- between them is modelled either way, and no consumer should read this as
             -- an in-game sensor.
@@ -251,8 +275,8 @@ function temperature()
             date   = obs and obs.date or nil,
             real_cycle = obs and obs.cycle or nil,
             -- the two hooks worth hanging a mod off
-            freezing = now_c <= 0.0,          -- it is below zero right now
-            frost    = low <= 0.0,            -- the day dips below zero at some point
+            freezing = is_freezing,           -- it is below zero right now
+            frost    = is_frost,              -- the day dips below zero at some point
         }
     end)
 end
@@ -272,12 +296,18 @@ function tomorrow()
             local hi = ini:r_float_ex("weather_next", "high")
             local lo = ini:r_float_ex("weather_next", "low")
             if not (hi and lo) then return nil end
+            local frost = lo <= 0.0          -- decided in Celsius, as above
+            local unit = "C"
+            if want_f() then
+                unit, hi, lo = "F", to_f(hi), to_f(lo)
+            end
             return {
                 date  = ini:r_string_ex("weather_next", "date"),
                 high  = math.floor(hi + 0.5),
                 low   = math.floor(lo + 0.5),
                 cycle = ini:r_string_ex("weather_next", "cycle"),
-                frost = lo <= 0.0,
+                unit  = unit,
+                frost = frost,
             }
         end)
         if ok then return out end

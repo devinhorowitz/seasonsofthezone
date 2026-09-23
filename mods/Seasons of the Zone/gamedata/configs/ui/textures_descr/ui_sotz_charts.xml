@@ -20,4 +20,10 @@
 	<file name="ui_sotz_gauge_storm">
 		<texture id="sotz_gauge_storm" x="0" y="0" width="384" height="384" />
 	</file>
+	<file name="ui_sotz_btn">
+		<texture id="sotz_btn_e" x="0" y="0" width="16" height="16" />
+		<texture id="sotz_btn_h" x="16" y="0" width="16" height="16" />
+		<texture id="sotz_btn_t" x="32" y="0" width="16" height="16" />
+		<texture id="sotz_btn_d" x="48" y="0" width="16" height="16" />
+	</file>
 </w>
