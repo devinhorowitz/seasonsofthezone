@@ -12,6 +12,44 @@
   - The emission and psi-storm countdowns read the surge and psi-storm managers' existing
     singletons directly. Calling `get_surge_manager()` would *construct* one, and that
     constructor allocates a dozen `sound_object` handles; the page never does that.
+- **The forecast page, after eleven rounds of looking at it in game.**
+  - **The ecologist panel.** Its own bordered segment under the faction's emblem, headed
+    with the clearance you hold: `CLASSIFIED`, `LIMITED`, `CLEARED`. The locked state is
+    the emblem and the word and nothing else - explaining it underneath said what the
+    emblem implies, and printing "0 of 200" turned something you might be trusted with
+    into a progress bar. `LIMITED` says what limited means: relay warnings, no timings.
+  - **Crossing the first threshold arrives as a PDA message** from Sakharov, once per
+    save and persisted, rather than being something you find by checking a menu.
+  - **`°C` / `°F`**, as a button on the page that writes the *same MCM option* the menu
+    writes, so the two cannot disagree. Degrees are cp1251 byte 176, which is how every
+    shipped string table in the install writes them.
+  - **The barometer reads.** A face labelled STORMY / RAIN / CHANGE / FAIR / DRY with the
+    needle on the matching band, and a short damped shiver every few seconds - six needle
+    images over one shared face, so the needle can move without the bands moving with it.
+  - **The chart has axes**: the temperature up a left gutter, the clock hour under each
+    rule.
+  - **Tomorrow** moved under *Later today*, where it continues the forecast rather than
+    looking like something the ecologists said.
+  - Cut for saying the same thing twice: `now`, `24 hours ahead`, `pressure stormy`, the
+    `All day` row, the `SKY`/`AIR` labels, the standing meter, a set hand on the gauge,
+    and the station's own numbers in the source line. The line reads `Live from
+    Chornobyl` now, and mentions the sky not at all.
+- **Fixed: the emission countdown never worked.** `CSurgeManager` is **userdata**, not a
+  table, and every check along the path tested `type(mgr) == "table"`. The manager was
+  handed over intact and discarded every time, silently. Three earlier fixes failed for
+  this reason without being able to see it.
+  - Also fixed: a wait that had already elapsed returned the same nil as a missing
+    manager, so an imminent emission - the most useful thing the page can say - was
+    reported as no reading at all. It reports `due` and renders *any moment*.
+  - The page logs one line per open naming what it resolved, so a withheld reading can be
+    told from a broken one without standing over the screen.
+- **Fixed: the barometer showed the wrong weather.** It picked its image from `w` nine
+  lines above the `local w` that creates it, so it read a nil global and fell through to
+  cloudy - during a storm.
+- New **`_tools/check_locals.py`**: flags a name read above the `local` that declares it,
+  in a function body *or* at file scope. The file-scope case is the same silent nil with
+  a longer fuse - a function reading a constant declared 140 lines below it gets a global,
+  not an upvalue - and it caught exactly that in the ecologist access check.
 - **The forecast page fills its panel, and says things in words people use.** The chart
   was 112px tall in a 603px panel and the bottom third was empty; it nearly doubles, and
   each column now starts under the thing above it rather than on a shared line, which was
