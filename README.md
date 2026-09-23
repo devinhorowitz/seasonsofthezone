@@ -6,15 +6,15 @@ comes round, and unloads when it passes.**
 The Zone follows the real-world calendar. Boot the game in late October, and it is autumn,
 because Chornobyl is in autumn.
 
+![One spot in Garbage under the same sky, from spring through summer, autumn and winter to deep winter](docs/images/seasons.webp)
+
 Light, color, fog, wind, wetness, snowfall, and ambient sound change with the date and
 blend across each season boundary. Nothing to download beyond this mod, nothing to
 configure.
 
-That is the part that works out of the box. Underneath it is a scheduler, and the four
+That is the part that works out of the box. Underneath it is a scheduler, and the five
 seasons are simply the calendar it ships with — see
 **[the calendar underneath](#the-calendar-underneath)**.
-
-![The Main page in MCM, showing the year dial](docs/images/mcm-main.png)
 
 *More of the interface: [docs/INTERFACE.md](docs/INTERFACE.md)*
 
