@@ -20,7 +20,8 @@ HOUR = 3600
 
 def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True,
           coarse=200, exact=700, have_surge=True, have_psi=True, plan=None,
-          weather="storm", now_minute=600, have_weather=True, hide_global=False):
+          weather="storm", now_minute=600, have_weather=True, hide_global=False,
+          surge_obj_override=None):
     """A sandbox with the engine bindings the script reaches for."""
     lua = LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
@@ -55,6 +56,8 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
         "_delta": freq * HOUR,
         "last_surge_time": stamp(freq * HOUR - surge_left),
     }) if have_surge else None
+    if surge_obj_override is not None:
+        surge_obj = surge_obj_override
     psi_obj = lua.table_from({
         "_delta": psi_freq * HOUR,
         "last_psi_storm_time": stamp(psi_freq * HOUR - psi_left),
@@ -134,6 +137,35 @@ def t_getter_fallback():
     _, g = build(standing=900, surge_left=4 * HOUR, psi_left=9 * HOUR)
     assert field(g.forecast_page(), "mgr_surge") == "global:ok"
     return "getter fallback returns the same manager, and is only used when needed"
+
+
+class _UserdataMgr(object):
+    """A manager that is NOT a Lua table.
+
+    lupa hands a plain Python object to Lua as userdata, which is exactly what an X-Ray
+    class instance is - CSurgeManager included. Every earlier version of the code tested
+    `type(mgr) == "table"` and so discarded a manager the game had handed over intact,
+    which is why the live forecast read "no reading" while the surge manager was
+    answering every call put to it.
+    """
+
+    def __init__(self, delta, elapsed, field):
+        self._delta = delta
+        setattr(self, field, {"elapsed": elapsed})
+
+
+def t_userdata_manager():
+    import lupa
+    lua = LuaRuntime(unpack_returned_tuples=True)
+    obj = _UserdataMgr(24 * HOUR, 24 * HOUR - 4 * HOUR, "last_surge_time")
+    assert lua.eval("function (o) return type(o) end")(obj) == "userdata",         "the harness did not produce userdata, so this proves nothing"
+
+    _, g = build(standing=900, surge_left=4 * HOUR, psi_left=9 * HOUR,
+                 surge_obj_override=obj)
+    p = g.forecast_page()
+    assert field(p, "mgr_surge") == "global:ok", field(p, "mgr_surge")
+    assert field(p, "surge") == 4 * HOUR, field(p, "surge")
+    return "a userdata manager is accepted and read, not discarded"
 
 
 CASES = []
@@ -317,7 +349,9 @@ def t_manager_states():
 
     # nothing has built it yet
     _, g = build(standing=900, surge_left=0, psi_left=9 * HOUR, have_surge=False)
-    assert field(g.forecast_page(), "mgr_surge") == "unreachable:no-mgr",         field(g.forecast_page(), "mgr_surge")
+    # the module is there and its getter answers - with nothing, because nothing has
+    # built a manager yet. That is a different failure from the module being absent.
+    assert field(g.forecast_page(), "mgr_surge") == "getter-gave(nil):no-mgr",         field(g.forecast_page(), "mgr_surge")
 
     # the wait has already elapsed: an emission is imminent, which is information
     _, g = build(standing=900, surge_left=-600, psi_left=9 * HOUR)
@@ -335,7 +369,8 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("weather settled", t_weather_settled), ("weather cap", t_weather_cap),
              ("weather ungated", t_weather_ungated),
              ("manager states", t_manager_states),
-             ("getter fallback", t_getter_fallback)):
+             ("getter fallback", t_getter_fallback),
+             ("userdata manager", t_userdata_manager)):
     case(n, f)
 
 if __name__ == "__main__":

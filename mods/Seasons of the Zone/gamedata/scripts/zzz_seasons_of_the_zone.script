@@ -1455,11 +1455,22 @@ function forecast_page()
     --   due       the wait has already elapsed - an emission is imminent, which is the
     --             most useful thing the page can say and was being reported as nothing
     --   ok        a real countdown
+    -- An X-Ray class instance is USERDATA, not a table. Every version of this check
+    -- tested for "table" and therefore threw away a manager the game had handed over
+    -- perfectly intact - which is why the forecast read "no reading" for hours while the
+    -- surge manager was sitting there answering every call put to it.
+    local function is_obj(v)
+        local ty = type(v)
+        return ty == "table" or ty == "userdata"
+    end
+
     local function seconds_until(mgr, since)
-        if type(mgr) ~= "table" then return nil, "no-mgr" end
-        if type(mgr._delta) ~= "number" or not mgr[since] then
-            return nil, "no-flds"
-        end
+        if not is_obj(mgr) then return nil, "no-mgr" end
+        -- field access on userdata goes through __index, so it can raise
+        local ok_f, delta, stamp = pcall(function() return mgr._delta, mgr[since] end)
+        if not ok_f then return nil, "fields-threw" end
+        if type(delta) ~= "number" or not stamp then return nil, "no-flds" end
+        mgr = {_delta = delta, [since] = stamp}
         local ok, left = pcall(function()
             return math.floor(mgr._delta - game.get_game_time():diffSec(mgr[since]))
         end)
@@ -1513,12 +1524,34 @@ function forecast_page()
         -- getter is a plain read. Avoiding it only meant reading a global that was
         -- coming back nil and reporting no forecast at all.
         local function reach(mod, global_name, getter_name)
-            if not mod then return nil, "no-mod" end
+            if type(mod) ~= "table" then
+                return nil, "no-mod(" .. type(mod) .. ")"
+            end
             local g = rawget(mod, global_name)
-            if type(g) == "table" then return g, "global" end
-            local ok, made = pcall(function() return mod[getter_name]() end)
-            if ok and type(made) == "table" then return made, "getter" end
-            return nil, "unreachable"
+            if is_obj(g) then return g, "global" end
+
+            -- Do not type-check the getter, just call it. Anything callable will do,
+            -- and pcall reports whatever goes wrong - which is both more robust and
+            -- harness-agnostic: lupa hands Python callables to Lua as userdata rather
+            -- than function, so a type test rejected a getter that worked perfectly.
+            local fn = rawget(mod, getter_name)
+            if fn == nil then
+                -- say what the module DOES hold, so a wrong table shows itself
+                local keys, n = {}, 0
+                for k in pairs(mod) do
+                    n = n + 1
+                    if n <= 6 then keys[#keys + 1] = tostring(k) end
+                end
+                return nil, string.format("no-getter(n=%d %s)", n,
+                                          table.concat(keys, ","))
+            end
+
+            local ok, made = pcall(fn)
+            if ok and is_obj(made) then return made, "getter" end
+            if not ok then
+                return nil, "getter-threw(" .. tostring(made):sub(1, 60) .. ")"
+            end
+            return nil, "getter-gave(" .. type(made) .. ")"
         end
 
         local sm, s_how = reach(surge_manager, "SurgeManager", "get_surge_manager")
