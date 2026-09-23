@@ -1378,7 +1378,9 @@ def main():
         # after the toggles, so the panel reports the modlist as it now stands
         write_staged(staged_texture_season(installed) if not stage_tex else want, stage_tex)
         write_mod_panel(active, prefs)
-        print("  => %s staged (%s). Takes effect on next launch." % (want, ", ".join(done) or "nothing to do"))
+        # each restaged texture mod adds "textures"; say it once
+        print("  => %s staged (%s). Takes effect on next launch."
+              % (want, ", ".join(dict.fromkeys(done)) or "nothing to do"))
     finally:
         if os.path.isdir(tmp):
             shutil.rmtree(tmp, ignore_errors=True)
