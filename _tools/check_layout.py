@@ -54,7 +54,8 @@ FORECAST = {
              "wx_next", "wx_now_label", "wx_next_label", "now", "frost", "chart",
              "chart_cap_l", "chart_cap_r"},
     "RIGHT": {"gauge", "needle", "gauge_caption", "eco_logo", "eco_class", "eco_l1",
-              "eco_l2", "eco_l3", "units", "units_label", "back"},
+              "eco_l2", "eco_l3", "units", "units_label", "back",
+              "toggle_year", "toggle_fc", "toggle_year_label", "toggle_fc_label"},
     # Elements that belong to the ecologist panel. Anything ELSE overlapping the panel is
     # a mistake - the back button drifted inside it when the panel grew, and a control
     # sitting in the middle of a CLASSIFIED box reads as part of the classified thing.
@@ -68,7 +69,8 @@ CALENDAR = {
     "file": "ui_seasons_pda",
     "LEFT": {"header", "bar", "subheader", "turning", "marked", "grid",
              "grid_cap_l", "grid_cap_r"},
-    "RIGHT": {"dial", "dial_caption", "back"},
+    "RIGHT": {"dial", "dial_caption", "back",
+              "toggle_year", "toggle_fc", "toggle_year_label", "toggle_fc_label"},
     # one list per column now: the six marked days under the grid, the five seasons
     # beside the dial that draws them.
     "SECTIONS": [(1, 6), (2, 5)],
@@ -241,11 +243,27 @@ def check(box, c, spec):
                 bad.append("the rule at y=%d has no air around %s (y %d..%d)"
                            % (ry, tag, y, y + h))
 
+    # No two controls may overlap: where they do, a click lands on whichever the engine
+    # drew last, which is not something a player can see. Labels are exempt - each sits
+    # over its own plate by design - so only the plates are compared.
+    ctl = sorted(t for t in placed if t in CONTROLS)
+    for i, a in enumerate(ctl):
+        ax, ay, aw, ah = placed[a]
+        for b in ctl[i + 1:]:
+            bx, by, bw, bh = placed[b]
+            if ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah:
+                bad.append("controls %s and %s overlap, so a click on either is a guess"
+                           % (a, b))
+
     if spec is FORECAST:
         bad += forecast_extra(box, c)
     else:
         bad += calendar_extra(box, c)
     return bad
+
+
+# Everything a player can click, on either page.
+CONTROLS = {"back", "units", "toggle_year", "toggle_fc"}
 
 
 def width_of(c, col):
@@ -396,6 +414,10 @@ def selftest():
     # and too short to hold the emblem is the other way to get it wrong
     bent = dict(fc); bent["ECO_LOCKED"] = 30
     cases.append(("locked panel clipping its emblem", fbox, bent, FORECAST, True))
+
+    # the Forecast half of the switch slid right onto the units button
+    b5 = dict(fbox); b5["toggle_fc"] = (690, 126, 64, 24)
+    cases.append(("switch sitting on the units button", b5, fc, FORECAST, True))
 
     b3 = dict(fbox); b3["chart"] = (fc["CHART_X"], fc["CHART_Y"], fc["CHART_W"], 60)
     cases.append(("curve taller than its element", b3, fc, FORECAST, True))

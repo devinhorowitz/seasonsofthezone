@@ -239,6 +239,9 @@ function SeasonsForecast:InitControls()
     self.eco_l3 = xml:InitTextWnd("eco_l3", self)
     self:InitEcoFrame()
     self:InitRows()
+    -- the switch to the app's other face; a fault in it costs the switch, not the page
+    local okt, errt = pcall(function() self:InitToggle() end)
+    if not okt then say("switch failed: " .. tostring(errt)) end
 
     self.back = xml:Init3tButton("back", self)
     if self.back then
@@ -266,6 +269,40 @@ function SeasonsForecast:OnUnits()
     -- the api caches for two seconds; without this the repaint shows the old unit
     pcall(function() sotz_api.flush() end)
     self:Reset()
+end
+
+-- The switch between the app's two faces. This page's own half is pressed in - disabled,
+-- which is the darker plate - and lit amber, the colour this mod uses for "you are here";
+-- clicking it does nothing. The other half goes to the other face through sotz_pda, which
+-- routes both sections whether or not MAC is the way the player came in.
+function SeasonsForecast:InitToggle()
+    local xml = self.xml
+    self.toggle_year = xml:Init3tButton("toggle_year", self)
+    self.toggle_fc   = xml:Init3tButton("toggle_fc", self)
+    -- labels after their plates, so they draw on top
+    self.toggle_year_label = xml:InitTextWnd("toggle_year_label", self)
+    self.toggle_fc_label   = xml:InitTextWnd("toggle_fc_label", self)
+
+    local V = sotz_pda.VIEWS
+    put(self.toggle_year_label, V.year.title)
+    put(self.toggle_fc_label, V.forecast.title)
+
+    local here_btn, here_lbl = self.toggle_fc, self.toggle_fc_label
+    local away_btn = self.toggle_year
+    -- named, not looped: check_textures can only tell a four-state plate from a plain one
+    -- by the widget the call is made on, and that check is what caught the empty tiles
+    if self.toggle_year then self.toggle_year:InitTexture("sotz_btn") end
+    if self.toggle_fc   then self.toggle_fc:InitTexture("sotz_btn") end
+    if here_btn then here_btn:Enable(false) end
+    if here_lbl then here_lbl:SetTextColor(GetARGB(255, 238, 196, 112)) end
+    if away_btn then
+        self:Register(away_btn, "toggle_year")
+        self:AddCallback("toggle_year", ui_events.BUTTON_CLICKED, self.OnToggle, self)
+    end
+end
+
+function SeasonsForecast:OnToggle()
+    sotz_pda.open(sotz_pda.VIEWS.year.tab)
 end
 
 function SeasonsForecast:OnBack()

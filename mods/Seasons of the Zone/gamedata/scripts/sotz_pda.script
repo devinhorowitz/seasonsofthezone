@@ -1,0 +1,92 @@
+-- Seasons of the Zone - the PDA app.
+--
+-- One app with two faces: The Year, which answers questions about dates, and Forecast,
+-- which answers "what is about to happen" on the game clock. Each lives in its own PDA
+-- section, so the engine treats both as ordinary pages, and a switch at the top of each
+-- page moves between them.
+--
+-- This file is the app itself, and it does not know Mod App Creator exists. It maps the
+-- two sections to their pages and moves between them; nothing here depends on how the
+-- player first got in. MAC is the official way in - z_seasons_pda_mac.script puts one tile
+-- in its launcher - and that file is the only place MAC is registered.
+--
+-- FOR A STANDALONE FORK that runs without MAC: keep this file, delete
+-- z_seasons_pda_mac.script, and give the player another way in. Two that work:
+--
+--   A visible tab. Modded exes bind CUITabControl:AddTab(id, caption, after_id), which
+--   takes its size from the tabs already there and adds scroll arrows once they overflow -
+--   so a full top bar (550px holding eight tabs on stock GAMMA, seven on base Anomaly) no
+--   longer means clipping. The clipping came from adding a button to the pda xml by hand,
+--   the older way. GetTabControl is bound too and is presumably how a script reaches the
+--   bar from ActorMenu.get_pda_menu(); this mod calls neither, so confirm that before
+--   relying on it. Add VIEWS.year.tab that way and remove it from the parked list in
+--   modxml_seasons_pda.script, or the section id exists twice. AddTab is not in the
+--   unmodded exe, so a fork that uses it needs modded exes - as MAC does.
+--
+--   A key. mac_mcm.bind_launcher shows the PDA-in-hand check MAC uses for its own
+--   launcher, and open(VIEWS.year.tab) is all the key has to call.
+--
+-- The router below, and the switch between the two faces, work unchanged either way.
+
+-- The two faces, by the PDA section each lives in. `title` is what the PDA prints top left
+-- for that section, and what the switch on each page says.
+VIEWS = {
+    year     = {tab = "eptSeasons",  title = "The Year"},
+    forecast = {tab = "eptForecast", title = "Forecast"},
+}
+
+local function say(msg)
+    printf("%s", "[seasons-pda] " .. tostring(msg))
+end
+
+local function page_for(section)
+    if section == VIEWS.year.tab then return ui_seasons_pda.get_ui() end
+    if section == VIEWS.forecast.tab then return ui_seasons_forecast.get_ui() end
+    return nil
+end
+
+-- Go to one face. The same call each page's Back button makes to reach MAC's launcher, so
+-- it rides the engine's own section switch rather than opening a window of its own.
+function open(tab)
+    local ok, err = pcall(function()
+        ActorMenu.get_pda_menu():SetActiveSubdialog(tab)
+    end)
+    if not ok then say("could not open " .. tostring(tab) .. ": " .. tostring(err)) end
+end
+
+-- pda.set_active_subdialog is how the PDA turns a section id into a page, and a mod claims
+-- its sections by wrapping it - which is exactly what MAC does for its launcher. This claims
+-- the two sections above and passes every other one down untouched.
+--
+-- Installed whatever else is present. With MAC, only one of the two faces is a launcher
+-- tile, so MAC's own wrapper has never heard of the other and the switch would lead nowhere
+-- without this. Either wrap order works: whichever wrapper is outer, the other is reached
+-- through it.
+--
+-- Every PDA tab passes through here, so a page that fails to build must not take the PDA
+-- down with it: it is caught and logged, and the section comes back empty.
+--
+-- Forwards every argument rather than just `section`. A wrapper with named parameters
+-- silently truncates the day upstream adds one.
+local WRAPPED = false
+
+local function install_router()
+    if WRAPPED then return end
+    if not (pda and pda.set_active_subdialog) then return end
+    local orig = pda.set_active_subdialog
+    pda.set_active_subdialog = function(section, ...)
+        if section == VIEWS.year.tab or section == VIEWS.forecast.tab then
+            local ok, ui = pcall(page_for, section)
+            if ok then return ui end
+            say("page for " .. tostring(section) .. " failed: " .. tostring(ui))
+            return nil
+        end
+        return orig(section, ...)
+    end
+    WRAPPED = true
+end
+
+-- on_game_load, the same moment MAC installs its own wrapper.
+function on_game_start()
+    RegisterScriptCallback("on_game_load", install_router)
+end

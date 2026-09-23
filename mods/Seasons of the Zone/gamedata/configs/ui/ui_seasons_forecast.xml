@@ -131,6 +131,18 @@
     <!-- the back button; its texture is set from script, as MAC does for its tiles -->
     <back x="730" y="636" width="34" height="34" stretch="1"/>
 
+    <!-- The switch between the app's two faces, The Year and Forecast. The same place on
+         both pages, so it holds still while the page under it changes. Four-state plates
+         from sotz_btn, each with its label laid over it, as the units button does. -->
+    <toggle_year x="556" y="126" width="64" height="24" stretch="1"/>
+    <toggle_fc   x="622" y="126" width="64" height="24" stretch="1"/>
+    <toggle_year_label x="556" y="126" width="64" height="24">
+        <text font="letterica16" r="200" g="200" b="200" align="c" vert_align="c" complex_mode="1"/>
+    </toggle_year_label>
+    <toggle_fc_label x="622" y="126" width="64" height="24">
+        <text font="letterica16" r="200" g="200" b="200" align="c" vert_align="c" complex_mode="1"/>
+    </toggle_fc_label>
+
     <!-- rows are cloned from these at runtime. row_holder carries the columns: one text
          widget per column at a fixed x, because letterica is proportional and padded
          strings do not line up. -->

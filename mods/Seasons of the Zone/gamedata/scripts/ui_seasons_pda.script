@@ -130,6 +130,9 @@ function SeasonsPDA:InitControls()
     self:InitGrid()
     self:InitScales()
     self:InitRows()
+    -- the switch to the app's other face; a fault in it costs the switch, not the page
+    local okt, errt = pcall(function() self:InitToggle() end)
+    if not okt then say("switch failed: " .. tostring(errt)) end
 
     self.back = xml:Init3tButton("back", self)
     if self.back then
@@ -137,6 +140,40 @@ function SeasonsPDA:InitControls()
         self:Register(self.back, "back")
         self:AddCallback("back", ui_events.BUTTON_CLICKED, self.OnBack, self)
     end
+end
+
+-- The switch between the app's two faces. This page's own half is pressed in - disabled,
+-- which is the darker plate - and lit amber, the colour this mod uses for "you are here";
+-- clicking it does nothing. The other half goes to the other face through sotz_pda, which
+-- routes both sections whether or not MAC is the way the player came in.
+function SeasonsPDA:InitToggle()
+    local xml = self.xml
+    self.toggle_year = xml:Init3tButton("toggle_year", self)
+    self.toggle_fc   = xml:Init3tButton("toggle_fc", self)
+    -- labels after their plates, so they draw on top
+    self.toggle_year_label = xml:InitTextWnd("toggle_year_label", self)
+    self.toggle_fc_label   = xml:InitTextWnd("toggle_fc_label", self)
+
+    local V = sotz_pda.VIEWS
+    put(self.toggle_year_label, V.year.title)
+    put(self.toggle_fc_label, V.forecast.title)
+
+    local here_btn, here_lbl = self.toggle_year, self.toggle_year_label
+    local away_btn = self.toggle_fc
+    -- named, not looped: check_textures can only tell a four-state plate from a plain one
+    -- by the widget the call is made on, and that check is what caught the empty tiles
+    if self.toggle_year then self.toggle_year:InitTexture("sotz_btn") end
+    if self.toggle_fc   then self.toggle_fc:InitTexture("sotz_btn") end
+    if here_btn then here_btn:Enable(false) end
+    if here_lbl then here_lbl:SetTextColor(GetARGB(255, 238, 196, 112)) end
+    if away_btn then
+        self:Register(away_btn, "toggle_fc")
+        self:AddCallback("toggle_fc", ui_events.BUTTON_CLICKED, self.OnToggle, self)
+    end
+end
+
+function SeasonsPDA:OnToggle()
+    sotz_pda.open(sotz_pda.VIEWS.forecast.tab)
 end
 
 -- Back to the launcher. MAC reaches its own tab the same way, and it binds a key for it

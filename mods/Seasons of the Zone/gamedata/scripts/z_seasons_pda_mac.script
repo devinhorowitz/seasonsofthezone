@@ -1,8 +1,17 @@
--- Seasons of the Zone - Mod App Creator registration.
+-- Seasons of the Zone - the app's tile in Mod App Creator's launcher.
 --
--- MAC moves extra PDA pages off the top tab bar and onto an app launcher, which is how
--- this page gets in without fighting every other tab-adding mod for bar space. If MAC is
--- absent this file does nothing at all and the rest of the mod is unaffected.
+-- MAC moves extra PDA pages off the top tab bar and onto an app launcher, which is how this
+-- app gets in without fighting every other tab-adding mod for bar space. It is the official
+-- way in, and this file is the only place MAC is used: the app itself - both faces, and the
+-- switch between them - lives in sotz_pda.script and does not depend on it.
+--
+-- One tile. The Year and Forecast used to be two, which doubled the clutter in a launcher
+-- other mods share and made one app look like two. The tile opens The Year; the switch at
+-- the top of each page does the rest.
+--
+-- If MAC is absent this file does nothing, and MCM's Main page says so in red: in the
+-- official build the app is then built but unreachable. A standalone fork deletes this file
+-- and supplies its own way in - see the note at the top of sotz_pda.script.
 --
 -- The icon is one of this mod's own ui_seasons_dial_NN.dds files, picked for today, so
 -- the app icon shows the season it is. MAC calls InitTexture on it directly - a single
@@ -31,22 +40,13 @@ end
 function on_game_start()
     if not (mac_mcm and mac_mcm.add_app) then return end
     local ok, err = pcall(function()
+        -- `name` is the tile's own label. The section titles the PDA prints top left
+        -- stay "The Year" and "Forecast", which are what each face is.
         mac_mcm.add_app("app_seasons", {
-            name    = "pda_btn_seasons",
+            name    = "pda_app_seasons",
             texture = year_icon(),
-            tab     = "eptSeasons",
+            tab     = sotz_pda.VIEWS.year.tab,
             func    = ui_seasons_pda.get_ui,
-        })
-        -- The forecast is a separate app rather than a section of the calendar: it
-        -- answers a different question, on a different clock, and a player checking
-        -- whether a storm is coming should not have to scroll past the year to find out.
-        -- Its icon is a fixed barometer - not a live readout, because an app icon that
-        -- changed every few minutes would just be noise in the launcher.
-        mac_mcm.add_app("app_seasons_forecast", {
-            name    = "pda_btn_forecast",
-            texture = "sotz_app_forecast",
-            tab     = "eptForecast",
-            func    = ui_seasons_forecast.get_ui,
         })
     end)
     if not ok then

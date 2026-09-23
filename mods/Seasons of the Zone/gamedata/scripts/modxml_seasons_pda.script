@@ -10,8 +10,10 @@
 -- own pda_16.xml. Editing MAC's copy would mean maintaining a fork of a file three other
 -- mods also care about; injecting touches nobody's file and works whichever copy wins.
 --
--- Parked off-screen on purpose. The page is reached from the MAC launcher, and adding a
--- visible button is exactly what makes the tab bar clip once several mods do it.
+-- Parked off-screen on purpose: the app is reached from the MAC launcher, so the sections
+-- only have to exist, not show. A visible button added HERE, in the xml, would crowd the
+-- bar and clip once it is full; on modded exes CUITabControl:AddTab is the way to show a
+-- real tab, sized like its neighbours and scrolling on overflow. See sotz_pda.script.
 
 local INJECTED = false
 

@@ -134,6 +134,9 @@
 	<string id="pda_btn_seasons">
 		<text>The Year</text>
 	</string>
+	<string id="pda_app_seasons">
+		<text>Seasons</text>
+	</string>
 	<string id="ui_mcm_seasons_zone_rem_weather">
 		<text>Remembrance days: clear sky</text>
 	</string>
