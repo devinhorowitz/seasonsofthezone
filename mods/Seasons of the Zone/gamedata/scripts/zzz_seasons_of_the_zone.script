@@ -144,6 +144,12 @@ local function mcm_path(path, default)
     return default
 end
 
+-- Ecologist goodwill buying forecast resolution. Faction goodwill runs -1000 (enemy) to
+-- +1000 (friend) and starts near nought, so 200 is a few jobs done for them and 700 is a
+-- real investment. Both are MCM tracks; these are only the defaults.
+local FORECAST_COARSE = 200
+local FORECAST_EXACT  = 700
+
 local function mcm(key, default)
     return mcm_path(PREFIX .. "main/" .. key, default)
 end
@@ -1003,6 +1009,11 @@ end
 -- crop per level per DAY - survives a reload. A plain in-memory table reset on every
 -- load, and repeated loads are normal here.
 arte_done = {}                 -- module-scope: save_state/load_state reach it
+
+-- Whether the ecologists have already told the player their network is open. Persisted,
+-- because standing drifts either side of a threshold and an announcement that repeats
+-- every time it crosses back is worse than one that never came.
+eco_told = false
 local ARTE_PASSES = 5          -- see the note in anniversary_artefacts
 
 -- Count every artefact the simulation knows about. alife():iterate_objects, never a
@@ -1176,6 +1187,33 @@ local function remembrance_tick()
 end
 
 
+-- Crossing the first ecologist threshold is worth hearing about. Without this the
+-- feature unlocks in a menu the player was not looking at, which is the same as it not
+-- unlocking at all until they happen to check.
+--
+-- Sakharov because he is the ecologist the player already knows and the mod already ships
+-- his portrait for the remembrance transmissions. Once per save: eco_told persists.
+function eco_access_tick()
+    if eco_told then return end
+    if not mcm("forecast", true) then return end
+
+    local ok, st = pcall(function()
+        return relation_registry.community_goodwill("ecolog", db.actor:id())
+    end)
+    if not (ok and type(st) == "number") then return end
+    if st < mcm("forecast_coarse", FORECAST_COARSE) then return end
+
+    eco_told = true
+    pcall(function()
+        news_manager.send_tip(db.actor,
+            "Your standing has been noted. Bunker relays will carry emission warnings to "
+            .. "your device from now on - direction only, no timings. Do not mistake that "
+            .. "for safety.",
+            nil, "sotz_sakharov", 16000)
+    end)
+    say("ecologist access granted at standing " .. tostring(st))
+end
+
 local function actor_on_update()
     if not P then return end
     local tg = time_global()
@@ -1183,6 +1221,7 @@ local function actor_on_update()
     if tg >= next_rem then
         next_rem = tg + REM_MS
         remembrance_tick()
+        eco_access_tick()
     end
     if tg >= next_date then
         next_date = tg + DATE_MS
@@ -1285,17 +1324,13 @@ function save_state(m_data)
         if v and k:sub(1, #today) == today then keep[k] = true end
     end
     m_data.sotz_arte_done = keep
+    m_data.sotz_eco_told = eco_told and true or false
 end
 
 function load_state(m_data)
     arte_done = m_data.sotz_arte_done or {}
+    eco_told = m_data.sotz_eco_told and true or false
 end
-
--- Ecologist goodwill buying forecast resolution. Faction goodwill runs -1000 (enemy) to
--- +1000 (friend) and starts near nought, so 200 is a few jobs done for them and 700 is a
--- real investment. Both are MCM tracks; these are only the defaults.
-local FORECAST_COARSE = 200
-local FORECAST_EXACT  = 700
 
 -- --- data for the PDA page ---------------------------------------------------------------
 --

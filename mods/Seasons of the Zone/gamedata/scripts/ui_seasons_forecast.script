@@ -707,18 +707,16 @@ function SeasonsForecast:Fill()
     -- the right column is the panel alone now, so its head slot is free again
     self:Head(2, "")
     if fc then
-        local CLEARANCE = {locked = "CLASSIFIED", coarse = "RESTRICTED",
+        local CLEARANCE = {locked = "CLASSIFIED", coarse = "LIMITED",
                            exact = "CLEARED"}
         put(self.eco_class, CLEARANCE[tostring(fc.tier)] or "CLASSIFIED")
 
         if fc.tier == "locked" then
-            put(self.eco_l1, "Network readings withheld")
-            if fc.standing then
-                put(self.eco_l2, string.format("Standing %d of %d",
-                                               fc.standing, fc.need))
-            else
-                put(self.eco_l2, "No contact")
-            end
+            -- The emblem and the word are the whole state. The lines that used to sit
+            -- here explained what the emblem implies, and printing "0 of 200" turned
+            -- something you might one day be trusted with into a progress bar.
+            put(self.eco_l1, "")
+            put(self.eco_l2, "")
             put(self.eco_l3, "")
         else
             local e = fc.tier == "exact" and (d.surge and countdown(d.surge))
@@ -728,8 +726,10 @@ function SeasonsForecast:Fill()
             -- padded to the same column the rest of the page uses for a value
             put(self.eco_l1, string.format("Emission    %s", e or "no reading"))
             put(self.eco_l2, string.format("Psi storm    %s", p or "no reading"))
-            put(self.eco_l3, fc.tier == "coarse"
-                and string.format("Clearance %d gives the hour", fc.need_exact) or "")
+            -- At LIMITED the relays carry a direction and no timing, and the panel says
+            -- as much rather than leaving the vagueness looking like a fault.
+            put(self.eco_l3, fc.tier == "coarse" and "Relay warnings only, no timings"
+                or "")
         end
     else
         put(self.eco_class, "")

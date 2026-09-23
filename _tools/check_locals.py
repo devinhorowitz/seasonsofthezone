@@ -69,9 +69,52 @@ def functions(lines):
     return out
 
 
+def file_scope_locals(lines):
+    """name -> line index, for `local NAME` at column 0 (outside any function)."""
+    out, depth = {}, 0
+    for i, raw in enumerate(lines):
+        if FUNC.match(raw):
+            depth = 1
+        elif depth and raw.rstrip() == "end":
+            depth = 0
+        if depth:
+            continue
+        code = strip_code(raw)
+        m = LOCAL.match(code)
+        if m and not raw.startswith((" ", "\t")):
+            for name in m.group(1).split(","):
+                name = name.strip()
+                if name and name not in out:
+                    out[name] = i
+    return out
+
+
 def scan_file(path):
     lines = io.open(path, encoding="utf-8").read().split("\n")
     problems = []
+
+    # --- the file-scope version -------------------------------------------------------
+    # A file-scope local declared AFTER a function that uses it is not an upvalue of that
+    # function: the name resolves as a global and comes back nil, with no error and no
+    # log line. Same trap as the in-body rule, one scope up and far easier to miss,
+    # because the declaration is often hundreds of lines away.
+    fs = file_scope_locals(lines)
+    for a, b in functions(lines):
+        for name, decl in fs.items():
+            if decl <= b:
+                continue                      # declared before or inside this function
+            for off in range(a, b + 1):
+                code = strip_code(lines[off])
+                if LOCAL.match(code):
+                    code = code.split("=", 1)[1] if "=" in code else ""
+                if name in WORD.findall(code):
+                    problems.append(
+                        "%s:%d: %s() reads file-scope `%s`, declared later on line %d - "
+                        "that is a nil global, not the local"
+                        % (os.path.basename(path), off + 1,
+                           lines[a].split("(")[0].replace("function ", "").strip(),
+                           name, decl + 1))
+                    break
 
     for a, b in functions(lines):
         body = lines[a:b + 1]
@@ -144,12 +187,31 @@ end
 """
 
 
+SELFTEST_FILESCOPE_BAD = """function Page:Fill()
+    return LIMIT
+end
+
+local LIMIT = 200
+"""
+
+SELFTEST_FILESCOPE_OK = """local LIMIT = 200
+
+function Page:Fill()
+    return LIMIT
+end
+"""
+
+
 def selftest():
     import tempfile
     bad = 0
     for label, src, want in (("use before local", SELFTEST_BAD, True),
                              ("declared first", SELFTEST_OK, False),
-                             ("separate functions", SELFTEST_SHADOW, False)):
+                             ("separate functions", SELFTEST_SHADOW, False),
+                             ("file-scope declared after",
+                              SELFTEST_FILESCOPE_BAD, True),
+                             ("file-scope declared before",
+                              SELFTEST_FILESCOPE_OK, False)):
         fd, p = tempfile.mkstemp(suffix=".script")
         os.close(fd)
         io.open(p, "w", encoding="utf-8").write(src)
