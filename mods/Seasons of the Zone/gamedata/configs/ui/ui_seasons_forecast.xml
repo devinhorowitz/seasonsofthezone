@@ -87,12 +87,10 @@
     <!-- the barometer; one of six images, picked by the weather. Square, width
          corrected for aspect from script. -->
     <gauge  x="566" y="150" width="184" height="184" stretch="1"/>
-    <!-- The set hand: a real barometer has a second, manually-placed hand so you can
-         see which way the pressure has moved. This one is placed for you, at the weather
-         that is COMING - so the gap between the two hands is the trend. Without it the
-         needle only repeated what the glyph beside it already said. -->
-    <set_hand x="566" y="150" width="184" height="184" stretch="1"/>
-    <needle   x="566" y="150" width="184" height="184" stretch="1"/>
+    <!-- One hand. A set hand pointing at the coming weather was tried and cut: at this
+         size two white needles overlap into a single thick smear rather than reading as
+         a gap, and the glyphs above already say what is coming. -->
+    <needle x="566" y="150" width="184" height="184" stretch="1"/>
 
     <gauge_caption x="548" y="336" width="220" height="18">
         <text font="letterica16" r="170" g="170" b="170" align="c" vert_align="c" complex_mode="1"/>

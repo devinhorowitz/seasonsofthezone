@@ -123,7 +123,12 @@ def t_locked():
     # negative control: a locked page must not leak the hour or the band
     assert field(p, "surge") is None, "locked tier leaked the exact time"
     assert field(p, "surge_band") is None, "locked tier leaked a band"
-    return "standing 150 < 200 -> locked, nothing leaked"
+    # The manager IS read at every tier now, so a dead manager can be told apart from a
+    # withheld one in the log. That flag is engine state, not timing, and must never
+    # become a back door to the number itself.
+    assert field(p, "mgr_surge") is True, "the manager flag should still be reported"
+    assert field(p, "surge") is None and field(p, "surge_band") is None
+    return "standing 150 < 200 -> locked; manager seen, nothing leaked"
 
 
 def t_coarse():

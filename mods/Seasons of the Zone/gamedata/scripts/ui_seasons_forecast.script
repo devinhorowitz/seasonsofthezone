@@ -155,14 +155,6 @@ function SeasonsForecast:InitControls()
     self.subheader = xml:InitTextWnd("subheader", self)
     self.now       = xml:InitTextWnd("now", self)
 
-    -- drawn before the needle so the live hand sits on top of it
-    self.set_hand = xml:InitStatic("set_hand", self)
-    if self.set_hand then
-        local h = self.set_hand:GetHeight()
-        self.set_hand:SetWndSize(vector2():set(h * aspect(), h))
-        self.set_hand:SetTextureColor(GetARGB(150, 150, 140, 110))
-    end
-
     self.needle = xml:InitStatic("needle", self)
     if self.needle then
         local h = self.needle:GetHeight()
@@ -602,21 +594,6 @@ function SeasonsForecast:Fill()
         if not okn then say("needle texture failed for " .. cyc) end
     end
 
-    -- the set hand points at what is coming, so the two hands together read as a trend
-    -- rather than as a second way of saying what the glyph already said
-    local nxt_c = w and w.segments and w.segments[1] and w.segments[1].cycle
-    if self.set_hand then
-        if nxt_c and CYCLE_RGB[tostring(nxt_c)] then
-            pcall(function()
-                self.set_hand:InitTexture("sotz_needle_" .. tostring(nxt_c))
-            end)
-            self.set_hand:SetTextureColor(GetARGB(150, 150, 140, 110))
-            self.set_hand:Show(true)
-        else
-            self.set_hand:Show(false)
-        end
-    end
-
     -- the sky is drawn below, so this line carries only what a picture cannot: the
     -- number, and which way it is going
     -- "rising" invites the question rising-what. Say what is happening to the air.
@@ -778,6 +755,24 @@ function SeasonsForecast:Fill()
     -- --- the live marker ----------------------------------------------------------------
     self.is_live = (temp ~= nil and temp.source == "observed")
     if self.live_dot then self.live_dot:Show(temp ~= nil) end
+
+    -- One line per open, naming what the page actually resolved. The ecologist tier and
+    -- the two countdowns are the parts with no visible failure mode - a locked panel and
+    -- an unreachable surge manager look identical from the outside - so this is the only
+    -- way to tell "withheld" from "broken" without standing over the screen.
+    say(string.format("tier=%s standing=%s need=%s/%s  surge=%s psi=%s  air=%s %s%s",
+        tostring(fc and fc.tier or "none"),
+        tostring(fc and fc.standing or "?"),
+        tostring(fc and fc.need or "?"), tostring(fc and fc.need_exact or "?"),
+        -- shown value, then whether a manager answered at all: "nil/no-mgr" is broken,
+        -- "nil/mgr-ok" is simply withheld by the tier
+        tostring(d.surge or d.surge_band or "nil") ..
+            (d.mgr_surge and "/mgr-ok" or "/no-mgr"),
+        tostring(d.psi or d.psi_band or "nil") ..
+            (d.mgr_psi and "/mgr-ok" or "/no-mgr"),
+        tostring(temp and temp.now or "?"),
+        tostring(temp and temp.unit or "?"),
+        (temp and temp.source == "observed") and " live" or " modelled"))
 end
 
 -- The one moving thing. A live reading breathes; a modelled one sits dark. Update runs

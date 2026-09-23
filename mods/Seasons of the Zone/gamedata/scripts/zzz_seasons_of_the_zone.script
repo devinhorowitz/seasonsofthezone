@@ -1489,17 +1489,23 @@ function forecast_page()
         end
         out.forecast = {tier = tier, standing = st, need = need, need_exact = full}
 
-        if tier ~= "locked" then
-            local s = seconds_until(surge_manager and surge_manager.SurgeManager,
-                                    "last_surge_time")
-            local p = seconds_until(psi_storm_manager and psi_storm_manager.PsiStormManager,
-                                    "last_psi_storm_time")
-            if tier == "exact" then
-                out.surge, out.psi = s, p
-            else
-                out.surge_band = band(s, period("alife/event/emission_frequency",  24))
-                out.psi_band   = band(p, period("alife/event/psi_storm_frequency", 48))
-            end
+        -- Read ALWAYS, expose by tier. Computing only when the tier allowed it meant a
+        -- locked page and an unreachable surge manager produced identical nils, so there
+        -- was no way to tell "withheld" from "broken" without standing over the screen.
+        local s = seconds_until(surge_manager and surge_manager.SurgeManager,
+                                "last_surge_time")
+        local p = seconds_until(psi_storm_manager and psi_storm_manager.PsiStormManager,
+                                "last_psi_storm_time")
+        -- whether a manager answered at all, which is engine state rather than timing and
+        -- so is not something the gate is keeping from anyone
+        out.mgr_surge = (s ~= nil)
+        out.mgr_psi   = (p ~= nil)
+
+        if tier == "exact" then
+            out.surge, out.psi = s, p
+        elseif tier == "coarse" then
+            out.surge_band = band(s, period("alife/event/emission_frequency",  24))
+            out.psi_band   = band(p, period("alife/event/psi_storm_frequency", 48))
         end
     end
 
