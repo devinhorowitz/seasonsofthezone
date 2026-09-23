@@ -44,6 +44,45 @@ local function has_season(seasons_str, s)
     return false
 end
 
+-- What the PDA apps lean on, and whether it is here. Grey is fine, red is broken.
+--
+-- MCM's own red is 225,0,0; this is the mod's one red instead, the same the PDA pages
+-- alarm in, so a player sees the same colour mean the same thing on both screens.
+local STATUS_OK  = {255, 165, 165, 165}
+local STATUS_BAD = {255, 238, 96, 72}
+
+local WEATHER_TEXT = {
+    plan  = "Weather: Atmospherics' day planner. The forecast shows every change ahead.",
+    stock = "Weather: GAMMA's stock scheduler. The forecast shows the sky now and when it "
+         .. "turns, but not what comes next - the stock scheduler picks that at random when "
+         .. "the time comes. Atmospherics 2.69 plans the whole day ahead.",
+    none  = "No weather manager was found, so the forecast cannot read the sky.",
+}
+
+local function dependency_rows(out)
+    local function row(id, text, bad)
+        out[#out + 1] = {id = id, type = "desc", text = text,
+                         clr = bad and STATUS_BAD or STATUS_OK}
+    end
+
+    -- The same test the registration uses, so this line and the launcher tile cannot
+    -- disagree about whether MAC is here.
+    local has_mac = (mac_mcm and mac_mcm.add_app) and true or false
+    if has_mac then
+        row("status_mac", "PDA: the Seasons app opens from the Mod App Creator launcher.",
+            false)
+    else
+        row("status_mac", "Mod App Creator was not found. It is how the Seasons app opens, "
+            .. "so without it the app is built but nothing in the PDA reaches it.", true)
+    end
+
+    -- weather_source() never builds a manager from the main menu, which is where MCM is
+    -- most often opened; see its comment in zzz_seasons_of_the_zone.
+    local ok, src = pcall(function() return zzz_seasons_of_the_zone.weather_source() end)
+    src = (ok and WEATHER_TEXT[src]) and src or "none"
+    row("status_weather", WEATHER_TEXT[src], src == "none")
+end
+
 -- Today's date, and a line when a pinned season disagrees with the calendar.
 local function calendar_rows(out)
     local ok, rows = pcall(function() return zzz_seasons_of_the_zone.calendar_rows() end)
@@ -69,6 +108,9 @@ local function page_main()
     local function add(t) gr[#gr + 1] = opt(t) end
 
     add({id = "desc_top", type = "desc", text = "ui_mcm_seasons_zone_desc_top"})
+    -- Above everything else: a missing launcher means the player never sees either page,
+    -- so it cannot sit below the fold under options they will not reach for.
+    dependency_rows(gr)
     add({id = "line_cal1", type = "line"})
     calendar_rows(gr)
     local ok, tex = pcall(function() return zzz_seasons_of_the_zone.dial_texture() end)

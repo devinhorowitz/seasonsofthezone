@@ -539,6 +539,46 @@ def t_stock_page_text():
     return "window reads in plain English, and the page never blames Atmospherics"
 
 
+def t_mcm_status():
+    def run(has_mac, source, raises=False):
+        def setup(lua, g):
+            g.mac_mcm = lua.table_from({"add_app": lambda *a: None}) if has_mac else None
+
+            def ws():
+                if raises:
+                    raise RuntimeError("weather_source broke")
+                return source
+            g.zzz_seasons_of_the_zone = lua.table_from({"weather_source": ws})
+        lua, g, fx = expose("zzz_seasons_of_the_zone_mcm.script", ["dependency_rows"], setup)
+        out = lua.table_from({})
+        fx.dependency_rows(out)
+        rows = {}
+        for i in range(1, len(out) + 1):
+            r = out[i]
+            rows[r.id] = (r.text, tuple(r.clr[j] for j in range(1, 5)))
+        return rows
+
+    red, grey = (255, 238, 96, 72), (255, 165, 165, 165)
+
+    ok = run(True, "stock")
+    assert ok["status_mac"][1] == grey, "MAC present but flagged red"
+    assert "Mod App Creator launcher" in ok["status_mac"][0], ok["status_mac"][0]
+    # stock is how GAMMA ships - grey, never an alarm, and never "not running"
+    assert ok["status_weather"][1] == grey, "stock weather flagged as a fault"
+    assert "stock scheduler" in ok["status_weather"][0], ok["status_weather"][0]
+    assert "not running" not in ok["status_weather"][0]
+
+    missing = run(False, "none")
+    assert missing["status_mac"][1] == red, "MAC missing but not flagged"
+    assert "not found" in missing["status_mac"][0], missing["status_mac"][0]
+    assert missing["status_weather"][1] == red, "no weather manager but not flagged"
+
+    assert run(True, "plan")["status_weather"][1] == grey
+    # a failure in the check is reported as the broken case, not swallowed as fine
+    assert run(True, "plan", raises=True)["status_weather"][1] == red
+    return "MAC and weather flagged red only when broken; stock GAMMA reads grey"
+
+
 for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("exact tier", t_exact), ("bands scale", t_bands_scale),
              ("band edges", t_band_edges), ("no manager", t_no_manager),
@@ -554,7 +594,8 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("stock weather", t_stock_weather),
              ("stock window", t_stock_window_edges),
              ("source at menu", t_source_from_menu),
-             ("stock page text", t_stock_page_text)):
+             ("stock page text", t_stock_page_text),
+             ("mcm status", t_mcm_status)):
     case(n, f)
 
 if __name__ == "__main__":
