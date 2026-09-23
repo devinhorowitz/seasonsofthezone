@@ -51,6 +51,17 @@ local function cycle_name(c)
     return CYCLE[c] or (c:sub(1, 1):upper() .. c:sub(2))
 end
 
+-- Ribbon colours. Cold and dark for the weather that keeps you indoors, pale and warm
+-- for the weather that does not, so the strip reads as a mood before it reads as data.
+local CYCLE_RGB = {
+    clear  = {226, 232, 220},
+    partly = {198, 206, 190},
+    cloudy = {150, 158, 150},
+    foggy  = {132, 142, 140},
+    rain   = {104, 126, 148},
+    storm  = { 74,  94, 120},
+}
+
 -- The coarse tier's whole job is to warn without timing. These are what a reading relayed
 -- over a radio would sound like, and none of them implies an hour.
 local BAND = {
@@ -125,6 +136,11 @@ function SeasonsForecast:InitControls()
     end
     self.gauge_caption = xml:InitTextWnd("gauge_caption", self)
 
+    self.chart       = xml:InitStatic("chart", self)
+    self.chart_cap_l = xml:InitTextWnd("chart_cap_l", self)
+    self.chart_cap_r = xml:InitTextWnd("chart_cap_r", self)
+    self:InitChart()
+
     self.scroll = xml:InitScrollView("scroll", self)
 
     self.back = xml:Init3tButton("back", self)
@@ -164,6 +180,115 @@ function SeasonsForecast:Cols(style, cols)
 end
 
 
+-- A solid rectangle. X-Ray has no fill-rect: a CUIStatic carrying a plain white block
+-- and tinted with SetTextureColor is how every other mod in the install draws one.
+--
+-- The blocks are allocated ONCE and reused. get_ui() calls Reset() every time the page is
+-- opened, so building fresh statics per redraw would pile up a new set on every visit and
+-- never release them - a slow leak that only shows after an hour of play.
+local BAR_POOL = 44          -- 9 ribbon bands + 24 curve columns + 4 rules, with slack
+
+function SeasonsForecast:InitChart()
+    self.bars, self.bar_n = {}, 0
+    if not self.chart then return end
+    for i = 1, BAR_POOL do
+        local s = self.xml:InitStatic("px", self.chart)
+        if not s then break end
+        s:Show(false)
+        self.bars[i] = s
+    end
+end
+
+function SeasonsForecast:Bar(x, y, w, h, r, g, b, alpha)
+    self.bar_n = (self.bar_n or 0) + 1
+    local s = self.bars and self.bars[self.bar_n]
+    if not s then return end                      -- pool exhausted: draw nothing, never grow
+    if w < 1 then w = 1 end
+    s:SetWndPos(vector2():set(x, y))
+    s:SetWndSize(vector2():set(w, h))
+    s:SetTextureColor(GetARGB(alpha or 255, r, g, b))
+    s:Show(true)
+end
+
+-- 24 hours across 462px: the weather Atmospherics has planned as a ribbon, and the
+-- modelled temperature under it on the same axis, so a glance answers both "when does it
+-- turn" and "how cold does it get" without reading a single row.
+local CHART_W   = 462
+local RIBBON_Y  = 6
+local RIBBON_H  = 18
+local CURVE_Y   = 36
+local CURVE_H   = 56
+local SPAN_MIN  = 1440          -- one game day
+
+function SeasonsForecast:DrawChart(d, temp)
+    if not self.chart then return end
+    for i = 1, #(self.bars or {}) do
+        if self.bars[i] then self.bars[i]:Show(false) end
+    end
+    self.bar_n = 0
+
+    local w = d.weather
+    local function px(minute)
+        return math.floor((math.min(minute, SPAN_MIN) / SPAN_MIN) * CHART_W + 0.5)
+    end
+
+    -- --- the weather ribbon ---------------------------------------------------------
+    -- Segment boundaries are the planned changes; the first band is whatever is outside
+    -- right now. A plan that runs out before the day does simply leaves its last band
+    -- running to the edge, which is what "settled" looks like.
+    if w then
+        local marks = {}
+        local cur = w.now
+        local at = 0
+        for _, seg in ipairs(w.segments or {}) do
+            if seg.away and seg.away > at then
+                marks[#marks + 1] = {from = at, to = math.min(seg.away, SPAN_MIN), cycle = cur}
+                at, cur = seg.away, seg.cycle
+            end
+            if at >= SPAN_MIN then break end
+        end
+        if at < SPAN_MIN then
+            marks[#marks + 1] = {from = at, to = SPAN_MIN, cycle = cur}
+        end
+        for _, m in ipairs(marks) do
+            local c = CYCLE_RGB[tostring(m.cycle)] or CYCLE_RGB.cloudy
+            self:Bar(px(m.from), RIBBON_Y, px(m.to) - px(m.from), RIBBON_H,
+                     c[1], c[2], c[3], 235)
+        end
+    end
+
+    -- --- the temperature curve ------------------------------------------------------
+    -- One column an hour. The model hands over the samples so this cannot drift from the
+    -- number printed at the top of the page.
+    local curve = temp and temp.curve
+    if curve and #curve > 1 then
+        local lo, hi = curve[1], curve[1]
+        for i = 1, #curve do
+            if curve[i] < lo then lo = curve[i] end
+            if curve[i] > hi then hi = curve[i] end
+        end
+        local range = (hi - lo)
+        if range < 1 then range = 1 end
+        local cw = math.floor(CHART_W / #curve)
+        for i = 1, #curve do
+            local f = (curve[i] - lo) / range
+            local h = math.max(2, math.floor(f * CURVE_H))
+            -- warmer reads warmer: amber at the top of the day, cold blue at the bottom
+            local r = math.floor(120 + 118 * f)
+            local g = math.floor(140 + 56 * f)
+            local b = math.floor(158 - 46 * f)
+            self:Bar((i - 1) * cw + 1, CURVE_Y + (CURVE_H - h), cw - 2, h, r, g, b, 225)
+        end
+    end
+
+    -- --- now, and the hours ---------------------------------------------------------
+    -- a hairline every six hours, and a brighter one at the left edge for "now"
+    for hh = 6, 18, 6 do
+        self:Bar(px(hh * 60), RIBBON_Y, 1, CURVE_Y + CURVE_H - RIBBON_Y, 90, 96, 90, 200)
+    end
+    self:Bar(0, RIBBON_Y - 3, 2, CURVE_Y + CURVE_H - RIBBON_Y + 6, 238, 196, 112, 255)
+end
+
 function SeasonsForecast:Row(style, text)
     if not self.scroll then return end
     local w = self.xml:InitTextWnd(style, nil)
@@ -200,9 +325,13 @@ function SeasonsForecast:Fill()
         if not okb then say("accent bar failed: " .. tostring(d.bar)) end
     end
 
+    -- one of six, by what is actually outside. A fixed needle was decoration pretending
+    -- to be an instrument.
     if self.gauge then
-        local okg = pcall(function() self.gauge:InitTexture("ui_seasons_forecast") end)
-        if not okg then say("gauge texture failed") end
+        local cyc = (w and w.now) and tostring(w.now) or "cloudy"
+        if not CYCLE_RGB[cyc] then cyc = "cloudy" end
+        local okg = pcall(function() self.gauge:InitTexture("sotz_gauge_" .. cyc) end)
+        if not okg then say("gauge texture failed for " .. cyc) end
     end
 
     -- the headline: what it is doing outside, right now. Temperature comes through
@@ -210,6 +339,7 @@ function SeasonsForecast:Fill()
     -- model, rather than each deriving its own and disagreeing by a degree.
     local w = d.weather
     local temp = nil
+    -- (w and temp are read here because the gauge and the chart below both need them)
     local okt, tv = pcall(function() return sotz_api.temperature() end)
     if okt then temp = tv end
 
@@ -219,6 +349,15 @@ function SeasonsForecast:Fill()
     end
     put(self.now, head)
     put(self.gauge_caption, w and w.now and "outside now" or "no reading")
+
+    self:DrawChart(d, temp)
+    if temp then
+        put(self.chart_cap_l, string.format("now  %d C", temp.now))
+        put(self.chart_cap_r, string.format("%d to %d over the day", temp.low, temp.high))
+    else
+        put(self.chart_cap_l, "")
+        put(self.chart_cap_r, "")
+    end
 
     -- --- the weather ----------------------------------------------------------------------
     -- Not a guess. Atmospherics plans the next 24 game hours in advance and this is that
@@ -256,6 +395,7 @@ function SeasonsForecast:Fill()
             if fc.standing then
                 self:Cols("row_dim", {{0, "Standing"}, {130, fc.standing},
                                       {196, "need " .. tostring(fc.need)}})
+                self:Meter(fc.standing, fc.need)
             else
                 self:Row("row_dim", "No contact.")
             end
@@ -274,6 +414,34 @@ function SeasonsForecast:Fill()
             end
         end
     end
+end
+
+-- Progress toward the ecologists trusting you, as a bar rather than a number you have
+-- to compare in your head. Goodwill runs to 1000, so a bare "0" says nothing about how
+-- far 200 is.
+function SeasonsForecast:Meter(have, need)
+    if not (self.scroll and need and need > 0) then return end
+    local holder = self.xml:InitStatic("row_holder", nil)
+    if not holder then return end
+    local w, h = 300, 6
+    local f = math.max(0, math.min(1, (tonumber(have) or 0) / need))
+
+    local back = self.xml:InitStatic("px", holder)
+    if back then
+        back:SetWndPos(vector2():set(0, 5))
+        back:SetWndSize(vector2():set(w, h))
+        back:SetTextureColor(GetARGB(255, 46, 52, 46))
+    end
+    if f > 0 then
+        local fill = self.xml:InitStatic("px", holder)
+        if fill then
+            fill:SetWndPos(vector2():set(0, 5))
+            fill:SetWndSize(vector2():set(math.max(2, math.floor(w * f)), h))
+            fill:SetTextureColor(GetARGB(255, 238, 196, 112))
+        end
+    end
+    self.scroll:AddWindow(holder, true)
+    holder:SetAutoDelete(true)
 end
 
 function SeasonsForecast:Reset()

@@ -1,0 +1,23 @@
+<w>
+	<file name="ui_sotz_px">
+		<texture id="sotz_px" x="0" y="0" width="8" height="8" />
+	</file>
+	<file name="ui_sotz_gauge_clear">
+		<texture id="sotz_gauge_clear" x="0" y="0" width="384" height="384" />
+	</file>
+	<file name="ui_sotz_gauge_cloudy">
+		<texture id="sotz_gauge_cloudy" x="0" y="0" width="384" height="384" />
+	</file>
+	<file name="ui_sotz_gauge_foggy">
+		<texture id="sotz_gauge_foggy" x="0" y="0" width="384" height="384" />
+	</file>
+	<file name="ui_sotz_gauge_partly">
+		<texture id="sotz_gauge_partly" x="0" y="0" width="384" height="384" />
+	</file>
+	<file name="ui_sotz_gauge_rain">
+		<texture id="sotz_gauge_rain" x="0" y="0" width="384" height="384" />
+	</file>
+	<file name="ui_sotz_gauge_storm">
+		<texture id="sotz_gauge_storm" x="0" y="0" width="384" height="384" />
+	</file>
+</w>

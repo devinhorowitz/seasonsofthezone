@@ -30,14 +30,31 @@
         <text font="letterica18" r="255" g="255" b="255" align="l" vert_align="c" complex_mode="1"/>
     </now>
 
-    <!-- the barometer; square, width corrected for aspect from script -->
-    <gauge x="556" y="130" width="200" height="200" stretch="1"/>
+    <!-- the barometer; one of six images, picked by the weather. Square, width
+         corrected for aspect from script. -->
+    <gauge x="566" y="150" width="184" height="184" stretch="1"/>
 
-    <gauge_caption x="540" y="336" width="232" height="18">
+    <gauge_caption x="550" y="340" width="216" height="18">
         <text font="letterica16" r="170" g="170" b="170" align="c" vert_align="c" complex_mode="1"/>
     </gauge_caption>
 
-    <scroll x="48" y="242" width="480" height="452" always_show_scroll="0" stretch="1"/>
+    <!-- the day chart lives here: weather ribbon, hour marks, temperature curve. Bars
+         are tinted copies of <px> parented to this. -->
+    <chart x="48" y="226" width="462" height="116"/>
+
+    <chart_cap_l x="48" y="330" width="150" height="16">
+        <text font="letterica16" r="150" g="150" b="150" align="l" vert_align="c" complex_mode="1"/>
+    </chart_cap_l>
+    <chart_cap_r x="360" y="330" width="150" height="16">
+        <text font="letterica16" r="150" g="150" b="150" align="r" vert_align="c" complex_mode="1"/>
+    </chart_cap_r>
+
+    <!-- one white block, tinted per bar. X-Ray has no fill-rect. -->
+    <px x="0" y="0" width="8" height="8" stretch="1">
+        <texture>sotz_px</texture>
+    </px>
+
+    <scroll x="48" y="356" width="480" height="338" always_show_scroll="0" stretch="1"/>
 
     <!-- the back button; its texture is set from script, as MAC does for its tiles -->
     <back x="740" y="652" width="34" height="34" stretch="1"/>

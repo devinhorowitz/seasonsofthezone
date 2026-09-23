@@ -154,12 +154,20 @@ function temperature()
         local hh = h % 24
         local rising = (hh >= T_MIN_HOUR and hh < T_MAX_HOUR)
 
+        -- the next 24 hours of the curve, one sample an hour starting now, so a page
+        -- can plot the day without re-deriving the model and drifting from `now`
+        local curve = {}
+        for i = 0, 23 do
+            curve[#curve + 1] = low + (high - low) * diurnal(h + i)
+        end
+
         return {
             low    = math.floor(low + 0.5),
             high   = math.floor(high + 0.5),
             now    = math.floor(low + (high - low) * f + 0.5),
             hour   = h,
             rising = rising,
+            curve  = curve,
             cycle  = cycle_now(),
             unit   = "C",
             source = "model",
