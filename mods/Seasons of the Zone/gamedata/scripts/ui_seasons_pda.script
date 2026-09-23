@@ -364,6 +364,9 @@ local SEASON_RGB = {
 -- winter, which are exactly the months they most needed to be seen on.
 local MARK_RGB   = {238, 96, 72}
 local MARK_H     = 5                -- the underline; 4 read as an artefact of the cell
+-- The cool half of the alarm pulse. Still red, so the thing never stops reading as red -
+-- it just stops being bright, which is what makes a pulse a pulse rather than a blink.
+local MARK_COOL  = {150, 60, 50}
 
 local MONTH_LEN  = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 local MONTH_ABBR = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -618,6 +621,10 @@ function SeasonsPDA:Fill()
         end
     end
 
+    -- Whether today is one of the six. Recorded here rather than recomputed sixty times
+    -- a second in Update, the same way the forecast records its alert lines.
+    self.alert = (d.marked ~= nil)
+
     -- --- the grid -----------------------------------------------------------------------
     self:DrawGrid(d)
     -- The month names and the day scale carry the axes, so the captions only say what
@@ -631,9 +638,11 @@ function SeasonsPDA:Fill()
     -- to a colour the player has to learn.
     self:Section(1, "Days the Zone marks")
     for _, day in ipairs(d.days or {}) do
+        -- White said "this is the one you are on" and nothing more. On the six days that
+        -- actually do something, the row wears the alarm colour the grid cell does.
         self:Put(1, {{0, day.date}, {110, when_text(day.away)},
                      {210, DAY_TEXT[tostring(day.kind)] or ""}},
-                 day.today and NOW_RGB or LINE_RGB)
+                 day.today and MARK_RGB or LINE_RGB)
     end
 
     -- --- the year, beside the dial that draws it ----------------------------------------
@@ -657,16 +666,39 @@ function SeasonsPDA:Fill()
         tostring(self.bar_n), tostring(self.used[1]), tostring(self.used[2])))
 end
 
--- A slow breath on today's cell, not a blink: it says "you are here", it is not an
--- alarm. One colour write per frame on one cell, which is the same budget the forecast
--- page's live dot runs on.
+-- Two rhythms, and which one is running is itself the information.
+--
+-- An ordinary day BREATHES: 2.4 seconds, a slow nod that the page is live rather than a
+-- picture of a year. Six days out of three hundred and sixty five the Zone actually does
+-- something, and on those the cell ALARMS instead - the same 900ms square pulse the
+-- forecast strobes an approaching emission in, in the same red.
+--
+-- So the tell is the rhythm, not the colour: you can see which kind of day it is from
+-- across the room without reading a word, which is most of the reason for drawing a year
+-- as a grid at all. A fade would have been wrong here for the same reason it was wrong
+-- there - a fade reads as decoration, a pulse reads as an alarm.
+--
+-- One colour write per frame on one cell, two on an event day. Same budget as the
+-- forecast page's live dot.
 local PULSE_MS = 2400
+local ALERT_MS = 900
 
 function SeasonsPDA:Update()
     CUIScriptWnd.Update(self)
-    if not self.today_bar then return end
     local ok, ms = pcall(time_global)
     if not (ok and type(ms) == "number") then return end
+
+    if self.alert then
+        local hot = (ms % ALERT_MS) < (ALERT_MS * 0.55)
+        local c = hot and MARK_RGB or MARK_COOL
+        local argb = GetARGB(255, c[1], c[2], c[3])
+        -- the line that names the day, and the cell it falls on, together
+        if self.marked    then self.marked:SetTextColor(argb) end
+        if self.today_bar then self.today_bar:SetTextureColor(argb) end
+        return
+    end
+
+    if not self.today_bar then return end
     -- 190 rather than 150 at the bottom of the breath: the old floor took the cell far
     -- enough down that it stopped reading as red at all for a third of every cycle,
     -- which is the opposite of what marking today is for.

@@ -130,7 +130,8 @@ def build(year=2026, month=9, day=22):
     g.vector2 = lua.eval("function() local v = {}"
                          " function v:set(a, b) self.x, self.y = a, b; return self end"
                          " return v end")
-    g.CUIScriptWnd = lua.table_from({})
+    # Update() chains to the base class first, so it has to exist to be called
+    g.CUIScriptWnd = lua.table_from({"Update": lambda self: None})
     g.ui_events = lua.table_from({"BUTTON_CLICKED": 1, "WINDOW_KEY_PRESSED": 2})
     g.DIK_keys = lua.table_from({"DIK_ESCAPE": 1})
     g.ActorMenu = lua.table_from({})
@@ -399,6 +400,58 @@ def t_the_page_reports_where_today_falls():
     assert spans == d["year_len"], "the seasons total %d days, the year is %d" % (
         spans, d["year_len"])
     return "day 265 of 365, and the five seasons total exactly one year"
+
+
+@case
+def t_an_event_day_alarms_and_an_ordinary_day_breathes():
+    """The rhythm is the information, so both rhythms have to be real.
+
+    Today is not one of the six, so none of this can be seen in game until 2 October -
+    which is exactly why it is pinned here instead of waited for.
+    """
+    assert "self.alert = (d.marked ~= nil)" in SRC, "Fill no longer arms the alarm"
+
+    def colours(page, g, ms):
+        g.time_global = lambda: ms
+        g.SeasonsPDA.Update(page)
+        line = page.marked.col
+        cell = page.today_bar.col
+        return ((line["r"], line["g"], line["b"]) if line else None,
+                (cell["r"], cell["g"], cell["b"]), cell["a"])
+
+    # --- 2 October: an anniversary, so the Zone gets loud ---------------------
+    lua, g = build(2026, 10, 2)
+    _, _, _, page, data = draw(lua, g)
+    assert data["marked"] is not None, "2 October is not reported as marked"
+    assert data["marked"]["kind"] == "anniversary", data["marked"]["kind"]
+    page.marked, page.alert = g.mkwidget(), True
+
+    # a 900ms square pulse: hot for the first 55%, cool after
+    hot_line, hot_cell, hot_a = colours(page, g, 0)
+    cool_line, cool_cell, cool_a = colours(page, g, 700)
+    assert hot_line == MARK_RGB, hot_line
+    assert hot_cell == MARK_RGB, hot_cell
+    assert cool_line != MARK_RGB and cool_cell != MARK_RGB, (cool_line, cool_cell)
+    assert cool_line == cool_cell, "the line and the cell are out of step"
+    # it never stops being red - a pulse, not a blink
+    assert cool_line[0] > cool_line[1] and cool_line[0] > cool_line[2], cool_line
+    assert hot_a == cool_a == 255, (hot_a, cool_a)
+
+    # --- an ordinary day: the slow breath, and the event line untouched -------
+    lua2, g2 = build(2026, 9, 23)
+    _, _, _, plain, plain_data = draw(lua2, g2)
+    assert plain_data["marked"] is None, "23 September reads as a marked day"
+    plain.marked, plain.alert = g2.mkwidget(), False
+    alphas = set()
+    for ms in (0, 600, 1200, 1800):
+        g2.time_global = lambda ms=ms: ms
+        g2.SeasonsPDA.Update(plain)
+        alphas.add(plain.today_bar.col["a"])
+    assert len(alphas) > 1, "the ordinary-day cell is not breathing: %s" % alphas
+    assert max(alphas) <= 255 and min(alphas) >= 150, alphas
+    assert plain.marked.col is None, "an ordinary day coloured the event line"
+    return "2 Oct alarms at 900ms on both, 23 Sep breathes %s and leaves the line alone" \
+        % sorted(alphas)
 
 
 @case
