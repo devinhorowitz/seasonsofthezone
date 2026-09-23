@@ -6,15 +6,18 @@ around it (`mods/`, `_tools/`, `_release/`), so running it from a clone will not
 Copy it to `<your GAMMA>/_tools/` to build.
 
 Ships: the mod, the tools, play.bat, the patcher, README, CHANGELOG, LICENSE and docs.
-Does not ship: any third-party asset, the generated Seasonal Soundscape mod, or this
-install's seasons_config.py (it ships as the example, next to an empty default).
+Does not ship: any third-party asset, the generated Seasonal Soundscape mod, this
+install's seasons_config.py (it ships as the example), MO2's meta.ini, or the fetched
+weather.
 
-Before packing, the packaged tools are run against a simulated fresh install: a GAMMA
-root with ModOrganizer.ini, one profile, an empty appdata and nothing else. A failure
-refuses the package.
+The zip installs through MO2 like any other mod: gamedata/ sits at the top of its one
+folder, and the tools and docs come along in the mod folder. Before the zip is kept, it
+is walked the way MO2's installer walks it, installed into a simulated fresh GAMMA under
+MO2's default name, and the packaged tools are run there. A failure refuses the package.
 """
 import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -26,40 +29,22 @@ OUT = os.path.join(ROOT, "_release")
 STAGE = os.path.join(OUT, "Seasons of the Zone")
 
 MOD = "Seasons of the Zone"
+ZIP_NAME = "SeasonsOfTheZone.zip"
+MARKER = "gamedata/scripts/zzz_seasons_of_the_zone.script"
+
+# What MO2's Anomaly plugin accepts at the top of an archive
+# (plugins/basic_games/games/game_stalkeranomaly.py, dataLooksValid).
+MO2_DATA_DIRS = ("appdata", "bin", "db", "gamedata")
 
 # The engine plus the generators for the mod's own content (season table, dial, header
 # bars). luacheck.py and check_mcm_strings.py are general X-Ray tools and stay out.
 TOOL_FILES = [
     "season.py",
+    "fetch_weather.py",
     "build_season_dial.py",
     "build_season_headers.py",
     "build_seasons_ltx.py",
 ]
-
-EMPTY_CONFIG = '''"""Which mods this install stages, and when. The only file to edit.
-
-Empty is the default and is fine: the in-engine layer (light, color, fog, wind, wetness,
-the dial, the MCM page) needs nothing here. These tables add the launch-time layers,
-which use mods you install yourself. seasons_config.example.py is a complete example.
-
-  TOGGLE_MODS    mods switched on or off per season. Nothing is copied. `above` is the
-                 mod yours must outrank; find it with `season.py whowins <file>`.
-  LAYOUT         mods whose contents are restaged per season from their archive, for
-                 mods that ship one folder per season. Gigabytes move; prefer TOGGLE_MODS.
-  SOUND_SRC      the ambience mod whose presets are gated by season. Must be the mod
-                 that wins those files.
-  PERIODS        extra base periods, alongside the seasons. name: (month, day) start.
-  EVENTS         windows that OVERLAY whatever period they land in, so a one-day event
-                 keeps its season around it. name: ((m, d) start, (m, d) end), inclusive;
-                 a start after its end wraps the year. See docs/SCHEDULING.md.
-"""
-
-LAYOUT = {}
-TOGGLE_MODS = {}
-SOUND_SRC = None
-PERIODS = {}
-EVENTS = {}
-'''
 
 
 def refuse_test_rigs():
@@ -153,13 +138,87 @@ def neutralise_generated(moddir):
     print("  generated state          3 files reset to first-run stubs")
 
 
-def verify_fresh_install():
-    """Run the packaged tools (status, apply --dry-run, apply) in a sandbox GAMMA root."""
+def mo2_base(names):
+    """The folder MO2 installs the mod from, or None where MO2 calls the archive invalid.
+
+    MO2's quick installer steps into a lone top-level folder until a level holds one of
+    MO2_DATA_DIRS (installer_quick's getSimpleArchiveBase with the Anomaly plugin's
+    dataLooksValid). 1.6.0 and earlier put the mod at mods/Seasons of the Zone/ inside
+    the zip, and MO2 refused it."""
+    base = ""
+    while True:
+        below = [n[len(base):] for n in names if n.startswith(base)]
+        top = {n.split("/", 1)[0] for n in below if n}
+        dirs = {n.split("/", 1)[0] for n in below if "/" in n}
+        if any(d.lower() in MO2_DATA_DIRS for d in dirs):
+            return base
+        if len(top) == 1 and top == dirs:
+            base += dirs.pop() + "/"
+            continue
+        return None
+
+
+def selftest_mo2_base():
+    old = ["Seasons of the Zone/mods/Seasons of the Zone/" + MARKER,
+           "Seasons of the Zone/play.bat"]
+    new = ["Seasons of the Zone/" + MARKER, "Seasons of the Zone/play.bat"]
+    assert mo2_base(old) is None, "old layout accepted"
+    assert mo2_base(new) == "Seasons of the Zone/", "wrapped layout refused"
+    assert mo2_base([MARKER]) == "", "flat layout refused"
+    assert mo2_base(["a/" + MARKER, "b/readme.txt"]) is None, "two top folders accepted"
+
+
+def check_contents(names, base):
+    """What the zip must carry, and what it must never carry."""
+    must = [MARKER, "play.bat", "_tools/season.py", "_tools/fetch_weather.py"]
+    never = ["meta.ini",                            # MO2 writes its own
+             "_tools/seasons_config.py",            # would overwrite the user's on update
+             "gamedata/configs/season_weather.ltx"]  # one machine's fetched day
+    missing = [p for p in must if base + p not in names]
+    present = [p for p in never if base + p in names]
+    if missing or present:
+        raise SystemExit("  refusing to package:%s%s"
+                         % ("".join("\n    missing  " + p for p in missing),
+                            "".join("\n    shipped  " + p for p in present)))
+    print("  contents               required present, excluded absent")
+
+
+def check_play_bat(stage):
+    """Every script play.bat runs must be in the package. 1.5.0 and 1.6.0 shipped without
+    fetch_weather.py, and play.bat carried on without it."""
+    bat = io.open(os.path.join(stage, "play.bat"), encoding="latin-1").read()
+    wanted = sorted(set(re.findall(r"_tools\\(\w+\.py)", bat)))
+    missing = [f for f in wanted if not os.path.isfile(os.path.join(stage, "_tools", f))]
+    if not wanted or missing:
+        raise SystemExit("  refusing to package: play.bat runs %s, which is not in _tools/"
+                         % (", ".join(missing) or "nothing from _tools"))
+    print("  play.bat               %3d tools it runs, all packaged" % len(wanted))
+
+
+def write_crlf(src, dst):
+    """cmd.exe misreads parts of a batch file with bare LF endings; ship CRLF."""
+    data = open(src, "rb").read().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+    open(dst, "wb").write(data)
+
+
+# fetch_weather.py without the network: write() is handed a made-up day.
+FETCH_PROBE = (
+    "import fetch_weather as f\n"
+    "f.write([{'date': '2026-01-15', 'high': -3.0, 'low': -9.5, 'cycle': 'clear'}])\n")
+
+
+def verify_fresh_install(zp, base, name):
+    """Install the zip as MO2 does and run the packaged tools against it.
+
+    The mod goes in under MO2's default name, the archive's, so nothing may depend on the
+    folder being called "Seasons of the Zone". Then _tools/ and play.bat are copied to the
+    GAMMA folder, as the README says."""
     import tempfile
     sb = os.path.join(tempfile.gettempdir(), "sotz_fresh_install")
     shutil.rmtree(sb, ignore_errors=True)
     game = os.path.join(sb, "ANOMALY")
     root = os.path.join(sb, "GAMMA")
+    mod = os.path.join(root, "mods", name)
     os.makedirs(os.path.join(game, "appdata"))
     os.makedirs(os.path.join(root, "profiles", "Default"))
     os.makedirs(os.path.join(root, "downloads"))
@@ -169,35 +228,64 @@ def verify_fresh_install():
         + "gamePath=@ByteArray(" + game.replace(chr(92), chr(92) * 2) + ")" + chr(10)
         + "selected_profile=@ByteArray(Default)" + chr(10))
     modlist = os.path.join(root, "profiles", "Default", "modlist.txt")
-    crlf = chr(13) + chr(10)
-    header = "# This file was automatically generated by Mod Organizer." + crlf
+    header = "# This file was automatically generated by Mod Organizer." + CRLF
     io.open(modlist, "w", encoding="utf-8", newline="").write(
-        header + "+" + MOD + crlf + "+Some Other Mod" + crlf)
-    copytree(os.path.join(STAGE, "mods"), os.path.join(root, "mods"))
-    copytree(os.path.join(STAGE, "_tools"), os.path.join(root, "_tools"))
+        header + "+" + name + CRLF + "+Some Other Mod" + CRLF)
 
+    with zipfile.ZipFile(zp) as z:
+        for n in z.namelist():
+            if n.startswith(base) and not n.endswith("/"):
+                t = os.path.join(mod, *n[len(base):].split("/"))
+                os.makedirs(os.path.dirname(t), exist_ok=True)
+                with z.open(n) as src, open(t, "wb") as dst:
+                    shutil.copyfileobj(src, dst)
+    copytree(os.path.join(mod, "_tools"), os.path.join(root, "_tools"))
+    shutil.copy2(os.path.join(mod, "play.bat"), os.path.join(root, "play.bat"))
+
+    def run(args):
+        r = subprocess.run([sys.executable] + args, capture_output=True, text=True,
+                           cwd=os.path.join(root, "_tools") if args[0] == "-c" else root)
+        return r.returncode, r.stdout + r.stderr
+
+    def report(what, good, text=""):
+        print("  fresh install: %-36s %s" % (what, "OK" if good else "** FAILED **"))
+        if not good and text:
+            print(text[-1200:])
+        return good
+
+    season = os.path.join(root, "_tools", "season.py")
     ok = True
     for args in (["status"], ["apply", "--dry-run"], ["apply"]):
-        r = subprocess.run([sys.executable, os.path.join(root, "_tools", "season.py")] + args,
-                           capture_output=True, text=True, cwd=root)
-        text = r.stdout + r.stderr
-        good = r.returncode == 0 and "Traceback" not in text
-        print("  fresh install: season.py %-16s %s" % (" ".join(args), "OK" if good else "** FAILED **"))
-        if not good:
-            print(text[-1200:])
-            ok = False
-    staged = io.open(os.path.join(root, "mods", MOD, "gamedata", "configs",
-                                  "season_staged.ltx"), encoding="cp1251").read()
+        code, text = run([season] + args)
+        ok &= report("season.py " + " ".join(args),
+                     code == 0 and "Traceback" not in text and "not in mods/" not in text,
+                     text)
+    staged = io.open(os.path.join(mod, "gamedata", "configs", "season_staged.ltx"),
+                     encoding="cp1251").read()
+    ok &= report("apply wrote season_staged.ltx",
+                 "season = unknown" not in staged and "stamped = never" not in staged)
     ml = io.open(modlist, encoding="utf-8", newline="").read()
-    if "season = unknown" in staged or "stamped = never" in staged:
-        print("  fresh install: season_staged.ltx was not written by apply   ** FAILED **")
-        ok = False
-    if not ml.startswith(header) or ("+" + MOD + crlf) not in ml:
-        print("  fresh install: modlist.txt damaged                          ** FAILED **")
-        ok = False
+    ok &= report("modlist.txt intact",
+                 ml.startswith(header) and ("+" + name + CRLF) in ml)
+
+    code, text = run(["-c", FETCH_PROBE])
+    wx = os.path.join(mod, "gamedata", "configs", "season_weather.ltx")
+    other = os.path.join(root, "mods", "Some Other Mod", "gamedata")
+    ok &= report("fetch_weather writes into the mod",
+                 code == 0 and os.path.isfile(wx) and not os.path.exists(other)
+                 and "freezing     = true" in io.open(wx, encoding="utf-8").read(), text)
+
+    # A second copy under the old name, lower in the list: season.py says so and keeps
+    # using the copy MO2 loads.
+    copytree(os.path.join(mod, "gamedata"), os.path.join(root, "mods", MOD, "gamedata"))
+    io.open(modlist, "a", encoding="utf-8", newline="").write("+" + MOD + CRLF)
+    code, text = run([season, "status"])
+    ok &= report("two copies reported",
+                 code == 0 and "installed 2 times" in text and ("Using '%s'" % name) in text,
+                 text)
+
     shutil.rmtree(sb, ignore_errors=True)
-    if not ok:
-        raise SystemExit("  refusing to package: the tooling fails on a fresh install")
+    return ok
 
 
 def copytree(src, dst):
@@ -241,29 +329,36 @@ def check_savedgames_repair(moddir):
 
 
 def main():
+    selftest_mo2_base()
     refuse_test_rigs()
     verify_engine_only()
 
     shutil.rmtree(STAGE, ignore_errors=True)
     os.makedirs(STAGE)
 
-    n = copytree(os.path.join(ROOT, "mods", MOD), os.path.join(STAGE, "mods", MOD))
+    # gamedata/ at the top of the zip's one folder, so MO2 installs it like any mod.
+    # Only gamedata/ is taken: the mod folder's meta.ini is MO2's.
+    n = copytree(os.path.join(ROOT, "mods", MOD, "gamedata"), os.path.join(STAGE, "gamedata"))
     print("  mod                    %3d files" % n)
-    neutralise_generated(os.path.join(STAGE, "mods", MOD))
-    check_savedgames_repair(os.path.join(STAGE, "mods", MOD))
+    wx = os.path.join(STAGE, "gamedata", "configs", "season_weather.ltx")
+    if os.path.isfile(wx):
+        os.remove(wx)       # this machine's fetched day; without it the game models one
+    neutralise_generated(STAGE)
+    check_savedgames_repair(os.path.join(STAGE, "gamedata"))
 
     td = os.path.join(STAGE, "_tools")
     os.makedirs(td)
     for f in TOOL_FILES:
         shutil.copy2(os.path.join(TOOLS, f), os.path.join(td, f))
-    io.open(os.path.join(td, "seasons_config.py"), "w",
-            encoding="utf-8", newline="").write(EMPTY_CONFIG)
+    # No seasons_config.py: users copy _tools/ over their own at every update, and an
+    # empty one would wipe their tables. season.py runs without it.
     live = os.path.join(TOOLS, "seasons_config.py")
     if os.path.isfile(live):
         shutil.copy2(live, os.path.join(td, "seasons_config.example.py"))
-    print("  tools                  %3d files  (+ empty config, + worked example)" % len(TOOL_FILES))
+    print("  tools                  %3d files  (+ worked example)" % len(TOOL_FILES))
 
-    shutil.copy2(os.path.join(ROOT, "play.bat"), os.path.join(STAGE, "play.bat"))
+    write_crlf(os.path.join(ROOT, "play.bat"), os.path.join(STAGE, "play.bat"))
+    check_play_bat(STAGE)
     shutil.copy2(os.path.join(OUT, "README.md"), os.path.join(STAGE, "README.md"))
     for extra in ("CHANGELOG.md", "LICENSE"):
         p = os.path.join(OUT, extra)
@@ -283,18 +378,31 @@ def main():
                 raise SystemExit("  refusing to package %s"
                                  % os.path.join(root, f))
 
-    verify_fresh_install()
-
-    zp = os.path.join(OUT, "SeasonsOfTheZone.zip")
-    if os.path.isfile(zp):
-        os.remove(zp)
+    # Built beside the real name and kept only when every check passes.
+    zp = os.path.join(OUT, ZIP_NAME)
+    tmp = zp + ".building"
+    if os.path.isfile(tmp):
+        os.remove(tmp)
     total = 0
-    with zipfile.ZipFile(zp, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+    with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for root, _, files in os.walk(STAGE):
             for f in files:
                 p = os.path.join(root, f)
                 z.write(p, os.path.join(MOD, os.path.relpath(p, STAGE)))
                 total += 1
+
+    names = zipfile.ZipFile(tmp).namelist()
+    base = mo2_base(names)
+    if base is None:
+        os.remove(tmp)
+        raise SystemExit("  refusing to package: MO2 would call this archive invalid")
+    print("  MO2 install            from '%s'" % (base or "/"))
+    check_contents(names, base)
+    if not verify_fresh_install(tmp, base, os.path.splitext(ZIP_NAME)[0]):
+        os.remove(tmp)
+        raise SystemExit("  refusing to package: the tooling fails on a fresh install")
+    os.replace(tmp, zp)
+
     print()
     print("  %-38s %4d files  %6.1f MB" % (os.path.basename(zp), total,
                                            os.path.getsize(zp) / 1048576.0))

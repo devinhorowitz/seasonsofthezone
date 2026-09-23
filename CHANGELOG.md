@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.6.1 — 2026-09-23
+
+- **Installs through MO2.** *Install a new mod from archive* now accepts the zip; before,
+  MO2 said it "does not look valid". `_tools/` and `play.bat` come along in the mod's
+  folder. Copy them to your GAMMA folder for real-world temperatures and the texture and
+  sound layers.
+- **Fixed: real-world temperatures never worked from a release.** The 1.5.0 and 1.6.0 zips
+  left out `fetch_weather.py`, so the forecast always used the climate model.
+- The tools find the mod by its files, so it can have any name in MO2. `season.py status`
+  warns when the mod is installed twice.
+- The zip no longer includes `seasons_config.py`, so copying `_tools/` on an update keeps
+  yours. It also drops a stale MO2 `meta.ini` and the build machine's fetched weather.
+- `play.bat` says so when it's run from the wrong folder.
+
 ## 1.6.0 — 2026-09-23
 
 - **Fixed: the forecast said "Atmospherics is not running" on stock GAMMA.** GAMMA's

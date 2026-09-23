@@ -86,7 +86,6 @@ def profile_name():
 
 
 APPDATA = os.path.join(game_dir(), "appdata")
-PRESET_DIR = os.path.join(MODS, SOTZ, "gamedata", "configs", "seasons_presets")
 
 # Install-specific configuration lives in seasons_config.py. Missing or empty is fine:
 # the in-engine layer runs with nothing staged.
@@ -191,6 +190,28 @@ def _modlist_lines():
 def _mod_enabled(name):
     lines = _modlist_lines()
     return bool(lines) and any(l == "+" + name for l in lines)
+
+
+# The mod is found by its main script, not its folder name: MO2 names a mod after the
+# archive it was installed from, so the folder may be "SeasonsOfTheZone" or anything else.
+MARKER = ("gamedata", "scripts", "zzz_seasons_of_the_zone.script")
+
+
+def sotz_copies():
+    """Every folder in mods/ holding this mod, the one MO2 loads first: enabled before
+    disabled, then by priority (the top of modlist.txt wins)."""
+    try:
+        names = [n for n in os.listdir(MODS) if os.path.isfile(os.path.join(MODS, n, *MARKER))]
+    except OSError:
+        return []
+    body = [l for l in (_modlist_lines() or []) if l[:1] in ("+", "-")]
+    rank = {l[1:]: i for i, l in enumerate(body)}
+    on = {l[1:] for l in body if l[:1] == "+"}
+    return sorted(names, key=lambda n: (n not in on, rank.get(n, len(rank)), n))
+
+
+SOTZ = (sotz_copies() or [SOTZ])[0]
+PRESET_DIR = os.path.join(MODS, SOTZ, "gamedata", "configs", "seasons_presets")
 
 
 def write_staged(season, staging=True):
@@ -1047,9 +1068,14 @@ def _check_mod_state():
     it. season.py never enables the main mod."""
     gd = os.path.join(MODS, SOTZ, "gamedata")
     if not os.path.isdir(gd):
-        print("  ! mods/%s/gamedata is missing - the mod is not installed. The zip's" % SOTZ)
-        print("    INNER 'mods/%s' folder goes into mods/; check the path." % SOTZ)
+        print("  ! Seasons of the Zone is not in mods/. Install the zip with MO2's")
+        print("    'Install a new mod from archive', then enable it.")
         return
+    copies = sotz_copies()
+    if len(copies) > 1:
+        print("  ! Seasons of the Zone is installed %d times: %s."
+              % (len(copies), ", ".join("'%s'" % c for c in copies)))
+        print("    Using '%s'. Remove the others in MO2." % SOTZ)
     lines = _modlist_lines()
     if lines is None:
         return

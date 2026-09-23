@@ -9,6 +9,24 @@ REM  Use this instead of ModOrganizer.exe.
 
 cd /d "%~dp0"
 
+REM  play.bat runs from the GAMMA folder: MO2's settings and the tools sit beside it.
+if not exist "ModOrganizer.ini" (
+    echo.
+    echo  ** play.bat has to be in your GAMMA folder, next to ModOrganizer.exe.
+    echo     Copy play.bat and the _tools folder there, and run it from there.
+    echo.
+    pause
+    exit /b 1
+)
+if not exist "_tools\season.py" (
+    echo.
+    echo  ** The _tools folder is missing. Copy it from the mod's folder into your GAMMA
+    echo     folder, next to play.bat.
+    echo.
+    pause
+    exit /b 1
+)
+
 REM  The MO2 shortcut to launch. GAMMA ships: Anomaly (DX11-AVX), Anomaly (DX11),
 REM  Anomaly (DX10-AVX), Anomaly Launcher. Change this line if you use another.
 set "SHORTCUT=Anomaly (DX11-AVX)"

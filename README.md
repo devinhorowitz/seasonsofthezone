@@ -175,17 +175,24 @@ Not yet tested on an install outside GAMMA. Reports are welcome.
 
 ## Install
 
-1. Copy the inner `mods/Seasons of the Zone` folder into your `mods/` (so that
-   `mods/Seasons of the Zone/gamedata` exists) and enable it in MO2. Do not use MO2's
-   *Install from archive* on the zip.
-2. Copy `_tools/` and `play.bat` into your GAMMA root, next to `ModOrganizer.exe`.
+1. In MO2, use **Install a new mod from archive** on the release zip, then enable the mod.
+   That's everything in game: the light and weather, the marked days, the PDA app and MCM.
+2. For real-world temperatures and the texture and sound layers, copy `_tools/` and
+   `play.bat` from the mod's folder into your GAMMA folder, next to `ModOrganizer.exe`. (In
+   MO2, right-click the mod and choose **Open in Explorer**.)
 3. Open `play.bat` and check that `SHORTCUT=` names the Anomaly entry you launch from MO2
    (default `Anomaly (DX11-AVX)`).
 4. Launch with `play.bat` from now on.
 
-`play.bat` checks the date, stages anything that needs staging, and starts the game. Most
-days it changes nothing. Paths come from `ModOrganizer.ini`, so the drive, game folder and
-profile are read rather than assumed.
+`play.bat` fetches Chornobyl's weather, checks the date, stages anything that needs staging,
+and starts the game. Most days it changes nothing. Paths come from `ModOrganizer.ini`, so
+the drive, game folder and profile are read rather than assumed.
+
+**Updating:** install the new zip over the old one and choose **Replace**, then copy
+`_tools/` and `play.bat` again. Your `seasons_config.py` isn't in the zip, so copying
+`_tools/` leaves it alone. Versions before 1.6.1 were installed by copying the
+`mods/Seasons of the Zone` folder: name the new install `Seasons of the Zone` so it
+replaces that copy.
 
 **Removing it:** switch it off in MCM first (this restores the color grade to neutral),
 then disable the mod. If you applied the snowfall patch, `--revert` it too; without the

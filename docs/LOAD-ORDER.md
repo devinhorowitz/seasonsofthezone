@@ -206,7 +206,7 @@ Snapshot `modlist.txt` and `user.ltx` before any GAMMA update.
 ## Checklist
 
 - [ ] `Seasons of the Zone` is enabled in the selected profile.
-- [ ] One copy, at `mods/Seasons of the Zone/gamedata/…`.
+- [ ] One copy of the mod in `mods/`. `season.py status` names any second copy.
 - [ ] Screen Space Shaders is enabled and you launch the Modded Exes DX11 build.
 - [ ] `whowins scripts/level_weathers.script` shows your weather mod or nothing.
 - [ ] The snowfall addon is enabled all year and not in `TOGGLE_MODS`.

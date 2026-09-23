@@ -26,8 +26,26 @@ import sys
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MOD = os.path.join(os.path.dirname(HERE), "mods", "Seasons of the Zone")
-OUT = os.path.join(MOD, "gamedata", "configs", "season_weather.ltx")
+MODS = os.path.join(os.path.dirname(HERE), "mods")
+# The mod is found by its main script, not its folder name: MO2 names a mod after the
+# archive it was installed from.
+MARKER = ("gamedata", "scripts", "zzz_seasons_of_the_zone.script")
+REL = ("gamedata", "configs", "season_weather.ltx")
+
+
+def outputs():
+    """season_weather.ltx in each installed copy of the mod. There should be one; writing
+    every copy keeps whichever one MO2 loads current."""
+    try:
+        names = sorted(os.listdir(MODS))
+    except OSError:
+        return []
+    return [os.path.join(MODS, n, *REL) for n in names
+            if os.path.isfile(os.path.join(MODS, n, *MARKER))]
+
+
+OUTS = outputs()
+OUT = OUTS[0] if OUTS else None
 
 # Chornobyl. Slavutych (51.5194, 30.7511) is the nearest inhabited town and reads within
 # a degree of this; the Zone itself is the more honest anchor for a mod about the Zone.
@@ -68,7 +86,7 @@ def read_existing(section="weather"):
     flat read silently hands back tomorrow's numbers labelled as today's. The Lua side
     reads this file too and has to make the same distinction.
     """
-    if not os.path.exists(OUT):
+    if not OUT or not os.path.exists(OUT):
         return {}
     out, here = {}, None
     try:
@@ -157,11 +175,12 @@ def write(rows):
         "n_cycle": nxt["cycle"],
         "n_freezing": "true" if nxt["low"] <= 0.0 else "false",
     }
-    tmp = OUT + ".tmp"
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    with io.open(tmp, "w", encoding="utf-8", newline="\r\n") as fh:
-        fh.write(body)
-    os.replace(tmp, OUT)       # atomic: the game never sees a half-written file
+    for out in OUTS:
+        tmp = out + ".tmp"
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        with io.open(tmp, "w", encoding="utf-8", newline="\r\n") as fh:
+            fh.write(body)
+        os.replace(tmp, out)       # atomic: the game never sees a half-written file
 
 
 def show():
@@ -189,6 +208,9 @@ def main():
         return 0
     if a.offline:
         print("  offline: leaving season_weather.ltx as it is")
+        return 0
+    if not OUTS:
+        print("  Seasons of the Zone is not in mods/ - no weather to write")
         return 0
 
     existing = read_existing()
