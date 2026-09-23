@@ -70,10 +70,10 @@ October 2 and November 20. These pull the other way, and the Zone gets loud.
 - **Anniversaries: PDA traffic** — the same, opening with a line counting the years
   since that release. The count is computed from the date, so it never goes stale.
 - **Anniversaries: the Zone gets loud** — the weather is pushed to the storm cycle.
-- **Anniversaries: a few extra artefacts** — roughly nought to five on each level you
+- **Anniversaries: a few extra artifacts** — roughly zero to five on each level you
   visit that day, through Dynamic Anomalies Overhaul's own spawner. Lightly noticeable
   rather than a windfall. Unlike everything else here these persist in your save, exactly
-  as ordinary spawned artefacts do, and only once per level per day even across reloads.
+  as ordinary spawned artifacts do, and only once per level per day even across reloads.
   Needs that mod; does nothing without it.
 
 Last come the PDA message settings.
@@ -155,8 +155,9 @@ What is about to happen, on the game clock. It fits on one screen with no scroll
 
 ### What it shows
 
-**The sky, now and next.** Two weather icons with an arrow between them, and when the change
-comes. The arrow only appears when a change is coming.
+**The sky, now and next.** Two weather icons with an arrow between them, when the change
+comes, and how likely the forecast is to be right. The arrow only appears when a change is
+coming.
 
 **The barometer.** A face labeled STORMY / RAIN / CHANGE / FAIR / DRY, with the needle on the
 current weather. The needle twitches every few seconds to show it's a live reading.
@@ -164,19 +165,24 @@ current weather. The needle twitches every few seconds to show it's a live readi
 **The day chart.** The weather along the top and the temperature below it, with the clock hour
 under each rule. Warm hours are amber, cold hours blue.
 
-**Later today**, then **Tomorrow** — the coming changes with their times, and the next day's
-observed range.
+**Later today**, then **Tomorrow** — the coming changes with their times and chances, and the
+next day's observed range.
 
 ### How far ahead it can see
 
 It depends on the weather scheduler, which MCM's Main page names.
 
 **GAMMA's own** knows the current sky and roughly when it will change, but picks the next sky
-at random when the change happens. The page shows the current sky and the window for the
-change, and the ribbon fades out after that.
+at random when the change happens. The page shows the current sky, the window for the
+change, and under **Next sky** the chance of rain or storm, overcast or fog, and clear or
+broken cloud. Those odds are exact, taken from the scheduler's own list. The ribbon fades
+out after the window.
 
-**Atmospherics 2.69's day planner**, installed separately, plans the whole day, and the page
-shows each change with its time.
+**Atmospherics 2.69's day planner**, installed separately, plans the whole day. The page
+forecasts it the way a forecaster would: times are rounded and can be an hour or two out a
+day ahead, about one call in ten is wrong, and both get better as the change gets closer.
+The percentage beside each call is how often calls like it come true. **Exact weather
+forecast** in MCM shows the plan as it will happen instead.
 
 ### Where the numbers come from
 

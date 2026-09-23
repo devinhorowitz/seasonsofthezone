@@ -220,12 +220,18 @@
 		<text>Forecast: standing for a warning</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_coarse_desc">
-		<text>Ecologist goodwill needed before they warn you at all. At this level the page says close, building or no sign, and never an hour.</text>
+		<text>Ecologist goodwill needed before they warn you at all. At this level the page gives a bracket (within 2 hours, 2 to 8, 8 to 16, or all clear) and never the hour.</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_exact">
 		<text>Forecast: standing for the hour</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_exact_desc">
 		<text>Ecologist goodwill needed before they give you the time. Goodwill runs to 1000 at friendly, so 700 is a real investment.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_wx_exact">
+		<text>Exact weather forecast</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_wx_exact_desc">
+		<text>Off: the weather reads like a forecast. Times are rounded and can be an hour or two out, about one call in ten is wrong (fewer as the change gets close), and each call shows how likely it is. On: the page shows Atmospherics' day plan exactly. GAMMA's stock weather has no plan, and its odds for the next sky are exact either way.</text>
 	</string>
 </string_table>

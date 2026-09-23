@@ -22,14 +22,19 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
           coarse=200, exact=700, have_surge=True, have_psi=True, plan=None,
           weather="storm", now_minute=600, have_weather=True, hide_global=False,
           surge_obj_override=None, stock=False, period=6, elapsed_h=1.0,
-          in_level=True, planner_globals=None, calls=None):
+          in_level=True, planner_globals=None, calls=None, storage=(),
+          occurrence=None, wx_exact=False, tail=None):
     """A sandbox with the engine bindings the script reaches for.
 
     stock=True builds base Anomaly's weather manager instead of Atmospherics' planner:
     a cycle and the date it last changed, and no day_plan - which is what every stock
     GAMMA install runs, since neither of GAMMA's Atmospherics mods ships a manager.
+    `storage` is its weather_storage, the skies it has used since the list last reset,
+    and `occurrence` maps a sky to its occurrence option (3 when absent).
     `calls`, if given, is a list the getter appends to, so a case can prove the manager
     was never built from the main menu.
+    `tail`, if given, is appended to the script, and whatever it returns is handed back
+    as a third value - the way a case reaches the script's file-locals.
     """
     lua = LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
@@ -59,7 +64,15 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
             "alife/event/psi_storm_frequency": psi_freq,
             # base Anomaly reads each cycle's length from here, in hours
             "video/weather/%s_period" % weather: period}
+    for c, v in (occurrence or {}).items():
+        opts["video/weather/%s_occurrence" % c] = v
     g.ui_options = lua.table_from({"get": lambda k: opts.get(k)})
+    # [weather_cycles] from dynamic_weather_graphs.ltx, as every weather mod here lists it
+    g.ini_file = lambda path: lua.table_from({"path": path})
+    g.utils_data = lua.table_from({
+        "collect_section": lambda ini, sec: lua.table_from(
+            list(CYCLES) if sec == "weather_cycles" else []),
+    })
 
     # Both the module global and the public getter, because the code tries the global
     # first and falls back. have_surge=False means the module exists but neither route
@@ -86,7 +99,7 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
     g.psi_storm_manager = lua.table_from(pm)
 
     mcm_vals = {"forecast": forecast_on, "forecast_coarse": coarse,
-                "forecast_exact": exact}
+                "forecast_exact": exact, "wx_exact": wx_exact}
     g.ui_mcm = lua.table_from({
         "get": lambda p: mcm_vals.get(str(p).split("/")[-1]),
     })
@@ -106,6 +119,7 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
             "cycle": weather,
             "last_period_change_date": stamp(elapsed_h * HOUR),
             "presets": lua.table_from({}),
+            "weather_storage": lua.table_from(list(storage)),
         })
         lw = {"get_weather_manager": getter(wm)}
         if planner_globals:
@@ -144,8 +158,13 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
     g.device = lambda: lua.table_from({"width": 1920, "height": 1080})
 
     src = io.open(SRC, encoding="utf-8").read()
+    if tail:
+        return lua, g, lua.execute(src + "\n" + tail)
     lua.execute(src)
     return lua, g
+
+
+CYCLES = ("clear", "partly", "cloudy", "rain", "storm", "foggy")
 
 
 def field(t, k):
@@ -579,6 +598,160 @@ def t_mcm_status():
     return "MAC and weather flagged red only when broken; stock GAMMA reads gray"
 
 
+# --- the realistic forecast --------------------------------------------------------------
+#
+# The page shows a forecaster's calls on Atmospherics' plan unless MCM asks for exact. A
+# call is fixed by the change it describes, closes in on the truth as the change nears, is
+# wrong only toward a neighboring sky, and its percentage is how often calls like it come
+# true. These cases hold the model to each of those, running the shipped Lua.
+
+MODEL = "return {call = call, NEIGHBOURS = NEIGHBOURS}"
+
+
+def model():
+    return build(standing=0, surge_left=HOUR, psi_left=HOUR, tail=MODEL)[2]
+
+
+def seq(t):
+    return [t[i] for i in range(1, len(t) + 1)]
+
+
+def t_forecast_calls():
+    plan = [(690, "rain"), (1000, "cloudy"), (1300, "clear"), (1700, "storm")]
+
+    def calls_of():
+        _, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, plan=plan, weather="storm")
+        return field(g.forecast_page(), "weather")
+
+    w = calls_of()
+    calls = seq(field(w, "forecast"))
+    assert field(w, "exact") is False
+    assert 1 <= len(calls) <= 4, len(calls)
+    prev, last = "storm", 600
+    for c in calls:
+        assert c["chance"] in (80, 85, 90, 95), c["chance"]
+        assert c["cycle"] != prev, "a call repeats the sky before it"
+        assert 600 + c["away"] > last, "calls out of order"
+        prev, last = c["cycle"], 600 + c["away"]
+    # the plan itself is untouched, for the API and for exact mode
+    assert [s["cycle"] for s in seq(field(w, "segments"))] == \
+        ["rain", "cloudy", "clear", "storm"]
+    # and the page opened again says the same thing
+    again = seq(field(calls_of(), "forecast"))
+    assert [(c["at"], c["cycle"], c["chance"]) for c in calls] == \
+        [(c["at"], c["cycle"], c["chance"]) for c in again]
+    return "%d calls, in order, each a change, the same on every open" % len(calls)
+
+
+def t_forecast_calibration():
+    import random
+    m = model()
+    rnd = random.Random(1)
+    buckets, off_neighbor = {}, 0
+    for _ in range(20000):
+        minute = rnd.randrange(0, 1440 * 365)
+        lead = rnd.randrange(1, 1441)
+        cycle = rnd.choice(CYCLES)
+        prev = rnd.choice([c for c in CYCLES if c != cycle])
+        said, t, p, step = m.call(minute, cycle, minute - lead, prev)
+        b = buckets.setdefault(p, [0, 0])
+        b[0] += 1
+        b[1] += (said == cycle)
+        if said != cycle and (said not in seq(m.NEIGHBOURS[cycle]) or said == prev):
+            off_neighbor += 1
+        # 2.5 sigma at 8% of the lead, plus half a rounding step
+        assert abs(t - minute) <= 0.2 * lead + step / 2.0, (minute, lead, t)
+    assert off_neighbor == 0, "%d wrong calls missed toward a far sky" % off_neighbor
+    assert max(buckets) <= 95 and min(buckets) >= 80, sorted(buckets)
+    report = []
+    for p in sorted(buckets):
+        n, right = buckets[p]
+        rate = right / float(n)
+        report.append("%d%% came true %.1f%%" % (p, rate * 100))
+        if n >= 500:
+            assert abs(rate - p / 100.0) <= 0.035, \
+                "calls shown at %d%% came true %.1f%% of the time" % (p, rate * 100)
+    return ", ".join(report)
+
+
+def t_forecast_converges():
+    m = model()
+    leads = (1400, 1000, 700, 400, 200, 100, 40, 10)
+    err = {L: 0 for L in leads}
+    relapsed, right_near = 0, 0
+    for k in range(400):
+        minute = 5000 + 97 * k
+        cycle, prev = CYCLES[k % 6], CYCLES[(k + 3) % 6]
+        was_right = False
+        for L in leads:
+            said, t, p, step = m.call(minute, cycle, minute - L, prev)
+            if said == cycle:
+                was_right = True
+            elif was_right:
+                relapsed += 1
+            err[L] += abs(t - minute) / 400.0
+        right_near += (said == cycle)
+    assert relapsed == 0, "%d calls went from right back to wrong as the change neared" % relapsed
+    means = [err[L] for L in leads]
+    assert all(a > b for a, b in zip(means, means[1:])), means
+    assert right_near >= 385, "only %d of 400 right ten minutes out" % right_near
+    return "time error %.0f min a day out, %.1f at ten minutes; a right call stays right" \
+        % (means[0], means[-1])
+
+
+def t_forecast_exact_mode():
+    _, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, wx_exact=True)
+    w = field(g.forecast_page(), "weather")
+    assert field(w, "exact") is True
+    assert field(w, "forecast") is not None, "exact mode dropped the calls the API offers"
+    _, g = build(standing=0, surge_left=HOUR, psi_left=HOUR)
+    assert field(field(g.forecast_page(), "weather"), "exact") is False
+    return "MCM's switch reaches the page, and the calls stay in the data"
+
+
+def odds_of(weather, storage=(), occurrence=None):
+    _, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, stock=True, weather=weather,
+                 storage=storage, occurrence=occurrence)
+    o = field(field(g.forecast_page(), "weather"), "odds")
+    return {x["cycle"]: x["chance"] for x in seq(o)} if o else None
+
+
+def t_stock_odds():
+    # nothing used yet: every sky but the current one, evenly
+    got = odds_of("storm")
+    assert set(got) == {"clear", "partly", "cloudy", "rain", "foggy"}, got
+    assert all(abs(v - 0.2) < 1e-9 for v in got.values()), got
+    # a sky that has come twice is out until the list resets
+    got = odds_of("storm", storage=["rain", "rain", "clear"])
+    assert "rain" not in got and "clear" in got and len(got) == 4, got
+    # occurrence 2 allows one showing; 1 or less allows none
+    got = odds_of("storm", storage=["foggy"], occurrence={"foggy": 2, "clear": 1})
+    assert "foggy" not in got and "clear" not in got, got
+    assert "foggy" in odds_of("storm", occurrence={"foggy": 2}), "occurrence 2 refused"
+    # everything used up: the list resets, and any sky with occurrence above 1 can come,
+    # the current one included
+    got = odds_of("storm", storage=[c for c in CYCLES for _ in (0, 1)])
+    assert set(got) == set(CYCLES), got
+    assert abs(sum(got.values()) - 1) < 1e-9, got
+    return "even over what is left; used-up and switched-off skies out; reset handled"
+
+
+def t_stock_odds_rows():
+    lua, _, fx = expose("ui_seasons_forecast.script", ["odds_rows"])
+
+    def rows(pairs):
+        t = lua.table_from([lua.table_from({"cycle": c, "chance": p}) for c, p in pairs])
+        return [(r["label"], r["pct"]) for r in seq(fx.odds_rows(t))]
+    got = rows([("storm", .25), ("cloudy", .25), ("foggy", .25), ("clear", .25)])
+    assert got == [("Storm", 25), ("Overcast or fog", 50), ("Clear", 25)], got
+    got = rows([("clear", .2), ("partly", .2), ("cloudy", .2), ("rain", .2), ("foggy", .2)])
+    assert got == [("Rain", 20), ("Overcast or fog", 40), ("Clear or broken cloud", 40)], got
+    # nothing wet can come: the row stays, at zero, because no rain next is the news
+    assert rows([("clear", .5), ("partly", .5)])[0] == ("Rain or storm", 0)
+    assert fx.odds_rows(lua.table_from([])) is None
+    return "odds read wet, grey, fair, each named by the skies that can still come"
+
+
 for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("exact tier", t_exact), ("bands scale", t_bands_scale),
              ("band edges", t_band_edges), ("no manager", t_no_manager),
@@ -595,7 +768,13 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("stock window", t_stock_window_edges),
              ("source at menu", t_source_from_menu),
              ("stock page text", t_stock_page_text),
-             ("mcm status", t_mcm_status)):
+             ("mcm status", t_mcm_status),
+             ("forecast calls", t_forecast_calls),
+             ("calibration", t_forecast_calibration),
+             ("converges", t_forecast_converges),
+             ("exact mode", t_forecast_exact_mode),
+             ("stock odds", t_stock_odds),
+             ("stock odds rows", t_stock_odds_rows)):
     case(n, f)
 
 if __name__ == "__main__":

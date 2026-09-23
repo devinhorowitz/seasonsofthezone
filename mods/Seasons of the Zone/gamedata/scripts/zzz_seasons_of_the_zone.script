@@ -1477,6 +1477,136 @@ function weather_source()
     return "none"
 end
 
+-- --- a forecast, not a timetable ---------------------------------------------------------
+--
+-- Atmospherics' plan is exact, and a forecast that is never wrong is a timetable. So the
+-- page gets a forecaster's calls instead: each planned change is given a rounded time and
+-- a sky, both off by an error that shrinks as the change gets closer, and a percentage
+-- that is how often a call made that far ahead comes true. MCM's "Exact weather forecast"
+-- shows the plan itself.
+--
+-- A call is a pure function of the change it describes, so reopening the PDA shows the
+-- same forecast, and it is only revised because the change got closer. The arithmetic
+-- avoids bit operations so LuaJIT and the Lua the tests run give the same numbers.
+
+-- where a wrong call lands: the next sky over, never the far end
+local NEIGHBOURS = {
+    clear  = {"partly"},
+    partly = {"clear", "cloudy"},
+    cloudy = {"partly", "foggy", "rain"},
+    foggy  = {"cloudy", "partly"},
+    rain   = {"cloudy", "storm"},
+    storm  = {"rain"},
+}
+
+local PM = 2147483647                   -- Park-Miller's modulus, 2^31 - 1
+
+-- n numbers in (0, 1), fixed by the change's minute and sky
+local function draws(minute, cycle, n)
+    local h = 7
+    local s = tostring(cycle)
+    for i = 1, #s do h = (h * 31 + s:byte(i)) % PM end
+    local x = (math.floor(minute) * 104729 + h * 7919) % (PM - 1) + 1
+    local out = {}
+    for i = 1, n + 3 do
+        x = (x * 16807) % PM
+        if i > 3 then out[i - 3] = x / PM end      -- the first few track the seed too closely
+    end
+    return out
+end
+
+-- 98% right an hour out, 82% a day out: about one call in ten wrong across a day
+local function accuracy(lead)
+    local a = 0.98 - 0.16 * lead / 1440
+    if a < 0.82 then a = 0.82 elseif a > 0.98 then a = 0.98 end
+    return a
+end
+
+-- shown to the nearest 5, and never 100: a forecast is never certain
+local function chance(lead)
+    local p = math.floor(accuracy(lead) * 20 + 0.5) * 5
+    if p > 95 then p = 95 end
+    return p
+end
+
+-- One planned change as a forecaster would call it. prev is the sky before it; a call has
+-- to differ from it, because "rain, then rain" is not a change.
+local function call(minute, cycle, now, prev)
+    local lead = minute - now
+    local u = draws(minute, cycle, 4)
+    local said = cycle
+    if u[1] < 1 - accuracy(lead) then
+        local opts = {}
+        for _, c in ipairs(NEIGHBOURS[cycle] or {}) do
+            if c ~= prev then opts[#opts + 1] = c end
+        end
+        if #opts > 0 then said = opts[math.floor(u[2] * #opts) + 1] end
+    end
+    -- the time is off by up to 2.5 sigma, sigma 8% of the lead: about two hours a day out
+    local z = math.sqrt(-2 * math.log(u[3])) * math.cos(2 * math.pi * u[4])
+    if z > 2.5 then z = 2.5 elseif z < -2.5 then z = -2.5 end
+    local step = (lead > 180 and 30) or (lead > 60 and 15) or 5
+    local t = math.floor((minute + z * 0.08 * lead) / step + 0.5) * step
+    return said, t, chance(lead), step
+end
+
+-- The page's forecast for a plan: segments as calls, in the same shape plus `chance`.
+local function forecast_calls(now_cycle, segments, now, clock)
+    local out, prev, last = {}, now_cycle, now
+    for _, seg in ipairs(segments) do
+        local minute = now + seg.away
+        local said, t, p, step = call(minute, seg.cycle, now, prev)
+        if said ~= prev then
+            -- two calls can cross when their errors point at each other; keep them in order
+            if t <= last then t = last + step end
+            out[#out + 1] = {at = clock(t), cycle = said, away = t - now, chance = p}
+            prev, last = said, t
+        end
+    end
+    return out
+end
+
+-- Base Anomaly draws the next sky with math.random from a list it builds at the moment of
+-- change, and that list is already fixed: every sky but the current one, less those used
+-- up (a sky may come twice before the list resets, once if its occurrence option is 2).
+-- So these odds are exact. Mirrors level_weathers' get_next_weather_cycle and, for an
+-- empty list, get_random_weather.
+local function stock_odds(wm)
+    local ok, cycles = pcall(function()
+        return utils_data.collect_section(ini_file("environment\\dynamic_weather_graphs.ltx"),
+                                          "weather_cycles")
+    end)
+    if not (ok and type(cycles) == "table" and #cycles > 0) then return nil end
+    local storage = wm.weather_storage
+    if type(storage) ~= "table" then return nil end
+    local used = {}
+    for i = 1, #storage do used[storage[i]] = (used[storage[i]] or 0) + 1 end
+    local function occurrence(c)
+        local okv, v = pcall(function()
+            return ui_options.get("video/weather/" .. c .. "_occurrence")
+        end)
+        return (okv and tonumber(v)) or 3
+    end
+    local avail = {}
+    for _, c in ipairs(cycles) do
+        if c ~= wm.cycle then
+            local v, n = occurrence(c), used[c] or 0
+            if (v > 2.5 and n < 2) or (v > 1.5 and n < 1) then avail[#avail + 1] = c end
+        end
+    end
+    if #avail == 0 then
+        for _, c in ipairs(cycles) do
+            if occurrence(c) > 1 then avail[#avail + 1] = c end
+        end
+        if #avail == 0 then
+            for _, c in ipairs(cycles) do avail[#avail + 1] = c end
+        end
+    end
+    local out = {}
+    for _, c in ipairs(avail) do out[#out + 1] = {cycle = c, chance = 1 / #avail} end
+    return out
+end
+
 function forecast_page()
     local out = {today = today_text()}
 
@@ -1670,8 +1800,8 @@ function forecast_page()
     -- --- the weather plan ------------------------------------------------------------------
     -- Atmospherics does not guess the weather, it PLANS it: WeatherManager:roll_day_plan
     -- extends self.day_plan to DAY_PLAN_WINDOW_MINUTES - 24 game hours - ahead, as a list
-    -- of {minute, cycle}. So this is not a derived forecast; it is the schedule the game
-    -- is going to follow, read straight off.
+    -- of {minute, cycle}. `segments` is that schedule, read straight off; `forecast` is
+    -- the same schedule as a forecaster would call it (see forecast_calls).
     --
     -- Ungated, unlike the emission tiers. Weather is something a stalker reads by looking
     -- up, the ecologists have no special claim on it, and it gives the page something to
@@ -1690,8 +1820,8 @@ function forecast_page()
 
     -- Stock weather. The sky now, and the window it turns in: base re-rolls the change
     -- time each hour between two thirds of the period and all of it, so the change lands
-    -- somewhere in that window and nowhere else. What it turns TO is picked at random at
-    -- the moment of change, so no next sky is given - there is not one to give.
+    -- somewhere in that window and nowhere else. What it turns TO is drawn at random at
+    -- the moment of change, so no next sky is given, only the odds of each.
     if out.weather_source == "stock" then
         pcall(function()
             local wm = level_weathers.get_weather_manager()
@@ -1711,6 +1841,8 @@ function forecast_page()
                 w.window = {lo = math.max(0, math.floor(lo / 60)),
                             hi = math.max(0, math.floor(hi / 60))}
             end
+            local oko, odds = pcall(stock_odds, wm)
+            if oko then w.odds = odds end
             out.weather = w
         end)
         return out
@@ -1735,6 +1867,10 @@ function forecast_page()
                 if #w.segments >= 6 then break end
             end
         end
+        -- segments stay the plan itself; the page shows the calls unless MCM asks for exact
+        w.exact = mcm("wx_exact", false) and true or false
+        local okf, calls = pcall(forecast_calls, w.now, w.segments, now, clock)
+        if okf then w.forecast = calls end
         out.weather = w
     end)
 

@@ -78,6 +78,10 @@
     <wx_next_label x="144" y="276" width="112" height="18">
         <text font="letterica16" r="190" g="190" b="190" align="c" vert_align="c" complex_mode="1"/>
     </wx_next_label>
+    <!-- how sure the forecast is of the next sky, beside its glyph -->
+    <wx_chance x="232" y="234" width="46" height="20">
+        <text font="letterica18" r="238" g="196" b="112" align="l" vert_align="c"/>
+    </wx_chance>
 
     <!-- the temperature, beside the sky rather than buried in a row -->
     <now x="282" y="222" width="212" height="44">

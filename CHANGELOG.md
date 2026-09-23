@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **A forecast, not a timetable.** With Atmospherics 2.69's day planner, the Forecast page
+  calls the weather the way a forecaster would: times are rounded and can be an hour or two
+  out a day ahead, about one call in ten is wrong, and both improve as the change gets
+  closer. Each call shows how likely it is, and calls shown at 90% come true about 90% of
+  the time. MCM's **Exact weather forecast** shows the plan itself.
+- **Odds on stock GAMMA.** Under **Next sky**, the page gives the chance that the next sky is
+  rain or storm, overcast or fog, or clear or broken cloud. The stock scheduler draws it at
+  random from a list it keeps, so these odds are exact.
+- `weather()` adds `forecast` (the calls, each with `chance`) and, on stock, `odds`.
+- Fixed: MCM's description of the warning-level forecast named brackets the page doesn't
+  use.
+
 ## 1.6.1 — 2026-09-23
 
 - **Installs through MO2.** *Install a new mod from archive* now accepts the zip; before,

@@ -113,8 +113,8 @@ Two are **remembrance days** and the Zone goes quiet:
 The weather is held clear and the PDA carries the day. No reward, no drop, no map marker.
 
 Four are **anniversaries** — the release dates of the mainline games — and they pull the
-other way. The weather is pushed to storm and a few extra artefacts are seeded on each
-level you visit, roughly nought to five, once per level per day.
+other way. The weather is pushed to storm and a few extra artifacts are seeded on each
+level you visit, roughly zero to five, once per level per day.
 
 | | |
 |---|---|
@@ -134,7 +134,7 @@ Pripyat in August 2012. A fresh save hears *"6 years since Operation Fairway"*, 
 count advances as the save ages. Heart of Chornobyl is set in 2021-22, still ahead of
 Anomaly's own calendar, so it carries no count at all.
 
-Five switches on the MCM Main page turn any of it off. The artefact seed is the only part
+Five switches on the MCM Main page turn any of it off. The artifact seed is the only part
 of the mod that writes to your save.
 
 ---

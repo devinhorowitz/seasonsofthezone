@@ -112,13 +112,26 @@ water, not of the unit being read.
 each change, so `at` is when it will happen. Repeats of the current cycle are skipped, so
 `next` is always a real change. `away_min` is in game minutes.
 
+Under `"plan"`, `forecast` is the same day as the PDA page shows it by default: each change
+as a forecaster would call it, with a rounded time, about one call in ten wrong (fewer as
+the change gets close), and `chance`, the percent of such calls that come true.
+
+```lua
+forecast = { { at = "11:30", cycle = "rain", away = 90, chance = 95 },
+             { at = "18:00", cycle = "cloudy", away = 480, chance = 90 }, … }
+```
+
+Use `forecast` to show the player what their PDA says. Use `plan` to act on the weather.
+
 **`"stock"`** is the base game's scheduler, which GAMMA uses. It picks the next cycle at
 random when the change happens, so `next` is `nil` and `plan` is empty. `window` gives when
-the change will come:
+the change will come, and `odds` the chance of each sky it can bring. The odds are exact:
+the scheduler draws evenly from every sky but the current one, less those it has used up.
 
 ```lua
 { now = "storm", source = "stock", next = nil, plan = {},
-  window = { lo = 120, hi = 240 } }   -- changes in 2 to 4 game hours
+  window = { lo = 120, hi = 240 },   -- changes in 2 to 4 game hours
+  odds = { { cycle = "clear", chance = 0.25 }, { cycle = "rain", chance = 0.25 }, … } }
 ```
 
 Check `source` before treating an empty `plan` as settled weather: under `"stock"` it only

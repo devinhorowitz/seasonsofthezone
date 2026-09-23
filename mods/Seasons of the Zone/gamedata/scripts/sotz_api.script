@@ -372,10 +372,16 @@ end
 -- =========================================================================================
 
 --- What it is doing now and what it does next.
--- @return {now, next = {cycle, at, away_min}, plan = {…}} or nil without Atmospherics.
---         This is not a prediction: Atmospherics plans the next 24 game hours in
---         WeatherManager.day_plan and this reads that plan, so `at` is when it will
+-- @return {now, next = {cycle, at, away_min}, plan = {…}, forecast = {…}, odds = {…}}
+--         or nil without a weather manager.
+--         `next` and `plan` are not predictions: Atmospherics plans the next 24 game hours
+--         in WeatherManager.day_plan and this reads that plan, so `at` is when it will
 --         actually change. Repeats of the current cycle are not changes and are skipped.
+--         `forecast` is the same plan as the PDA page calls it by default: rounded times,
+--         about one call in ten wrong, and `chance` (percent) on each. Use it to show
+--         the player what their PDA shows; use `plan` to act on the weather.
+--         `odds` is stock only: {cycle, chance (0-1)} for each sky the next change can
+--         bring, exact, since the stock scheduler draws it at random from that list.
 function weather()
     return cached("weather", function()
         local page = zzz_seasons_of_the_zone.forecast_page()
@@ -396,6 +402,8 @@ function weather()
             -- An empty plan with source "plan" is a settled day. With "stock" it is not.
             source = w.source,
             window = w.window,
+            forecast = w.forecast,
+            odds = w.odds,
         }
     end)
 end

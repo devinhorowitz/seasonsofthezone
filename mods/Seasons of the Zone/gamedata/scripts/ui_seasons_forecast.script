@@ -131,6 +131,42 @@ local function window_text(win)
     return string.format("turns in %d to %d hours", L, H)
 end
 
+-- The stock odds, summed the way a forecast states them: wet first, because "will it rain"
+-- is the question. Each group is named by the skies in it that can still come, so a group
+-- with one possible sky says just that one.
+local ODDS_GROUPS = {
+    {"Rain or storm",         {"rain", "storm"}},
+    {"Overcast or fog",       {"cloudy", "foggy"}},
+    {"Clear or broken cloud", {"clear", "partly"}},
+}
+
+local function odds_rows(odds)
+    if not (odds and #odds > 0) then return nil end
+    local p = {}
+    for _, o in ipairs(odds) do
+        local c = tostring(o.cycle)
+        p[c] = (p[c] or 0) + (o.chance or 0)
+    end
+    local rows, grouped = {}, {}
+    for i, g in ipairs(ODDS_GROUPS) do
+        local sum, names = 0, {}
+        for _, c in ipairs(g[2]) do
+            grouped[c] = true
+            if (p[c] or 0) > 0 then
+                sum = sum + p[c]
+                names[#names + 1] = cycle_name(c)
+            end
+        end
+        rows[i] = {label = (#names == 1) and names[1] or g[1], chance = sum}
+    end
+    -- a sky outside the three groups is still a chance of something; count it as grey
+    for c, v in pairs(p) do
+        if not grouped[c] then rows[2].chance = rows[2].chance + v end
+    end
+    for _, r in ipairs(rows) do r.pct = math.floor(r.chance * 100 + 0.5) end
+    return rows
+end
+
 -- CScriptXmlInit:ParseFile does NOT raise when the xml cannot be used - it returns, and
 -- every Init* afterwards quietly hands back nil. The first method call on one of those
 -- nils is a hard engine FATAL, not a Lua error pcall can absorb, which is exactly how a
@@ -194,6 +230,7 @@ function SeasonsForecast:InitControls()
     self.wx_next       = xml:InitStatic("wx_next", self)
     self.wx_now_label  = xml:InitTextWnd("wx_now_label", self)
     self.wx_next_label = xml:InitTextWnd("wx_next_label", self)
+    self.wx_chance     = xml:InitTextWnd("wx_chance", self)
     for _, s in ipairs({self.wx_now, self.wx_arrow, self.wx_next}) do
         local h = s:GetHeight()
         s:SetWndSize(vector2():set(h * aspect(), h))
@@ -344,6 +381,8 @@ local ECO_H_LOCKED = 72
 -- changes, and the plan cap drops from eight to six for the same reason.
 local ROW_H    = 17
 local ROWS     = 14
+-- time, sky, chance, lead
+local FIELDS   = 4
 
 function SeasonsForecast:InitRows()
     self.heads, self.rows = {}, {}
@@ -356,7 +395,7 @@ function SeasonsForecast:InitRows()
         self.rows[col] = {}
         for i = 1, ROWS do
             local set = {}
-            for f = 1, 3 do
+            for f = 1, FIELDS do
                 local w = self.xml:InitTextWnd("row_line", self)
                 if w then
                     w:Show(false)
@@ -471,7 +510,7 @@ function SeasonsForecast:Put(col, fields, rgb)
     local set = self.rows[col][n]
     local y = ROW_Y0[col] + (n - 1) * ROW_H
     rgb = rgb or LINE_RGB
-    for f = 1, 3 do
+    for f = 1, FIELDS do
         local w = set and set[f]
         if w then
             local spec = fields[f]
@@ -492,7 +531,7 @@ function SeasonsForecast:ClearRows()
         if self.heads and self.heads[col] then self.heads[col]:Show(false) end
         for i = 1, ROWS do
             local set = self.rows and self.rows[col] and self.rows[col][i]
-            for f = 1, 3 do
+            for f = 1, FIELDS do
                 if set and set[f] then set[f]:Show(false) end
             end
         end
@@ -560,7 +599,8 @@ local SPAN_MIN  = 1440          -- one game day
 local CHART_X   = 52            -- must match <chart> in the xml
 local CHART_Y   = 308
 
-function SeasonsForecast:DrawChart(d, temp)
+-- `shown` is the list the page forecasts from, so the ribbon matches the rows under it
+function SeasonsForecast:DrawChart(d, temp, shown)
     if not self.chart then return end
     for i = 1, #(self.bars or {}) do
         if self.bars[i] then self.bars[i]:Show(false) end
@@ -593,7 +633,7 @@ function SeasonsForecast:DrawChart(d, temp)
         local marks = {}
         local cur = w.now
         local at = 0
-        for _, seg in ipairs(w.segments or {}) do
+        for _, seg in ipairs(shown or {}) do
             if seg.away and seg.away > at then
                 marks[#marks + 1] = {from = at, to = math.min(seg.away, SPAN_MIN), cycle = cur}
                 at, cur = seg.away, seg.cycle
@@ -746,7 +786,11 @@ function SeasonsForecast:Fill()
     -- --- the sky, now and next --------------------------------------------------------
     -- The arrow and the second glyph only appear when there IS a next: on a settled day
     -- an arrow pointing at a repeat of the same sky would be a lie.
-    local nxt = w and w.segments and w.segments[1]
+    -- `shown` is what the page forecasts from: the forecaster's calls, or the plan itself
+    -- when MCM asks for exact. The glyph, the rows and the ribbon all read it, so they
+    -- cannot disagree.
+    local shown = w and (((w.exact or not w.forecast) and w.segments) or w.forecast)
+    local nxt = shown and shown[1]
     if self.wx_now then
         pcall(function() self.wx_now:InitTexture(wx_tex(w and w.now)) end)
         self.wx_now:Show(w ~= nil)
@@ -758,6 +802,9 @@ function SeasonsForecast:Fill()
         if nxt then pcall(function() self.wx_next:InitTexture(wx_tex(nxt.cycle)) end) end
         self.wx_next:Show(nxt ~= nil)
     end
+    -- how sure the call is, beside its glyph the way a TV forecast shows it; the plan
+    -- itself carries no percentage
+    put(self.wx_chance, (nxt and nxt.chance) and string.format("%d%%", nxt.chance) or "")
     -- On stock there is no next glyph - it has not been picked yet - but there is a
     -- window, and saying "settled" would promise a sky that is certain to change.
     local next_text = ""
@@ -790,33 +837,39 @@ function SeasonsForecast:Fill()
     -- as it being below zero now - that is what temp.freezing says
     if self.frost then self.frost:Show(temp ~= nil and temp.frost == true) end
 
-    self:DrawChart(d, temp)
+    self:DrawChart(d, temp, shown)
     -- Nothing: the x-axis now carries the hours, and "now" beside a label that already
     -- reads the current hour was the page saying the same thing twice.
     put(self.chart_cap_l, "")
     put(self.chart_cap_r, "")
 
     -- --- the weather ----------------------------------------------------------------------
-    -- Not a guess. Atmospherics plans the next 24 game hours in advance and this is that
-    -- plan, so the times are the times it will actually change.
+    -- Atmospherics plans the next 24 game hours; `shown` is that plan as a forecaster
+    -- calls it, or the plan itself in exact mode.
     -- The next change is already stated under the glyphs, so the list starts after it.
-    self:Head(1, "Later today")
-    -- the day's endpoints, not just the current number: the cycle is accelerated, so
-    -- "8 C" on its own says nothing about whether the night is survivable
-    if w and w.segments and #w.segments > 1 then
-        for i = 2, #w.segments do
-            local seg = w.segments[i]
+    -- Stock weather draws the next sky at random when it turns, so its section is the
+    -- odds of each, which are exact.
+    local odds = (w and w.source == "stock") and odds_rows(w.odds) or nil
+    local said = (shown == (w and w.segments)) and "planned" or "forecast"
+    self:Head(1, odds and "Next sky" or "Later today")
+    if shown and #shown > 1 then
+        for i = 2, #shown do
+            local seg = shown[i]
             self:Put(1, {{0, seg.at}, {76, cycle_name(seg.cycle)},
+                         {184, seg.chance and string.format("%d%%", seg.chance) or ""},
                          {232, lead(seg.away)}})
         end
+    elseif odds then
+        for _, r in ipairs(odds) do
+            self:Put(1, {{0, r.label}, {184, string.format("%d%%", r.pct)}},
+                     r.pct > 0 and LINE_RGB or DIM_RGB)
+        end
     elseif w and w.source == "stock" then
-        -- the stock manager picks the next sky at random when it changes, so there is
-        -- nothing further to show; MCM explains why
         self:Put(1, {{0, "What comes after that is anyone's guess."}}, DIM_RGB)
-    elseif w and #(w.segments or {}) == 1 then
-        self:Put(1, {{0, "Nothing further planned."}}, DIM_RGB)
+    elseif w and #(shown or {}) == 1 then
+        self:Put(1, {{0, "Nothing further " .. said .. "."}}, DIM_RGB)
     elseif w then
-        self:Put(1, {{0, "Settled - no change planned."}}, DIM_RGB)
+        self:Put(1, {{0, "Settled - no change " .. said .. "."}}, DIM_RGB)
     else
         -- no weather manager at all; rare, and not the same as stock weather
         self:Put(1, {{0, "No weather reading."}}, DIM_RGB)
