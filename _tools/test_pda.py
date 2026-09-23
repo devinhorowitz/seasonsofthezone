@@ -7,7 +7,7 @@ and without the router the switch would lead nowhere.
 
 That router sits in the path of EVERY PDA tab, which is why it gets its own suite. A mistake in
 it does not break this mod's pages - it breaks the player's whole PDA. So these cases pin that it
-claims exactly its own two sections, hands every other one down with all its arguments, contains
+claims only its own two sections, hands every other one down with all its arguments, contains
 a page that fails to build, never wraps twice, and works whichever order it and MAC install in.
 
   python _tools/test_pda.py
@@ -144,7 +144,7 @@ def t_routes_both_faces():
 
 @case
 def t_hands_every_other_tab_down_whole():
-    """Every PDA tab passes through here. The rest must arrive exactly as they were sent."""
+    """Every PDA tab passes through here. The rest must arrive unchanged."""
     lua, g, seen, _, hooks = build()
     install(hooks)
     route = g.pda.set_active_subdialog
@@ -176,7 +176,7 @@ def t_wraps_once():
     # Compared inside Lua, by identity. lupa may hand Python a fresh proxy for the same
     # function on every read, so a Python `==` proves nothing either way. And counting
     # passthroughs cannot catch a double wrap at all - a stacked router still reaches the
-    # base game exactly once - so identity is the only honest test.
+    # base game once - so the check is on the function's identity.
     lua.execute("FIRST_ROUTER = pda.set_active_subdialog")
     install(hooks)
     install(hooks)

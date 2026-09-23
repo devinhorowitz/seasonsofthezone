@@ -110,9 +110,9 @@ local function lead(min)
     return string.format("in %d min", math.max(1, math.floor(min)))
 end
 
--- Stock weather knows WHEN it will turn to within a window, and not what it turns into. The
--- window is minutes, like a planned change's lead. Past its far edge the stock manager flips
--- on its next hourly check, so "any moment" is the honest reading rather than a negative.
+-- Stock weather knows roughly when it will turn, not what it turns into. The window is in
+-- minutes, like a planned change's lead. Past its far edge the stock manager changes on its
+-- next hourly check, so this reads "any moment" rather than a negative number.
 local function window_text(win)
     if not win then return "" end
     local lo, hi = win.lo or 0, win.hi or 0
@@ -271,10 +271,9 @@ function SeasonsForecast:OnUnits()
     self:Reset()
 end
 
--- The switch between the app's two faces. This page's own half is pressed in - disabled,
--- which is the darker plate - and lit amber, the colour this mod uses for "you are here";
--- clicking it does nothing. The other half goes to the other face through sotz_pda, which
--- routes both sections whether or not MAC is the way the player came in.
+-- The switch between the app's two faces. This page's half is disabled, which shows the lit
+-- plate, and has an amber label; clicking it does nothing. The other half opens the other
+-- face through sotz_pda, which routes both sections with or without MAC.
 function SeasonsForecast:InitToggle()
     local xml = self.xml
     self.toggle_year = xml:Init3tButton("toggle_year", self)
@@ -811,17 +810,15 @@ function SeasonsForecast:Fill()
                          {232, lead(seg.away)}})
         end
     elseif w and w.source == "stock" then
-        -- literally what the stock manager does: the next sky is a random pick, made at
-        -- the moment of change. MCM carries the technical why; the PDA stays in the Zone.
+        -- the stock manager picks the next sky at random when it changes, so there is
+        -- nothing further to show; MCM explains why
         self:Put(1, {{0, "What comes after that is anyone's guess."}}, DIM_RGB)
     elseif w and #(w.segments or {}) == 1 then
         self:Put(1, {{0, "Nothing further planned."}}, DIM_RGB)
     elseif w then
         self:Put(1, {{0, "Settled - no change planned."}}, DIM_RGB)
     else
-        -- No manager at all - rare, and not the same thing as stock weather. It used to
-        -- say "Atmospherics is not running", which every stock GAMMA install was told
-        -- while running exactly the weather GAMMA ships.
+        -- no weather manager at all; rare, and not the same as stock weather
         self:Put(1, {{0, "No weather reading."}}, DIM_RGB)
     end
 

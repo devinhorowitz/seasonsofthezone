@@ -142,10 +142,9 @@ function SeasonsPDA:InitControls()
     end
 end
 
--- The switch between the app's two faces. This page's own half is pressed in - disabled,
--- which is the darker plate - and lit amber, the colour this mod uses for "you are here";
--- clicking it does nothing. The other half goes to the other face through sotz_pda, which
--- routes both sections whether or not MAC is the way the player came in.
+-- The switch between the app's two faces. This page's half is disabled, which shows the lit
+-- plate, and has an amber label; clicking it does nothing. The other half opens the other
+-- face through sotz_pda, which routes both sections with or without MAC.
 function SeasonsPDA:InitToggle()
     local xml = self.xml
     self.toggle_year = xml:Init3tButton("toggle_year", self)

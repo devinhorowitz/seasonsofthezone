@@ -1456,9 +1456,7 @@ end
 -- moment of change - so there is nothing further to read. "none" is no manager at all.
 --
 -- GAMMA ships "stock". Neither of its two Atmospherics mods includes level_weathers.script;
--- the planner arrives only with a newer Atmospherics installed separately. The page used to
--- call that case "Atmospherics is not running", which was wrong about a mod the user could
--- see ticked in MO2.
+-- the planner comes only with a newer Atmospherics installed separately.
 --
 -- In a level the live manager is authoritative, so it is read. At the main menu it must not
 -- be: base's get_weather_manager() BUILDS one when none exists - the same side effect this

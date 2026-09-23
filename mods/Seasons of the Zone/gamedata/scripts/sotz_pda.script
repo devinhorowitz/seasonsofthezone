@@ -54,9 +54,9 @@ function open(tab)
     if not ok then say("could not open " .. tostring(tab) .. ": " .. tostring(err)) end
 end
 
--- pda.set_active_subdialog is how the PDA turns a section id into a page, and a mod claims
--- its sections by wrapping it - which is exactly what MAC does for its launcher. This claims
--- the two sections above and passes every other one down untouched.
+-- pda.set_active_subdialog turns a section id into a page, and a mod claims its sections by
+-- wrapping it, as MAC does for its launcher. This claims the two sections above and passes
+-- every other one down untouched.
 --
 -- Installed whatever else is present. With MAC, only one of the two faces is a launcher
 -- tile, so MAC's own wrapper has never heard of the other and the switch would lead nowhere

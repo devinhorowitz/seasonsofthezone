@@ -171,10 +171,9 @@ def button_strip():
     the same fault that shipped the empty launcher tiles. Four distinct cells also buys
     real hover feedback, which one tinted block could not.
     """
-    # The disabled cell is LIT, not dimmed. The only plate this mod ever disables is the half
-    # of the app's view switch you are already on, and "here" should be the half that draws
-    # the eye - it was the darkest plate on the page, so the raised half beside it read as
-    # the selected one. It is the pressed colour held down: the half you clicked stays in.
+    # The disabled cell is lit, not dimmed. The only plate this mod disables is the half of
+    # the app's view switch you are on, which should be the half that stands out. It uses the
+    # pressed color, so the half you clicked stays pressed.
     cells = [(40, 46, 40, 235),     # e  resting
              (62, 70, 58, 245),     # h  hovered
              (86, 74, 44, 255),     # t  pressed, warm like the amber label

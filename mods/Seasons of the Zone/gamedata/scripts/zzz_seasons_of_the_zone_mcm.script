@@ -44,10 +44,10 @@ local function has_season(seasons_str, s)
     return false
 end
 
--- What the PDA apps lean on, and whether it is here. Grey is fine, red is broken.
+-- What the PDA app needs, and whether it is here. Gray is fine, red is broken.
 --
--- MCM's own red is 225,0,0; this is the mod's one red instead, the same the PDA pages
--- alarm in, so a player sees the same colour mean the same thing on both screens.
+-- The red is the one the PDA pages alarm in, rather than MCM's own 225,0,0, so it means the
+-- same thing on both screens.
 local STATUS_OK  = {255, 165, 165, 165}
 local STATUS_BAD = {255, 238, 96, 72}
 
@@ -72,8 +72,8 @@ local function dependency_rows(out)
         row("status_mac", "PDA: the Seasons app opens from the Mod App Creator launcher.",
             false)
     else
-        row("status_mac", "Mod App Creator was not found. It is how the Seasons app opens, "
-            .. "so without it the app is built but nothing in the PDA reaches it.", true)
+        row("status_mac", "Mod App Creator not found. The Seasons app opens from its "
+            .. "launcher, so it cannot be opened without it.", true)
     end
 
     -- weather_source() never builds a manager from the main menu, which is where MCM is

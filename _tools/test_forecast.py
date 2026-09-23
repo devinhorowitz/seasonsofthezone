@@ -558,13 +558,13 @@ def t_mcm_status():
             rows[r.id] = (r.text, tuple(r.clr[j] for j in range(1, 5)))
         return rows
 
-    red, grey = (255, 238, 96, 72), (255, 165, 165, 165)
+    red, gray = (255, 238, 96, 72), (255, 165, 165, 165)
 
     ok = run(True, "stock")
-    assert ok["status_mac"][1] == grey, "MAC present but flagged red"
+    assert ok["status_mac"][1] == gray, "MAC present but flagged red"
     assert "Mod App Creator launcher" in ok["status_mac"][0], ok["status_mac"][0]
-    # stock is how GAMMA ships - grey, never an alarm, and never "not running"
-    assert ok["status_weather"][1] == grey, "stock weather flagged as a fault"
+    # stock is how GAMMA ships: gray, never red
+    assert ok["status_weather"][1] == gray, "stock weather flagged as a fault"
     assert "stock scheduler" in ok["status_weather"][0], ok["status_weather"][0]
     assert "not running" not in ok["status_weather"][0]
 
@@ -573,10 +573,10 @@ def t_mcm_status():
     assert "not found" in missing["status_mac"][0], missing["status_mac"][0]
     assert missing["status_weather"][1] == red, "no weather manager but not flagged"
 
-    assert run(True, "plan")["status_weather"][1] == grey
+    assert run(True, "plan")["status_weather"][1] == gray
     # a failure in the check is reported as the broken case, not swallowed as fine
     assert run(True, "plan", raises=True)["status_weather"][1] == red
-    return "MAC and weather flagged red only when broken; stock GAMMA reads grey"
+    return "MAC and weather flagged red only when broken; stock GAMMA reads gray"
 
 
 for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
