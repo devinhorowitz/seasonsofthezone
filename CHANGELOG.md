@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.5.0 — 2026-09-23
 
 - **The Year is a year now.** The calendar page leads with a twelve-month grid of day
   cells tinted by season, today's cell lit and the six days the Zone marks underlined.
