@@ -35,6 +35,11 @@ MARKER = "gamedata/scripts/zzz_seasons_of_the_zone.script"
 # where season.py writes the gated ambient presets; must match SOUND_REL there
 SOUND_REL = ("configs", "environment", "ambients", "presets")
 
+# Images for the GitHub page only: the README's season animation would add 4 MB to a
+# 6 MB download. The packaged README links to the copy on GitHub instead.
+WEB_ONLY = ["docs/images/seasons.webp"]
+WEB_BASE = "https://github.com/devinhorowitz/seasonsofthezone/raw/main/"
+
 # What MO2's Anomaly plugin accepts at the top of an archive
 # (plugins/basic_games/games/game_stalkeranomaly.py, dataLooksValid).
 MO2_DATA_DIRS = ("appdata", "bin", "db", "gamedata")
@@ -176,7 +181,8 @@ def check_contents(names, base):
     must = [MARKER, "play.bat", "_tools/season.py", "_tools/fetch_weather.py"]
     never = ["meta.ini",                            # MO2 writes its own
              "_tools/seasons_config.py",            # would overwrite the user's on update
-             "gamedata/configs/season_weather.ltx"]  # one machine's fetched day
+             "gamedata/configs/season_weather.ltx"  # one machine's fetched day
+             ] + WEB_ONLY                           # the GitHub page's, not the download's
     missing = [p for p in must if base + p not in names]
     present = [p for p in never if base + p in names]
     if missing or present:
@@ -184,6 +190,26 @@ def check_contents(names, base):
                          % ("".join("\n    missing  " + p for p in missing),
                             "".join("\n    shipped  " + p for p in present)))
     print("  contents               required present, excluded absent")
+
+
+def check_doc_images(stage):
+    """Every image a packaged doc shows by relative path must be in the package; one left
+    out on purpose has to be linked absolutely."""
+    missing = []
+    for d, _, files in os.walk(stage):
+        for f in files:
+            if not f.lower().endswith(".md"):
+                continue
+            p = os.path.join(d, f)
+            for link in re.findall(r"!\[[^\]]*\]\(([^)\s]+)\)", io.open(p, encoding="utf-8").read()):
+                if re.match(r"^[a-z]+://", link):
+                    continue
+                if not os.path.isfile(os.path.normpath(os.path.join(d, link))):
+                    missing.append("%s -> %s" % (os.path.relpath(p, stage), link))
+    if missing:
+        raise SystemExit("  refusing to package: docs show images the zip does not have:%s"
+                         % "".join("\n    " + m for m in missing))
+    print("  doc images             every shown image is packaged or linked")
 
 
 def check_play_bat(stage):
@@ -390,7 +416,18 @@ def main():
             shutil.copy2(p, os.path.join(STAGE, extra))
 
     nd = copytree(os.path.join(OUT, "docs"), os.path.join(STAGE, "docs"))
-    print("  docs                   %3d files" % nd)
+    readme = os.path.join(STAGE, "README.md")
+    text = io.open(readme, encoding="utf-8", newline="").read()
+    for rel in WEB_ONLY:
+        p = os.path.join(STAGE, *rel.split("/"))
+        if os.path.isfile(p):
+            os.remove(p)
+            nd -= 1
+        text = text.replace("(%s)" % rel, "(%s%s)" % (WEB_BASE, rel))
+    io.open(readme, "w", encoding="utf-8", newline="").write(text)
+    print("  docs                   %3d files  (%d linked from GitHub instead)"
+          % (nd, len(WEB_ONLY)))
+    check_doc_images(STAGE)
 
     np = copytree(os.path.join(OUT, "patches"), os.path.join(STAGE, "patches"))
     print("  patches                %3d files" % np)
