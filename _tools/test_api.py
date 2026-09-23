@@ -386,6 +386,51 @@ def t_units_convert():
     return "0/10 C reads 32/50 F, and frost is unchanged by the unit"
 
 
+def t_sky_moves_the_base():
+    """The observation is the BASE; the in-game sky moves it.
+
+    Real world decides what kind of day it is, Atmospherics decides what standing in it
+    costs you - so a storm has to read colder than clear sky off the same station
+    numbers, and base_high/base_low have to keep saying what the station actually said.
+    """
+    obs = {"high": 14.0, "low": 4.0, "cycle": "rain", "date": _pinned(9, 15),
+           "place": "Chornobyl"}
+    _, g = build(hour=15.0, month=9, cycle="clear", observed=obs)
+    clear = g.sotz_api.temperature()
+    _, g = build(hour=15.0, month=9, cycle="storm", observed=obs)
+    storm = g.sotz_api.temperature()
+
+    # the station's own numbers survive intact under either sky
+    assert F(clear, "base_high") == F(storm, "base_high") == 14, (
+        F(clear, "base_high"), F(storm, "base_high"))
+    assert F(clear, "base_low") == F(storm, "base_low") == 4
+
+    # but standing in the storm is colder, and the page can say by how much
+    assert F(storm, "now") < F(clear, "now"), (F(clear, "now"), F(storm, "now"))
+    assert F(storm, "sky_shift") < 0, F(storm, "sky_shift")
+    assert F(clear, "sky_shift") == 0, F(clear, "sky_shift")
+    return "storm reads %d, clear reads %d, base holds at 14/4" % (
+        F(storm, "now"), F(clear, "now"))
+
+
+def t_bands_and_thaw():
+    def at(hi, lo, hour):
+        obs = {"high": hi, "low": lo, "cycle": "clear", "date": _pinned(1, 15),
+               "place": "Chornobyl"}
+        _, g = build(hour=hour, month=1, cycle="clear", observed=obs)
+        return g.sotz_api.temperature()
+
+    hard = at(-2.0, -9.0, 15.0)        # never gets above zero
+    thaw = at(6.0, -3.0, 15.0)         # froze, now above
+    warm = at(24.0, 14.0, 15.0)
+    assert F(hard, "frost") is True and F(hard, "thaw") is False, "a hard freeze thawed"
+    assert F(thaw, "frost") is True and F(thaw, "thaw") is True, "freeze-thaw missed"
+    assert F(hard, "band") == "freezing", F(hard, "band")
+    assert F(warm, "band") == "warm", F(warm, "band")
+    assert F(warm, "frost") is False and F(warm, "thaw") is False
+    return "bands name the moment; thaw needs a freeze AND a rise above zero"
+
+
 CASES = [
     ("namespacing", t_namespacing),
     ("curve shape", t_curve_shape),
@@ -406,6 +451,8 @@ CASES = [
     ("tomorrow", t_tomorrow),
     ("units both shapes", t_units_both_shapes),
     ("units convert", t_units_convert),
+    ("sky moves the base", t_sky_moves_the_base),
+    ("bands and thaw", t_bands_and_thaw),
 ]
 
 if __name__ == "__main__":

@@ -106,6 +106,15 @@
         <text font="letterica16" r="150" g="150" b="150" align="r" vert_align="c" complex_mode="1"/>
     </chart_cap_r>
 
+    <!-- Which system each stratum comes from. The ribbon is Atmospherics', the curve
+         is Chornobyl's, and they share an axis because that is the whole idea. -->
+    <strat_sky x="516" y="298" width="48" height="16">
+        <text font="letterica16" r="150" g="160" b="170" align="l" vert_align="c" complex_mode="1"/>
+    </strat_sky>
+    <strat_air x="516" y="398" width="48" height="16">
+        <text font="letterica16" r="196" g="170" b="120" align="l" vert_align="c" complex_mode="1"/>
+    </strat_air>
+
     <!-- chart scales: three temperatures up the left gutter, five hours along the
          bottom. Cloned and repositioned in script like every other row on this page. -->
     <axis_y x="0" y="0" width="34" height="14">

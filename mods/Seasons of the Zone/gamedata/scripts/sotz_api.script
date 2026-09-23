@@ -80,11 +80,33 @@ local NORMALS = {
     {25, 14}, {24, 13}, {18, 9}, {12, 4},  {4, -1},  {-1, -6},
 }
 
+-- Named bands, in Celsius. Temperature drives nothing in Anomaly - there is no ambient
+-- temperature in the engine at all - which is exactly what makes it a good hook: a mod
+-- can take these and decide what they mean. Ice on the puddles below freezing, melt on a
+-- freeze-thaw day, stamina in the heat, appetite in the cold.
+local BANDS = {
+    {-99, 0,  "freezing"},
+    {0,   8,  "cold"},
+    {8,   18, "mild"},
+    {18,  26, "warm"},
+    {26,  99, "hot"},
+}
+
+local function band_for(c)
+    for i = 1, #BANDS do
+        if c < BANDS[i][2] then return BANDS[i][3] end
+    end
+    return "hot"
+end
+
 local T_MIN_HOUR = 5.0        -- coldest, just before dawn
 local T_MAX_HOUR = 15.0       -- warmest, mid afternoon
 
--- Cloud holds heat in at night and keeps it out by day, so it squeezes the swing toward
--- the mean; rain and storms also drag the whole day down a little.
+-- What the in-game sky does to the day. The real Zone decides what kind of day it is;
+-- Atmospherics decides what this hour of it feels like. Cloud holds heat in at night and
+-- keeps it out by day, so it squeezes the swing toward the mean; rain and storms drag the
+-- whole day down on top of that, which is the variance a player actually feels when the
+-- weather turns on them.
 local WEATHER_T = {
     clear  = {swing = 1.00, offset =  0.0},
     partly = {swing = 0.88, offset = -0.3},
@@ -227,18 +249,23 @@ end
 --         the curve is climbing, which is what a device needs to draw an arrow.
 function temperature()
     return cached("temperature", function()
+        -- The base: the real Zone's reading when there is one, climate normals for the
+        -- region when there is not.
         local obs = observed()
-        local high, low
+        local base_high, base_low
         if obs then
-            high, low = obs.high, obs.low
+            base_high, base_low = obs.high, obs.low
         else
-            high, low = month_normals()
+            base_high, base_low = month_normals()
         end
-        local mean = (high + low) / 2.0
 
+        -- Then the in-game sky moves it. This is the blend: an observation says what kind
+        -- of day it is, Atmospherics says what standing in it costs you. Without this the
+        -- temperature was real but inert - unchanged by the storm you are stood in.
+        local mean = (base_high + base_low) / 2.0
         local w = WEATHER_T[tostring(cycle_now() or "")] or WEATHER_T.partly
-        high = mean + (high - mean) * w.swing + w.offset
-        low  = mean - (mean - low)  * w.swing + w.offset
+        local high = mean + (base_high - mean) * w.swing + w.offset
+        local low  = mean - (mean - base_low)  * w.swing + w.offset
 
         local h = game_hour()
         local f = diurnal(h)
@@ -254,14 +281,24 @@ function temperature()
 
         local now_c = low + (high - low) * f
 
-        -- freezing and frost are decided in Celsius BEFORE any conversion: zero is a
-        -- property of water, not of the unit the player happens to be reading.
+        -- Every flag is decided in Celsius BEFORE any conversion: zero is a property of
+        -- water, not of the unit the player happens to be reading.
         local is_freezing, is_frost = now_c <= 0.0, low <= 0.0
+        -- A freeze-thaw day: it went below zero and it will come back above. That pair,
+        -- not the freeze alone, is what a melt effect actually wants to key off.
+        local is_thaw = is_frost and high > 0.0
+        local band_now = band_for(now_c)
+
+        -- what the station alone would have said at this hour, for the gap below
+        local base_now_c = base_low + (base_high - base_low) * f
+        local base_low_out, base_high_out = base_low, base_high
 
         local unit = "C"
         if want_f() then
             unit = "F"
             low, high, now_c = to_f(low), to_f(high), to_f(now_c)
+            base_low_out, base_high_out = to_f(base_low_out), to_f(base_high_out)
+            base_now_c = to_f(base_now_c)
             for i = 1, #curve do curve[i] = to_f(curve[i]) end
         end
 
@@ -274,6 +311,12 @@ function temperature()
             curve  = curve,
             cycle  = cycle_now(),
             unit   = unit,
+            -- the station's own numbers, before the in-game sky moved them. Published so
+            -- a consumer can show the base, the adjusted value, or the gap between them,
+            -- and never has to guess which one it is holding.
+            base_low  = math.floor(base_low_out + 0.5),
+            base_high = math.floor(base_high_out + 0.5),
+            sky_shift = math.floor((now_c - base_now_c) + 0.5),
             -- "observed" means the endpoints came from the real Chornobyl; the shape
             -- between them is modelled either way, and no consumer should read this as
             -- an in-game sensor.
@@ -282,8 +325,10 @@ function temperature()
             date   = obs and obs.date or nil,
             real_cycle = obs and obs.cycle or nil,
             -- the two hooks worth hanging a mod off
+            band     = band_now,              -- freezing / cold / mild / warm / hot
             freezing = is_freezing,           -- it is below zero right now
             frost    = is_frost,              -- the day dips below zero at some point
+            thaw     = is_thaw,               -- it froze and will rise above zero again
         }
     end)
 end

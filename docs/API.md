@@ -39,28 +39,64 @@ Current version: **1**.
 
 ```lua
 { low = -8, high = -2, now = -5, hour = 6.5, rising = true,
-  cycle = "cloudy", unit = "C", source = "model" }
+  band = "freezing", freezing = true, frost = true, thaw = false,
+  curve = { … 24 hourly samples … },
+  cycle = "cloudy", unit = "C", source = "observed", place = "Chornobyl" }
 ```
 
-**This is a model, and it says so.** There is no ambient temperature anywhere in Anomaly
-or GAMMA — every "thermal" in a stock install is a thermal anomaly or a thermal scope. The
-`source` field exists so a consumer never presents this as a sensor reading.
+**The real world sets the base; the in-game sky moves it.** Those are two systems and the
+page keeps them straight.
 
-What it models is the real Zone. `high` and `low` come from climate normals for the
-Polesia region around Chornobyl, interpolated between months so nothing steps on the 1st.
-The mod already runs its calendar on real dates, so the real month is the input.
+*Weather* — what is falling on you, how the light looks, when it turns — is Atmospherics'
+alone. Nothing about Chornobyl's actual clouds touches the ribbon, the glyphs or the
+barometer, because the sky the player is standing in is the game's.
 
-The curve between them runs on the **game** clock. The day is accelerated, so a fixed
-number would be wrong twice over — it would ignore the night and move at the wrong speed.
-Minimum sits just before dawn, maximum mid-afternoon, and the rise is compressed against
-the fall, which is how a real day behaves.
+*Temperature* starts outside. Anomaly has no ambient temperature at all, so there is
+nothing in game for an external reading to contradict, and `fetch_weather.py` supplies the
+real Zone's high and low. Then the in-game sky has its say: cloud squeezes the swing toward
+the mean, rain and storm drag the whole day down. A storm reading the same as clear sky
+would be a number that is real but inert.
 
-Weather bends it: cloud squeezes the swing toward the mean, rain and storms drag the whole
-day down.
+| field | |
+|---|---|
+| `base_low` / `base_high` | what the station said |
+| `low` / `high` / `now` | after the in-game sky moved it |
+| `sky_shift` | the gap, in whole degrees — negative when the weather is costing you |
+| `source` | `observed` when a station reading was used, `model` when climate normals were |
 
-`high` and `low` are published alongside `now` deliberately. A consumer that wants a band
-or a gauge has the endpoints; one that wants a number has `now`. Nothing has to re-derive
-the model to draw something different. `rising` is what you want for an arrow.
+Off a 14 / 4 station reading, clear sky reads 14 at mid-afternoon and a storm reads 8.
+
+The curve between the endpoints runs on the **game** clock, because the day is accelerated:
+minimum just before dawn, maximum mid-afternoon, the rise compressed against the fall.
+
+### The hooks
+
+Temperature drives nothing in Anomaly, which is exactly what makes it useful to hang a mod
+off - it is a free signal with no existing behaviour to fight.
+
+| field | meaning |
+|---|---|
+| `band` | `freezing` / `cold` / `mild` / `warm` / `hot`, for *now* |
+| `freezing` | below zero at this moment |
+| `frost` | the day dips below zero at some point |
+| `thaw` | it froze **and** will rise above zero again |
+
+`thaw` is the pair, not the freeze: a melt effect wants the day that goes under and comes
+back, which a hard freeze never does.
+
+The staging half publishes the day-scale ones as **periods**, so a mod can be scoped to
+them exactly as it is scoped to a season - `when = ["freezing"]`, `["thaw"]`, `["heat"]`.
+They overlay whatever season is running:
+
+```
+high  14.5  low   7.8  ->  ['autumn']
+high  -2.0  low  -9.0  ->  ['autumn', 'freezing']
+high   6.0  low  -3.0  ->  ['autumn', 'freezing', 'thaw']
+high  31.0  low  19.0  ->  ['autumn', 'heat']
+```
+
+Every flag is decided in **Celsius before any unit conversion**: zero is a property of
+water, not of the unit being read.
 
 ## `weather()`
 

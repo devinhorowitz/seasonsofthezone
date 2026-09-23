@@ -735,7 +735,7 @@ def weather_flags():
     if not os.path.exists(path):
         return []
     try:
-        section, low, when = None, None, None
+        section, low, high, when = None, None, None, None
         for line in io.open(path, encoding="utf-8"):
             line = line.split(";")[0].strip()
             if line.startswith("[") and line.endswith("]"):
@@ -746,6 +746,8 @@ def weather_flags():
             k, v = (x.strip() for x in line.split("=", 1))
             if k == "low":
                 low = float(v)
+            elif k == "high":
+                high = float(v)
             elif k == "date":
                 when = v
     except Exception:
@@ -762,7 +764,18 @@ def weather_flags():
                 return []
         except Exception:
             return []
-    return ["freezing"] if low <= 0.0 else []
+    # Day-scale names a mod can scope to, exactly as it scopes to a season. Only the
+    # ones a day can be said to HAVE - "freezing" is a property of the day, whereas "it
+    # is below zero at this moment" is a question for sotz_api, not for staging.
+    out = []
+    if low <= 0.0:
+        out.append("freezing")
+        if high is not None and high > 0.0:
+            # froze overnight, above zero by afternoon: what a melt effect wants
+            out.append("thaw")
+    if high is not None and high >= 28.0:
+        out.append("heat")
+    return out
 
 
 def active_for(d, mapping="pheno", base=None):

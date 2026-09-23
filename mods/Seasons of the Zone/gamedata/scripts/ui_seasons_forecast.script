@@ -195,7 +195,9 @@ function SeasonsForecast:InitControls()
     self:InitChart()
     self:InitAxes()
 
-    self.src      = xml:InitTextWnd("src", self)
+    self.src       = xml:InitTextWnd("src", self)
+    self.strat_sky = xml:InitTextWnd("strat_sky", self)
+    self.strat_air = xml:InitTextWnd("strat_air", self)
     self.frost    = xml:InitStatic("frost", self)
     self.live_dot = xml:InitStatic("live_dot", self)
     self.eco_logo = xml:InitStatic("eco_logo", self)
@@ -624,12 +626,25 @@ function SeasonsForecast:Fill()
     -- "14.5 / 7.8" read off the real Chornobyl and the same figures taken from a climate
     -- table are not the same claim, and a page that will not say which is asking to be
     -- trusted further than it has earned.
+    -- The sky is the game's and the air is the world's; the page says so rather than
+    -- leaving a reader to assume both numbers come from the same place.
+    put(self.strat_sky, temp and "SKY" or "")
+    -- what the sky is costing you, which is the whole reason it is allowed to move the
+    -- station's numbers at all: a storm you are stood in should read colder
+    if temp and temp.sky_shift and temp.sky_shift ~= 0 then
+        put(self.strat_air, string.format("AIR  %+d%s", temp.sky_shift, DEG))
+    else
+        put(self.strat_air, temp and "AIR" or "")
+    end
+
     if temp and temp.source == "observed" then
         -- "2026-09-23" under "22 September 2026" was two date formats in two lines
-        put(self.src, string.format("%s station  -  live reading",
-                                    temp.place or "Chornobyl"))
+        put(self.src, string.format("Sky from the Zone  -  air from %s %s/%s, live",
+                                    temp.place or "Chornobyl",
+                                    temp_str(temp.base_high, temp.unit),
+                                    temp_str(temp.base_low, temp.unit)))
     elseif temp then
-        put(self.src, "No station data - modelled from regional normals")
+        put(self.src, "Sky from the Zone  -  air modelled from regional normals")
     else
         put(self.src, "")
     end
@@ -653,9 +668,11 @@ function SeasonsForecast:Fill()
     -- "8 C" on its own says nothing about whether the night is survivable
     if temp then
         -- the trend is already on the headline, so this row carries only the range
+        -- the band is the word a mod keys off, so the page and the hook say the same
         self:Put(1, {{0, "All day"},
                      {76, string.format("%s to %s", temp_str(temp.low, temp.unit),
-                                        temp_str(temp.high, temp.unit))}}, NOW_RGB)
+                                        temp_str(temp.high, temp.unit))},
+                     {232, temp.thaw and "freeze-thaw" or (temp.band or "")}}, NOW_RGB)
     end
     if w and w.segments and #w.segments > 1 then
         for i = 2, #w.segments do
