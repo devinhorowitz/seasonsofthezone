@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.7.0 — 2026-09-23
 
+- **Installs through MO2.** *Install a new mod from archive* now accepts the zip; before,
+  MO2 said it "does not look valid". `_tools/` and `play.bat` come along in the mod's
+  folder. Copy them to your GAMMA folder for real-world temperatures and the texture and
+  sound layers.
 - **A forecast, not a timetable.** With Atmospherics 2.69's day planner, the Forecast page
   calls the weather the way a forecaster would: times are rounded and can be an hour or two
   out a day ahead, about one call in ten is wrong, and both improve as the change gets
@@ -10,30 +14,23 @@
 - **Odds on the base game's weather**, which GAMMA uses. Under **Next sky**, the page gives the
   chance that the next sky is rain or storm, overcast or fog, or clear or broken cloud. The
   scheduler draws it at random from a list it keeps, so these odds are exact.
-- MCM names the weather scheduler as the base game's rather than GAMMA's, since it's the same
-  one outside GAMMA.
-- The list under the chart is headed **Next 24 hours**, since it covers a full day.
-- **Tested outside GAMMA**, on Anomaly 1.5.3 with Modded Exes, MCM and Mod App Creator. Two
-  fixes came out of it: on base Anomaly the ecologist panel shows base Anomaly's own
-  ecologist icon (the shield is from GAMMA's UI, and was a dark square there), and without
-  DXML the mod no longer logs a stack trace at every start.
-- `weather()` adds `forecast` (the calls, each with `chance`) and, on stock, `odds`.
-- Fixed: MCM's description of the warning-level forecast named brackets the page doesn't
-  use.
-
-## 1.6.1 — 2026-09-23
-
-- **Installs through MO2.** *Install a new mod from archive* now accepts the zip; before,
-  MO2 said it "does not look valid". `_tools/` and `play.bat` come along in the mod's
-  folder. Copy them to your GAMMA folder for real-world temperatures and the texture and
-  sound layers.
+- **Works outside GAMMA.** Tested on Anomaly 1.5.3 with Modded Exes, MCM and Mod App
+  Creator. On base Anomaly the ecologist panel shows base Anomaly's own ecologist icon (the
+  shield is from GAMMA's UI), and without DXML the mod no longer logs a stack trace at every
+  start.
 - **Fixed: real-world temperatures never worked from a release.** The 1.5.0 and 1.6.0 zips
   left out `fetch_weather.py`, so the forecast always used the climate model.
+- The list under the chart is headed **Next 24 hours**, since it covers a full day.
+- MCM names the weather scheduler as the base game's rather than GAMMA's, since it's the same
+  one outside GAMMA.
+- `weather()` adds `forecast` (the calls, each with `chance`) and, on stock, `odds`.
 - The tools find the mod by its files, so it can have any name in MO2. `season.py status`
   warns when the mod is installed twice.
 - The zip no longer includes `seasons_config.py`, so copying `_tools/` on an update keeps
   yours. It also drops a stale MO2 `meta.ini` and the build machine's fetched weather.
 - `play.bat` says so when it's run from the wrong folder.
+- Fixed: MCM's description of the warning-level forecast named brackets the page doesn't
+  use.
 
 ## 1.6.0 — 2026-09-23
 

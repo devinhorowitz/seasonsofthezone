@@ -193,7 +193,7 @@ the drive, game folder and profile are read rather than assumed.
 
 **Updating:** install the new zip over the old one and choose **Replace**, then copy
 `_tools/` and `play.bat` again. Your `seasons_config.py` isn't in the zip, so copying
-`_tools/` leaves it alone. Versions before 1.6.1 were installed by copying the
+`_tools/` leaves it alone. Versions before 1.7.0 were installed by copying the
 `mods/Seasons of the Zone` folder: name the new install `Seasons of the Zone` so it
 replaces that copy.
 
