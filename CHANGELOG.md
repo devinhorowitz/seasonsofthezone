@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.6.0 — 2026-09-23
 
 - **Fixed: the forecast said "Atmospherics is not running" on stock GAMMA.** GAMMA's
   Atmospherics mods don't include a weather manager, so a stock install uses the base game's,
