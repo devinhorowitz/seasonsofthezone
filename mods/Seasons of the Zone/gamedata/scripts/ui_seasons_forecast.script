@@ -51,6 +51,18 @@ local function cycle_name(c)
     return CYCLE[c] or (c:sub(1, 1):upper() .. c:sub(2))
 end
 
+-- The glyph for each Atmospherics cycle. Anything the engine hands back that is not in
+-- here falls to cloudy rather than drawing nothing, because a blank square next to an
+-- arrow reads as a bug.
+local WX_GLYPH = {
+    clear = "sotz_wx_clear", partly = "sotz_wx_partly", cloudy = "sotz_wx_cloudy",
+    foggy = "sotz_wx_foggy", rain = "sotz_wx_rain",     storm  = "sotz_wx_storm",
+}
+
+local function wx_tex(cycle)
+    return WX_GLYPH[tostring(cycle or "")] or WX_GLYPH.cloudy
+end
+
 -- Ribbon colours. Cold and dark for the weather that keeps you indoors, pale and warm
 -- for the weather that does not, so the strip reads as a mood before it reads as data.
 local CYCLE_RGB = {
@@ -135,6 +147,22 @@ function SeasonsForecast:InitControls()
         say("ui_seasons_forecast.xml gave up no elements - check its root")
     end
     self.gauge_caption = xml:InitTextWnd("gauge_caption", self)
+
+    -- the sky, now and next. Square assets need the same aspect correction as the dial.
+    self.wx_now        = xml:InitStatic("wx_now", self)
+    self.wx_arrow      = xml:InitStatic("wx_arrow", self)
+    self.wx_next       = xml:InitStatic("wx_next", self)
+    self.wx_now_label  = xml:InitTextWnd("wx_now_label", self)
+    self.wx_next_label = xml:InitTextWnd("wx_next_label", self)
+    for _, s in ipairs({self.wx_now, self.wx_arrow, self.wx_next}) do
+        local h = s:GetHeight()
+        s:SetWndSize(vector2():set(h * aspect(), h))
+    end
+    -- the arrow never changes, so it is set once here; the two condition glyphs are set
+    -- per redraw in Fill()
+    if self.wx_arrow then
+        pcall(function() self.wx_arrow:InitTexture("sotz_wx_arrow") end)
+    end
 
     self.chart       = xml:InitStatic("chart", self)
     self.chart_cap_l = xml:InitTextWnd("chart_cap_l", self)
@@ -325,6 +353,14 @@ function SeasonsForecast:Fill()
         if not okb then say("accent bar failed: " .. tostring(d.bar)) end
     end
 
+    -- the headline: what it is doing outside, right now. Temperature comes through
+    -- sotz_api so the page and any wearable device read the same number from the same
+    -- model, rather than each deriving its own and disagreeing by a degree.
+    local w = d.weather
+    local temp = nil
+    local okt, tv = pcall(function() return sotz_api.temperature() end)
+    if okt then temp = tv end
+
     -- one of six, by what is actually outside. A fixed needle was decoration pretending
     -- to be an instrument.
     if self.gauge then
@@ -334,21 +370,34 @@ function SeasonsForecast:Fill()
         if not okg then say("gauge texture failed for " .. cyc) end
     end
 
-    -- the headline: what it is doing outside, right now. Temperature comes through
-    -- sotz_api so the page and any wearable device read the same number from the same
-    -- model, rather than each deriving its own and disagreeing by a degree.
-    local w = d.weather
-    local temp = nil
-    -- (w and temp are read here because the gauge and the chart below both need them)
-    local okt, tv = pcall(function() return sotz_api.temperature() end)
-    if okt then temp = tv end
-
-    local head = w and w.now and cycle_name(w.now) or ""
+    -- the sky is drawn below, so this line carries only what a picture cannot: the
+    -- number, and which way it is going
+    local head = ""
     if temp and temp.now then
-        head = (head ~= "" and (head .. ",  ") or "") .. string.format("%d C", temp.now)
+        head = string.format("%d C, %s", temp.now,
+                             temp.rising and "rising" or "falling")
     end
     put(self.now, head)
     put(self.gauge_caption, w and w.now and "outside now" or "no reading")
+
+    -- --- the sky, now and next --------------------------------------------------------
+    -- The arrow and the second glyph only appear when there IS a next: on a settled day
+    -- an arrow pointing at a repeat of the same sky would be a lie.
+    local nxt = w and w.segments and w.segments[1]
+    if self.wx_now then
+        pcall(function() self.wx_now:InitTexture(wx_tex(w and w.now)) end)
+        self.wx_now:Show(w ~= nil)
+    end
+    put(self.wx_now_label, w and cycle_name(w.now) or "")
+
+    if self.wx_arrow then self.wx_arrow:Show(nxt ~= nil) end
+    if self.wx_next then
+        if nxt then pcall(function() self.wx_next:InitTexture(wx_tex(nxt.cycle)) end) end
+        self.wx_next:Show(nxt ~= nil)
+    end
+    put(self.wx_next_label, nxt
+        and string.format("%s, %s", cycle_name(nxt.cycle), lead(nxt.away))
+        or (w and "settled" or ""))
 
     self:DrawChart(d, temp)
     if temp then

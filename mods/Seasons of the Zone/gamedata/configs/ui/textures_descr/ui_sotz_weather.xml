@@ -1,0 +1,23 @@
+<w>
+	<file name="ui_sotz_wx_clear">
+		<texture id="sotz_wx_clear" x="0" y="0" width="128" height="128" />
+	</file>
+	<file name="ui_sotz_wx_partly">
+		<texture id="sotz_wx_partly" x="0" y="0" width="128" height="128" />
+	</file>
+	<file name="ui_sotz_wx_cloudy">
+		<texture id="sotz_wx_cloudy" x="0" y="0" width="128" height="128" />
+	</file>
+	<file name="ui_sotz_wx_foggy">
+		<texture id="sotz_wx_foggy" x="0" y="0" width="128" height="128" />
+	</file>
+	<file name="ui_sotz_wx_rain">
+		<texture id="sotz_wx_rain" x="0" y="0" width="128" height="128" />
+	</file>
+	<file name="ui_sotz_wx_storm">
+		<texture id="sotz_wx_storm" x="0" y="0" width="128" height="128" />
+	</file>
+	<file name="ui_sotz_wx_arrow">
+		<texture id="sotz_wx_arrow" x="0" y="0" width="128" height="128" />
+	</file>
+</w>

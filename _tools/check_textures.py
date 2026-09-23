@@ -36,6 +36,8 @@ SCRIPTS = os.path.join(MOD, "scripts")
 # (prefix, [suffixes], is_button).
 FAMILIES = [
     ("sotz_gauge_", ["clear", "partly", "cloudy", "foggy", "rain", "storm"], False),
+    ("sotz_wx_", ["clear", "partly", "cloudy", "foggy", "rain", "storm",
+                  "arrow"], False),
     ("sotz_app_year_", ["spring", "summer", "autumn", "winter", "winter_snow"], True),
     ("ui_season_hdr_", ["spring", "summer", "autumn", "winter", "winter_snow"], False),
     ("ui_seasons_dial_", ["%02d" % i for i in range(32)], False),

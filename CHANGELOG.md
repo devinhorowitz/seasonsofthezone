@@ -12,6 +12,19 @@
   - The emission and psi-storm countdowns read the surge and psi-storm managers' existing
     singletons directly. Calling `get_surge_manager()` would *construct* one, and that
     constructor allocates a dozen `sound_object` handles; the page never does that.
+- **The sky, at the top of the forecast page.** A glyph for what you are under, an arrow,
+  a glyph for what you are getting, and when. The page could already say it - in words, in
+  a table, four rows down. Seven drawn glyphs in the mod's own palette, from the new
+  `_tools/build_weather_icons.py`. The arrow only appears when there IS a next: on a
+  settled day, an arrow pointing at a repeat of the same sky would be a lie.
+- **Fixed: the barometer showed the wrong weather.** The gauge picked its image from `w`
+  nine lines above the `local w = d.weather` that creates it, so it read a nil global and
+  fell through to its default. Nothing failed and nothing logged - it just drew cloudy
+  during a storm.
+  - New **`_tools/check_locals.py`**: within a function body, flags a name read above the
+    `local` that declares it. Narrow on purpose, and clean on the whole mod - `for`
+    variables, nested-function parameters and table-constructor keys are all declarations
+    or non-reads, and treating any of them wrongly made it cry wolf on real code.
 - **Both PDA pages, after seeing them in game.**
   - **Columns line up now.** `letterica` is a proportional font, so `string.format("%-12s")`
     padded with spaces narrower than the glyphs around them and every table came out
