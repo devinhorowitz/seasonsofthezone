@@ -53,9 +53,9 @@ local STATUS_BAD = {255, 238, 96, 72}
 
 local WEATHER_TEXT = {
     plan  = "Weather: Atmospherics' day planner. The forecast covers every change ahead.",
-    stock = "Weather: GAMMA's stock scheduler. The forecast shows the sky now, when it "
-         .. "turns, and the odds for the next sky, which the scheduler draws at random when "
-         .. "the time comes. Atmospherics 2.69 plans the whole day ahead.",
+    stock = "Weather: the base game's scheduler, which GAMMA uses. The forecast shows the "
+         .. "sky now, when it turns, and the odds for the next sky, which the scheduler draws "
+         .. "at random when the time comes. Atmospherics 2.69 plans the whole day ahead.",
     none  = "No weather manager was found, so the forecast cannot read the sky.",
 }
 

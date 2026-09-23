@@ -167,6 +167,17 @@ local function odds_rows(odds)
     return rows
 end
 
+-- The ecologists' shield is cut from GAMMA UI's faction sheet. Base Anomaly has no such
+-- file, and a missing texture draws as a dark square, so there the panel wears the icon
+-- base Anomaly puts on the ecologists' PDA messages, at that icon's own 83x47 shape.
+local function eco_emblem()
+    local ok, has = pcall(function()
+        return getFS():exist("$game_textures$", "ui\\ui_actor_menu_factions.dds")
+    end)
+    if ok and has then return "sotz_eco_mark", 1 end
+    return "ui_inGame2_PD_Ecologist", 83 / 47
+end
+
 -- CScriptXmlInit:ParseFile does NOT raise when the xml cannot be used - it returns, and
 -- every Init* afterwards quietly hands back nil. The first method call on one of those
 -- nils is a hard engine FATAL, not a Lua error pcall can absorb, which is exactly how a
@@ -235,6 +246,12 @@ function SeasonsForecast:InitControls()
         local h = s:GetHeight()
         s:SetWndSize(vector2():set(h * aspect(), h))
     end
+    -- the percentage sits right after the next glyph, whose width the loop above just
+    -- corrected; a fixed x left a gap on a wide screen and overlapped on a square one
+    if self.wx_chance and self.wx_next then
+        local p, c = self.wx_next:GetWndPos(), self.wx_chance:GetWndPos()
+        self.wx_chance:SetWndPos(vector2():set(p.x + self.wx_next:GetWidth() + 6, c.y))
+    end
     -- the arrow never changes, so it is set once here; the two condition glyphs are set
     -- per redraw in Fill()
     if self.wx_arrow then
@@ -258,8 +275,19 @@ function SeasonsForecast:InitControls()
     -- aspect correction. The 383/179 ratio here was the banner it replaced, and left
     -- the emblem stretched to twice its width.
     if self.eco_logo then
+        local tex, shape = eco_emblem()
         local h = self.eco_logo:GetHeight()
-        self.eco_logo:SetWndSize(vector2():set(h * aspect(), h))
+        pcall(function() self.eco_logo:InitTexture(tex) end)
+        if tex ~= "sotz_eco_mark" then
+            -- wide, so sized to the gap before the CLASSIFIED text rather than to the
+            -- shield's height, and centred on the shield's line
+            local p = self.eco_logo:GetWndPos()
+            local text_x = self.eco_class and self.eco_class:GetWndPos().x or (p.x + h)
+            local h2 = math.min(h, math.floor((text_x - p.x - 6) / (shape * aspect())))
+            self.eco_logo:SetWndPos(vector2():set(p.x, p.y + math.floor((h - h2) / 2)))
+            h = h2
+        end
+        self.eco_logo:SetWndSize(vector2():set(h * shape * aspect(), h))
     end
 
     self.units = xml:Init3tButton("units", self)
@@ -851,7 +879,7 @@ function SeasonsForecast:Fill()
     -- odds of each, which are exact.
     local odds = (w and w.source == "stock") and odds_rows(w.odds) or nil
     local said = (shown == (w and w.segments)) and "planned" or "forecast"
-    self:Head(1, odds and "Next sky" or "Later today")
+    self:Head(1, odds and "Next sky" or "Next 24 hours")
     if shown and #shown > 1 then
         for i = 2, #shown do
             local seg = shown[i]

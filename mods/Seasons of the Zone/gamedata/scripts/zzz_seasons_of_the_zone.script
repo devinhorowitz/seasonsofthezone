@@ -1550,6 +1550,10 @@ local function call(minute, cycle, now, prev)
     return said, t, chance(lead), step
 end
 
+-- The plan reaches 24 game hours ahead, and so does the forecast. A call its own error
+-- pushes past that is dropped rather than shown a day and a half out.
+local HORIZON = 1440
+
 -- The page's forecast for a plan: segments as calls, in the same shape plus `chance`.
 local function forecast_calls(now_cycle, segments, now, clock)
     local out, prev, last = {}, now_cycle, now
@@ -1559,6 +1563,7 @@ local function forecast_calls(now_cycle, segments, now, clock)
         if said ~= prev then
             -- two calls can cross when their errors point at each other; keep them in order
             if t <= last then t = last + step end
+            if t - now > HORIZON then break end
             out[#out + 1] = {at = clock(t), cycle = said, away = t - now, chance = p}
             prev, last = said, t
         end

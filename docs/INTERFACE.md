@@ -14,8 +14,8 @@ Year** and **Forecast**. There is no HUD element, no pop-up and no key binding.
 At the top, under the summary, two lines show what the PDA app needs:
 
 - **Mod App Creator.** The Seasons app opens from its launcher. Red if it's missing.
-- **The weather scheduler.** GAMMA's own, or Atmospherics' day planner if you've installed
-  it. This sets how far ahead the forecast can see; see [Forecast](#forecast--the-pda-page).
+- **The weather scheduler.** The base game's, which GAMMA uses, or Atmospherics' day planner
+  if you've installed it. This sets how far ahead the forecast can see; see [Forecast](#forecast--the-pda-page).
   Red only if there's no weather manager at all.
 
 The page opens with a short summary, today's date, and a dial of the year with the needle
@@ -165,14 +165,15 @@ current weather. The needle twitches every few seconds to show it's a live readi
 **The day chart.** The weather along the top and the temperature below it, with the clock hour
 under each rule. Warm hours are amber, cold hours blue.
 
-**Later today**, then **Tomorrow** — the coming changes with their times and chances, and the
-next day's observed range.
+**Next 24 hours**, then **Tomorrow** — the coming changes with their times and chances, and
+the next day's observed range.
 
 ### How far ahead it can see
 
 It depends on the weather scheduler, which MCM's Main page names.
 
-**GAMMA's own** knows the current sky and roughly when it will change, but picks the next sky
+**The base game's**, which GAMMA uses, knows the current sky and roughly when it will change,
+but picks the next sky
 at random when the change happens. The page shows the current sky, the window for the
 change, and under **Next sky** the chance of rain or storm, overcast or fog, and clear or
 broken cloud. Those odds are exact, taken from the scheduler's own list. The ribbon fades

@@ -44,10 +44,10 @@
          being withheld, not merely dim. Border drawn from tinted px blocks in script. -->
     <!-- The shield only. The full ui_inGame2_ecolog region is a banner - emblem on the
          left, empty name plate on the right - and using it whole put a black box on the
-         page. sotz_eco_mark is that emblem cropped out of the same file. -->
-    <eco_logo x="568" y="426" width="44" height="44" stretch="1">
-        <texture>sotz_eco_mark</texture>
-    </eco_logo>
+         page. sotz_eco_mark is that emblem cropped out of the same file. The script sets
+         the texture, because base Anomaly lacks that file and naming it here would log a
+         miss before the script could swap in base Anomaly's own icon. -->
+    <eco_logo x="568" y="426" width="44" height="44" stretch="1"/>
     <eco_class x="624" y="436" width="136" height="24">
         <text font="letterica18" r="238" g="196" b="112" align="l" vert_align="c" complex_mode="1"/>
     </eco_class>

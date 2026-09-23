@@ -46,6 +46,16 @@ FAMILIES = [
 
 BUTTON_SUFFIXES = ("_e", "_h", "_t", "_d")
 
+# Functions that pick a texture name for InitTexture to use, so the call itself carries a
+# variable. Every name they return is checked. eco_emblem() picks GAMMA's shield when GAMMA
+# UI's faction sheet is installed and base Anomaly's icon when it is not.
+PICKERS = ["eco_emblem"]
+
+# Declared by base Anomaly itself, inside its packed configs, where this check cannot look.
+BASE_GAME = {
+    "ui_inGame2_PD_Ecologist": "configs/ui/textures_descr/ui_actor_newsmanager_icons.xml",
+}
+
 
 def declared_ids():
     ids = set()
@@ -116,6 +126,19 @@ def literal_uses():
     return out
 
 
+def picked_uses():
+    """{picker: {names}} read off each picker's `return "name", ...` lines."""
+    out = {}
+    for p in glob.glob(os.path.join(SCRIPTS, "*.script")):
+        t = io.open(p, encoding="utf-8").read()
+        t = re.sub(r"(?m)^\s*--.*$", "", t)
+        for fn in PICKERS:
+            m = re.search(r"local function %s\(\)(.*?)\nend" % fn, t, re.S)
+            if m:
+                out[fn] = set(re.findall(r'return\s+"([^"]+)"', m.group(1)))
+    return out
+
+
 def button_uses():
     """Names handed to MAC's add_app, which builds a 3t button from them."""
     out = set()
@@ -163,6 +186,19 @@ def run(install=None):
         why = resolve(name, True, ids, files, foreign)
         if why:
             problems.append("%s: %s" % (name, why))
+
+    picked = picked_uses()
+    for fn in PICKERS:
+        if not picked.get(fn):
+            problems.append("%s(): not found, or returns no literal name - update PICKERS"
+                            % fn)
+        for name in sorted(picked.get(fn, ())):
+            checked += 1
+            if name in BASE_GAME:
+                continue                     # base Anomaly declares it; see BASE_GAME
+            why = resolve(name, False, ids, files, foreign)
+            if why:
+                problems.append("%s (from %s()): %s" % (name, fn, why))
 
     for prefix, suffixes, is_button in FAMILIES:
         for s in suffixes:

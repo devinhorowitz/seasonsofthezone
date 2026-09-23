@@ -169,7 +169,10 @@ of the mod that writes to your save.
   `ModOrganizer.ini`.
 - The anniversary artifacts need Dynamic Anomalies Overhaul.
 
-Not yet tested on an install outside GAMMA. Reports are welcome.
+Tested on Anomaly 1.5.3 with Modded Exes, MCM and Mod App Creator, and nothing else from
+GAMMA: the in-engine layers, the marked days, the PDA app and MCM all work, and the forecast
+reads the base game's weather. Plain Anomaly without Modded Exes hasn't been run; its column
+follows from what its engine lacks.
 
 ---
 

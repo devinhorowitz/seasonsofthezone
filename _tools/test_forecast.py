@@ -582,9 +582,9 @@ def t_mcm_status():
     ok = run(True, "stock")
     assert ok["status_mac"][1] == gray, "MAC present but flagged red"
     assert "Mod App Creator launcher" in ok["status_mac"][0], ok["status_mac"][0]
-    # stock is how GAMMA ships: gray, never red
+    # stock is how GAMMA and base Anomaly ship: gray, never red
     assert ok["status_weather"][1] == gray, "stock weather flagged as a fault"
-    assert "stock scheduler" in ok["status_weather"][0], ok["status_weather"][0]
+    assert "base game's scheduler" in ok["status_weather"][0], ok["status_weather"][0]
     assert "not running" not in ok["status_weather"][0]
 
     missing = run(False, "none")
@@ -699,6 +699,23 @@ def t_forecast_converges():
         % (means[0], means[-1])
 
 
+def t_forecast_horizon():
+    lua, _, m = build(standing=0, surge_left=HOUR, psi_left=HOUR,
+                      tail="return {forecast_calls = forecast_calls}")
+    clock = lua.eval("function(t) return string.format('%02d:%02d', "
+                     "math.floor(t % 1440 / 60), math.floor(t % 60)) end")
+    plan = ((300, "rain"), (900, "cloudy"), (1430, "clear"))
+    dropped = 0
+    for k in range(200):
+        segs = lua.table_from([lua.table_from({"away": a, "cycle": c}) for a, c in plan])
+        calls = seq(m.forecast_calls("storm", segs, 600 + 37 * k, clock))
+        assert all(c["away"] <= 1440 for c in calls), [c["away"] for c in calls]
+        dropped += (len(calls) < len(plan))
+    # about half: the time error pushes a change ten minutes inside the day either way
+    assert 40 <= dropped <= 160, "%d of 200 edge changes dropped" % dropped
+    return "%d of 200 changes at 23:50 out were pushed past the day and dropped" % dropped
+
+
 def t_forecast_exact_mode():
     _, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, wx_exact=True)
     w = field(g.forecast_page(), "weather")
@@ -772,6 +789,7 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("forecast calls", t_forecast_calls),
              ("calibration", t_forecast_calibration),
              ("converges", t_forecast_converges),
+             ("horizon", t_forecast_horizon),
              ("exact mode", t_forecast_exact_mode),
              ("stock odds", t_stock_odds),
              ("stock odds rows", t_stock_odds_rows)):

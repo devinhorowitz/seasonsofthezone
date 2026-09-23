@@ -50,6 +50,14 @@ local function inject(xml_obj)
 end
 
 function on_game_start()
+    -- on_xml_read comes from DXML, which Modded Exes loads at startup. Without it (plain
+    -- Anomaly, or the exes without their gamedata) there is nothing to register with, and
+    -- asking anyway logs a stack trace on every start. The app still opens from MAC; the
+    -- PDA's tab bar just goes blank while it is open.
+    if not rawget(_G, "dxml_core") then
+        printf("%s", "[seasons-pda] DXML not found, so the PDA sections are not added")
+        return
+    end
     RegisterScriptCallback("on_xml_read", function(xml_file_name, xml_obj)
         -- the top tab bar lives in ui/pda.xml and ui/pda_16.xml; pda_apps and pda_xcvb
         -- are the launcher and the 3D PDA rail, which are not ours to touch

@@ -232,6 +232,6 @@
 		<text>Exact weather forecast</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_wx_exact_desc">
-		<text>Off: the weather reads like a forecast. Times are rounded and can be an hour or two out, about one call in ten is wrong (fewer as the change gets close), and each call shows how likely it is. On: the page shows Atmospherics' day plan exactly. GAMMA's stock weather has no plan, and its odds for the next sky are exact either way.</text>
+		<text>Off: the weather reads like a forecast. Times are rounded and can be an hour or two out, about one call in ten is wrong (fewer as the change gets close), and each call shows how likely it is. On: the page shows Atmospherics' day plan exactly. The base game's weather, which GAMMA uses, has no plan, and its odds for the next sky are exact either way.</text>
 	</string>
 </string_table>

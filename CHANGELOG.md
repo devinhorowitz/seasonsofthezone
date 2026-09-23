@@ -7,9 +7,16 @@
   out a day ahead, about one call in ten is wrong, and both improve as the change gets
   closer. Each call shows how likely it is, and calls shown at 90% come true about 90% of
   the time. MCM's **Exact weather forecast** shows the plan itself.
-- **Odds on stock GAMMA.** Under **Next sky**, the page gives the chance that the next sky is
-  rain or storm, overcast or fog, or clear or broken cloud. The stock scheduler draws it at
-  random from a list it keeps, so these odds are exact.
+- **Odds on the base game's weather**, which GAMMA uses. Under **Next sky**, the page gives the
+  chance that the next sky is rain or storm, overcast or fog, or clear or broken cloud. The
+  scheduler draws it at random from a list it keeps, so these odds are exact.
+- MCM names the weather scheduler as the base game's rather than GAMMA's, since it's the same
+  one outside GAMMA.
+- The list under the chart is headed **Next 24 hours**, since it covers a full day.
+- **Tested outside GAMMA**, on Anomaly 1.5.3 with Modded Exes, MCM and Mod App Creator. Two
+  fixes came out of it: on base Anomaly the ecologist panel shows base Anomaly's own
+  ecologist icon (the shield is from GAMMA's UI, and was a dark square there), and without
+  DXML the mod no longer logs a stack trace at every start.
 - `weather()` adds `forecast` (the calls, each with `chance`) and, on stock, `odds`.
 - Fixed: MCM's description of the warning-level forecast named brackets the page doesn't
   use.
