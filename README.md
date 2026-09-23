@@ -343,6 +343,7 @@ Details and recovery: [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
 | [docs/SCHEDULING.md](docs/SCHEDULING.md) | The calendar: base periods, events, and recipes |
 | [docs/INTERFACE.md](docs/INTERFACE.md) | The MCM pages and the two PDA pages |
 | [docs/API.md](docs/API.md) | The read API other mods hook into: temperature, weather, the next emission |
+| [docs/WEARABLE-DEVICES.md](docs/WEARABLE-DEVICES.md) | A blowout warning for Wearable Devices: the code, and why it cannot break that mod |
 | [docs/CONFIGURING.md](docs/CONFIGURING.md) | Making other mods seasonal: fields, commands, troubleshooting |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | The calendar, the blend, the values, the MO2 rule |
 | [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md) | Where everything sits, what must not be enabled together, recovering from a GAMMA update |
