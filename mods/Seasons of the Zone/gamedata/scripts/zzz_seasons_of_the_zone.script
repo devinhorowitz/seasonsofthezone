@@ -1447,15 +1447,25 @@ function forecast_page()
     -- module's own singleton rather than calling get_surge_manager(), because the getter
     -- CONSTRUCTS the manager when none exists and CSurgeManager:__init allocates a dozen
     -- sound_object handles. This only ever reads a manager the game already made.
+    -- Returns seconds and a reason, because "nil" was covering four different states and
+    -- the page could not tell them apart:
+    --
+    --   no-mgr    nothing has built the manager yet
+    --   no-flds   it exists but _delta or the timestamp is not set
+    --   due       the wait has already elapsed - an emission is imminent, which is the
+    --             most useful thing the page can say and was being reported as nothing
+    --   ok        a real countdown
     local function seconds_until(mgr, since)
-        if type(mgr) ~= "table" or type(mgr._delta) ~= "number" or not mgr[since] then
-            return nil
+        if type(mgr) ~= "table" then return nil, "no-mgr" end
+        if type(mgr._delta) ~= "number" or not mgr[since] then
+            return nil, "no-flds"
         end
         local ok, left = pcall(function()
             return math.floor(mgr._delta - game.get_game_time():diffSec(mgr[since]))
         end)
-        if ok and type(left) == "number" and left > 0 then return left end
-        return nil
+        if not (ok and type(left) == "number") then return nil, "err" end
+        if left <= 0 then return 0, "due" end
+        return left, "ok"
     end
 
     -- The period the frequency option implies, in game seconds. Both managers roll
@@ -1492,14 +1502,15 @@ function forecast_page()
         -- Read ALWAYS, expose by tier. Computing only when the tier allowed it meant a
         -- locked page and an unreachable surge manager produced identical nils, so there
         -- was no way to tell "withheld" from "broken" without standing over the screen.
-        local s = seconds_until(surge_manager and surge_manager.SurgeManager,
-                                "last_surge_time")
-        local p = seconds_until(psi_storm_manager and psi_storm_manager.PsiStormManager,
-                                "last_psi_storm_time")
-        -- whether a manager answered at all, which is engine state rather than timing and
-        -- so is not something the gate is keeping from anyone
-        out.mgr_surge = (s ~= nil)
-        out.mgr_psi   = (p ~= nil)
+        local s, s_why = seconds_until(surge_manager and surge_manager.SurgeManager,
+                                       "last_surge_time")
+        local p, p_why = seconds_until(psi_storm_manager
+                                       and psi_storm_manager.PsiStormManager,
+                                       "last_psi_storm_time")
+        -- why each one reads the way it does. Engine state rather than timing, so it is
+        -- not something the gate is keeping from anyone.
+        out.mgr_surge = s_why
+        out.mgr_psi   = p_why
 
         if tier == "exact" then
             out.surge, out.psi = s, p

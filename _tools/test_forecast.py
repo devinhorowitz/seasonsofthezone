@@ -105,6 +105,7 @@ def field(t, k):
         return None
 
 
+
 CASES = []
 
 
@@ -126,9 +127,11 @@ def t_locked():
     # The manager IS read at every tier now, so a dead manager can be told apart from a
     # withheld one in the log. That flag is engine state, not timing, and must never
     # become a back door to the number itself.
-    assert field(p, "mgr_surge") is True, "the manager flag should still be reported"
+    # The reason is reported at every tier so a withheld reading can be told from a
+    # broken one in the log - but it is a description of engine state, never a number.
+    assert field(p, "mgr_surge") == "ok", field(p, "mgr_surge")
     assert field(p, "surge") is None and field(p, "surge_band") is None
-    return "standing 150 < 200 -> locked; manager seen, nothing leaked"
+    return "standing 150 < 200 -> locked; manager reported ok, nothing leaked"
 
 
 def t_coarse():
@@ -270,6 +273,29 @@ def t_weather_ungated():
     return "hostile to the ecologists still sees the weather"
 
 
+
+
+def t_manager_states():
+    """Each way a countdown can be unavailable has to be distinguishable.
+
+    One nil covered four situations, and the one that mattered - an emission already due -
+    was being reported as no reading at all.
+    """
+    # a healthy manager
+    _, g = build(standing=900, surge_left=4 * HOUR, psi_left=9 * HOUR)
+    assert field(g.forecast_page(), "mgr_surge") == "ok"
+
+    # nothing has built it yet
+    _, g = build(standing=900, surge_left=0, psi_left=9 * HOUR, have_surge=False)
+    assert field(g.forecast_page(), "mgr_surge") == "no-mgr",         field(g.forecast_page(), "mgr_surge")
+
+    # the wait has already elapsed: an emission is imminent, which is information
+    _, g = build(standing=900, surge_left=-600, psi_left=9 * HOUR)
+    p = g.forecast_page()
+    assert field(p, "mgr_surge") == "due", field(p, "mgr_surge")
+    assert field(p, "surge") == 0, field(p, "surge")
+    return "ok / no-mgr / due are told apart, and 'due' reports zero rather than nothing"
+
 for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("exact tier", t_exact), ("bands scale", t_bands_scale),
              ("band edges", t_band_edges), ("no manager", t_no_manager),
@@ -277,7 +303,8 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("no standing", t_no_standing),
              ("weather plan", t_weather_plan), ("weather absent", t_weather_absent),
              ("weather settled", t_weather_settled), ("weather cap", t_weather_cap),
-             ("weather ungated", t_weather_ungated)):
+             ("weather ungated", t_weather_ungated),
+             ("manager states", t_manager_states)):
     case(n, f)
 
 if __name__ == "__main__":

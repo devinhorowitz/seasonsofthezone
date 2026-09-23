@@ -196,8 +196,6 @@ function SeasonsForecast:InitControls()
     self:InitAxes()
 
     self.src       = xml:InitTextWnd("src", self)
-    self.strat_sky = xml:InitTextWnd("strat_sky", self)
-    self.strat_air = xml:InitTextWnd("strat_air", self)
     self.frost    = xml:InitStatic("frost", self)
     self.live_dot = xml:InitStatic("live_dot", self)
     self.eco_logo = xml:InitStatic("eco_logo", self)
@@ -635,25 +633,14 @@ function SeasonsForecast:Fill()
     -- "14.5 / 7.8" read off the real Chornobyl and the same figures taken from a climate
     -- table are not the same claim, and a page that will not say which is asking to be
     -- trusted further than it has earned.
-    -- The sky is the game's and the air is the world's; the page says so rather than
-    -- leaving a reader to assume both numbers come from the same place.
-    put(self.strat_sky, temp and "SKY" or "")
-    -- what the sky is costing you, which is the whole reason it is allowed to move the
-    -- station's numbers at all: a storm you are stood in should read colder
-    if temp and temp.sky_shift and temp.sky_shift ~= 0 then
-        put(self.strat_air, string.format("AIR  %+d%s", temp.sky_shift, DEG))
-    else
-        put(self.strat_air, temp and "AIR" or "")
-    end
-
+    -- Where the temperature comes from, and nothing else. Earlier versions of this line
+    -- also tried to say that the weather half came from the game; that is not a claim
+    -- the page needs to argue, and mentioning the sky here only made a reader wonder
+    -- which of the two numbers in front of them was being sourced.
     if temp and temp.source == "observed" then
-        -- No numbers here. Printing the station's own high and low next to a chart of
-        -- the ADJUSTED ones put two ranges on screen with nothing to say how they were
-        -- related; the gap is already stated once, as the shift on the AIR label.
-        put(self.src, string.format("Sky from the Zone  -  air from %s, live",
-                                    temp.place or "Chornobyl"))
+        put(self.src, string.format("Live from %s", temp.place or "Chornobyl"))
     elseif temp then
-        put(self.src, "Sky from the Zone  -  air modelled from regional normals")
+        put(self.src, "No station data - temperature modelled")
     else
         put(self.src, "")
     end
@@ -729,7 +716,6 @@ function SeasonsForecast:Fill()
             if fc.standing then
                 put(self.eco_l2, string.format("Standing %d of %d",
                                                fc.standing, fc.need))
-                self:Meter(fc.standing, fc.need)
             else
                 put(self.eco_l2, "No contact")
             end
@@ -766,10 +752,8 @@ function SeasonsForecast:Fill()
         tostring(fc and fc.need or "?"), tostring(fc and fc.need_exact or "?"),
         -- shown value, then whether a manager answered at all: "nil/no-mgr" is broken,
         -- "nil/mgr-ok" is simply withheld by the tier
-        tostring(d.surge or d.surge_band or "nil") ..
-            (d.mgr_surge and "/mgr-ok" or "/no-mgr"),
-        tostring(d.psi or d.psi_band or "nil") ..
-            (d.mgr_psi and "/mgr-ok" or "/no-mgr"),
+        tostring(d.surge or d.surge_band or "nil") .. "/" .. tostring(d.mgr_surge),
+        tostring(d.psi or d.psi_band or "nil") .. "/" .. tostring(d.mgr_psi),
         tostring(temp and temp.now or "?"),
         tostring(temp and temp.unit or "?"),
         (temp and temp.source == "observed") and " live" or " modelled"))
@@ -823,35 +807,6 @@ end
 -- last in the right column. Goodwill runs to 1000, so a bare "0" says nothing about how
 -- far 200 actually is.
 --
--- The two blocks are built once and moved, like every other bar on this page: Reset()
--- runs on each visit, and allocating per redraw is how a page leaks.
-function SeasonsForecast:Meter(have, need)
-    if not (need and need > 0) then return end
-    if not self.meter_back then
-        self.meter_back = self.xml:InitStatic("px", self)
-        self.meter_fill = self.xml:InitStatic("px", self)
-        if self.meter_back then
-            self.meter_back:SetTextureColor(GetARGB(255, 46, 52, 46))
-        end
-        if self.meter_fill then
-            self.meter_fill:SetTextureColor(GetARGB(255, 238, 196, 112))
-        end
-    end
-    local w, h = 208, 5
-    local y = 496
-    local f = math.max(0, math.min(1, (tonumber(have) or 0) / need))
-
-    if self.meter_back then
-        self.meter_back:SetWndPos(vector2():set(ECO_X + 14, y))
-        self.meter_back:SetWndSize(vector2():set(w, h))
-        self.meter_back:Show(true)
-    end
-    if self.meter_fill then
-        self.meter_fill:SetWndPos(vector2():set(ECO_X + 14, y))
-        self.meter_fill:SetWndSize(vector2():set(math.max(2, math.floor(w * f)), h))
-        self.meter_fill:Show(f > 0)
-    end
-end
 
 function SeasonsForecast:Reset()
     local ok, err = pcall(function() self:Fill() end)
