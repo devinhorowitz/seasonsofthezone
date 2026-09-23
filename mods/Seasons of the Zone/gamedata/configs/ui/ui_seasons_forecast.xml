@@ -15,28 +15,28 @@
 -->
     <background x="28" y="106" width="764" height="603" stretch="1"/>
 
-    <header x="48" y="120" width="470" height="28">
+    <header x="52" y="120" width="440" height="28">
         <text font="letterica18" r="238" g="196" b="112" align="l" vert_align="c" complex_mode="1"/>
     </header>
 
-    <bar x="48" y="150" width="470" height="8" stretch="1"/>
+    <bar x="52" y="152" width="452" height="8" stretch="1"/>
 
-    <subheader x="48" y="160" width="470" height="18">
+    <subheader x="52" y="164" width="452" height="18">
         <text font="letterica16" r="170" g="170" b="170" align="l" vert_align="c" complex_mode="1"/>
     </subheader>
 
     <!-- Where the numbers came from. Observed and modelled are different claims.
          The dot to its left pulses only when the reading is a live one. -->
-    <live_dot x="48" y="181" width="7" height="7" stretch="1">
+    <live_dot x="52" y="185" width="7" height="7" stretch="1">
         <texture>sotz_px</texture>
     </live_dot>
-    <src x="62" y="176" width="440" height="16">
+    <src x="66" y="180" width="438" height="16">
         <text font="letterica16" r="128" g="136" b="128" align="l" vert_align="c" complex_mode="1"/>
     </src>
 
     <!-- Celsius / Fahrenheit. Writes the MCM option rather than keeping its own copy. -->
-    <units x="700" y="118" width="58" height="24" stretch="1"/>
-    <units_label x="700" y="118" width="58" height="24">
+    <units x="710" y="126" width="58" height="24" stretch="1"/>
+    <units_label x="710" y="126" width="58" height="24">
         <text font="letterica16" r="238" g="196" b="112" align="c" vert_align="c" complex_mode="1"/>
     </units_label>
 
@@ -45,54 +45,54 @@
     <!-- The shield only. The full ui_inGame2_ecolog region is a banner - emblem on the
          left, empty name plate on the right - and using it whole put a black box on the
          page. sotz_eco_mark is that emblem cropped out of the same file. -->
-    <eco_logo x="554" y="370" width="42" height="42" stretch="1">
+    <eco_logo x="556" y="426" width="44" height="44" stretch="1">
         <texture>sotz_eco_mark</texture>
     </eco_logo>
-    <eco_class x="606" y="378" width="160" height="24">
+    <eco_class x="612" y="436" width="152" height="24">
         <text font="letterica18" r="238" g="196" b="112" align="l" vert_align="c" complex_mode="1"/>
     </eco_class>
-    <eco_l1 x="554" y="424" width="212" height="18">
+    <eco_l1 x="556" y="492" width="206" height="18">
         <text font="letterica16" r="200" g="200" b="200" align="l" vert_align="c" complex_mode="1"/>
     </eco_l1>
-    <eco_l2 x="554" y="444" width="212" height="18">
+    <eco_l2 x="556" y="514" width="206" height="18">
         <text font="letterica16" r="200" g="200" b="200" align="l" vert_align="c" complex_mode="1"/>
     </eco_l2>
-    <eco_l3 x="554" y="464" width="212" height="18">
+    <eco_l3 x="556" y="536" width="206" height="18">
         <text font="letterica16" r="140" g="140" b="140" align="l" vert_align="c" complex_mode="1"/>
     </eco_l3>
 
     <!-- shown only when the day dips below zero -->
-    <frost x="430" y="190" width="34" height="34" stretch="1">
+    <frost x="464" y="224" width="30" height="30" stretch="1">
         <texture>sotz_wx_frost</texture>
     </frost>
 
     <!-- The sky, now and next. Square textures, so the width is corrected for aspect
          from script exactly as the dial and the barometer are. -->
-    <wx_now   x="48"  y="198" width="56" height="56" stretch="1"/>
-    <wx_arrow x="118" y="212" width="34" height="34" stretch="1"/>
-    <wx_next  x="166" y="198" width="56" height="56" stretch="1"/>
+    <wx_now   x="52"  y="216" width="56" height="56" stretch="1"/>
+    <wx_arrow x="122" y="230" width="34" height="34" stretch="1"/>
+    <wx_next  x="170" y="216" width="56" height="56" stretch="1"/>
 
-    <wx_now_label x="34" y="258" width="86" height="18">
+    <wx_now_label x="38" y="276" width="86" height="18">
         <text font="letterica16" r="255" g="255" b="255" align="c" vert_align="c" complex_mode="1"/>
     </wx_now_label>
-    <wx_next_label x="140" y="258" width="112" height="18">
+    <wx_next_label x="144" y="276" width="112" height="18">
         <text font="letterica16" r="190" g="190" b="190" align="c" vert_align="c" complex_mode="1"/>
     </wx_next_label>
 
     <!-- the temperature, beside the sky rather than buried in a row -->
-    <now x="278" y="204" width="146" height="44">
+    <now x="282" y="222" width="212" height="44">
         <text font="letterica18" r="255" g="255" b="255" align="l" vert_align="c" complex_mode="1"/>
     </now>
 
     <!-- the barometer; one of six images, picked by the weather. Square, width
          corrected for aspect from script. -->
-    <gauge  x="566" y="150" width="184" height="184" stretch="1"/>
+    <gauge  x="562" y="166" width="208" height="208" stretch="1"/>
     <!-- One hand. A set hand pointing at the coming weather was tried and cut: at this
          size two white needles overlap into a single thick smear rather than reading as
          a gap, and the glyphs above already say what is coming. -->
-    <needle x="566" y="150" width="184" height="184" stretch="1"/>
+    <needle x="562" y="166" width="208" height="208" stretch="1"/>
 
-    <gauge_caption x="548" y="336" width="220" height="18">
+    <gauge_caption x="544" y="382" width="224" height="18">
         <text font="letterica16" r="170" g="170" b="170" align="c" vert_align="c" complex_mode="1"/>
     </gauge_caption>
 
@@ -100,12 +100,12 @@
          are tinted copies of <px> parented to this. -->
     <!-- The densest thing on the page, so it gets the room. The ribbon and the curve
          share one x axis: 24 game hours across 462px. -->
-    <chart x="48" y="290" width="462" height="206"/>
+    <chart x="52" y="308" width="452" height="180"/>
 
-    <chart_cap_l x="48" y="500" width="200" height="16">
+    <chart_cap_l x="52" y="492" width="200" height="16">
         <text font="letterica16" r="150" g="150" b="150" align="l" vert_align="c" complex_mode="1"/>
     </chart_cap_l>
-    <chart_cap_r x="310" y="500" width="200" height="16">
+    <chart_cap_r x="304" y="492" width="200" height="16">
         <text font="letterica16" r="150" g="150" b="150" align="r" vert_align="c" complex_mode="1"/>
     </chart_cap_r>
 

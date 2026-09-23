@@ -323,8 +323,8 @@ def t_weather_cap():
               plan=[(600 + 30 * i, "rain" if i % 2 else "clear") for i in range(1, 30)]
               )[1].forecast_page()
     n = len(field(field(p, "weather"), "segments"))
-    assert n == 8, n
-    return "a long plan is capped at 8 rows"
+    assert n == 6, n
+    return "a long plan is capped at 6 rows"
 
 
 def t_weather_ungated():

@@ -273,13 +273,16 @@ local DIM_RGB  = {140, 140, 140}
 -- Each column starts where the thing above it ends rather than on a shared line: the
 -- left one is under the chart, the right one under the barometer, which is 130px higher.
 -- Sharing a top left a hole under the gauge the size of the gauge.
-local COL_X    = {48, 554}       -- the right column lines up with the panel's text
-local HEAD_Y   = {522, 560}
-local ROW_Y0   = {546, 584}
+local COL_X    = {52, 556}       -- the right column lines up with the panel's text
+local HEAD_Y   = {516, 560}
+local ROW_Y0   = {540, 584}
 
 -- the ecologist panel, which the right column now sits beneath
-local ECO_X, ECO_Y, ECO_W, ECO_H = 540, 356, 232, 188
-local ROW_H    = 19
+local ECO_X, ECO_Y, ECO_W, ECO_H = 540, 412, 230, 274
+-- 17 rather than 19: with the frame in place, nine rows at 19 overran the bottom
+-- edge at full load. It only ever fit because a typical day has three or four
+-- changes, and the plan cap drops from eight to six for the same reason.
+local ROW_H    = 17
 local ROWS     = 14
 
 function SeasonsForecast:InitRows()
@@ -321,7 +324,7 @@ local RULE_A = 210
 local FR_L, FR_T, FR_R, FR_B = 38, 112, 782, 700
 local CHAMFER = 14          -- how far each line stops short of a corner
 local SPLIT_X = 526         -- between the chart column and the instrument column
-local FR_HEAD_Y = 192       -- under the title, accent bar, date and source line
+local FR_HEAD_Y = 202       -- under the title, accent bar, date and source line
 
 function SeasonsForecast:InitFrame()
     self.frame = {}
@@ -341,11 +344,13 @@ function SeasonsForecast:InitFrame()
     line(FR_L, FR_T + CHAMFER, 1, FR_B - FR_T - CHAMFER * 2)
     line(FR_R, FR_T + CHAMFER, 1, FR_B - FR_T - CHAMFER * 2)
 
-    -- the header block gets its own cell, as the stats rows do
-    line(FR_L + CHAMFER, FR_HEAD_Y, FR_R - FR_L - CHAMFER * 2, 1)
+    -- The header rule covers the LEFT column only. Run full width it was drawn
+    -- straight across the barometer, which occupies the right column from well above
+    -- this line.
+    line(FR_L + CHAMFER, FR_HEAD_Y, SPLIT_X - FR_L - CHAMFER, 1)
 
-    -- and the two columns are separated rather than merely spaced apart
-    line(SPLIT_X, FR_HEAD_Y + CHAMFER, 1, FR_B - FR_HEAD_Y - CHAMFER * 2)
+    -- the split runs the whole height, so the instrument column is one tall cell
+    line(SPLIT_X, FR_T + CHAMFER, 1, FR_B - FR_T - CHAMFER * 2)
 end
 
 function SeasonsForecast:InitEcoFrame()
@@ -474,15 +479,15 @@ end
 -- The left gutter carries the temperature scale, so the plot starts after it. Without
 -- this the bars ran to the panel edge and there was nowhere to put a value.
 local AXIS_W    = 34
-local CHART_W   = 462
+local CHART_W   = 452
 local PLOT_W    = CHART_W - AXIS_W
 local RIBBON_Y  = 4
 local RIBBON_H  = 24
 local CURVE_Y   = 40
-local CURVE_H   = 148
+local CURVE_H   = 122
 local SPAN_MIN  = 1440          -- one game day
-local CHART_X   = 48            -- must match <chart> in the xml
-local CHART_Y   = 290
+local CHART_X   = 52            -- must match <chart> in the xml
+local CHART_Y   = 308
 
 function SeasonsForecast:DrawChart(d, temp)
     if not self.chart then return end
