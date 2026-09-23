@@ -18,7 +18,7 @@ import os
 import sys
 import tempfile
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.join(os.path.dirname(HERE), "mods", "Seasons of the Zone")
@@ -27,6 +27,23 @@ DESCR = os.path.join(MOD, "gamedata", "configs", "ui", "textures_descr")
 SCRATCH = os.path.join(tempfile.gettempdir(), "seasons_of_the_zone")
 
 INK = (14, 17, 14, 255)
+
+FONTS = [r"C:\Windows\Fonts\seguisb.ttf", r"C:\Windows\Fonts\segoeui.ttf",
+         r"C:\Windows\Fonts\calibrib.ttf", r"C:\Windows\Fonts\arial.ttf"]
+
+
+def font(sz):
+    for f in FONTS:
+        if os.path.isfile(f):
+            return ImageFont.truetype(f, sz)
+    return ImageFont.load_default()
+
+
+# What an aneroid barometer actually says on its face. The gauge already reasons in these
+# terms - the bands are storm, change and fair - so labelling it this way costs nothing
+# and turns an unlabelled arc into a dial you can read a value off.
+FACE_WORDS = [(0.07, "STORMY"), (0.26, "RAIN"), (0.50, "CHANGE"),
+              (0.74, "FAIR"), (0.93, "DRY")]
 AMBER = (238, 196, 112, 255)
 
 SIZE = 384
@@ -99,6 +116,15 @@ def gauge_face():
                  polar(cx, cy, a, (R_TICK - (26 if long_tick else 14)) * s)],
                 fill=(236, 240, 234, 235),
                 width=int((4 if long_tick else 2.5) * s))
+
+    # the words, set inside the ticks and centred on their own gradation
+    f = font(int(15 * s))
+    for frac, word in FACE_WORDS:
+        a = A_START + span * frac
+        px, py = polar(cx, cy, a, (R_TICK - 44) * s)
+        bb = dr.textbbox((0, 0), word, font=f)
+        dr.text((px - (bb[2] - bb[0]) / 2.0, py - (bb[3] - bb[1]) / 2.0), word,
+                font=f, fill=(206, 214, 204, 240))
     return im.resize((SIZE, SIZE), Image.LANCZOS)
 
 

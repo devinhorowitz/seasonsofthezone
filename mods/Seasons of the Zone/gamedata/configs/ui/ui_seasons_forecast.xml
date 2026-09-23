@@ -106,6 +106,15 @@
         <text font="letterica16" r="150" g="150" b="150" align="r" vert_align="c" complex_mode="1"/>
     </chart_cap_r>
 
+    <!-- chart scales: three temperatures up the left gutter, five hours along the
+         bottom. Cloned and repositioned in script like every other row on this page. -->
+    <axis_y x="0" y="0" width="34" height="14">
+        <text font="letterica16" r="150" g="156" b="150" align="r" vert_align="c" complex_mode="1"/>
+    </axis_y>
+    <axis_x x="0" y="0" width="54" height="14">
+        <text font="letterica16" r="150" g="156" b="150" align="c" vert_align="c" complex_mode="1"/>
+    </axis_x>
+
     <!-- one white block, tinted per bar. X-Ray has no fill-rect. -->
     <px x="0" y="0" width="8" height="8" stretch="1">
         <texture>sotz_px</texture>

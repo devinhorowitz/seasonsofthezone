@@ -193,6 +193,7 @@ function SeasonsForecast:InitControls()
     self.chart_cap_l = xml:InitTextWnd("chart_cap_l", self)
     self.chart_cap_r = xml:InitTextWnd("chart_cap_r", self)
     self:InitChart()
+    self:InitAxes()
 
     self.src      = xml:InitTextWnd("src", self)
     self.frost    = xml:InitStatic("frost", self)
@@ -200,11 +201,12 @@ function SeasonsForecast:InitControls()
     self.eco_logo = xml:InitStatic("eco_logo", self)
     self.eco_class = xml:InitTextWnd("eco_class", self)
 
-    -- the faction banner is 383x179, so it needs its own ratio as well as the aspect
-    -- correction every square asset on this page gets
+    -- sotz_eco_mark is a SQUARE 112x112 crop of the shield, so it wants the plain
+    -- aspect correction. The 383/179 ratio here was the banner it replaced, and left
+    -- the emblem stretched to twice its width.
     if self.eco_logo then
         local h = self.eco_logo:GetHeight()
-        self.eco_logo:SetWndSize(vector2():set(h * (383 / 179) * aspect(), h))
+        self.eco_logo:SetWndSize(vector2():set(h * aspect(), h))
     end
 
     self.units = xml:Init3tButton("units", self)
@@ -386,6 +388,20 @@ end
 -- never release them - a slow leak that only shows after an hour of play.
 local BAR_POOL = 44          -- 9 ribbon bands + 24 curve columns + 4 rules, with slack
 
+function SeasonsForecast:InitAxes()
+    self.axis_y, self.axis_x = {}, {}
+    for i = 1, 3 do
+        local w = self.xml:InitTextWnd("axis_y", self)
+        if w then w:Show(false) end
+        self.axis_y[i] = w
+    end
+    for i = 1, 5 do
+        local w = self.xml:InitTextWnd("axis_x", self)
+        if w then w:Show(false) end
+        self.axis_x[i] = w
+    end
+end
+
 function SeasonsForecast:InitChart()
     self.bars, self.bar_n = {}, 0
     if not self.chart then return end
@@ -411,12 +427,18 @@ end
 -- 24 hours across 462px: the weather Atmospherics has planned as a ribbon, and the
 -- modelled temperature under it on the same axis, so a glance answers both "when does it
 -- turn" and "how cold does it get" without reading a single row.
+-- The left gutter carries the temperature scale, so the plot starts after it. Without
+-- this the bars ran to the panel edge and there was nowhere to put a value.
+local AXIS_W    = 34
 local CHART_W   = 462
+local PLOT_W    = CHART_W - AXIS_W
 local RIBBON_Y  = 4
 local RIBBON_H  = 24
 local CURVE_Y   = 40
 local CURVE_H   = 148
 local SPAN_MIN  = 1440          -- one game day
+local CHART_X   = 48            -- must match <chart> in the xml
+local CHART_Y   = 290
 
 function SeasonsForecast:DrawChart(d, temp)
     if not self.chart then return end
@@ -427,7 +449,7 @@ function SeasonsForecast:DrawChart(d, temp)
 
     local w = d.weather
     local function px(minute)
-        return math.floor((math.min(minute, SPAN_MIN) / SPAN_MIN) * CHART_W + 0.5)
+        return AXIS_W + math.floor((math.min(minute, SPAN_MIN) / SPAN_MIN) * PLOT_W + 0.5)
     end
 
     -- --- the weather ribbon ---------------------------------------------------------
@@ -467,7 +489,7 @@ function SeasonsForecast:DrawChart(d, temp)
         end
         local range = (hi - lo)
         if range < 1 then range = 1 end
-        local cw = math.floor(CHART_W / #curve)
+        local cw = math.floor(PLOT_W / #curve)
         for i = 1, #curve do
             local f = (curve[i] - lo) / range
             local h = math.max(2, math.floor(f * CURVE_H))
@@ -475,7 +497,26 @@ function SeasonsForecast:DrawChart(d, temp)
             local r = math.floor(120 + 118 * f)
             local g = math.floor(140 + 56 * f)
             local b = math.floor(158 - 46 * f)
-            self:Bar((i - 1) * cw + 1, CURVE_Y + (CURVE_H - h), cw - 2, h, r, g, b, 225)
+            self:Bar(AXIS_W + (i - 1) * cw + 1, CURVE_Y + (CURVE_H - h), cw - 2, h,
+                     r, g, b, 225)
+        end
+
+        -- three gridlines and their values: the bars meant nothing without them
+        local unit = (temp and temp.unit) or "C"
+        for i, at in ipairs({0.0, 0.5, 1.0}) do
+            local y = CURVE_Y + math.floor((1.0 - at) * CURVE_H)
+            self:Bar(AXIS_W, y, PLOT_W, 1, 70, 76, 70, 150)
+            local w = self.axis_y and self.axis_y[i]
+            if w then
+                w:SetText(string.format("%d%s", math.floor(lo + (hi - lo) * at + 0.5),
+                                        DEG))
+                w:SetWndPos(vector2():set(CHART_X - 6, CHART_Y + y - 7))
+                w:Show(true)
+            end
+        end
+    else
+        for i = 1, 3 do
+            if self.axis_y and self.axis_y[i] then self.axis_y[i]:Show(false) end
         end
     end
 
@@ -484,7 +525,21 @@ function SeasonsForecast:DrawChart(d, temp)
     for hh = 6, 18, 6 do
         self:Bar(px(hh * 60), RIBBON_Y, 1, CURVE_Y + CURVE_H - RIBBON_Y, 90, 96, 90, 200)
     end
-    self:Bar(0, RIBBON_Y - 3, 2, CURVE_Y + CURVE_H - RIBBON_Y + 6, 238, 196, 112, 255)
+    self:Bar(AXIS_W, RIBBON_Y - 3, 2, CURVE_Y + CURVE_H - RIBBON_Y + 6, 238, 196, 112, 255)
+
+    -- the hour under each rule, counted from the game clock rather than from zero
+    local now_h = (temp and temp.hour) or 0
+    for i = 1, 5 do
+        local w = self.axis_x and self.axis_x[i]
+        if w then
+            local ahead = (i - 1) * 6
+            local clock = (math.floor(now_h) + ahead) % 24
+            w:SetText(string.format("%02d:00", clock))
+            w:SetWndPos(vector2():set(CHART_X + px(ahead * 60) - 27,
+                                      CHART_Y + CURVE_Y + CURVE_H + 4))
+            w:Show(true)
+        end
+    end
 end
 
 
@@ -697,7 +752,7 @@ function SeasonsForecast:Twitch(ms)
     if t < TWITCH_FOR then
         -- a decaying wobble: fast at the start, still by the end
         local k = 1.0 - (t / TWITCH_FOR)
-        local swing = math.sin(t / TWITCH_FOR * 18.0) * 2.0 * k * k
+        local swing = math.sin(t / TWITCH_FOR * 18.0) * 1.0 * k * k
         dx = swing
         dy = swing * 0.35
     end
