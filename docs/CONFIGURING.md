@@ -180,9 +180,19 @@ on a file the mod ships and re-anchor.
 **`anchor '...' is not in the modlist - SKIPPED`.** The `above` name has a typo, or that
 mod is not installed. It must match the folder name exactly.
 
-**`seasons_config.py needs fixing`.** The message names the entry and the field. The
-usual mistake is `"seasons": ("winter")`, a string, not a tuple; it needs the trailing
-comma: `("winter",)`.
+**`seasons_config.py needs fixing`.** The message names the line, or the entry and the
+field. The usual mistakes:
+
+- `("winter")` is a string, not a tuple. One season needs the trailing comma:
+  `("winter",)`.
+- A comma in the wrong place, or missing between two entries. Python can only say
+  roughly where, so a missing comma is reported as a range of lines; it goes after the
+  `}` that closes an entry.
+- A name without quotes: `winter_snow` instead of `"winter_snow"`.
+- The same table set twice, often an entry added above the template's empty
+  `TOGGLE_MODS = {}`. Python keeps the last one, so the entry would be thrown away.
+
+`whowins` still runs while the file has a mistake in it.
 
 **Textures are wrong for the season.** The mod says so on load: *"TEXTURES ARE STAGED FOR
 X but the season running is Y"*. Run `season.py apply` or `play.bat` and restart.

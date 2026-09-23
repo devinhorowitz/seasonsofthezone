@@ -26,6 +26,7 @@ never by a stored note. The archive side is cached (_baseline/season-archive-has
 keyed on the archive's size and mtime); the live folder is hashed on every run.
 """
 import argparse
+import ast
 import datetime
 import hashlib
 import io
@@ -37,6 +38,7 @@ import shutil
 import subprocess
 import sys
 import time
+import traceback
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -88,22 +90,85 @@ def profile_name():
 
 APPDATA = os.path.join(game_dir(), "appdata")
 
+CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS")
+
+
+def _config_error(e):
+    """Lines saying what is wrong with a seasons_config.py Python could not run: the line
+    at fault and what Python said. A traceback reads as the tool crashing."""
+    where = None
+    if isinstance(e, SyntaxError):
+        line, text, col = e.lineno, e.text, e.offset
+        what = e.msg or "invalid syntax"
+        end = getattr(e, "end_lineno", None)
+        if line and end and end > line:
+            # a missing comma between two entries is blamed on where the first one starts;
+            # the range holds the fault, a caret on its first line would not
+            where, text = "lines %d to %d" % (line, end), None
+    else:
+        frames = [f for f in traceback.extract_tb(e.__traceback__)
+                  if os.path.basename(f.filename) == "seasons_config.py"]
+        line = frames[-1].lineno if frames else None
+        text = frames[-1].line if frames else None
+        col = None
+        what = "%s: %s" % (type(e).__name__, e)
+        if isinstance(e, NameError):
+            what = "%s. Names go in quotes: \"%s\"" % (
+                e, getattr(e, "name", None) or "winter")
+    where = where or ("line %d" % line if line else None)
+    out = ["%s: %s" % (where, what) if where else what]
+    if text:
+        text = text.rstrip("\r\n")
+        out.append(text.expandtabs())
+        if col:
+            out.append(" " * len(text[:col - 1].expandtabs()) + "^")
+    return out
+
+
 # Install-specific configuration lives in seasons_config.py. Missing or empty is fine:
-# the in-engine layer runs with nothing staged.
+# the in-engine layer runs with nothing staged. A file Python cannot run is held here and
+# reported by _validate_config(), so whowins still works while it is being fixed.
+_cfg, CONFIG_ERROR = None, None
 try:
     import seasons_config as _cfg
-    LAYOUT = getattr(_cfg, "LAYOUT", {})
-    TOGGLE_MODS = getattr(_cfg, "TOGGLE_MODS", {})
-    SOUND_SRC = getattr(_cfg, "SOUND_SRC", None)
-    # The calendar itself is configurable. PERIODS adds base periods (they
-    # partition the year alongside the seasons); EVENTS adds windows that OVERLAY
-    # whatever period they fall in, which is what lets a one-day event keep the
-    # season around it.
-    PERIODS = getattr(_cfg, "PERIODS", {})
-    EVENTS = getattr(_cfg, "EVENTS", {})
-except ImportError:
-    LAYOUT, TOGGLE_MODS, SOUND_SRC = {}, {}, None
-    PERIODS, EVENTS = {}, {}
+except ModuleNotFoundError as e:
+    if e.name != "seasons_config":
+        CONFIG_ERROR = _config_error(e)
+except Exception as e:
+    CONFIG_ERROR = _config_error(e)
+LAYOUT = getattr(_cfg, "LAYOUT", {})
+TOGGLE_MODS = getattr(_cfg, "TOGGLE_MODS", {})
+SOUND_SRC = getattr(_cfg, "SOUND_SRC", None)
+# The calendar itself is configurable. PERIODS adds base periods (they partition the year
+# alongside the seasons); EVENTS adds windows that OVERLAY whatever period they fall in,
+# which is what lets a one-day event keep the season around it.
+PERIODS = getattr(_cfg, "PERIODS", {})
+EVENTS = getattr(_cfg, "EVENTS", {})
+
+
+def _set_twice():
+    """Problems for each table the config sets more than once. Python keeps the last, so a
+    table written above the template's own `TOGGLE_MODS = {}` counts for nothing, and
+    nothing says so."""
+    path = getattr(_cfg, "__file__", None)
+    if not path:
+        return []
+    try:
+        tree = ast.parse(io.open(path, encoding="utf-8-sig").read())
+    except Exception:
+        return []
+    first, out = {}, []
+    for node in tree.body:
+        targets = (node.targets if isinstance(node, ast.Assign)
+                   else [node.target] if isinstance(node, ast.AnnAssign) else [])
+        for t in targets:
+            if isinstance(t, ast.Name) and t.id in CONFIG_NAMES:
+                if t.id in first:
+                    out.append("line %d sets %s again, which throws away the one on line %d."
+                               " Keep one." % (node.lineno, t.id, first[t.id]))
+                else:
+                    first[t.id] = node.lineno
+    return out
 
 
 def _validate_config():
@@ -111,7 +176,12 @@ def _validate_config():
 
     `"seasons": ("winter")` is a string, not a tuple, and `"winter" in "winter_snow"` is
     true, so without this check that mod would be enabled in deep winter."""
-    problems = []
+    if CONFIG_ERROR:
+        raise SystemExit("  seasons_config.py needs fixing before anything runs:\n"
+                         "    - " + CONFIG_ERROR[0]
+                         + "".join("\n        " + l for l in CONFIG_ERROR[1:])
+                         + "\n  Nothing has been changed.")
+    problems = _set_twice()
     known = period_names()
     valid = ", ".join(known)
 

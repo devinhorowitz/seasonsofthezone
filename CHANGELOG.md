@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.2 — 2026-09-23
+
+- **A mistake in `seasons_config.py` is reported in one plain message** with the line at
+  fault, instead of a Python traceback. That covers a misplaced or missing comma, a name
+  without quotes, and anything else Python can't read.
+- **Fixed: a table set twice was thrown away without a word.** An entry added above the
+  template's empty `TOGGLE_MODS = {}` counted for nothing, since Python keeps the last
+  one, and every MCM page said no mods were set. `season.py` now names both lines.
+- A config that imports something missing is reported instead of being treated as no
+  config.
+- `whowins` still runs while the config has a mistake in it.
+
 ## 1.8.1 — 2026-09-23
 
 - **Fixed: `whowins` could name your own mod as its anchor.** MO2 enables a new install at
