@@ -1527,13 +1527,27 @@ function forecast_page()
     -- 168 it is most of a day. This is the whole point of the coarse tier - it tells you
     -- to get indoors without telling you exactly when, which is what the ecologists would
     -- actually say over a radio.
-    local function band(left, full)
-        if not (left and full and full > 0) then return nil end
-        local f = left / full
-        if f <= 0.15 then return "imminent" end
-        if f <= 0.45 then return "building"  end
-        return "quiet"
+    -- What a relayed warning is actually worth. The ecologists are reading their own
+    -- instruments and passing a bulletin down a bunker relay; a bracket is honest about
+    -- that in a way a single number would not be, and eight hours of slop still tells a
+    -- stalker whether to start walking back.
+    --
+    -- Fixed hours rather than a fraction of the period: "two to eight hours" means the
+    -- same thing whatever the frequency slider says, whereas a fraction silently became
+    -- a different warning when someone moved it.
+    local function bracket(left)
+        if not left then return nil end
+        local h = left / 3600.0
+        if h <= 2  then return "WITHIN 2 HOURS" end
+        if h <= 8  then return "2 to 8 hours"   end
+        if h <= 16 then return "8 to 16 hours"  end
+        return "ALL CLEAR"
     end
+
+    -- Under two hours is the point where this stops being a forecast and becomes a
+    -- warning. Both tiers raise it: a LIMITED "WITHIN 2 HOURS" means the same thing to
+    -- the player as a CLEARED "1 hour".
+    local ALERT_SECONDS = 2 * 3600
 
     if mcm("forecast", true) then
         local st   = standing()
@@ -1605,8 +1619,17 @@ function forecast_page()
         if tier == "exact" then
             out.surge, out.psi = s, p
         elseif tier == "coarse" then
-            out.surge_band = band(s, period("alife/event/emission_frequency",  24))
-            out.psi_band   = band(p, period("alife/event/psi_storm_frequency", 48))
+            out.surge_band = bracket(s)
+            out.psi_band   = bracket(p)
+        end
+
+        -- The flag only exists for a tier that is allowed to know. At locked it stays
+        -- false, because a strobe would leak the one thing being withheld.
+        if tier ~= "locked" then
+            out.surge_alert = (s ~= nil and s <= ALERT_SECONDS)
+            out.psi_alert   = (p ~= nil and p <= ALERT_SECONDS)
+        else
+            out.surge_alert, out.psi_alert = false, false
         end
     end
 

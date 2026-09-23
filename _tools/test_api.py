@@ -250,9 +250,13 @@ def t_blowout_coarse():
     assert F(b, "tier") == "coarse"
     em = F(b, "emission")
     assert F(em, "seconds") is None, "coarse tier leaked the number"
-    assert F(em, "band") == "imminent", F(em, "band")
+    assert F(em, "band") == "WITHIN 2 HOURS", F(em, "band")
+    # and the gauge position must come from THAT bracket, not the fallback. When the
+    # brackets were renamed this mapping was left behind and every coarse reading landed
+    # on 0.70 - a needle near "quiet" beside a panel reading WITHIN 2 HOURS.
     assert F(em, "fraction") is not None, "coarse tier gave a gauge nothing to sit on"
-    return "coarse tier: band and a gauge position, no number"
+    assert F(em, "fraction") < 0.2, F(em, "fraction")
+    return "coarse tier: bracket, a matching gauge position, no number"
 
 
 # --- the cache is real ------------------------------------------------------------------
@@ -431,6 +435,28 @@ def t_bands_and_thaw():
     return "bands name the moment; thaw needs a freeze AND a rise above zero"
 
 
+def t_alert_hook():
+    """`alert` is what a wearable device pulses on, so it must be gated like the rest.
+
+    A device re-deriving it from `seconds` would drift out of step with the page the
+    moment either threshold moved, which is the whole reason it is published.
+    """
+    obs = {"high": 10.0, "low": 4.0, "cycle": "clear", "date": _pinned(9, 15),
+           "place": "Chornobyl"}
+    _, g = build(hour=12.0, month=9, observed=obs, standing=900,
+                 surge_left=1 * HOUR, psi_left=30 * HOUR)
+    b = g.sotz_api.blowout()
+    assert F(F(b, "emission"), "alert") is True, "no alert an hour out"
+    assert F(F(b, "psi"), "alert") is False, "alert 30 hours out"
+
+    _, g = build(hour=12.0, month=9, observed=obs, standing=0,
+                 surge_left=1 * HOUR, psi_left=1 * HOUR)
+    b = g.sotz_api.blowout()
+    assert F(b, "tier") == "locked"
+    assert F(F(b, "emission"), "alert") is False, "a locked tier leaked an alert"
+    return "published, gated by tier, and false when the tier may not know"
+
+
 CASES = [
     ("namespacing", t_namespacing),
     ("curve shape", t_curve_shape),
@@ -453,6 +479,7 @@ CASES = [
     ("units convert", t_units_convert),
     ("sky moves the base", t_sky_moves_the_base),
     ("bands and thaw", t_bands_and_thaw),
+    ("alert hook", t_alert_hook),
 ]
 
 if __name__ == "__main__":

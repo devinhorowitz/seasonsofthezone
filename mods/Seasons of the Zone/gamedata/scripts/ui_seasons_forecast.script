@@ -76,12 +76,6 @@ local CYCLE_RGB = {
 
 -- The coarse tier's whole job is to warn without timing. These are what a reading relayed
 -- over a radio would sound like, and none of them implies an hour.
-local BAND = {
-    imminent = "very soon",
-    building = "building",
-    quiet    = "nothing yet",
-}
-
 -- What the barometer needle is sitting in. "outside now" described where the reading
 -- came from rather than what it said, which is the one thing a caption is for.
 local GAUGE_BAND = {
@@ -771,10 +765,11 @@ function SeasonsForecast:Fill()
             put(self.eco_l2, "")
             put(self.eco_l3, "")
         else
+            -- at LIMITED the bracket arrives as finished text; at CLEARED it is the hour
             local e = fc.tier == "exact" and (d.surge and countdown(d.surge))
-                                         or  (d.surge_band and BAND[d.surge_band])
+                                         or  d.surge_band
             local p = fc.tier == "exact" and (d.psi   and countdown(d.psi))
-                                         or  (d.psi_band   and BAND[d.psi_band])
+                                         or  d.psi_band
             -- padded to the same column the rest of the page uses for a value
             put(self.eco_l1, string.format("Emission    %s", e or "no reading"))
             put(self.eco_l2, string.format("Psi storm    %s", p or "no reading"))
@@ -789,6 +784,11 @@ function SeasonsForecast:Fill()
         put(self.eco_l2, "")
         put(self.eco_l3, "")
     end
+
+    -- The strobe is driven from Update(), so the state it needs is recorded here rather
+    -- than recomputed sixty times a second.
+    self.alert_l1 = (d.surge_alert == true)
+    self.alert_l2 = (d.psi_alert == true)
 
     -- --- the live marker ----------------------------------------------------------------
     self.is_live = (temp ~= nil and temp.source == "observed")
@@ -834,10 +834,34 @@ function SeasonsForecast:Twitch(ms)
     self.needle:SetWndPos(vector2():set(self.needle_x + dx, self.needle_y + dy))
 end
 
+-- Under two hours an emission stops being a forecast and becomes a warning, and this
+-- is the only thing on the page that is about to happen TO the player rather than merely
+-- being reported - so it is the only thing that gets to move. A square-ish pulse rather
+-- than a smooth fade: a fade reads as an animation, a pulse reads as an alarm.
+local ALERT_MS = 900
+
+function SeasonsForecast:Strobe(ms, w, on)
+    if not w then return end
+    if not on then
+        w:SetTextColor(GetARGB(255, 200, 200, 200))
+        return
+    end
+    local hot = (ms % ALERT_MS) < (ALERT_MS * 0.55)
+    if hot then
+        w:SetTextColor(GetARGB(255, 238, 96, 72))
+    else
+        w:SetTextColor(GetARGB(255, 150, 60, 50))
+    end
+end
+
 function SeasonsForecast:Update()
     CUIScriptWnd.Update(self)
     local okt, ms0 = pcall(time_global)
-    if okt and type(ms0) == "number" then self:Twitch(ms0) end
+    if okt and type(ms0) == "number" then
+        self:Twitch(ms0)
+        self:Strobe(ms0, self.eco_l1, self.alert_l1)
+        self:Strobe(ms0, self.eco_l2, self.alert_l2)
+    end
     if not self.live_dot then return end
     if not self.is_live then
         self.live_dot:SetTextureColor(GetARGB(255, 70, 76, 70))

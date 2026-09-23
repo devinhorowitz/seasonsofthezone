@@ -168,6 +168,31 @@ def t_userdata_manager():
     return "a userdata manager is accepted and read, not discarded"
 
 
+def t_alert_flag():
+    """The alert is the hook a wearable device pulses on, so the gate has to hold.
+
+    Under two hours at a tier that may know; never at locked, where a strobe would leak
+    the one thing being withheld.
+    """
+    _, g = build(standing=900, surge_left=1 * HOUR, psi_left=30 * HOUR)
+    p = g.forecast_page()
+    assert field(p, "surge_alert") is True, "no alert an hour out at CLEARED"
+    assert field(p, "psi_alert") is False, "alert 30 hours out"
+
+    # the same hour out, one tier down, still warns
+    _, g = build(standing=200, surge_left=1 * HOUR, psi_left=30 * HOUR)
+    p = g.forecast_page()
+    assert field(p, "surge_alert") is True, "no alert an hour out at LIMITED"
+    assert field(p, "surge_band") == "WITHIN 2 HOURS", field(p, "surge_band")
+
+    # and locked never raises it, however close the emission is
+    _, g = build(standing=0, surge_left=60, psi_left=60)
+    p = g.forecast_page()
+    assert field(p, "surge_alert") is False, "a locked page raised the alert"
+    assert field(p, "surge") is None and field(p, "surge_band") is None
+    return "raised under 2h at both open tiers, never at locked"
+
+
 CASES = []
 
 
@@ -202,8 +227,8 @@ def t_coarse():
     fc = field(p, "forecast")
     assert field(fc, "tier") == "coarse", field(fc, "tier")
     # 2h left of a 24h period = 8% -> imminent; 40h of 48h = 83% -> quiet
-    assert field(p, "surge_band") == "imminent", field(p, "surge_band")
-    assert field(p, "psi_band") == "quiet", field(p, "psi_band")
+    assert field(p, "surge_band") == "WITHIN 2 HOURS", field(p, "surge_band")
+    assert field(p, "psi_band") == "ALL CLEAR", field(p, "psi_band")
     # negative control: the coarse tier must never expose the number
     assert field(p, "surge") is None, "coarse tier leaked the exact time"
     assert field(p, "psi") is None, "coarse tier leaked the exact time"
@@ -223,26 +248,28 @@ def t_exact():
 
 # --- the band boundaries scale with the frequency option -------------------------------
 def t_bands_scale():
-    # 20h left. At freq 24 that is 83% -> quiet. At freq 168 the same 20h is 12%
-    # -> imminent. A hardcoded hour threshold would give the same answer twice.
-    _, g = build(standing=200, surge_left=20 * HOUR, psi_left=1 * HOUR, freq=24)
+    """A bracket is fixed hours, and must NOT move with the frequency slider.
+
+    The bands it replaced were a fraction of the period, so "building" quietly became a
+    different warning when the slider moved. "two to eight hours" has to mean two to
+    eight hours whatever the setting, or it is not a bracket.
+    """
+    _, g = build(standing=200, surge_left=5 * HOUR, psi_left=1 * HOUR, freq=24)
     a = field(g.forecast_page(), "surge_band")
-    _, g = build(standing=200, surge_left=20 * HOUR, psi_left=1 * HOUR, freq=168)
+    _, g = build(standing=200, surge_left=5 * HOUR, psi_left=1 * HOUR, freq=168)
     b = field(g.forecast_page(), "surge_band")
-    assert a == "quiet", a
-    assert b == "imminent", b
-    return "20h left reads quiet at freq 24 and imminent at freq 168"
+    assert a == b == "2 to 8 hours", (a, b)
+    return "5h reads '2 to 8 hours' at freq 24 and at freq 168 alike"
 
 
 def t_band_edges():
-    got = {}
-    for pct, want in ((0.10, "imminent"), (0.15, "imminent"),
-                      (0.30, "building"), (0.45, "building"),
-                      (0.60, "quiet")):
-        _, g = build(standing=200, surge_left=int(24 * HOUR * pct), psi_left=HOUR)
-        got[pct] = field(g.forecast_page(), "surge_band")
-        assert got[pct] == want, "at %.0f%% got %s, want %s" % (pct * 100, got[pct], want)
-    return "boundaries 15%/45% land as specified"
+    for hours, want in ((0.5, "WITHIN 2 HOURS"), (2, "WITHIN 2 HOURS"),
+                        (3, "2 to 8 hours"), (8, "2 to 8 hours"),
+                        (12, "8 to 16 hours"), (20, "ALL CLEAR")):
+        _, g = build(standing=200, surge_left=int(hours * HOUR), psi_left=HOUR)
+        got = field(g.forecast_page(), "surge_band")
+        assert got == want, "at %sh got %s, want %s" % (hours, got, want)
+    return "brackets land on 2 / 8 / 16 hours, then ALL CLEAR"
 
 
 # --- degradation ----------------------------------------------------------------------
@@ -370,7 +397,8 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("weather ungated", t_weather_ungated),
              ("manager states", t_manager_states),
              ("getter fallback", t_getter_fallback),
-             ("userdata manager", t_userdata_manager)):
+             ("userdata manager", t_userdata_manager),
+             ("alert flag", t_alert_flag)):
     case(n, f)
 
 if __name__ == "__main__":

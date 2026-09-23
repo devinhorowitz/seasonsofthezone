@@ -129,8 +129,29 @@ Resolution depends on the player's standing with the ecologists — see
 | `tier` | `seconds` | `band` | `fraction` |
 |---|---|---|---|
 | `locked` | nil | nil | nil |
-| `coarse` | nil | `imminent` / `building` / `quiet` | band midpoint |
+| `coarse` | nil | `WITHIN 2 HOURS` / `2 to 8 hours` / `8 to 16 hours` / `ALL CLEAR` | bracket midpoint |
 | `exact` | game seconds | nil | 0–1 |
+
+The coarse brackets are **fixed hours, not a fraction of the period**. A relayed warning
+is worth a window rather than a number, and "two to eight hours" has to mean two to eight
+hours whatever the frequency slider says.
+
+### `alert` — the one to hang a device off
+
+Every part also carries `alert`: true when an emission is **within two hours** *and* the
+player's tier is allowed to know. That is the moment the page stops forecasting and starts
+warning — it is what makes the panel line strobe — and it is already gated, so a consumer
+does not have to re-derive the threshold and drift out of step with the page when either
+number moves.
+
+```lua
+local b = sotz_api.blowout()
+if b and b.emission and b.emission.alert then
+    -- get indoors. True at CLEARED under two hours, and at LIMITED when the bracket
+    -- reads WITHIN 2 HOURS. Never true at CLASSIFIED, where a pulse would leak the one
+    -- thing being withheld.
+end
+```
 
 **Do not infer anything from a locked tier.** Showing nothing is the point; a consumer
 that falls back to its own countdown defeats the gate.

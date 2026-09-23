@@ -397,6 +397,16 @@ end
 -- Blowout
 -- =========================================================================================
 
+-- Where each LIMITED bracket sits on a 0-1 gauge. Must track the bracket text in
+-- zzz_seasons_of_the_zone.forecast_page(); a key that stops matching does not fail, it
+-- quietly returns the fallback.
+local BRACKET_AT = {
+    ["WITHIN 2 HOURS"] = 0.06,
+    ["2 to 8 hours"]   = 0.20,
+    ["8 to 16 hours"]  = 0.50,
+    ["ALL CLEAR"]      = 0.85,
+}
+
 --- Time to the next emission and psi storm, at the resolution the player has earned.
 -- @return {tier, standing, need, need_exact,
 --          emission = {seconds|band}, psi = {seconds|band}}
@@ -418,17 +428,21 @@ function blowout()
         if not (page and page.forecast) then return nil end
         local f = page.forecast
 
-        local function part(seconds, band, key, fallback)
-            local out = {seconds = seconds, band = band}
+        local function part(seconds, band, key, fallback, alert)
+            local out = {seconds = seconds, band = band, alert = alert and true or false}
             if seconds then
                 local ok, hours = pcall(function() return ui_options.get(key) end)
                 if not (ok and type(hours) == "number" and hours > 0) then hours = fallback end
                 out.fraction = math.min(1.0, seconds / (hours * 3600))
             elseif band then
-                -- the coarse tier deliberately has no number, but a gauge still needs
-                -- somewhere to sit; these are the midpoints of the three bands
-                out.fraction = (band == "imminent" and 0.08)
-                            or (band == "building" and 0.30) or 0.70
+                -- The coarse tier deliberately has no number, but a gauge still needs
+                -- somewhere to sit, so each bracket maps to its own midpoint.
+                --
+                -- These keys have to track the brackets in forecast_page(). When the
+                -- bands were renamed this table was left behind, and every coarse
+                -- reading silently fell through to 0.70 - a needle pinned near "quiet"
+                -- while the panel beside it read WITHIN 2 HOURS.
+                out.fraction = BRACKET_AT[tostring(band)] or 0.70
             end
             return out
         end
@@ -438,10 +452,14 @@ function blowout()
             standing   = f.standing,
             need       = f.need,
             need_exact = f.need_exact,
+            -- `alert` is the field a wearable device wants: one boolean, already gated
+            -- by tier, true when an emission is close enough to act on. Re-deriving it
+            -- from `seconds` would drift out of step with the page the moment either
+            -- threshold moved.
             emission   = part(page.surge, page.surge_band,
-                              "alife/event/emission_frequency", 24),
+                              "alife/event/emission_frequency", 24, page.surge_alert),
             psi        = part(page.psi, page.psi_band,
-                              "alife/event/psi_storm_frequency", 48),
+                              "alife/event/psi_storm_frequency", 48, page.psi_alert),
         }
     end)
 end
