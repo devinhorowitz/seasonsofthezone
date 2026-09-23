@@ -276,6 +276,12 @@ local ROW_Y0   = {540, 584}
 -- and inset from the split so the two vertical lines read as a rule and its padding
 -- rather than as one thick doubled rule.
 local ECO_X, ECO_Y, ECO_W, ECO_H = 554, 412, 216, 162
+-- At CLASSIFIED the panel holds the emblem and one word, by choice: the lines that used
+-- to sit here explained what the emblem implies, and a progress bar was worse. But the
+-- border stayed sized for the three lines the open tiers fill, so a locked player saw a
+-- box that was 85% empty - which reads as broken rather than as withheld. The border
+-- follows its contents; the contents are unchanged.
+local ECO_H_LOCKED = 72
 -- 17 rather than 19: with the frame in place, nine rows at 19 overran the bottom
 -- edge at full load. It only ever fit because a typical day has three or four
 -- changes, and the plan cap drops from eight to six for the same reason.
@@ -372,6 +378,17 @@ function SeasonsForecast:InitEcoFrame()
             self.eco_frame[#self.eco_frame + 1] = s
         end
     end
+end
+
+-- The border is four pooled statics, so changing its height is four writes rather than
+-- a rebuild. Doing it any other way would allocate a fresh frame on every open.
+function SeasonsForecast:SetEcoHeight(h)
+    local e = self.eco_frame
+    if not e then return end
+    -- built in InitEcoFrame as top, bottom, left, right
+    if e[2] then e[2]:SetWndPos(vector2():set(ECO_X, ECO_Y + h)) end
+    if e[3] then e[3]:SetWndSize(vector2():set(1, h)) end
+    if e[4] then e[4]:SetWndSize(vector2():set(1, h + 1)) end
 end
 
 function SeasonsForecast:ShowEcoFrame(on)
@@ -757,6 +774,7 @@ function SeasonsForecast:Fill()
                            exact = "CLEARED"}
         put(self.eco_class, CLEARANCE[tostring(fc.tier)] or "CLASSIFIED")
 
+        self:SetEcoHeight(fc.tier == "locked" and ECO_H_LOCKED or ECO_H)
         if fc.tier == "locked" then
             -- The emblem and the word are the whole state. The lines that used to sit
             -- here explained what the emblem implies, and printing "0 of 200" turned
