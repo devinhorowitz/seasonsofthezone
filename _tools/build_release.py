@@ -32,6 +32,9 @@ MOD = "Seasons of the Zone"
 ZIP_NAME = "SeasonsOfTheZone.zip"
 MARKER = "gamedata/scripts/zzz_seasons_of_the_zone.script"
 
+# where season.py writes the gated ambient presets; must match SOUND_REL there
+SOUND_REL = ("configs", "environment", "ambients", "presets")
+
 # What MO2's Anomaly plugin accepts at the top of an archive
 # (plugins/basic_games/games/game_stalkeranomaly.py, dataLooksValid).
 MO2_DATA_DIRS = ("appdata", "bin", "db", "gamedata")
@@ -274,6 +277,27 @@ def verify_fresh_install(zp, base, name):
     ok &= report("fetch_weather writes into the mod",
                  code == 0 and os.path.isfile(wx) and not os.path.exists(other)
                  and "freezing     = true" in io.open(wx, encoding="utf-8").read(), text)
+
+    # A season change with a soundscape configured. apply restages the presets and then
+    # switches the seasonal mods; from 1.4.0 until 1.7.0 it raised a TypeError between
+    # the two, which an install with no SOUND_SRC never reaches.
+    amb = os.path.join(root, "mods", "Some Ambience Mod", "gamedata", *SOUND_REL)
+    os.makedirs(amb)
+    io.open(os.path.join(amb, "test.ltx"), "w", encoding="cp1251", newline="").write(
+        "[test]" + CRLF + "sound_channels_dynamic = birds, Insects_night, wind" + CRLF)
+    io.open(modlist, "a", encoding="utf-8", newline="").write("+Some Ambience Mod" + CRLF)
+    cfg = os.path.join(root, "_tools", "seasons_config.py")
+    io.open(cfg, "w", encoding="utf-8").write('SOUND_SRC = "Some Ambience Mod"\n')
+    preset = os.path.join(root, "mods", "Seasonal Soundscape", "gamedata", *SOUND_REL,
+                          "test.ltx")
+    for s in ("spring", "winter"):
+        code, text = run([season, "apply", "--season", s])
+        body = io.open(preset, encoding="cp1251").read() if os.path.isfile(preset) else ""
+        head, _, rest = body.partition("\n")
+        ok &= report("season change to %s, with a soundscape" % s,
+                     code == 0 and "Traceback" not in text and ("season=" + s) in head
+                     and "wind" in rest and "Insects_night" not in rest, text)
+    os.remove(cfg)
 
     # A second copy under the old name, lower in the list: season.py says so and keeps
     # using the copy MO2 loads.
