@@ -20,6 +20,9 @@
   start.
 - **Fixed: real-world temperatures never worked from a release.** The 1.5.0 and 1.6.0 zips
   left out `fetch_weather.py`, so the forecast always used the climate model.
+- **Fixed: a season change stopped halfway when it restaged the soundscape.** `season.py
+  apply` swapped the textures and the soundscape, then failed before switching the seasonal
+  mods. It only happened with `SOUND_SRC` set, and dates back to 1.4.0.
 - The list under the chart is headed **Next 24 hours**, since it covers a full day.
 - MCM names the weather scheduler as the base game's rather than GAMMA's, since it's the same
   one outside GAMMA.

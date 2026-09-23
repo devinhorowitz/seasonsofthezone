@@ -1358,10 +1358,11 @@ def main():
                 print("  %-64s %s" % ("soundscape", "SKIPPED - '" + SOUND_SRC + "' not installed"))
             else:
                 got = soundscape_installed()
-                active = prefs["stage_sound"] and src_live
-                exp = want if active else None
+                # not `active`: that is the list of periods the toggles below still need
+                sound_on = prefs["stage_sound"] and src_live
+                exp = want if sound_on else None
                 label = ("soundscape -> " + want + " (%d channel cuts)" % cuts
-                         if active else "soundscape OFF - overrides removed")
+                         if sound_on else "soundscape OFF - overrides removed")
                 print("  %-64s %3d files  %s" % (label, n,
                       "VERIFIED" if got == exp else "** reads as %s **" % got))
                 if got != exp:
