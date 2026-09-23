@@ -45,19 +45,19 @@
     <!-- The shield only. The full ui_inGame2_ecolog region is a banner - emblem on the
          left, empty name plate on the right - and using it whole put a black box on the
          page. sotz_eco_mark is that emblem cropped out of the same file. -->
-    <eco_logo x="556" y="426" width="44" height="44" stretch="1">
+    <eco_logo x="568" y="426" width="44" height="44" stretch="1">
         <texture>sotz_eco_mark</texture>
     </eco_logo>
-    <eco_class x="612" y="436" width="152" height="24">
+    <eco_class x="624" y="436" width="136" height="24">
         <text font="letterica18" r="238" g="196" b="112" align="l" vert_align="c" complex_mode="1"/>
     </eco_class>
-    <eco_l1 x="556" y="492" width="206" height="18">
+    <eco_l1 x="568" y="488" width="190" height="18">
         <text font="letterica16" r="200" g="200" b="200" align="l" vert_align="c" complex_mode="1"/>
     </eco_l1>
-    <eco_l2 x="556" y="514" width="206" height="18">
+    <eco_l2 x="568" y="510" width="190" height="18">
         <text font="letterica16" r="200" g="200" b="200" align="l" vert_align="c" complex_mode="1"/>
     </eco_l2>
-    <eco_l3 x="556" y="536" width="206" height="18">
+    <eco_l3 x="568" y="532" width="190" height="18">
         <text font="letterica16" r="140" g="140" b="140" align="l" vert_align="c" complex_mode="1"/>
     </eco_l3>
 
@@ -129,7 +129,7 @@
          a widget cannot change its font after it is built. -->
 
     <!-- the back button; its texture is set from script, as MAC does for its tiles -->
-    <back x="740" y="652" width="34" height="34" stretch="1"/>
+    <back x="730" y="636" width="34" height="34" stretch="1"/>
 
     <!-- rows are cloned from these at runtime. row_holder carries the columns: one text
          widget per column at a fixed x, because letterica is proportional and padded

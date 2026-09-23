@@ -33,7 +33,12 @@ LEFT = {"header", "bar", "subheader", "src", "live_dot", "wx_now", "wx_arrow",
         "wx_next", "wx_now_label", "wx_next_label", "now", "frost", "chart",
         "chart_cap_l", "chart_cap_r"}
 RIGHT = {"gauge", "needle", "gauge_caption", "eco_logo", "eco_class", "eco_l1",
-         "eco_l2", "eco_l3", "units", "units_label"}
+         "eco_l2", "eco_l3", "units", "units_label", "back"}
+
+# Elements that belong to the ecologist panel. Anything ELSE overlapping the panel is a
+# mistake - the back button drifted inside it when the panel grew, and a control sitting
+# in the middle of a CLASSIFIED box reads as part of the classified thing.
+ECO_MEMBERS = {"eco_logo", "eco_class", "eco_l1", "eco_l2", "eco_l3"}
 
 # a full day: six planned changes, a blank, the Tomorrow heading and its row
 ROWS_NEEDED = 9
@@ -125,13 +130,30 @@ def check(box, c):
             bad.append("the ecologist panel starts left of the split")
         if ey + eh > FR_B - EDGE:
             bad.append("the ecologist panel bottom %d overruns the frame" % (ey + eh))
-        for tag in ("eco_logo", "eco_class", "eco_l1", "eco_l2", "eco_l3"):
+        for tag in sorted(ECO_MEMBERS):
             if tag not in box:
                 continue
             x, y, w, h = box[tag]
             if not (ey < y and y + h < ey + eh):
                 bad.append("%s at y=%d..%d sits outside the panel %d..%d"
                            % (tag, y, y + h, ey, ey + eh))
+
+        # and nothing that is not part of the panel may sit inside it
+        for tag, (x, y, w, h) in sorted(box.items()):
+            if tag in ECO_MEMBERS or tag not in (LEFT | RIGHT):
+                continue
+            if x < ex + ew and x + w > ex and y < ey + eh and y + h > ey:
+                bad.append("%s overlaps the ecologist panel (%d..%d, %d..%d)"
+                           % (tag, ex, ex + ew, ey, ey + eh))
+
+        # the panel should be close to the size of what it holds, not a void with a
+        # heading floating at the top of it
+        used = [box[m] for m in ECO_MEMBERS if m in box]
+        if used:
+            content = max(y + h for _, y, _, h in used) - min(y for _, y, _, _ in used)
+            if eh > content * 2.2:
+                bad.append("the ecologist panel is %dpx tall around %dpx of content"
+                           % (eh, content))
     return bad
 
 
@@ -151,6 +173,9 @@ def selftest():
     # and the same rule stopping at the split must NOT be flagged
     bent = dict(c); bent["FR_HEAD_Y"] = 200; bent["RULE_FULL_WIDTH"] = False
     cases.append(("left-column rule clears it", box, bent, False))
+
+    b2 = dict(box); b2["back"] = (740, 480, 34, 34)
+    cases.append(("a control inside the panel", b2, c, True))
 
     b2 = dict(box); b2["eco_l3"] = (556, 690, 206, 18)
     cases.append(("a panel line outside its border", b2, c, True))

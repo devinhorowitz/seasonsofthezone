@@ -278,7 +278,10 @@ local HEAD_Y   = {516, 560}
 local ROW_Y0   = {540, 584}
 
 -- the ecologist panel, which the right column now sits beneath
-local ECO_X, ECO_Y, ECO_W, ECO_H = 540, 412, 230, 274
+-- Sized to its contents. At 274 tall it was 85% empty under a CLASSIFIED heading,
+-- and inset from the split so the two vertical lines read as a rule and its padding
+-- rather than as one thick doubled rule.
+local ECO_X, ECO_Y, ECO_W, ECO_H = 554, 412, 216, 162
 -- 17 rather than 19: with the frame in place, nine rows at 19 overran the bottom
 -- edge at full load. It only ever fit because a typical day has three or four
 -- changes, and the plan cap drops from eight to six for the same reason.
