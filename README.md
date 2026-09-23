@@ -57,7 +57,7 @@ Seasons of the Zone is two independent halves, and you can use either on its own
 
 | | What it is | Configurable? |
 |---|---|---|
-| **In-engine** | Twenty console values blended across the date. Colour, fog, wind, wetness. | No — it just runs |
+| **In-engine** | Twenty console values blended across the date. Color, fog, wind, wetness. | No — it just runs |
 | **Launch-time** | A scheduler that decides which mods MO2 mounts today | Yes — this is the open half |
 
 The launch-time half has nothing seasonal about it. It maps a date to a set of names, and
@@ -146,9 +146,30 @@ of the mod that writes to your save.
   the twenty values are SSS's own; an older exe does not have them, and the mod says so in
   the log.
 - **MCM**
+- **Mod App Creator**, for the PDA app. MCM's Main page shows in red if it's missing.
 - **Python 3**, for the launcher only. The python.org installer is enough.
 - For the optional `LAYOUT` texture layer only: `python -m pip install py7zr` (and
   `rarfile` plus WinRAR or 7-Zip for `.rar` archives)
+
+### Outside GAMMA
+
+| | Plain Anomaly | Anomaly + Modded Exes |
+|---|---|---|
+| Color and light | yes | yes |
+| Foliage, fog, wind, wetness | no | with Screen Space Shaders |
+| The six marked days | yes | yes |
+| The read API for other mods | yes | yes |
+| The Seasons PDA app | no | with Mod App Creator |
+| Texture and sound staging | with MO2 portable and Python | same |
+
+- Foliage, fog, wind, and wetness use Screen Space Shaders' engine commands, which only exist
+  in Modded Exes. Without them the mod logs it once and skips those layers.
+- The PDA app needs Mod App Creator, which requires Modded Exes.
+- Staging works with any MO2 portable install. It reads the game path and profile from
+  `ModOrganizer.ini`.
+- The anniversary artifacts need Dynamic Anomalies Overhaul.
+
+Not yet tested on an install outside GAMMA. Reports are welcome.
 
 ---
 
@@ -341,7 +362,7 @@ Details and recovery: [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
 | | |
 |---|---|
 | [docs/SCHEDULING.md](docs/SCHEDULING.md) | The calendar: base periods, events, and recipes |
-| [docs/INTERFACE.md](docs/INTERFACE.md) | The MCM pages and the two PDA pages |
+| [docs/INTERFACE.md](docs/INTERFACE.md) | The MCM pages and the Seasons app in the PDA |
 | [docs/API.md](docs/API.md) | The read API other mods hook into: temperature, weather, the next emission |
 | [docs/WEARABLE-DEVICES.md](docs/WEARABLE-DEVICES.md) | A blowout warning for Wearable Devices: the code, and why it cannot break that mod |
 | [docs/CONFIGURING.md](docs/CONFIGURING.md) | Making other mods seasonal: fields, commands, troubleshooting |

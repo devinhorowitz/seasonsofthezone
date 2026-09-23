@@ -106,32 +106,27 @@ water, not of the unit being read.
   plan = { … up to six segments … } }
 ```
 
-`source` says which scheduler is being read, and the two can answer different questions.
+`source` is the weather scheduler.
 
-**`"plan"` — Atmospherics' day planner.** It does not roll the weather as it goes:
-`WeatherManager:roll_day_plan` fills `day_plan` a full 24 game hours ahead, and this reads
-that plan, so `at` is when it will actually change. Repeats of the current cycle are not
-changes and are skipped, so `next` is always a real transition. `away_min` is game minutes.
+**`"plan"`** is Atmospherics' day planner, which schedules 24 game hours ahead. `plan` lists
+each change, so `at` is when it will happen. Repeats of the current cycle are skipped, so
+`next` is always a real change. `away_min` is in game minutes.
 
-**`"stock"` — base Anomaly's scheduler, which is what GAMMA ships.** GAMMA's Atmospherics
-mods supply the weathers themselves but no weather manager, so a stock install schedules
-them with the base game's. That one *does* roll as it goes: it picks the next cycle at
-random at the moment of change, so there is no `next` to give and `plan` is empty. What it
-does know is when the change will land:
+**`"stock"`** is the base game's scheduler, which GAMMA uses. It picks the next cycle at
+random when the change happens, so `next` is `nil` and `plan` is empty. `window` gives when
+the change will come:
 
 ```lua
 { now = "storm", source = "stock", next = nil, plan = {},
-  window = { lo = 120, hi = 240 } }   -- turns in 2 to 4 game hours
+  window = { lo = 120, hi = 240 } }   -- changes in 2 to 4 game hours
 ```
 
-**Check `source` before reading an empty `plan` as calm.** Under `"plan"` it is a settled
-day. Under `"stock"` it means only that nothing past the next turn can be known.
+Check `source` before treating an empty `plan` as settled weather: under `"stock"` it only
+means the next cycle isn't known yet.
 
-`nil` only when there is no weather manager at all.
+`nil` when there's no weather manager.
 
-Cycle names are the same under both — `clear`, `partly`, `cloudy`, `foggy`, `rain`,
-`storm` — because both schedulers read them from the same `[weather_cycles]` section, which
-GAMMA's Atmospherics mod ships.
+Cycle names are `clear`, `partly`, `cloudy`, `foggy`, `rain`, and `storm` under both.
 
 ## `blowout()`
 
@@ -141,10 +136,7 @@ GAMMA's Atmospherics mod ships.
   psi      = { band = "WITHIN 2 HOURS", fraction = 0.06, alert = true } }
 ```
 
-The two bands are a live reading, taken in game at the LIMITED tier. At CLEARED the same
-two parts carry `seconds` instead of `band`, and a reading of the same save twenty minutes
-later gave 25,092 and 3,976 — each inside the bracket LIMITED had given it. (The standing
-shown is illustrative, set inside the default LIMITED range.)
+At CLEARED, each part has `seconds` instead of `band`.
 
 Resolution depends on the player's standing with the ecologists — see
 [INTERFACE.md](INTERFACE.md#the-ecologist-forecast).
@@ -242,8 +234,7 @@ end
 ```
 
 The device ticks slowly when an emission is a way off, faster as it closes, and says
-nothing at all to a stalker the ecologists have not taken into their confidence — which is
-the whole point of the gate.
+nothing at all to a stalker the ecologists have not taken into their confidence.
 
 `temperature()` and `weather()` need no sensor at all; they are values a page or a readout
 can print directly.

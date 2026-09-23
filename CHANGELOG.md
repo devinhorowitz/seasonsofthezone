@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- **Fixed: the forecast said "Atmospherics is not running" on stock GAMMA.** GAMMA's
+  Atmospherics mods don't include a weather manager, so a stock install uses the base game's,
+  which doesn't plan ahead. The forecast now shows the current sky and when it will change
+  ("turns in 3 to 5 hours"). With Atmospherics 2.69 installed separately, it still shows the
+  whole day.
+- **One app instead of two.** The Year and Forecast are now a single Seasons tile in Mod App
+  Creator, with a switch at the top of each page. The page you're on is lit.
+- **MCM shows what the app needs.** The top of the Main page says whether Mod App Creator is
+  installed (red if not, since the app can't open without it) and which weather scheduler is
+  running.
+- **`weather()` adds `source` and `window`.** `source` is `"plan"` or `"stock"`, and stock adds
+  the window the next change falls in, so an empty plan on stock GAMMA no longer reads as
+  settled weather.
+- **Running outside GAMMA** is covered in the README.
+- For modders: `sotz_pda.script` routes the app's PDA pages without MAC, so a standalone
+  version only needs its own way to open the app. See the note at the top of that file.
+
 ## 1.5.0 — 2026-09-23
 
 - **The Year is a year now.** The calendar page leads with a twelve-month grid of day

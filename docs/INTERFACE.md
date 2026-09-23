@@ -2,14 +2,21 @@
 
 Two surfaces. **MCM → Seasons of the Zone** is where the mod is configured: six pages in
 MCM's second column, Main and then one per season — Spring, Summer, Autumn, Winter, Deep
-winter. **The Year** and **Forecast** are where it is read: two pages inside the PDA. There is
-no HUD element, no pop-up and no key binding.
+winter. The **Seasons** app in the PDA is where it is read: one app with two faces, **The
+Year** and **Forecast**. There is no HUD element, no pop-up and no key binding.
 
 ---
 
 ## Main
 
 ![The Main page, showing the year dial](images/mcm-main.png)
+
+At the top, under the summary, two lines show what the PDA app needs:
+
+- **Mod App Creator.** The Seasons app opens from its launcher. Red if it's missing.
+- **The weather scheduler.** GAMMA's own, or Atmospherics' day planner if you've installed
+  it. This sets how far ahead the forecast can see; see [Forecast](#forecast--the-pda-page).
+  Red only if there's no weather manager at all.
 
 The page opens with a short summary, today's date, and a dial of the year with the needle
 on the current day. Each wedge is sized by the season's real length: summer is a third of
@@ -104,147 +111,110 @@ of them are included in this mod.
 
 ---
 
+## The Seasons app
+
+One tile in [Mod App Creator](https://www.moddb.com/mods/stalker-anomaly/addons/mod-app-creator)'s
+launcher, showing the current season. It opens on The Year, and a switch at the top of the
+right column moves between **The Year** and **Forecast**. The page you're on is lit.
+
+Without Mod App Creator the app can't be opened, and MCM's Main page shows that in red. For a
+standalone version that works without MAC, see the note at the top of `sotz_pda.script`.
+
 ## The Year — the calendar page
 
 ![The Year: the grid with today lit, and the days the Zone marks](images/pda-the-year.png)
 
 Dates only. Anything running on the game clock lives on [Forecast](#forecast--the-pda-page)
-instead. Reached from the PDA. With [Mod App Creator](https://www.moddb.com/mods/stalker-anomaly/addons/mod-app-creator)
-installed it appears in the app launcher, its icon the current season's dial; without MAC
-the page is still built but nothing links to it.
+instead.
 
-It is read-only, and it reports rather than decorates:
+It is read-only:
 
-- **The year grid** — twelve month rows of day cells, tinted by season. Because the rows are
-  real months, February stops at 28 and the thirty-day months one cell short of the rest,
-  which is what makes it read as a calendar rather than as a bar chart. Today's cell is lit
-  and breathes; the six days the Zone marks are underlined.
-- **Days the Zone marks** — the six fixed days, soonest first, each with how far off it is
-  and what it does: *Clear sky. The Zone goes quiet.* for the two remembrance days,
-  *Storm. Artefacts surface.* for the four anniversaries.
-- **The year** — the five seasons and the date each one begins, beside the dial that draws
-  them, the current one lit.
+- **The year grid** — twelve rows of day cells, one per month, tinted by season. Today's cell
+  is lit, and the six days the Zone marks are underlined.
+- **Days the Zone marks** — the six fixed days, soonest first, with how far off each is and
+  what it does: *Clear sky. The Zone goes quiet.* for the two remembrance days, *Storm.
+  Artefacts surface.* for the four anniversaries.
+- **The year** — the five seasons and the date each begins, beside the dial.
 
-Today and the marked days are **red**, which is the only hue nowhere in the season palette
-and so the only one a month cannot camouflage — an amber mark sat invisibly on autumn and a
-slate one on deep winter, the two months they most needed to be seen against. It is the same
-red the forecast strobes an emission alert in, so the mod has one red and it always means
-look here. Today fills its cell and a marked day underlines its own, so the two stay apart
-on a day that is both.
+Today and the marked days are red, a color no season uses. Today fills its cell and a marked
+day is underlined, so the two stay distinct when they fall on the same day. On one of the six
+days, its line and its cell pulse the way the forecast's emission alert does.
 
-**Nothing about the mod appears here.** An earlier version listed the staged texture mods by
-name, which put MO2 folder strings on a stalker's PDA — and there is no reliable way to turn
-an author-chosen folder name into something the Zone would say. MCM's season pages already
-list them, which is where a question about an install belongs.
+Staged texture mods are listed on MCM's season pages, not here.
 
-The dial and the accent bar are the mod's own textures. Nothing else on the page is an
-image, which is deliberate: the PDA frame textures that other tab-adding mods borrow are
-declared in no `texture_descr` in a stock GAMMA install, which is why those pages log
-*Can't find texture*. This one has nothing to fail to find.
-
-`_tools/test_calendar.py` loads the shipped page under a real Lua interpreter and runs its
-drawing code, checking that every month row is filled to its own length, that the season
-running December into March owns cells at both ends of the grid, that a leap year gives
-February its day, and that the mark colour is not one any season wears.
+The dial and the accent bar are the mod's own textures, and nothing else on the page is an
+image, so the page never logs *Can't find texture*.
 
 ---
 
 ## Forecast — the PDA page
 
-The second page, and a different question: the calendar answers *when is it*, this answers
-*what is about to happen*. They ran as one page briefly and it read badly — nobody opens a
-calendar to find out whether it is going to rain this afternoon.
-
-No scrolling. A PDA is a device, not a document, and scrolling to find out whether a storm
-is coming is the friction that makes a page feel bolted on.
+What is about to happen, on the game clock. It fits on one screen with no scrolling.
 
 ![Forecast, with the ecologists telling this stalker nothing](images/pda-forecast.png)
 
 ### What it shows
 
-**The sky, now and next.** Two drawn glyphs with an arrow between them, and when the change
-lands. The arrow only appears when there *is* a next — on a settled day, an arrow pointing
-at a repeat of the same sky would be a lie.
+**The sky, now and next.** Two weather icons with an arrow between them, and when the change
+comes. The arrow only appears when a change is coming.
 
-**The barometer.** A face labelled STORMY / RAIN / CHANGE / FAIR / DRY, with the needle on
-the band matching the weather Atmospherics is running. It is six needle images over one
-shared face, so the needle can move: every few seconds it takes a short damped shiver, a
-pixel or two, which is the cheapest honest way to say a reading is being taken rather than
-remembered.
+**The barometer.** A face labeled STORMY / RAIN / CHANGE / FAIR / DRY, with the needle on the
+current weather. The needle twitches every few seconds to show it's a live reading.
 
-**The day chart.** One axis, two strata. The ribbon along the top is the weather plan; the
-bars below are the temperature, with the range up the left gutter and the clock hour under
-each rule. Warm hours run amber, cold hours blue.
+**The day chart.** The weather along the top and the temperature below it, with the clock hour
+under each rule. Warm hours are amber, cold hours blue.
 
-**Later today**, then **Tomorrow** — the planned changes with their clock times, and the
-next day's observed range.
+**Later today**, then **Tomorrow** — the coming changes with their times, and the next day's
+observed range.
+
+### How far ahead it can see
+
+It depends on the weather scheduler, which MCM's Main page names.
+
+**GAMMA's own** knows the current sky and roughly when it will change, but picks the next sky
+at random when the change happens. The page shows the current sky and the window for the
+change, and the ribbon fades out after that.
+
+**Atmospherics 2.69's day planner**, installed separately, plans the whole day, and the page
+shows each change with its time.
 
 ### Where the numbers come from
 
-The sky is the game's and the air is the world's; see
-[API.md](API.md#temperature) for the full split. In short: weather is Atmospherics' alone,
-while the temperature takes the real Chornobyl high and low as its base and lets the
-in-game sky move it, so standing in a storm reads colder than clear sky off the same
-station reading.
+The weather is the game's; the temperature is the real world's. The temperature takes the
+real Chornobyl high and low as its base and lets the in-game weather move it, so a storm reads
+colder than clear sky. See [API.md](API.md#temperature) for details.
 
-A small marker beside the source line breathes while the reading is a live observation and
-sits dark when it is modelled. The °C/°F button writes the MCM option rather than keeping
-its own copy, so the page and the menu cannot disagree.
+A small marker beside the source line pulses when the reading is live and stays dark when
+it's modeled. The °C/°F button and the MCM option are the same setting.
 
 ### The ecologist forecast
 
-Emissions are the one genuinely scheduled thing in the Zone, and the ecologists are the
-faction that measures them. So the page will tell you — but how precisely depends on how
-they feel about you. Standing is `relation_registry.community_goodwill("ecolog", …)`, which
-runs from -1000 at war to +1000 at friendly.
-
-It has a panel of its own, bordered, under the faction's own emblem, headed with the
-clearance you hold:
+Emissions are scheduled, and the ecologists measure them, so how much the page tells you
+depends on your standing with them (`relation_registry.community_goodwill("ecolog", …)`,
+-1000 to +1000):
 
 | Ecologist standing | | What the panel says |
 |---|---|---|
-| below 200 | **CLASSIFIED** | the faction's emblem and the word, and nothing else |
+| below 200 | **CLASSIFIED** | the faction's emblem and the word |
 | 200 | **LIMITED** | a bracket — `ALL CLEAR` · `8 to 16 hours` · `2 to 8 hours` · `WITHIN 2 HOURS` |
-| 700 | **CLEARED** | the hour, and a red strobe under two of them |
+| 700 | **CLEARED** | the hour, and a red strobe under two hours |
 
 ![CLEARED: the hour, and a psi storm inside two of them](images/pda-forecast-cleared.png)
 
-At CLEARED the panel gives the hour, and the `Psi storm` line above is caught mid-strobe:
-that reading was an hour out, inside the two-hour threshold, while `Emission` at seven
-hours sits calm beside it. The alarm is bound to the line that is alerting, not to the
-panel.
+Above, the psi storm is an hour out, so its line strobes; the emission, seven hours out, doesn't.
 
-Both thresholds are MCM tracks; those are the defaults. Setting the first to 0 and the
-second to 50 is the quickest way to see the middle tier without changing your standing.
+Both thresholds are MCM sliders; those are the defaults. Setting them to 0 and 50 shows the
+middle tier without changing your standing.
 
-The locked state is drawn deliberately rather than hidden. A reward the player cannot see is
-not one they can work towards, so the emblem and the clearance word are on the page from the
-first day — but that is all they are. Spelling out what the emblem implies, or printing
-*0 of 200*, turns something you might one day be trusted with into a progress bar. The
-border is sized to what that tier actually draws, so it reads as a thing withheld rather
-than as an empty box.
+The brackets are fixed hours, so they mean the same thing whatever the emission frequency is
+set to.
 
-The brackets are **fixed hours, not a fraction of the period**. A fraction quietly became a
-different warning whenever the frequency slider moved, and *two to eight hours* has to mean
-two to eight hours. Eight hours of slop is not a limitation — it is what a warning relayed
-off someone else's instrument is worth, and it still tells a stalker whether to start
-walking back.
+Under two hours both LIMITED and CLEARED raise the same flag, published as `alert` on
+`blowout()` for wearable devices; see [WEARABLE-DEVICES.md](WEARABLE-DEVICES.md). It's never
+set at CLASSIFIED.
 
-Under two hours both open tiers raise the same flag, because a LIMITED *WITHIN 2 HOURS*
-means what a CLEARED *1 hour* means. It is published as `alert` on `blowout()`, already
-gated by tier, so a wearable device has one boolean to pulse on rather than re-deriving the
-threshold — see [WEARABLE-DEVICES.md](WEARABLE-DEVICES.md). It is never true at CLASSIFIED,
-where a pulse would leak the one thing being withheld.
-
-**Why this is not on the calendar.** It was going to be, and the numbers said no. At
-`emission_frequency = 24` the manager rolls a delay of 12–24 *game* hours, and GAMMA runs
-`time_factor = 6` — one emission every 2–4 real hours, six to twelve per real calendar day.
-A day-scale calendar entry would read "emission likely" every single day, which is not a
-forecast. The live readout is the only honest place for it.
-
-`_tools/test_forecast.py` runs the shipped script under a real Lua interpreter and checks
-all three tiers, the bracket boundaries, the alert flag, and that a locked or limited page
-never leaks the exact time.
+Emissions aren't on the calendar because there are too many of them: with GAMMA's defaults,
+six to twelve per real day.
 
 ---
 
