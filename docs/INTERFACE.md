@@ -129,45 +129,67 @@ declared in no `texture_descr` in a stock GAMMA install, which is why those page
 
 ## Forecast — the PDA page
 
-The second page, and a different question: the calendar answers *when is it*, this
-answers *what is about to happen*. They ran as one page briefly and it read badly —
-nobody opens a calendar to find out whether it is going to rain this afternoon.
+The second page, and a different question: the calendar answers *when is it*, this answers
+*what is about to happen*. They ran as one page briefly and it read badly — nobody opens a
+calendar to find out whether it is going to rain this afternoon.
 
-It is also the extension point. Anything that is near-term world state rather than a date
-belongs here; adding a reading means a section in `Fill()` and a field on
-`forecast_page()`, and nothing else changes.
+No scrolling. A PDA is a device, not a document, and scrolling to find out whether a storm
+is coming is the friction that makes a page feel bolted on.
 
-### The next day
+### What it shows
 
-Not a guess. Atmospherics does not roll the weather as it goes — `WeatherManager:roll_day_plan`
-plans `self.day_plan` out to a full 24 game hours ahead as a list of `{minute, cycle}`.
-The page reads that plan, so the times shown are the times it will actually change.
+**The sky, now and next.** Two drawn glyphs with an arrow between them, and when the change
+lands. The arrow only appears when there *is* a next — on a settled day, an arrow pointing
+at a repeat of the same sky would be a lie.
 
-Only *changes* are listed. The plan repeats a cycle to extend a spell, and six rows of
-"rain" is not a forecast. A plan with no change in it reads *Settled*.
+**The barometer.** A face labelled STORMY / RAIN / CHANGE / FAIR / DRY, with the needle on
+the band matching the weather Atmospherics is running. It is six needle images over one
+shared face, so the needle can move: every few seconds it takes a short damped shiver, a
+pixel or two, which is the cheapest honest way to say a reading is being taken rather than
+remembered.
 
-This one is **not** gated. Weather is something a stalker reads by looking up, the
-ecologists have no special claim on it, and it gives the page something to say at zero
-standing rather than a single locked row.
+**The day chart.** One axis, two strata. The ribbon along the top is the weather plan; the
+bars below are the temperature, with the range up the left gutter and the clock hour under
+each rule. Warm hours run amber, cold hours blue.
+
+**Later today**, then **Tomorrow** — the planned changes with their clock times, and the
+next day's observed range.
+
+### Where the numbers come from
+
+The sky is the game's and the air is the world's; see
+[API.md](API.md#temperature) for the full split. In short: weather is Atmospherics' alone,
+while the temperature takes the real Chornobyl high and low as its base and lets the
+in-game sky move it, so standing in a storm reads colder than clear sky off the same
+station reading.
+
+A small marker beside the source line breathes while the reading is a live observation and
+sits dark when it is modelled. The °C/°F button writes the MCM option rather than keeping
+its own copy, so the page and the menu cannot disagree.
 
 ### The ecologist forecast
 
 Emissions are the one genuinely scheduled thing in the Zone, and the ecologists are the
 faction that measures them. So the page will tell you — but how precisely depends on how
-they feel about you. Standing is `relation_registry.community_goodwill("ecolog", …)`,
-which runs from -1000 at war to +1000 at friendly.
+they feel about you. Standing is `relation_registry.community_goodwill("ecolog", …)`, which
+runs from -1000 at war to +1000 at friendly.
 
-| Ecologist standing | What the page says |
-|---|---|
-| below 200 | *They keep their readings to themselves*, and your current standing |
-| 200 | `close` · `building` · `no sign` — a warning, never a time |
-| 700 | the hour |
+It has a panel of its own, bordered, under the faction's own emblem, headed with the
+clearance you hold:
 
-Both thresholds are MCM tracks; those are the defaults.
+| Ecologist standing | | What the panel says |
+|---|---|---|
+| below 200 | **CLASSIFIED** | *Network readings withheld*, and the standing you need |
+| 200 | **RESTRICTED** | `very soon` · `building` · `nothing yet` — a warning, never a time |
+| 700 | **CLEARED** | the hour |
 
-The locked row is drawn deliberately rather than hidden. A reward the player cannot see
-is not one they can work towards, so the row names the standing they have and the
-standing they need.
+Both thresholds are MCM tracks; those are the defaults. Setting the first to 0 and the
+second to 50 is the quickest way to see the middle tier without changing your standing.
+
+The locked state is drawn deliberately rather than hidden. A reward the player cannot see
+is not one they can work towards, so the panel names the standing they have and the
+standing they need — it reads as something being withheld, not as a row that happens to be
+dim.
 
 The bands are a **fraction of the current period, not fixed hours**, so they keep their
 meaning if you move the frequency slider: with `emission_frequency` at the stock 24,
@@ -175,14 +197,13 @@ meaning if you move the frequency slider: with `emission_frequency` at the stock
 
 **Why this is not on the calendar.** It was going to be, and the numbers said no. At
 `emission_frequency = 24` the manager rolls a delay of 12–24 *game* hours, and GAMMA runs
-`time_factor = 6` — one emission every 2–4 real hours, six to twelve per real calendar
-day. A day-scale calendar entry would read "emission likely" every single day, which is
-not a forecast. The live readout is the only honest place for it.
+`time_factor = 6` — one emission every 2–4 real hours, six to twelve per real calendar day.
+A day-scale calendar entry would read "emission likely" every single day, which is not a
+forecast. The live readout is the only honest place for it.
 
 `_tools/test_forecast.py` runs the shipped script under a real Lua interpreter and checks
 all three tiers, the band boundaries, and that a locked or coarse page never leaks the
 exact time.
-
 
 ---
 
