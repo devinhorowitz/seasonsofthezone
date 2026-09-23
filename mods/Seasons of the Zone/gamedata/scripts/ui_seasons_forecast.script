@@ -75,6 +75,15 @@ local function lead(min)
     return string.format("in %d min", math.max(1, math.floor(min)))
 end
 
+-- CScriptXmlInit:ParseFile does NOT raise when the xml cannot be used - it returns, and
+-- every Init* afterwards quietly hands back nil. The first method call on one of those
+-- nils is a hard engine FATAL, not a Lua error pcall can absorb, which is exactly how a
+-- comment sitting above the root element took the whole game down once. So nothing below
+-- dereferences a widget without checking first, and a broken page is a blank page.
+local function put(w, text)
+    if w then w:SetText(text or "") end
+end
+
 local function page()
     local ok, data = pcall(function() return zzz_seasons_of_the_zone.forecast_page() end)
     if ok and type(data) == "table" then return data end
@@ -106,48 +115,95 @@ function SeasonsForecast:InitControls()
     self.now       = xml:InitTextWnd("now", self)
 
     self.gauge = xml:InitStatic("gauge", self)
-    local r = self.gauge:GetWndRect()
-    local h = r.y2 - r.y1
-    self.gauge:SetWndSize(vector2():set(h * aspect(), h))
+    if self.gauge then
+        -- GetHeight/GetWidth, not GetWndRect: the latter is not bound in this
+        -- engine at all. It reads plausibly and it is what crashed the game.
+        local h = self.gauge:GetHeight()
+        self.gauge:SetWndSize(vector2():set(h * aspect(), h))
+    else
+        say("ui_seasons_forecast.xml gave up no elements - check its root")
+    end
     self.gauge_caption = xml:InitTextWnd("gauge_caption", self)
 
     self.scroll = xml:InitScrollView("scroll", self)
+
+    self.back = xml:Init3tButton("back", self)
+    if self.back then
+        self.back:InitTexture("sotz_app_back")
+        self:Register(self.back, "back")
+        self:AddCallback("back", ui_events.BUTTON_CLICKED, self.OnBack, self)
+    end
+end
+-- Back to the launcher. MAC reaches its own tab the same way, and it binds a key for it
+-- too, but a page you can only leave by keyboard reads as a dead end.
+function SeasonsForecast:OnBack()
+    local ok, err = pcall(function()
+        ActorMenu.get_pda_menu():SetActiveSubdialog("eptLauncher")
+    end)
+    if not ok then say("back to launcher failed: " .. tostring(err)) end
 end
 
+-- letterica is a PROPORTIONAL font: a space is narrower than most glyphs, so padding a
+-- string with string.format("%-12s") does NOT line anything up. It looked fine in a
+-- monospaced editor and ragged on the PDA. Each column is its own text widget at a fixed
+-- x inside a row holder, which is how MAC positions its launcher tiles too.
+function SeasonsForecast:Cols(style, cols)
+    if not self.scroll then return end
+    local holder = self.xml:InitStatic("row_holder", nil)
+    if not holder then return end
+    for i = 1, #cols do
+        local c = cols[i]
+        local w = self.xml:InitTextWnd(style, holder)
+        if w then
+            w:SetText(tostring(c[2] or ""))
+            w:SetWndPos(vector2():set(c[1], 0))
+        end
+    end
+    self.scroll:AddWindow(holder, true)
+    holder:SetAutoDelete(true)
+end
+
+
 function SeasonsForecast:Row(style, text)
+    if not self.scroll then return end
     local w = self.xml:InitTextWnd(style, nil)
+    if not w then return end
     w:SetText(text or "")
     self.scroll:AddWindow(w, true)
     w:SetAutoDelete(true)
 end
 
 function SeasonsForecast:Gap()
+    if not self.scroll then return end
     local g = self.xml:InitStatic("row_gap", nil)
+    if not g then return end
     self.scroll:AddWindow(g, true)
     g:SetAutoDelete(true)
 end
 
 function SeasonsForecast:Fill()
-    self.scroll:Clear()
+    if self.scroll then self.scroll:Clear() end
 
     local d = page()
     if not d then
-        self.header:SetText("Forecast")
-        self.subheader:SetText("Nothing is reading right now.")
-        self.now:SetText("")
+        put(self.header, "Forecast")
+        put(self.subheader, "Nothing is reading right now.")
+        put(self.now, "")
         return
     end
 
-    self.header:SetText("Forecast")
-    self.subheader:SetText(d.today or "")
+    put(self.header, "Forecast")
+    put(self.subheader, d.today or "")
 
-    if d.bar then
+    if d.bar and self.bar then
         local okb = pcall(function() self.bar:InitTexture(tex(d.bar)) end)
         if not okb then say("accent bar failed: " .. tostring(d.bar)) end
     end
 
-    local okg = pcall(function() self.gauge:InitTexture("ui_seasons_forecast") end)
-    if not okg then say("gauge texture failed") end
+    if self.gauge then
+        local okg = pcall(function() self.gauge:InitTexture("ui_seasons_forecast") end)
+        if not okg then say("gauge texture failed") end
+    end
 
     -- the headline: what it is doing outside, right now. Temperature comes through
     -- sotz_api so the page and any wearable device read the same number from the same
@@ -161,8 +217,8 @@ function SeasonsForecast:Fill()
     if temp and temp.now then
         head = (head ~= "" and (head .. ",  ") or "") .. string.format("%d C", temp.now)
     end
-    self.now:SetText(head)
-    self.gauge_caption:SetText(w and w.now and "outside now" or "no reading")
+    put(self.now, head)
+    put(self.gauge_caption, w and w.now and "outside now" or "no reading")
 
     -- --- the weather ----------------------------------------------------------------------
     -- Not a guess. Atmospherics plans the next 24 game hours in advance and this is that
@@ -171,13 +227,14 @@ function SeasonsForecast:Fill()
     -- the day's endpoints, not just the current number: the cycle is accelerated, so
     -- "-3" on its own says nothing about whether the night is survivable
     if temp then
-        self:Row("row_line", string.format("%-7s high %d, low %d, %s", "Air",
-                 temp.high, temp.low, temp.rising and "rising" or "falling"))
+        self:Cols("row_line", {{0, "Air"}, {64, string.format("%d to %d", temp.low,
+                               temp.high)}, {196, temp.rising and "rising"
+                               or "falling"}})
     end
     if w and w.segments and #w.segments > 0 then
         for _, seg in ipairs(w.segments) do
-            self:Row("row_line", string.format("%-7s %-15s %s",
-                     seg.at, cycle_name(seg.cycle), lead(seg.away)))
+            self:Cols("row_line", {{0, seg.at}, {64, cycle_name(seg.cycle)},
+                                   {196, lead(seg.away)}})
         end
     elseif w then
         self:Row("row_dim", "Settled - no change planned.")
@@ -196,19 +253,22 @@ function SeasonsForecast:Fill()
 
         if fc.tier == "locked" then
             self:Row("row_dim", "They keep their readings to themselves.")
-            self:Row("row_dim", fc.standing
-                     and string.format("%-18s %d, need %d", "Standing", fc.standing, fc.need)
-                     or  "No contact.")
+            if fc.standing then
+                self:Cols("row_dim", {{0, "Standing"}, {130, fc.standing},
+                                      {196, "need " .. tostring(fc.need)}})
+            else
+                self:Row("row_dim", "No contact.")
+            end
         else
             -- exact tier gets the hour, coarse gets a band and never a number
             local e = fc.tier == "exact" and (d.surge and countdown(d.surge))
                                          or  (d.surge_band and BAND[d.surge_band])
             local p = fc.tier == "exact" and (d.psi   and countdown(d.psi))
                                          or  (d.psi_band   and BAND[d.psi_band])
-            self:Row(e and "row_line" or "row_dim",
-                     string.format("%-18s %s", "Emission",  e or "no reading"))
-            self:Row(p and "row_line" or "row_dim",
-                     string.format("%-18s %s", "Psi storm", p or "no reading"))
+            self:Cols(e and "row_line" or "row_dim",
+                      {{0, "Emission"}, {130, e or "no reading"}})
+            self:Cols(p and "row_line" or "row_dim",
+                      {{0, "Psi storm"}, {130, p or "no reading"}})
             if fc.tier == "coarse" then
                 self:Row("row_dim", string.format("%d standing buys the hour.", fc.need_exact))
             end
@@ -225,6 +285,9 @@ function SeasonsForecast:OnKeyboard(dik, action)
     local res = CUIScriptWnd.OnKeyboard(self, dik, action)
     if res then return res end
     if action == ui_events.WINDOW_KEY_PRESSED and dik == DIK_keys.DIK_ESCAPE then
+        -- escape used to be swallowed here, which left the page with no way out but the
+        -- launcher key. It goes back now.
+        self:OnBack()
         return true
     end
     return false

@@ -12,6 +12,32 @@
   - The emission and psi-storm countdowns read the surge and psi-storm managers' existing
     singletons directly. Calling `get_surge_manager()` would *construct* one, and that
     constructor allocates a dozen `sound_object` handles; the page never does that.
+- **Both PDA pages, after seeing them in game.**
+  - **Columns line up now.** `letterica` is a proportional font, so `string.format("%-12s")`
+    padded with spaces narrower than the glyphs around them and every table came out
+    ragged. Each column is its own text widget at a fixed x inside a row holder, which is
+    how MAC positions its launcher tiles.
+  - **A back button**, and Escape now leaves the page instead of being swallowed. Both go
+    to the MAC launcher.
+  - **The launcher tiles were empty.** `Init3tButton` + `InitTexture` is a four-state
+    button: the engine appends `_e`/`_h`/`_t`/`_d` and looks those up as *declared* texture
+    ids. A loose `.dds` satisfies none of them and nothing is drawn. New
+    `_tools/build_app_icons.py` renders 512x512 state sheets and the `textures_descr` to
+    declare them, laid out the way MAC's own `ui_icon_apps.xml` is.
+  - The year tile is no longer the dial. The dial's season names and day counts read at
+    200px on the page and are mud at the ~48px a tile gets, so the tile is a plain ring
+    with the live season lit - five variants, changing five times a year.
+  - Eight weather changes instead of six, now that the rows are tidy.
+- **Fixed: a hard crash on opening either page.** `widget:GetWndRect()` does not exist in
+  this engine - it appears nowhere in ~16,000 lines of other mods' scripts. `GetHeight()`
+  is the real call. It passed a syntax check, passed the Lua-runtime tests because the
+  harness stubs the widget layer, and fataled on the first click.
+  - New **`_tools/check_engine_api.py`**: builds a corpus of every method called across
+    all other installed scripts and flags any this mod calls that no other mod calls
+    anywhere. Invented API has nowhere to hide.
+  - New **`_tools/check_ui_xml.py`**: asserts a ui xml begins with its root element. A
+    comment above the root is valid XML but X-Ray takes the first element as the document,
+    so `ParseFile` fails - and it does not raise, it just makes every `Init*` return nil.
 - **A read API — `sotz_api.script`.** The mod keeps a schedule nothing else in the game
   does, and until now the only way to see it was our own pages. This publishes it: four
   pure, non-throwing, cached accessors any mod can read. `sotz_api.VERSION` is the

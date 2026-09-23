@@ -55,6 +55,15 @@ local function when_text(days)
     return string.format("in %d days", days)
 end
 
+-- CScriptXmlInit:ParseFile does NOT raise when the xml cannot be used - it returns, and
+-- every Init* afterwards quietly hands back nil. The first method call on one of those
+-- nils is a hard engine FATAL, not a Lua error pcall can absorb, which is exactly how a
+-- comment sitting above the root element took the whole game down once. So nothing below
+-- dereferences a widget without checking first, and a broken page is a blank page.
+local function put(w, text)
+    if w then w:SetText(text or "") end
+end
+
 local function page()
     local ok, data = pcall(function() return zzz_seasons_of_the_zone.calendar_page() end)
     if ok and type(data) == "table" then return data end
@@ -87,82 +96,129 @@ function SeasonsPDA:InitControls()
     self.marked    = xml:InitTextWnd("marked", self)
 
     self.dial = xml:InitStatic("dial", self)
-    local r = self.dial:GetWndRect()
-    local h = r.y2 - r.y1
-    self.dial:SetWndSize(vector2():set(h * aspect(), h))
+    if self.dial then
+        -- GetHeight/GetWidth, not GetWndRect: the latter is not bound in this
+        -- engine at all. It reads plausibly and it is what crashed the game.
+        local h = self.dial:GetHeight()
+        self.dial:SetWndSize(vector2():set(h * aspect(), h))
+    else
+        say("ui_seasons_pda.xml gave up no elements - check its root")
+    end
     self.dial_caption = xml:InitTextWnd("dial_caption", self)
 
     self.scroll = xml:InitScrollView("scroll", self)
+
+    self.back = xml:Init3tButton("back", self)
+    if self.back then
+        self.back:InitTexture("sotz_app_back")
+        self:Register(self.back, "back")
+        self:AddCallback("back", ui_events.BUTTON_CLICKED, self.OnBack, self)
+    end
 end
+-- Back to the launcher. MAC reaches its own tab the same way, and it binds a key for it
+-- too, but a page you can only leave by keyboard reads as a dead end.
+function SeasonsPDA:OnBack()
+    local ok, err = pcall(function()
+        ActorMenu.get_pda_menu():SetActiveSubdialog("eptLauncher")
+    end)
+    if not ok then say("back to launcher failed: " .. tostring(err)) end
+end
+
+-- letterica is a PROPORTIONAL font: a space is narrower than most glyphs, so padding a
+-- string with string.format("%-12s") does NOT line anything up. It looked fine in a
+-- monospaced editor and ragged on the PDA. Each column is its own text widget at a fixed
+-- x inside a row holder, which is how MAC positions its launcher tiles too.
+function SeasonsPDA:Cols(style, cols)
+    if not self.scroll then return end
+    local holder = self.xml:InitStatic("row_holder", nil)
+    if not holder then return end
+    for i = 1, #cols do
+        local c = cols[i]
+        local w = self.xml:InitTextWnd(style, holder)
+        if w then
+            w:SetText(tostring(c[2] or ""))
+            w:SetWndPos(vector2():set(c[1], 0))
+        end
+    end
+    self.scroll:AddWindow(holder, true)
+    holder:SetAutoDelete(true)
+end
+
 
 -- One row appended to the scroll view. `style` picks the colour from the xml.
 function SeasonsPDA:Row(style, text)
+    if not self.scroll then return end
     local w = self.xml:InitTextWnd(style, nil)
+    if not w then return end
     w:SetText(text or "")
     self.scroll:AddWindow(w, true)
     w:SetAutoDelete(true)
 end
 
 function SeasonsPDA:Gap()
+    if not self.scroll then return end
     local g = self.xml:InitStatic("row_gap", nil)
+    if not g then return end
     self.scroll:AddWindow(g, true)
     g:SetAutoDelete(true)
 end
 
 function SeasonsPDA:Fill()
-    self.scroll:Clear()
+    if self.scroll then self.scroll:Clear() end
 
     local d = page()
     if not d then
-        self.header:SetText("The Year")
-        self.subheader:SetText("The calendar is not reading right now.")
-        self.turning:SetText("")
-        self.marked:SetText("")
+        put(self.header, "The Year")
+        put(self.subheader, "The calendar is not reading right now.")
+        put(self.turning, "")
+        put(self.marked, "")
         return
     end
 
-    self.header:SetText(cap_first(d.label) .. " in the Zone")
-    self.subheader:SetText(d.today)
+    put(self.header, cap_first(d.label) .. " in the Zone")
+    put(self.subheader, d.today)
 
     -- the season's own accent strip; ours, so it cannot be missing
-    if d.bar then
+    if d.bar and self.bar then
         local okb = pcall(function() self.bar:InitTexture(tex(d.bar)) end)
         if not okb then say("accent bar failed: " .. tostring(d.bar)) end
     end
 
     -- what the year does next
     if d.next then
-        self.turning:SetText(string.format("%s %s.",
-                             cap_first(d.next.label), when_text(d.next.days)))
+        put(self.turning, string.format("%s %s.",
+                          cap_first(d.next.label), when_text(d.next.days)))
     else
-        self.turning:SetText("")
+        put(self.turning, "")
     end
 
     -- today is one of the marked days, so say so before anything else
     if d.marked then
-        self.marked:SetText((d.marked.kind == "memorial")
-                            and "Today the Zone is quiet."
-                            or  "Today the Zone is loud.")
+        put(self.marked, (d.marked.kind == "memorial")
+                         and "Today the Zone is quiet."
+                         or  "Today the Zone is loud.")
     else
-        self.marked:SetText("")
+        put(self.marked, "")
     end
 
-    local okd = pcall(function() self.dial:InitTexture(tex(d.dial)) end)
-    if not okd then say("dial texture failed: " .. tostring(d.dial)) end
+    if self.dial then
+        local okd = pcall(function() self.dial:InitTexture(tex(d.dial)) end)
+        if not okd then say("dial texture failed: " .. tostring(d.dial)) end
+    end
 
     -- the dial shows where the year stands; the caption gives the current span
     for _, s in ipairs(d.seasons or {}) do
         if s.current then
-            self.dial_caption:SetText(string.format("%s - %s", s.from, s.to))
+            put(self.dial_caption, string.format("%s - %s", s.from, s.to))
         end
     end
 
     -- --- the year ------------------------------------------------------------------------
     self:Row("row_head", "The year")
     for _, s in ipairs(d.seasons or {}) do
-        self:Row(s.current and "row_now" or "row_line",
-                 string.format("%-12s %-7s to %-7s %3d days",
-                               cap_first(s.label), s.from, s.to, s.days))
+        self:Cols(s.current and "row_now" or "row_line",
+                  {{0, cap_first(s.label)}, {110, s.from .. " - " .. s.to},
+                   {270, s.days .. " days"}})
     end
     self:Gap()
 
@@ -171,8 +227,8 @@ function SeasonsPDA:Fill()
     for _, day in ipairs(d.days or {}) do
         local what = (day.kind == "memorial") and "clear sky, quiet"
                                               or  "storm, artifacts"
-        self:Row(day.today and "row_now" or "row_line",
-                 string.format("%-7s %-13s %s", day.date, when_text(day.away), what))
+        self:Cols(day.today and "row_now" or "row_line",
+                  {{0, day.date}, {70, when_text(day.away)}, {180, what}})
     end
     self:Gap()
 
@@ -188,9 +244,9 @@ function SeasonsPDA:Fill()
         for _, m in ipairs(mods) do
             local mark = m.enabled and "on " or (m.wanted and " ! " or "off")
             local span = (m.span ~= "" and m.span) or m.seasons
-            self:Row(m.enabled and "row_line" or "row_dim",
-                     string.format("%s %-28s %s", mark,
-                                   tostring(m.name):sub(1, 28), tostring(span)))
+            self:Cols(m.enabled and "row_line" or "row_dim",
+                      {{0, mark}, {30, tostring(m.name):sub(1, 30)},
+                       {270, tostring(span)}})
         end
     end
 end
@@ -204,6 +260,9 @@ function SeasonsPDA:OnKeyboard(dik, action)
     local res = CUIScriptWnd.OnKeyboard(self, dik, action)
     if res then return res end
     if action == ui_events.WINDOW_KEY_PRESSED and dik == DIK_keys.DIK_ESCAPE then
+        -- escape used to be swallowed here, which left the page with no way out but the
+        -- launcher key. It goes back now.
+        self:OnBack()
         return true
     end
     return false

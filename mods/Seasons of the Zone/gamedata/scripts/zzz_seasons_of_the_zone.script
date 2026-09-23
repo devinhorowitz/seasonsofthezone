@@ -1538,7 +1538,7 @@ function forecast_page()
                     at = clock(seg.minute), cycle = seg.cycle, away = seg.minute - now,
                 }
                 last = seg.cycle
-                if #w.segments >= 6 then break end
+                if #w.segments >= 8 then break end
             end
         end
         out.weather = w

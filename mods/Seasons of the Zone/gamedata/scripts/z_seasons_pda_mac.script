@@ -9,12 +9,23 @@
 -- texture, not a four-state button - so no _e/_h/_t/_d set is needed and nothing has to
 -- be shipped beyond what the dial already uses.
 
-local function dial_now()
-    local ok, tex = pcall(function() return zzz_seasons_of_the_zone.dial_texture() end)
-    if ok and type(tex) == "string" and tex ~= "" then
-        return (tex:gsub("%.dds$", ""))          -- InitTexture wants it without extension
+-- MAC builds each tile with Init3tButton + InitTexture, which is a FOUR-state button:
+-- the engine appends _e / _h / _t / _d and looks those up as DECLARED texture ids. A
+-- loose .dds satisfies none of them and the tile draws empty - which is what the first
+-- build shipped. These ids come from configs/ui/textures_descr/ui_sotz_apps.xml.
+--
+-- The year tile is not the dial. The dial carries season names and day counts that read
+-- at 200px on the page and are mud at the ~48px a tile gets, so the tile is a plain ring
+-- with the live season lit. It changes five times a year rather than daily, which is
+-- often enough to be informative and rare enough not to be noise.
+local function year_icon()
+    local ok, season = pcall(function()
+        return zzz_seasons_of_the_zone.calendar_page().season
+    end)
+    if ok and type(season) == "string" and season ~= "" then
+        return "sotz_app_year_" .. season
     end
-    return "ui_seasons_dial_00"
+    return "sotz_app_year_autumn"
 end
 
 function on_game_start()
@@ -22,7 +33,7 @@ function on_game_start()
     local ok, err = pcall(function()
         mac_mcm.add_app("app_seasons", {
             name    = "pda_btn_seasons",
-            texture = dial_now(),
+            texture = year_icon(),
             tab     = "eptSeasons",
             func    = ui_seasons_pda.get_ui,
         })
@@ -33,7 +44,7 @@ function on_game_start()
         -- changed every few minutes would just be noise in the launcher.
         mac_mcm.add_app("app_seasons_forecast", {
             name    = "pda_btn_forecast",
-            texture = "ui_seasons_forecast",
+            texture = "sotz_app_forecast",
             tab     = "eptForecast",
             func    = ui_seasons_forecast.get_ui,
         })

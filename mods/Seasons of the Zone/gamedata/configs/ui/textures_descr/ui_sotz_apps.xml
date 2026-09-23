@@ -1,0 +1,44 @@
+<w>
+	<file name="ui_sotz_app_forecast">
+		<texture id="sotz_app_forecast_e" x="0"   y="0"   width="256" height="256" />
+		<texture id="sotz_app_forecast_h" x="256" y="0"   width="256" height="256" />
+		<texture id="sotz_app_forecast_t" x="0"   y="256" width="256" height="256" />
+		<texture id="sotz_app_forecast_d" x="0"   y="256" width="256" height="256" />
+	</file>
+	<file name="ui_sotz_app_back">
+		<texture id="sotz_app_back_e" x="0"   y="0"   width="256" height="256" />
+		<texture id="sotz_app_back_h" x="256" y="0"   width="256" height="256" />
+		<texture id="sotz_app_back_t" x="0"   y="256" width="256" height="256" />
+		<texture id="sotz_app_back_d" x="0"   y="256" width="256" height="256" />
+	</file>
+	<file name="ui_sotz_app_year_spring">
+		<texture id="sotz_app_year_spring_e" x="0"   y="0"   width="256" height="256" />
+		<texture id="sotz_app_year_spring_h" x="256" y="0"   width="256" height="256" />
+		<texture id="sotz_app_year_spring_t" x="0"   y="256" width="256" height="256" />
+		<texture id="sotz_app_year_spring_d" x="0"   y="256" width="256" height="256" />
+	</file>
+	<file name="ui_sotz_app_year_summer">
+		<texture id="sotz_app_year_summer_e" x="0"   y="0"   width="256" height="256" />
+		<texture id="sotz_app_year_summer_h" x="256" y="0"   width="256" height="256" />
+		<texture id="sotz_app_year_summer_t" x="0"   y="256" width="256" height="256" />
+		<texture id="sotz_app_year_summer_d" x="0"   y="256" width="256" height="256" />
+	</file>
+	<file name="ui_sotz_app_year_autumn">
+		<texture id="sotz_app_year_autumn_e" x="0"   y="0"   width="256" height="256" />
+		<texture id="sotz_app_year_autumn_h" x="256" y="0"   width="256" height="256" />
+		<texture id="sotz_app_year_autumn_t" x="0"   y="256" width="256" height="256" />
+		<texture id="sotz_app_year_autumn_d" x="0"   y="256" width="256" height="256" />
+	</file>
+	<file name="ui_sotz_app_year_winter">
+		<texture id="sotz_app_year_winter_e" x="0"   y="0"   width="256" height="256" />
+		<texture id="sotz_app_year_winter_h" x="256" y="0"   width="256" height="256" />
+		<texture id="sotz_app_year_winter_t" x="0"   y="256" width="256" height="256" />
+		<texture id="sotz_app_year_winter_d" x="0"   y="256" width="256" height="256" />
+	</file>
+	<file name="ui_sotz_app_year_winter_snow">
+		<texture id="sotz_app_year_winter_snow_e" x="0"   y="0"   width="256" height="256" />
+		<texture id="sotz_app_year_winter_snow_h" x="256" y="0"   width="256" height="256" />
+		<texture id="sotz_app_year_winter_snow_t" x="0"   y="256" width="256" height="256" />
+		<texture id="sotz_app_year_winter_snow_d" x="0"   y="256" width="256" height="256" />
+	</file>
+</w>
