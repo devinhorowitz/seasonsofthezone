@@ -374,6 +374,39 @@ def t_a_leap_year_gives_february_its_day():
 
 
 @case
+def t_the_load_message_counts_across_a_leap_year():
+    """The PDA message on load says how many days until the next season. In December that
+    season starts next year, and counting it with this year's length was a day out in a
+    leap year and in the year before one. Checked against Python's own calendar, on the
+    season starts the script itself declares."""
+    import datetime
+    data = io.open(os.path.join(SCRIPTS, "zzz_seasons_of_the_zone.script"),
+                   encoding="utf-8").read()
+    starts = [(int(m), int(d), s) for m, d, s in re.findall(
+        r'\{m = (\d+),\s*d = (\d+),\s*season = "(\w+)"\}', data)]
+    assert len(starts) == 6, "read %d season starts from BOUNDS" % len(starts)
+
+    def truth(day):
+        # the next start strictly after today: a boundary on today wraps a full year
+        return min(((datetime.date(y, m, d) - day).days, s)
+                   for m, d, s in starts for y in (day.year, day.year + 1)
+                   if datetime.date(y, m, d) > day)
+
+    dates = [(2026, 12, 5), (2027, 12, 5), (2027, 12, 31), (2028, 2, 29), (2028, 3, 5),
+             (2028, 12, 5), (2028, 12, 31), (2029, 1, 10)]
+    for y, m, d in dates:
+        lua, g = build(y, m, d)
+        count = lua.eval("function(src, env) return load(src, 'probe', 't', "
+                         "setmetatable({}, {__index = env}))() end")(
+            data + "\nreturn days_to_next\n", g)
+        got = tuple(count())
+        want = truth(datetime.date(y, m, d))
+        assert got == want, "%04d-%02d-%02d: says %s, the calendar says %s" % (
+            y, m, d, got, want)
+    return "%d dates, Dec 2027 and Dec 2028 among them, all match" % len(dates)
+
+
+@case
 def t_the_grid_wears_the_dial_s_colours():
     """The two pictures of the year have to agree.
 

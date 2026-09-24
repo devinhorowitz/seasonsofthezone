@@ -14,6 +14,8 @@
   `seasons_config.py.bak`, and rewrites only the entries that changed, so comments and
   anything written by hand stay. It also repairs two common mistakes: an empty
   `TOGGLE_MODS = {}` left below the real table, and `("summer,spring")`.
+- Fixed: in December of a leap year, and the December before one, the PDA message on load
+  counted a day wrong to late winter. February 29 itself was always handled.
 - Fixed: the 1.8 zips carried the old `play.bat` comment about `SHORTCUT`.
 
 ## 1.8.3 — 2026-09-23

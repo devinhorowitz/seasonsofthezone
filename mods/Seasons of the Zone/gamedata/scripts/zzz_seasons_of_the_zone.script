@@ -741,7 +741,9 @@ local function days_to_next()
     local best, name
     for _, b in ipairs(BOUNDS) do
         local d = doy_of(b.m, b.d, year) - doy
-        if d <= 0 then d = d + len end
+        -- already past this year: the rest of this year, then that date next year. Adding
+        -- this year's length instead was a day out whenever only one of the two is a leap year
+        if d <= 0 then d = (len - doy) + doy_of(b.m, b.d, year + 1) end
         if not best or d < best then best, name = d, b.season end
     end
     return best, name
