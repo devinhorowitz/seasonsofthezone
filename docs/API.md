@@ -197,7 +197,8 @@ moves the frequency slider.
 ```
 
 `season` is one of `spring`, `summer`, `autumn`, `winter`, `winter_snow` and
-`late_winter` (new in 1.8.0); `label` is the name to show, such as "deep winter". Treat an
+`late_winter` (new in 1.8.0); `label` is the name to show, such as "deep winter", or the
+player's own name for the season (1.9.0). Treat an
 unknown key as a season rather than an error, since the calendar can grow. A player's own
 calendar (1.9.0) can turn seasons off and move their dates, so do not assume all six
 occur, or when; `next` is nil when only one season is on.

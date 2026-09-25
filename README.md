@@ -77,6 +77,7 @@ EVENTS = {
     "christmas": ((12, 24), (12, 26)),    # start, end - inclusive
     "halloween": ((10, 31), (10, 31)),    # a single day is fine
     "twelvetide": ((12, 26), (1, 6)),     # a window may wrap the year end
+    "weekend": {"weekdays": ("sat", "sun")},   # or a rule: weekdays, days of the month...
 }
 
 TOGGLE_MODS = {
@@ -258,11 +259,19 @@ python _tools\configure.py event christmas 12-24 12-26
 python _tools\configure.py list
 ```
 
-The window's **Seasons** tab sets the calendar itself: the day each season starts, and
-which seasons are on. `python _tools\configure.py calendar` shows it, and
-`configure.py calendar summer=5-1 "deep winter=11-15" --only` makes a two-season year.
+The window's **Seasons** tab sets the calendar itself: the day each season starts, which
+seasons are on, and what each is called. `python _tools\configure.py calendar` shows it,
+and `configure.py calendar summer=5-1 "deep winter=11-15" --only` makes a two-season year.
 
-![The Seasons tab: summer moved to May 1 and late winter off, so deep winter runs to April 14](docs/images/configure-seasons.png)
+![The Seasons tab: summer moved to May 1, late winter off so deep winter runs to April 14, and deep winter named The Long Cold](docs/images/configure-seasons.png)
+
+**Presets** keep the whole setup under a name - the calendar, the events, the mods on the
+calendar, texture sets and sound - to load again, or to share. Load one made on another
+install and the mods you don't have are left out. Four calendars come with the tool, and a
+GAMMA example with the setup these tools were made on, so nothing in the config needs
+editing by hand.
+
+![Loading a preset: pick one, and the parts of it to load in place of yours](docs/images/configure-presets.png)
 
 **By hand.** Both write `_tools/seasons_config.py`, which you can also edit yourself:
 

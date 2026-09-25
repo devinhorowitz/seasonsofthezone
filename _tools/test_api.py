@@ -13,7 +13,7 @@ import io
 import os
 import sys
 
-from lupa import LuaRuntime
+from lua_runtime import LuaRuntime, NAME as LUA_NAME
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(ROOT, "mods", "Seasons of the Zone", "gamedata", "scripts")

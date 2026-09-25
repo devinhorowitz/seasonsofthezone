@@ -10,14 +10,13 @@ starts; `play.bat` runs it for you.
 The quickest way in is `configure.bat` in your GAMMA folder. It lists your MO2 mods;
 tick the seasons each one belongs to, and it writes `_tools/seasons_config.py` for you,
 with the `above` for each mod worked out from the files the mods share. Its Seasons tab
-moves the season dates and turns seasons off; see [`CALENDAR`](#calendar). To start from
-a full working setup instead:
+moves the season dates, turns seasons off and names them; see [`CALENDAR`](#calendar) and
+[`NAMES`](#names). Its presets keep a whole setup under a name, to load again here or on
+another install; the GAMMA example preset is a full working setup to start from. Between
+the window and the presets, the file needs no editing by hand.
 
-```bash
-cp _tools/seasons_config.example.py _tools/seasons_config.py
-```
-
-`seasons_config.py` is the only file you edit, by hand or with the tool.
+`seasons_config.py` is still the one file all of it lives in, and yours to edit by hand if
+you would rather. `_tools/seasons_config.example.py` is the GAMMA example as a file.
 
 Scoping a mod to a season is the common case, but the calendar is open: you can add your
 own base periods and overlapping events, and scope mods to those instead. That is
@@ -49,6 +48,7 @@ python _tools/configure.py list               # what is on the calendar
 python _tools/configure.py add "<mod>" --when winter "deep winter" [--above "<mod>"]
 python _tools/configure.py remove "<mod>"
 python _tools/configure.py event christmas 12-24 12-26
+python _tools/configure.py event weekend --weekdays weekends     # a rule; see SCHEDULING.md
 python _tools/configure.py event christmas --remove
 python _tools/configure.py calendar           # when each season starts, and which are off
 python _tools/configure.py calendar summer=5-1 "deep winter=11-15" [--only]
@@ -56,6 +56,13 @@ python _tools/configure.py calendar --off late_winter
 python _tools/configure.py calendar --on late_winter      # back on, at Polesia's date
 python _tools/configure.py calendar --preset met          # the meteorological dates
 python _tools/configure.py calendar --reset               # Polesia's again
+python _tools/configure.py name                           # what each season is called
+python _tools/configure.py name "deep winter" "The Long Cold"
+python _tools/configure.py name "deep winter" --reset
+python _tools/configure.py preset                         # the presets there are
+python _tools/configure.py preset show "Two seasons"
+python _tools/configure.py preset load "Two seasons" [--parts calendar]
+python _tools/configure.py preset save "Mine" [--about "..."] [--parts calendar mods]
 ```
 
 `add` puts a mod on the calendar, or replaces its seasons if it is already there. The
@@ -67,7 +74,12 @@ leaves the choice to you.
 
 Every save checks the result with `season.py`'s own rules first, keeps the previous file
 as `seasons_config.py.bak`, and rewrites only the entries that changed, so comments and
-anything written by hand stay as they were.
+anything written by hand stay as they were. A save that can't keep every comment - one
+inside a table written on a single line, say - also keeps a dated copy that no later save
+touches, and says where. The tool refuses rather than guess: a file saved in an encoding it
+would have to mangle, a table sharing its line with another statement, a table the lines
+below it change again, or a file that changed since it was opened is left as it is, with a
+message saying what to do.
 
 ---
 
@@ -230,7 +242,54 @@ run. Without Pillow the dial is hidden, since the shipped one shows Polesia's da
 
 ---
 
+## `NAMES`
+
+```python
+NAMES = {
+    "winter_snow": "The Long Cold",
+    "late_winter": "Rasputitsa",
+}
+```
+
+Names of your own for the seasons. The game shows them wherever it names a season: the PDA,
+the messages when a season turns, MCM's page titles and the Season list, and the year
+dial, which is redrawn with them as for a calendar of your own. The config keeps the
+usual keys, so `when`, `LAYOUT` and everything else still say `winter_snow`.
+
+A name is up to 20 letters, English or Cyrillic, which is what the game can show; two
+seasons can't share one. `None`, or a name left as the usual one, keeps the usual name.
+
+---
+
 ## Presets
+
+A preset keeps a setup under a name, in `_tools/presets/`, as a JSON file: plain data, so
+one posted by someone else can be loaded without running anything they wrote. It holds any
+of four parts:
+
+| Part | What it is |
+|---|---|
+| calendar | `CALENDAR` and `NAMES` |
+| events | `EVENTS` and `PERIODS` |
+| mods | `TOGGLE_MODS` |
+| textures | `LAYOUT` and `SOUND_SRC` |
+
+**Save preset...** in the window, or `configure.py preset save`, keeps the parts that have
+something in them, unless you pick others. **Load preset...** sets the parts you choose in
+place of yours, and like any change in the window it is written only when you save. A
+preset made on another install loads here: a mod you don't have is left out, a mod whose
+anchor you don't have is placed again for your list, a texture set whose archive is not in
+your `downloads/` is left out, and loading says which. Every part goes through the same
+rules as a save, and a preset that would break the config is refused whole.
+
+Four calendars come with the tool: Polesia, Meteorological, Two seasons and Southern
+hemisphere. The GAMMA example holds the mods, events, texture sets and sound source these
+tools were made on. A preset of the same name as one that comes with the tool can't be
+saved over it.
+
+---
+
+## Color grade presets
 
 The mod ships its season grades as `cfg_load` presets, `Seasons_*.ltx`, in
 `gamedata/configs/seasons_presets/`. `play.bat` copies them into the game's `appdata/`
@@ -247,6 +306,9 @@ on a file the mod ships and re-anchor.
 
 **`anchor '...' is not in the modlist - SKIPPED`.** The `above` name has a typo, or that
 mod is not installed. It must match the folder name exactly.
+
+**`seasons_config.py is not saved as UTF-8`.** Notepad saves as ANSI or UTF-16 when asked
+to; the tools read UTF-8. File, Save as, Encoding: UTF-8.
 
 **`seasons_config.py needs fixing`.** The message names the line, or the entry and the
 field. The usual mistakes:

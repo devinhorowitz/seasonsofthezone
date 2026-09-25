@@ -15,7 +15,7 @@ import os
 import re
 import sys
 
-from lupa import LuaRuntime
+from lua_runtime import LuaRuntime, NAME as LUA_NAME
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOC = os.path.join(ROOT, "docs", "WEARABLE-DEVICES.md")

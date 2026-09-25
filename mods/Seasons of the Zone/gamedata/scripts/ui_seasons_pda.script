@@ -658,7 +658,9 @@ function SeasonsPDA:Fill()
     put(self.dial_caption, "")
     for _, s in ipairs(d.seasons or {}) do
         if s.current then
-            put(self.dial_caption, string.format("%s - %s", s.from, s.to))
+            -- one season on is the whole year, which runs from its start back to it
+            put(self.dial_caption, (s.from == s.to) and "All year"
+                                   or string.format("%s - %s", s.from, s.to))
         end
     end
 

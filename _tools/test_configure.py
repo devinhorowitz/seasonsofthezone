@@ -278,7 +278,7 @@ def t_a_ghoul_config_is_repaired_on_save():
         rc, out = run(d, "status", tool="season.py")
         assert rc != 0, "the broken file was accepted as it is"
         rc, out = run(d, "list")
-        assert "saving removes that line" in out and "right shape" in out, out
+        assert "saving removes line" in out and "right shape" in out, out
         rc, out = run(d, "add", "Lonely Mod", "--when", "spring")
         assert rc == 0, out
         t, _ = table(d)
@@ -295,7 +295,7 @@ def t_a_file_python_cannot_read_is_left_alone():
     with tempfile.TemporaryDirectory() as d:
         install(d, config=bad)
         rc, out = run(d, "add", "Map Pack", "--when", "summer")
-        assert rc == 1 and "can't be read" in out and "line 9" in out, out
+        assert rc == 1 and "can't be edited here" in out and "line 9" in out, out
         assert config(d) == bad, "an unreadable file was overwritten"
     return "refused, with the line, and the file untouched"
 
@@ -418,7 +418,7 @@ def t_a_calendar_season_py_would_refuse_is_not_saved():
                            (["summr=5-1"], "not a season"),
                            (["summer=5-41"], "not a date"),
                            (["--off", "spring", "summer", "autumn", "winter",
-                             "winter_snow", "late_winter"], "at least one season")):
+                             "winter_snow", "late_winter"], "every season off")):
             rc, out = run(d, "calendar", *args)
             assert rc == 1 and says in out, "%s: %s" % (args, out)
             assert config(d) == before, "%s changed the file" % args
@@ -540,6 +540,387 @@ def t_without_pillow_the_dial_is_hidden():
     return "dial = none and nothing drawn without it; drawn with it"
 
 
+# --- what it must refuse, and what it must keep -------------------------------------------
+
+PLAIN = """LAYOUT = {}
+TOGGLE_MODS = {}
+SOUND_SRC = None
+PERIODS = {}
+EVENTS = {}
+"""
+
+
+def raw_config(root, data, mode="wb"):
+    with open(os.path.join(root, "_tools", "seasons_config.py"), mode) as f:
+        f.write(data)
+
+
+def raw_read(root):
+    return open(os.path.join(root, "_tools", "seasons_config.py"), "rb").read()
+
+
+@case
+def t_a_file_keeps_its_encoding():
+    """A cp1251 file with a coding line is Python's to read, and stays cp1251: its Cyrillic
+    was saved as replacement characters."""
+    text = ("# -*- coding: cp1251 -*-\n# \u0417\u0438\u043c\u043d\u0438\u0435 \u0442\u0435\u043a\u0441\u0442\u0443\u0440\u044b\n" + PLAIN)
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        raw_config(d, text.encode("cp1251"))
+        rc, out = run(d, "add", "Map Pack", "--when", "summer")
+        assert rc == 0, out
+        data = raw_read(d)
+        assert "\u0417\u0438\u043c\u043d\u0438\u0435".encode("cp1251") in data, "the Cyrillic was lost"
+        assert b"\xef\xbf\xbd" not in data, "replacement characters written"
+        accepted(d)
+        # and without the coding line, where Python itself can't read it: refused, untouched
+        raw_config(d, text.split("\n", 1)[1].encode("cp1251"))
+        before = raw_read(d)
+        rc, out = run(d, "add", "Lonely Mod", "--when", "spring")
+        assert rc == 1 and "not saved as UTF-8" in out and raw_read(d) == before, out
+    return "cp1251 kept; cp1251 without a coding line refused and left alone"
+
+
+@case
+def t_layouts_the_tool_cannot_edit_are_refused():
+    for text, says in (
+            (PLAIN.replace("TOGGLE_MODS = {}", 'TOGGLE_MODS = {}; SOUND_SRC = "Map Pack"'),
+             "and another statement"),
+            (PLAIN + 'TOGGLE_MODS["Map Pack"] = {"when": ("summer",), "above": "Base Grass"}\n',
+             "changed after its table"),
+            (PLAIN.replace("LAYOUT = {}\n", "") .replace("TOGGLE_MODS = {}",
+                                                          "LAYOUT = TOGGLE_MODS = {}"),
+             "and another name at once"),
+            (PLAIN.replace("TOGGLE_MODS = {}", "if True:\n    TOGGLE_MODS = {}"),
+             "in a way the tool can't edit")):
+        with tempfile.TemporaryDirectory() as d:
+            install(d, config=text)
+            rc, out = run(d, "add", "Winter Pack", "--when", "winter")
+            assert rc == 1 and says in out, "%r:\n%s" % (text, out)
+            assert config(d) == text, "a refused file was changed"
+    return "a shared line, a later entry, two names at once, an if: refused, untouched"
+
+
+@case
+def t_an_annotated_table_is_edited_where_it_is():
+    text = PLAIN.replace("TOGGLE_MODS = {}", "TOGGLE_MODS: dict = {}").replace(
+        "EVENTS = {}", "EVENTS: dict = {}")
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config=text)
+        rc, out = run(d, "add", "Winter Pack", "--when", "winter")
+        assert rc == 0, out
+        rc, out = run(d, "event", "xmas", "12-24", "12-26")
+        assert rc == 0, out
+        assert config(d).count("TOGGLE_MODS") == 1 and config(d).count("EVENTS") == 1, config(d)
+        accepted(d)
+    return "one TOGGLE_MODS and one EVENTS, both edited in place"
+
+
+@case
+def t_comments_the_user_wrote_are_kept():
+    text = """LAYOUT = {}
+TOGGLE_MODS = {
+    "Winter Pack": {"when": ("winter",), "above": "Grass Compat"},
+    # the maps and the overlay both come from the same author; keep them together
+    "Map Pack": {"when": ("summer",), "above": "Base Grass"},
+}
+SOUND_SRC = None
+PERIODS = {}
+EVENTS = {}  # none yet
+LATER = {
+}
+"""
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config=text.replace("LATER = {\n}\n", ""))
+        rc, out = run(d, "remove", "Map Pack")
+        assert rc == 0, out
+        assert "# the maps and the overlay" in config(d), "the comment above it went too"
+        rc, out = run(d, "event", "xmas", "12-24")
+        assert rc == 0 and "EVENTS = {  # none yet" in config(d), config(d)
+        accepted(d)
+    empty = PLAIN.replace("TOGGLE_MODS = {}", 'TOGGLE_MODS = {\n    # "Winter Maps": off until the patch\n}')
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config=empty)
+        rc, out = run(d, "add", "Winter Pack", "--when", "winter")
+        assert rc == 0 and "# \"Winter Maps\": off until the patch" in config(d), config(d)
+        accepted(d)
+    return "a note above a removed entry, a note on an empty table, a commented-out entry"
+
+
+@case
+def t_odd_but_valid_layouts_are_edited():
+    comma = PLAIN.replace("TOGGLE_MODS = {}", """TOGGLE_MODS = {
+    "Winter Pack": {"when": ("winter",), "above": "Grass Compat"}
+    ,
+    "Map Pack": {"when": ("summer",), "above": "Base Grass"},
+}""")
+    for text in (comma, PLAIN.replace("\n", "\r"), comma.replace("\n", "\r")):
+        with tempfile.TemporaryDirectory() as d:
+            install(d)
+            raw_config(d, text.encode("utf-8"))
+            rc, out = run(d, "add", "Lonely Mod", "--when", "spring")
+            assert rc == 0, "%r:\n%s" % (text[:60], out)
+            accepted(d)
+    return "a comma on its own line, and old Mac line ends"
+
+
+@case
+def t_a_broken_event_is_kept_until_it_is_fixed():
+    text = PLAIN.replace("EVENTS = {}", 'EVENTS = {"fest": ((12, 24),)}')
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config=text)
+        rc, out = run(d, "add", "Winter Pack", "--when", "winter")
+        assert rc == 1 and "EVENTS['fest']" in out and config(d) == text, out
+        rc, out = run(d, "event", "fest", "--remove")
+        assert rc == 0 and "fest" not in config(d), out
+        rc, out = run(d, "add", "Winter Pack", "--when", "winter")
+        assert rc == 0, out
+    return "refused while it is there, not deleted behind your back; removable by name"
+
+
+@case
+def t_a_change_on_disk_is_not_written_over():
+    sys.path.insert(0, HERE)
+    import config_edit as ce
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "seasons_config.py")
+        io.open(path, "w", encoding="utf-8").write(PLAIN)
+        cal = ce.Calendar(path)
+        io.open(path, "a", encoding="utf-8").write("# edited by hand meanwhile\n")
+        cal.events["xmas"] = ((12, 24), (12, 26))
+        saved, lines = cal.save()
+        assert not saved and "changed since it was read" in lines[0], lines
+        assert io.open(path, encoding="utf-8").read().endswith("meanwhile\n")
+        os.remove(path)
+        saved, lines = cal.save()
+        assert not saved and "changed since it was read" in lines[0], lines
+    return "an edit made meanwhile, and a file deleted meanwhile: nothing written"
+
+
+@case
+def t_backups_the_tool_points_to_are_not_overwritten():
+    sys.path.insert(0, HERE)
+    import config_edit as ce
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "seasons_config.py")
+        io.open(path, "w", encoding="utf-8").write("TOGGLE_MODS = {,}\n")
+        cal = ce.Calendar(path)
+        kept = cal.start_over()
+        cal.events["xmas"] = ((12, 24), (12, 26))
+        assert cal.save()[0]
+        cal.events["easter"] = ((4, 5), (4, 5))
+        assert cal.save()[0]
+        assert io.open(os.path.join(d, kept), encoding="utf-8").read() == "TOGGLE_MODS = {,}\n"
+        # a save that can't keep a comment keeps a copy of its own
+        io.open(path, "w", encoding="utf-8").write(
+            PLAIN.replace("EVENTS = {}", "EVENTS = {\"a\": ((1, 1), (1, 2)),  # note\n"
+                                         "          \"b\": ((2, 1), (2, 2))}"))
+        cal = ce.Calendar(path)
+        cal.events["c"] = ((3, 1), (3, 2))
+        saved, lines = cal.save()
+        name = [l for l in lines if "has them" in l][0].split(";")[1].split()[0]
+        assert "# note" in io.open(os.path.join(d, name), encoding="utf-8").read(), lines
+        cal.events["d"] = ((4, 1), (4, 2))
+        assert cal.save()[0]
+        assert "# note" in io.open(os.path.join(d, name), encoding="utf-8").read()
+    return "the unreadable file and the one with the lost comment both survive later saves"
+
+
+@case
+def t_a_read_only_config_is_a_message():
+    import stat
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config=PLAIN)
+        path = os.path.join(d, "_tools", "seasons_config.py")
+        os.chmod(path, stat.S_IREAD)
+        try:
+            rc, out = run(d, "add", "Winter Pack", "--when", "winter")
+            assert rc == 1 and "read-only" in out, out
+            assert not os.path.exists(path + ".bak"), "wrote a .bak for a save that failed"
+        finally:
+            os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
+    return "refused before anything is written"
+
+
+@case
+def t_the_calendar_command_refuses_contradictions():
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        with_mod(d)
+        for args, says in ((["summer=5-1", "--off", "summer"], "both moved and turned off"),
+                           (["--on", "summer", "--off", "summer"], "both turned on and turned off"),
+                           (["summer=5-1", "summer=6-1"], "given twice"),
+                           (["--reset", "--preset", "met"], "give one"),
+                           (["--preset", "met", "--only", "summer=5-1"], "give one")):
+            rc, out = run(d, "calendar", *args)
+            assert rc == 1 and says in out, "%s:\n%s" % (args, out)
+        # a move written after --off is still a move
+        rc, out = run(d, "calendar", "--off", "late_winter", "summer=5-2")
+        assert rc == 0 and calendar_of(d).get("summer") == (5, 2), out
+    return "five contradictions refused; a move after --off still counts"
+
+
+@case
+def t_a_broken_calendar_is_mended_from_its_own_dates():
+    text = PLAIN + 'CALENDAR = {"summer": (5, 1), "winter": (5, 5)}  # oops, meant 11-5\n'
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config=text)
+        with_mod(d)
+        rc, out = run(d, "add", "Winter Pack", "--when", "winter")
+        assert rc == 1 and "would last 4 days" in out and config(d) == text, out
+        rc, out = run(d, "calendar", "winter=11-5")
+        assert rc == 0 and calendar_of(d) == {"summer": (5, 1), "winter": (11, 5)}, out
+    return "not reset to Polesia's: summer May 1 stays, winter moves"
+
+
+@case
+def t_events_that_repeat_from_the_command_line():
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        for args in (["weekend", "--weekdays", "weekends"],
+                     ["payday", "--days", "1", "15", "last"],
+                     ["first_monday", "--weekdays", "monday", "--weeks", "first",
+                      "--months", "dec", "jan"],
+                     ["xmas_weekends", "--weekdays", "sat", "sun", "--between", "12-20",
+                      "01-06"]):
+            rc, out = run(d, "event", *args)
+            assert rc == 0, out
+        _, e = table(d)
+        assert e == {"weekend": {"weekdays": ("sat", "sun")},
+                     "payday": {"days": (1, 15, -1)},
+                     "first_monday": {"weekdays": ("mon",), "weeks": (1,), "months": (12, 1)},
+                     "xmas_weekends": {"weekdays": ("sat", "sun"),
+                                       "within": ((12, 20), (1, 6))}}, e
+        rc, out = run(d, "add", "Map Pack", "--when", "weekend")
+        assert rc == 0, out
+        accepted(d)
+        for args, says in ((["fall", "10-1"], "another name for one"),
+                           (["freezing", "1-1"], "a kind of weather"),
+                           (["x", "--weeks", "first"], "'weeks' needs 'weekdays'"),
+                           (["x", "--days", "31", "--months", "feb"], "never happens"),
+                           (["x", "12-24", "--weekdays", "sat"], "--between"),
+                           (["x", "--weekdays", "funday"], "days of the week")):
+            rc, out = run(d, "event", *args)
+            assert rc == 1 and says in out, "%s:\n%s" % (args, out)
+    return "four rules saved as written; six mistakes refused"
+
+
+@case
+def t_seasons_can_be_named():
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        game, tex = with_mod(d)
+        rc, out = run(d, "name", "deep winter", "The Long Cold")
+        assert rc == 0 and "drawn for your calendar" in out, out
+        ns = {}
+        exec(config(d), ns)
+        assert ns["NAMES"] == {"winter_snow": "The Long Cold"}, ns.get("NAMES")
+        assert "name_winter_snow = The Long Cold" in io.open(game, encoding="cp1251").read()
+        for args, says in ((["summer", "x" * 21], "21 characters"),
+                           (["summer", "Winter"], "would both be called"),
+                           (["summr", "Hot"], "not a season")):
+            rc, out = run(d, "name", *args)
+            assert rc == 1 and says in out, "%s:\n%s" % (args, out)
+        rc, out = run(d, "name", "deep winter", "--reset")
+        assert rc == 0 and "NAMES = None" in config(d), out
+        assert "custom = false" in io.open(game, encoding="cp1251").read()
+        assert drawn(tex) == 0
+    return "named, drawn and handed on; three bad names refused; reset clears it all"
+
+
+@case
+def t_presets_save_and_load():
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        with_mod(d)
+        run(d, "event", "weekend", "--weekdays", "weekends")
+        run(d, "add", "Winter Pack", "--when", "winter", "weekend")
+        run(d, "add", "Lonely Mod", "--when", "spring")
+        run(d, "calendar", "summer=5-1", "--off", "late_winter")
+        run(d, "name", "deep winter", "The Long Cold")
+        rc, out = run(d, "preset", "save", "Mine", "--about", "a test")
+        assert rc == 0 and "calendar and season names, events and periods, mods on the " \
+            "calendar" in out and "texture" not in out, out
+        preset = open(os.path.join(d, "_tools", "presets", "Mine.json"), encoding="utf-8").read()
+        # another install: Lonely Mod is not there, and Grass Compat - Winter Pack's anchor -
+        # is not either
+        other = [m for m in MODS if m[0] not in ("Lonely Mod", "Grass Compat")]
+        with tempfile.TemporaryDirectory() as e:
+            install(e, mods=other)
+            with_mod(e)
+            os.makedirs(os.path.join(e, "_tools", "presets"))
+            io.open(os.path.join(e, "_tools", "presets", "Mine.json"), "w",
+                    encoding="utf-8").write(preset)
+            rc, out = run(e, "preset", "load", "mine")
+            assert rc == 0, out
+            assert "not installed here, left out: Lonely Mod" in out, out
+            assert "Winter Pack (now above" in out, out
+            t, ev = table(e)
+            assert set(t) == {"Winter Pack"} and t["Winter Pack"]["above"] != "Grass Compat", t
+            assert ev == {"weekend": {"weekdays": ("sat", "sun")}}, ev
+            assert calendar_of(e)["summer"] == (5, 1) and "late_winter" not in calendar_of(e)
+            accepted(e)
+            # only the calendar, from the same preset, into a fresh file
+            os.remove(os.path.join(e, "_tools", "seasons_config.py"))
+            rc, out = run(e, "preset", "load", "Mine", "--parts", "calendar")
+            assert rc == 0 and table(e) == ({}, {}), out
+        # a preset that would break the config is refused whole
+        bad = os.path.join(d, "_tools", "presets", "Bad.json")
+        io.open(bad, "w", encoding="utf-8").write(
+            '{"seasons_of_the_zone_preset": 1, "calendar": {"summer": [5, 1], "winter": [5, 5]}}')
+        rc, out = run(d, "preset", "load", "Bad")
+        assert rc == 1 and "can't be used" in out and "4 days" in out, out
+        shipped = os.path.join(d, "_tools", "presets", "Shipped.json")
+        io.open(shipped, "w", encoding="utf-8").write(
+            '{"seasons_of_the_zone_preset": 1, "shipped": true, "calendar": null}')
+        rc, out = run(d, "preset", "save", "shipped", "--force")
+        assert rc == 1 and "comes with the tool" in out, out
+    return "saved with its parts; loaded elsewhere, missing mods left out and re-anchored"
+
+
+@case
+def t_the_window_names_seasons_and_holds_bad_days():
+    driver = r"""
+import sys
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+import config_edit as ce
+import configure
+root = tk.Tk()
+root.withdraw()
+cal, inst = ce.Calendar(), ce.Install()
+app = configure.App(root, cal, inst)
+app.srows["winter_snow"][7].set("The Long Cold")
+app.names_edited()
+app.srows["summer"][2].set("1_0")
+app.dates_edited()
+print("refused", app.save(quiet=True), app.bad_dates)
+app.srows["summer"][2].set("20")
+app.dates_edited()
+app.add_event("weekend", spec={"weekdays": ("sat", "sun")})
+print("saved", app.save(quiet=True))
+print("names", cal.names)
+root.destroy()
+"""
+    with tempfile.TemporaryDirectory() as d:
+        mods = MODS + [("Map Pack", True, [])]          # MO2 lists Map Pack twice
+        install(d, mods=mods)
+        with_mod(d)
+        p = os.path.join(d, "drive.py")
+        io.open(p, "w", encoding="utf-8").write(driver)
+        r = subprocess.run([sys.executable, "-B", p, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True)
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "refused False ['Summer']" in out, out
+        assert "saved True" in out and "{'winter_snow': 'The Long Cold'}" in out, out
+        ns = {}
+        exec(config(d), ns)
+        assert ns["NAMES"] == {"winter_snow": "The Long Cold"}, ns.get("NAMES")
+        assert ns["EVENTS"] == {"weekend": {"weekdays": ("sat", "sun")}}, ns["EVENTS"]
+        accepted(d)
+    return "a name, a rule event, and a day box that holds 1_0 refused"
+
+
 @case
 def t_a_real_config_comes_back_unchanged():
     """The live install's config, loaded and written back with nothing changed."""
@@ -552,7 +933,9 @@ def t_a_real_config_comes_back_unchanged():
     cal = ce.Calendar(live)
     assert not cal.error and not cal.dirty(), (cal.error, cal.fixes)
     text, kept = cal.render()
-    assert kept and text.replace("\n", cal.nl) == cal.original, "a no-op save changes it"
+    data = ((b"\xef\xbb\xbf" if cal.bom else b"")
+            + text.replace("\n", cal.nl).encode(cal.encoding))
+    assert kept and data == cal.original, "a no-op save changes it"
     return "%d entries, byte for byte" % len(cal.toggle)
 
 

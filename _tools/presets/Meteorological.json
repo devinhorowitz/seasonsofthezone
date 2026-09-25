@@ -1,0 +1,14 @@
+{
+  "seasons_of_the_zone_preset": 1,
+  "shipped": true,
+  "about": "Ukraine's meteorological seasons: each starts on the first of a month.",
+  "calendar": {
+    "winter_snow": [12, 1],
+    "late_winter": [3, 1],
+    "spring": [4, 1],
+    "summer": [6, 1],
+    "autumn": [9, 1],
+    "winter": [11, 1]
+  },
+  "names": {}
+}

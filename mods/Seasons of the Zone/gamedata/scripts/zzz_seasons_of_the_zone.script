@@ -35,7 +35,7 @@ local BOUNDS = {
     {m = 11, d = 1,  season = "winter"},       -- 30d,  first snowfall, bare ground
     {m = 12, d = 1,  season = "winter_snow"},  -- 94d,  cover (wraps the year end)
 }
--- A player's own calendar (configure.bat) replaces these; see load_calendar() below.
+-- A player's own calendar (configure.bat) replaces these; see read_calendar() below.
 
 -- The six seasons in the order MCM lists them
 local SEASON_KEYS = {"spring", "summer", "autumn", "winter", "winter_snow", "late_winter"}
@@ -120,9 +120,17 @@ end
 
 -- config keys are not for the player
 local DISPLAY = {winter_snow = "deep winter", late_winter = "late winter"}
+-- names of the player's own, from configure.bat; filled from season_calendar.ltx below
+local NAMES = {}
 
 local function name_of(s)
-    return DISPLAY[s] or tostring(s)
+    return NAMES[s] or DISPLAY[s] or tostring(s)
+end
+
+-- The player's own name for a season, or nil: MCM titles a page with it, and falls back
+-- to its own string for the usual name.
+function season_name(s)
+    return NAMES[s]
 end
 
 local function cap(s)
@@ -223,25 +231,62 @@ end
 
 -- --- the player's calendar -----------------------------------------------------------
 --
--- configure.bat can move the season starts and turn seasons off. play.bat writes the
--- result to season_calendar.ltx at every launch, with a dial redrawn for those dates when
--- it could draw one. With no file, custom = false, or a date that does not read, the
--- Polesia dates above stay.
+-- configure.bat can move the season starts and turn seasons off. play.bat, and saving in
+-- the tool, write the result to season_calendar.ltx, with a dial drawn for those dates
+-- when one could be drawn. With no file, custom = false, or anything that does not read
+-- cleanly, the Polesia dates above stay.
 local DIAL = "default"      -- "custom": redrawn for the player's dates; "none": no dial
+local DIAL_YEAR = 2026      -- the year the dials are drawn for: no Feb 29
 local MONTH_LEN = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+local MIN_SEASON_DAYS = 14  -- as season.py holds it: shorter has no dial position of its own
+local NAME_CHARS = 20       -- the longest name season.py lets through
 
--- The starts in date order and the dial to use, or nil for Polesia's
+-- {key = value} from the file's [calendar] section, keys lower-cased; nil with no file.
+-- Read here rather than through ini_file(), because the engine asserts on a malformed
+-- section line, and a typo in this one file must not stop the game loading.
+local function calendar_file()
+    local fs = getFS()
+    if not fs:exist("$game_config$", "season_calendar.ltx") then return nil end
+    local f = io.open(fs:update_path("$game_config$", "season_calendar.ltx"), "r")
+    if not f then return nil end
+    local src = f:read("*a") or ""
+    f:close()
+    local kv, section = {}, nil
+    for raw in src:gmatch("[^\r\n]+") do
+        local line = raw:gsub(";.*$", ""):match("^%s*(.-)%s*$")
+        local sec = line:match("^%[%s*([%w_]+)%s*%]$")
+        if sec then
+            section = sec:lower()
+        elseif section == "calendar" then
+            local k, v = line:match("^([%w_]+)%s*=%s*(.-)$")
+            if k then kv[k:lower()] = v end
+        end
+    end
+    return kv
+end
+
+-- The starts in date order and the dial to use, or nil for Polesia's. Held to the same
+-- rules season.py writes it by, since the file can be edited by hand.
 local function read_calendar()
-    local ini = ini_file("season_calendar.ltx")
-    if not (ini and ini:section_exist("calendar")) then return nil end
-    if ini:r_string_ex("calendar", "custom") ~= "true" then return nil end
+    local kv = calendar_file()
+    if not kv then return nil end
+    local custom = (kv.custom or ""):lower()
+    if custom ~= "true" then
+        if custom ~= "false" then
+            say("!season_calendar.ltx: custom = " .. tostring(kv.custom) .. " is neither "
+                .. "true nor false - keeping the Polesia calendar")
+        end
+        return nil
+    end
+    local known = {custom = true, dial = true, dial_sig = true}
     local out, seen = {}, {}
     for _, s in ipairs(SEASON_KEYS) do
-        if ini:line_exist("calendar", s) then
-            local t = nums(ini:r_string_ex("calendar", s))
+        known[s] = true
+        if kv[s] then
+            local t = nums(kv[s])
             local m, d = t[1], t[2]
-            if not (m and d and MONTH_LEN[m] and d >= 1 and d <= MONTH_LEN[m])
-               or seen[m * 100 + d] then
+            if not (#t == 2 and m == math.floor(m) and d == math.floor(d) and MONTH_LEN[m]
+                    and d >= 1 and d <= MONTH_LEN[m]) or seen[m * 100 + d] then
                 say("!season_calendar.ltx: " .. s .. " has no usable start date - "
                     .. "keeping the Polesia calendar")
                 return nil
@@ -250,18 +295,53 @@ local function read_calendar()
             out[#out + 1] = {m = m, d = d, season = s}
         end
     end
-    if #out == 0 then return nil end
+    -- the player's own names; the file is cp1251, a byte a letter
+    local names = {}
+    for _, s in ipairs(SEASON_KEYS) do
+        known["name_" .. s] = true
+        local v = kv["name_" .. s]
+        if v and v ~= "" then
+            if #v > NAME_CHARS then
+                say("!season_calendar.ltx: the name for " .. s .. " is longer than "
+                    .. NAME_CHARS .. " letters - using the usual one")
+            else
+                names[s] = v
+            end
+        end
+    end
+    for k in pairs(kv) do
+        if not known[k] then say("!season_calendar.ltx: ignoring '" .. k .. "'") end
+    end
+    if #out == 0 then
+        say("!season_calendar.ltx: no season is on - keeping the Polesia calendar")
+        return nil
+    end
     table.sort(out, function(a, b) return a.m * 100 + a.d < b.m * 100 + b.d end)
-    return out, ini:r_string_ex("calendar", "dial") == "custom" and "custom" or "none"
+    for i, b in ipairs(out) do
+        local nxt = out[i % #out + 1]
+        local len = (doy_of(nxt.m, nxt.d, DIAL_YEAR) - doy_of(b.m, b.d, DIAL_YEAR)) % 365
+        if #out > 1 and len < MIN_SEASON_DAYS then
+            say("!season_calendar.ltx: " .. b.season .. " would last " .. len .. " days - "
+                .. "keeping the Polesia calendar")
+            return nil
+        end
+    end
+    local dial = (kv.dial or ""):lower() == "custom" and "custom" or "none"
+    if dial == "custom" and not getFS():exist("$game_textures$",
+                                               string.format("ui_seasons_dial_c%02d.dds", 0)) then
+        say("!season_calendar.ltx: the dial drawn for it is missing - run play.bat to draw it")
+        dial = "none"
+    end
+    return out, dial, names
 end
 
 -- at load, and never fatal: a file that cannot be read leaves Polesia's calendar running
-local ok_cal, cal_bounds, cal_dial = pcall(read_calendar)
+local ok_cal, cal_bounds, cal_dial, cal_names = pcall(read_calendar)
 if not ok_cal then
     say("!season_calendar.ltx could not be read (" .. tostring(cal_bounds)
         .. ") - keeping the Polesia calendar")
 elseif cal_bounds then
-    BOUNDS, DIAL = cal_bounds, cal_dial
+    BOUNDS, DIAL, NAMES = cal_bounds, cal_dial, cal_names
 end
 
 local function is_on(s)
@@ -495,6 +575,11 @@ end
 
 -- Which seasons are we between, and how far across? Returns from, to, k (0..1).
 -- Away from a boundary from == to and k == 1, so callers need no special case.
+--
+-- Each half of a window is at most half the season on that side. A calendar of the
+-- player's own can have a 14-day season, and a 30-day window around each of its ends
+-- would overlap: the first boundary listed won, the blend jumped by half a season in a
+-- day, and on a season's first day the weight could sit with the one two back.
 local function resolve(blend_days)
     local now  = os.date("*t")
     local year = now.year
@@ -502,11 +587,17 @@ local function resolve(blend_days)
     local len  = doy_of(12, 31, year)
 
     if blend_days > 0 then
+        local n = #BOUNDS
         for i, b in ipairs(BOUNDS) do
-            local d = circ(doy - doy_of(b.m, b.d, year), len)
-            if d >= -blend_days * 0.5 and d <= blend_days * 0.5 then
-                local prev = BOUNDS[(i - 2) % #BOUNDS + 1].season
-                return prev, b.season, (d + blend_days * 0.5) / blend_days
+            local prev, nxt = BOUNDS[(i - 2) % n + 1], BOUNDS[i % n + 1]
+            local at = doy_of(b.m, b.d, year)
+            local before = (at - doy_of(prev.m, prev.d, year)) % len
+            local after  = (doy_of(nxt.m, nxt.d, year) - at) % len
+            if n == 1 then before, after = len, len end
+            local half = math.min(blend_days * 0.5, before * 0.5, after * 0.5)
+            local d = circ(doy - at, len)
+            if half > 0 and d >= -half and d <= half then
+                return prev.season, b.season, (d + half) / (2 * half)
             end
         end
     end
@@ -584,7 +675,6 @@ end
 -- Pre-rendered dials, ~11 days apart, drawn for DIAL_YEAR's dates by
 -- _tools/build_season_dial.py. The date itself is live text above the dial.
 DIAL_POSITIONS = 32
-local DIAL_YEAR = 2026
 
 -- which season a day-of-year falls in, ignoring blending
 local function season_at(doy, year)
@@ -848,6 +938,9 @@ local function pda_announce()
             if nxt == to then
                 -- a calendar with one season on: it never gives way
                 msg = string.format("%s in the Zone. %s.", cap(to), date)
+            elseif d == 1 then
+                msg = string.format("%s in the Zone. %s. %s begins tomorrow.",
+                                    cap(to), date, cap(nxt))
             else
                 msg = string.format("%s in the Zone. %s. %s begins in %s days.",
                                     cap(to), date, cap(nxt), tostring(d))
@@ -1383,16 +1476,23 @@ local function actor_on_first_update()
     apply(true)
 
     -- The staged textures and the running season can disagree (a pinned season, or a
-    -- launch without staging). Say so.
+    -- launch without staging). Say so. season.py stages by the date, so that is what they
+    -- are compared with: in the days before a turn the blend is already moving towards the
+    -- next season, and comparing with that warned before every turn. A period of the
+    -- player's own is staged under its own name, which no season here matches.
     local staged = ini_file("season_staged.ltx")
     if staged and staged:section_exist("staged") then
         local s = staged:r_string_ex("staged", "season")
         local on = (staged:r_string_ex("staged", "staging") or "on") ~= "off"
-        local from, to = resolve(mcm("blend_days", 14))
         local mode = pinned()
-        local running = (mode ~= "auto") and mode or to
+        local running = (mode ~= "auto") and mode
+                        or season_at(tonumber(os.date("%j")), os.date("*t").year)
+        local a_season = false
+        for _, k in ipairs(SEASON_KEYS) do
+            if k == s then a_season = true end
+        end
         -- with the texture layer off they are meant to disagree
-        if on and s and s ~= "unknown" and s ~= running then
+        if on and a_season and s ~= running then
             say("!TEXTURES ARE STAGED FOR " .. string.upper(s) .. " but the season running is "
                 .. string.upper(running) .. " - terrain will not match the light.")
             say(" run  _tools/season.py apply  (or play.bat) and relaunch to line them up")

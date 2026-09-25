@@ -3,7 +3,8 @@
 Two surfaces. **MCM → Seasons of the Zone** is where the mod is configured: seven pages in
 MCM's second column, Main and then one per season — Spring, Summer, Autumn, Winter, Deep
 winter, Late winter. A calendar of your own, from `configure.bat`, leaves out the pages
-of the seasons it turns off. The **Seasons** app in the PDA is where it is read: one app with two faces, **The
+of the seasons it turns off, and names of your own for the seasons title the pages and
+fill the Season list. The **Seasons** app in the PDA is where it is read: one app with two faces, **The
 Year** and **Forecast**. There is no HUD element, no pop-up and no key binding.
 
 ---

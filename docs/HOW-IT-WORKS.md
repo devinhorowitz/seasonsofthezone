@@ -33,6 +33,10 @@ Each boundary has a window centered on it, 14 days by default. Inside the window
 seasons' values are mixed linearly: 7 days before the boundary is 0% of the new season,
 the boundary is 50%, 7 days after is 100%. A transition of 0 switches on the date.
 
+Each half of a window is at most half the season on that side. A calendar of your own can
+have a two-week season, and a 30-day window at each end of it would overlap the next: the
+blend would jump, and a season's first day could belong to the one two back.
+
 `intensity` then mixes the result with a `[neutral]` section holding GAMMA's stock
 values: 0 is stock, 1 the full season.
 

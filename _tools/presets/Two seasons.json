@@ -1,0 +1,10 @@
+{
+  "seasons_of_the_zone_preset": 1,
+  "shipped": true,
+  "about": "Summer from May 1 and deep winter from November 15, nothing between.",
+  "calendar": {
+    "summer": [5, 1],
+    "winter_snow": [11, 15]
+  },
+  "names": {}
+}

@@ -40,7 +40,9 @@ import shutil
 import subprocess
 import sys
 import time
+import tokenize
 import traceback
+import types
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -92,7 +94,8 @@ def profile_name():
 
 APPDATA = os.path.join(game_dir(), "appdata")
 
-CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS", "CALENDAR")
+CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS", "CALENDAR",
+                "NAMES")
 
 
 def _config_error(e):
@@ -114,6 +117,8 @@ def _config_error(e):
         text = frames[-1].line if frames else None
         col = None
         what = "%s: %s" % (type(e).__name__, e)
+        if isinstance(e, (SystemExit, KeyboardInterrupt)):
+            what = "it stops the program (%s) - take that out" % type(e).__name__
         if isinstance(e, NameError):
             what = "%s. Names go in quotes: \"%s\"" % (
                 e, getattr(e, "name", None) or "winter")
@@ -130,14 +135,57 @@ def _config_error(e):
 # Install-specific configuration lives in seasons_config.py. Missing or empty is fine:
 # the in-engine layer runs with nothing staged. A file Python cannot run is held here and
 # reported by _validate_config(), so whowins still works while it is being fixed.
-_cfg, CONFIG_ERROR = None, None
-try:
-    import seasons_config as _cfg
-except ModuleNotFoundError as e:
-    if e.name != "seasons_config":
-        CONFIG_ERROR = _config_error(e)
-except Exception as e:
-    CONFIG_ERROR = _config_error(e)
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seasons_config.py")
+SAVE_AS_UTF8 = "Save it as UTF-8: in Notepad, File, Save as, Encoding: UTF-8."
+
+
+def read_config_text(path=CONFIG_PATH):
+    """A config's text, decoded the way Python decodes source: a BOM or a coding line
+    decides, and UTF-8 otherwise. Raises UnicodeDecodeError for a file that is neither."""
+    with tokenize.open(path) as f:
+        return f.read()
+
+
+def _load_config(path=CONFIG_PATH):
+    """seasons_config.py, run from its text every time: (module or None, error lines).
+
+    Not imported. An import goes through Python's bytecode cache, which trusts a cached
+    copy whose source has the same size and the same whole-second time: configure.py can
+    save twice in one second, and the tables it saved first then ran on."""
+    if not os.path.isfile(path):
+        return None, None
+    try:
+        head = io.open(path, "rb").read(2)
+    except OSError as e:
+        return None, ["seasons_config.py can't be read: %s" % e]
+    if head in (b"\xff\xfe", b"\xfe\xff"):
+        return None, ["seasons_config.py is saved as UTF-16 (\"Unicode\" in Notepad). "
+                      + SAVE_AS_UTF8]
+    mod = types.ModuleType("seasons_config")
+    mod.__file__ = path
+    try:
+        text = read_config_text(path)
+    except (UnicodeDecodeError, SyntaxError) as e:
+        return None, [encoding_problem(e)]
+    try:
+        exec(compile(text, path, "exec"), mod.__dict__)
+    except (Exception, SystemExit, KeyboardInterrupt) as e:
+        return None, _config_error(e)
+    return mod, None
+
+
+def encoding_problem(e):
+    """What to say when a config's bytes do not decode. Python's tokenizer raises a
+    SyntaxError, not a decode error, for bytes that are not UTF-8 in the first two lines."""
+    if isinstance(e, SyntaxError) and "unknown encoding" in str(e):
+        return ("seasons_config.py's coding line names an encoding Python does not know. "
+                "Take the line out and " + SAVE_AS_UTF8[0].lower() + SAVE_AS_UTF8[1:])
+    where = (" (byte 0x%02X, %d bytes in)" % (e.object[e.start], e.start)
+             if isinstance(e, UnicodeDecodeError) else "")
+    return "seasons_config.py is not saved as UTF-8%s. %s" % (where, SAVE_AS_UTF8)
+
+
+_cfg, CONFIG_ERROR = _load_config()
 LAYOUT = getattr(_cfg, "LAYOUT", {})
 TOGGLE_MODS = getattr(_cfg, "TOGGLE_MODS", {})
 SOUND_SRC = getattr(_cfg, "SOUND_SRC", None)
@@ -148,6 +196,9 @@ PERIODS = getattr(_cfg, "PERIODS", {})
 EVENTS = getattr(_cfg, "EVENTS", {})
 # The seasons that are on and the day each starts. None is Polesia's dates (PHENO).
 CALENDAR = getattr(_cfg, "CALENDAR", None)
+# Names of the player's own for the seasons, {season: name}, shown in game in place of
+# "Spring" or "Deep winter". The config keeps the season keys either way.
+NAMES = getattr(_cfg, "NAMES", None)
 
 
 def _set_twice(text=None):
@@ -159,24 +210,54 @@ def _set_twice(text=None):
         if not path:
             return []
         try:
-            text = io.open(path, encoding="utf-8-sig").read()
-        except OSError:
+            text = read_config_text(path)
+        except (OSError, SyntaxError, UnicodeDecodeError):
             return []
     try:
         tree = ast.parse(text)
     except Exception:
         return []
+
+    def names(t):
+        if isinstance(t, ast.Name):
+            return [t.id]
+        if isinstance(t, (ast.Tuple, ast.List)):
+            return [n for e in t.elts for n in names(e)]
+        if isinstance(t, ast.Starred):
+            return names(t.value)
+        return []
+
+    # Anywhere in the file, not only at the top: an `if` or a tuple assignment replaces a
+    # table just as well. A bare annotation (`CALENDAR: dict`) assigns nothing.
+    nodes = sorted((n for n in ast.walk(tree)
+                    if isinstance(n, (ast.Assign, ast.AnnAssign, ast.NamedExpr))),
+                   key=lambda n: (n.lineno, n.col_offset))
     first, out = {}, []
-    for node in tree.body:
-        targets = (node.targets if isinstance(node, ast.Assign)
-                   else [node.target] if isinstance(node, ast.AnnAssign) else [])
-        for t in targets:
-            if isinstance(t, ast.Name) and t.id in CONFIG_NAMES:
-                if t.id in first:
-                    out.append("line %d sets %s again, which throws away the one on line %d."
-                               " Keep one." % (node.lineno, t.id, first[t.id]))
-                else:
-                    first[t.id] = node.lineno
+    for node in nodes:
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target] if node.value is not None else []
+        else:
+            targets = [node.target]
+        set_here = [n for t in targets for n in names(t) if n in CONFIG_NAMES]
+        for var in set_here:
+            if var in first:
+                out.append("line %d sets %s again, which throws away the one on line %d."
+                           " Keep one." % (node.lineno, var, first[var]))
+            else:
+                first[var] = node.lineno
+        # the same entry twice in one table: Python keeps the second without a word
+        if set_here and isinstance(node.value, ast.Dict):
+            seen = {}
+            for k in node.value.keys:
+                if isinstance(k, ast.Constant) and not isinstance(k.value, bool):
+                    if k.value in seen:
+                        out.append("%s lists %r twice, on lines %d and %d; Python keeps the "
+                                   "second. Keep one." % (set_here[0], k.value, seen[k.value],
+                                                         k.lineno))
+                    else:
+                        seen[k.value] = k.lineno
     return out
 
 
@@ -191,41 +272,141 @@ def _validate_config():
                          + "".join("\n        " + l for l in CONFIG_ERROR[1:])
                          + "\n  Nothing has been changed.")
     problems = _set_twice() + config_problems(TOGGLE_MODS, LAYOUT, SOUND_SRC, PERIODS, EVENTS,
-                                              CALENDAR)
+                                              CALENDAR, NAMES)
     if problems:
         raise SystemExit("  seasons_config.py needs fixing before anything runs:\n"
                          + "\n".join("    - " + p for p in problems)
                          + "\n  Nothing has been changed.")
 
 
-def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=None):
+# What weather_flags() can assert about a day; a mod can be scoped to these as well
+WEATHER_NAMES = ("freezing", "thaw", "heat")
+NAME_CHARS = 20             # the longest season name the dial and the pages have room for
+
+
+def _is_day(md, leap=False):
+    """Is md a (month, day) of whole numbers naming a day of the year? February 29 only
+    with `leap`. Strings, floats and bools are not days, however they print."""
+    if not isinstance(md, (tuple, list)) or len(md) != 2:
+        return False
+    m, d = md
+    if not all(isinstance(x, int) and not isinstance(x, bool) for x in (m, d)):
+        return False
+    return 1 <= m <= 12 and 1 <= d <= (29 if (m == 2 and leap) else MONTH_DAYS[m - 1])
+
+
+def _folder_problem(name):
+    """Why `name` cannot be a mod folder as MO2 lists it, or None."""
+    if not isinstance(name, str) or not name.strip():
+        return "is not a mod folder name"
+    if name != name.strip():
+        return "has spaces at its start or end, which a mod folder name cannot"
+    if name in (".", "..") or name.endswith(".") or any(c in name for c in '/\\:*?"<>|'):
+        return "is not a folder name MO2 could have"
+    return None
+
+
+def _own_folders():
+    """This mod's folders, and the soundscape it generates: never on the calendar."""
+    return set(sotz_copies() or [SOTZ]) | {SOTZ, SOUND_MOD}
+
+
+def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=None,
+                    names=None):
     """What is wrong with a set of config tables, one sentence per entry at fault. The
     configure tool checks a file with this before it writes one."""
     problems = []
-    known = [n for n, _, _ in PHENO] + list(periods or {}) + list(events or {})
-    valid = ", ".join(known)
-    TOGGLE_MODS, LAYOUT, SOUND_SRC = toggle_mods, layout, sound_src
+    for var, table, shape in (("PERIODS", periods, "{name: (month, day)}"),
+                              ("EVENTS", events, "{name: ((month, day), (month, day))}")):
+        if not isinstance(table, dict):
+            problems.append("%s must be a dict of %s, or {} for none" % (var, shape))
+    periods = periods if isinstance(periods, dict) else {}
+    events = events if isinstance(events, dict) else {}
 
-    if not isinstance(TOGGLE_MODS, dict):
+    # the names a mod can be scoped to
+    for var, table in (("PERIODS", periods), ("EVENTS", events)):
+        for name in table:
+            where = "%s[%r]" % (var, name)
+            if not isinstance(name, str) or not re.match(r"^[A-Za-z0-9_]+$", name):
+                problems.append(where + ": a name is letters, digits and underscores, like "
+                                "high_summer")
+            elif name in SEASONS:
+                problems.append(where + ": %s is already a season" % name)
+            elif name in WEATHER_NAMES:
+                problems.append(where + ": %s is already a kind of weather a mod can be "
+                                "scoped to" % name)
+    for name in sorted(set(periods) & set(events), key=str):
+        problems.append("%r is both a period and an event; rename one" % (name,))
+
+    # when periods start: never on a day a season or another period starts, or one of
+    # the two would never run
+    table = calendar if (isinstance(calendar, dict) and calendar
+                         and not calendar_problems(calendar)) else None
+    starts = {tuple(md): s for s, md in table.items()} if table else {
+        (m, d): s for s, m, d in PHENO}
+    for name, md in periods.items():
+        where = "PERIODS[%r]" % (name,)
+        if not _is_day(md, leap=True):
+            problems.append(where + " must be (month, day), like (7, 1)")
+        elif tuple(md) == (2, 29):
+            problems.append(where + " starts on February 29, which three years in four do "
+                            "not have. Use February 28 or March 1.")
+        elif tuple(md) in starts:
+            problems.append(where + " starts on %s, the same day as %s, so one of them would "
+                            "never run" % (_md(*md), season_label(starts[tuple(md)])))
+        else:
+            starts[tuple(md)] = name
+    for name, spec in events.items():
+        problems += event_problems(name, spec)
+
+    known = (list(SEASONS) + [n for n in periods if isinstance(n, str)]
+             + [n for n in events if isinstance(n, str)] + list(WEATHER_NAMES))
+    valid = ", ".join(known)
+    own = _own_folders()
+
+    if not isinstance(toggle_mods, dict):
         problems.append("TOGGLE_MODS must be a dict of {mod folder: {...}}")
     else:
-        for name, cfg in TOGGLE_MODS.items():
-            where = "TOGGLE_MODS[%r]" % name
-            if not isinstance(cfg, dict):
-                problems.append(where + " must be a dict with 'seasons' and 'above'")
+        for name, cfg in toggle_mods.items():
+            where = "TOGGLE_MODS[%r]" % (name,)
+            bad = _folder_problem(name)
+            if bad:
+                problems.append(where + ": the name " + bad)
                 continue
+            if name in own:
+                problems.append(where + ": that is %s itself, which has to stay on"
+                                % ("the soundscape season.py makes" if name == SOUND_MOD
+                                   else "Seasons of the Zone"))
+                continue
+            if not isinstance(cfg, dict):
+                problems.append(where + " must be a dict with 'when' and 'above'")
+                continue
+            if "when" in cfg and "seasons" in cfg:
+                problems.append(where + " has both 'when' and 'seasons', which are the same "
+                                "thing. Keep one.")
             raw_when = cfg.get("when", cfg.get("seasons"))
-            if isinstance(raw_when, str) and "," in raw_when:
+            if raw_when is None:
+                other = [k for k in cfg if k != "above"]
+                problems.append(where + " has no 'when'%s. It names the seasons the mod is "
+                                "on in, like \"when\": (\"winter\",)"
+                                % ((" (it has %s)" % ", ".join(repr(k) for k in other))
+                                   if other else ""))
+            elif isinstance(raw_when, str) and "," in raw_when:
                 # ("summer,spring") is one name with a comma in it, not two
                 parts = [p.strip() for p in raw_when.split(",") if p.strip()]
                 problems.append(where + ": 'when' is the single name \"%s\". Give each "
                                 "season its own quotes: (%s)"
                                 % (raw_when, ", ".join('"%s"' % p for p in parts)))
-            elif (isinstance(raw_when, str) or not isinstance(raw_when, (list, tuple))
-                    or not raw_when):
+            elif isinstance(raw_when, str):
                 problems.append(where + ": 'when' must be a tuple of period names - "
                                 "note the trailing comma in a one-element tuple, "
                                 "(\"winter\",) not (\"winter\")")
+            elif not isinstance(raw_when, (list, tuple)):
+                problems.append(where + ": 'when' must be a tuple of period names, like "
+                                "(\"winter\", \"winter_snow\")")
+            elif not raw_when:
+                problems.append(where + ": 'when' names no period, so the mod would never "
+                                "be on")
             else:
                 bad = [str(x) for x in raw_when if x not in known]
                 if bad:
@@ -236,35 +417,72 @@ def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=No
                 problems.append(where + ": 'above' must name the mod this one has to "
                                 "outrank (find it with: season.py whowins <a file it "
                                 "ships> --for \"%s\")" % name)
+            elif above == name:
+                problems.append(where + ": 'above' is the mod itself. Name the mod it has to "
+                                "outrank (season.py whowins <a file it ships> --for \"%s\")"
+                                % name)
+        # A above B and B above A: each launch would move one above the other, for ever
+        looped = set()
+        for start in toggle_mods:
+            chain, cur = [], start
+            while isinstance(cur, str) and cur in toggle_mods and cur not in chain:
+                chain.append(cur)
+                cfg = toggle_mods[cur]
+                cur = cfg.get("above") if isinstance(cfg, dict) else None
+            if cur in chain:
+                loop = chain[chain.index(cur):]
+                if len(loop) > 1 and frozenset(loop) not in looped:
+                    looped.add(frozenset(loop))
+                    problems.append("TOGGLE_MODS: %s are each set above the next, round in a "
+                                    "loop, so play.bat would move them at every launch. "
+                                    "Anchor one of them on another mod."
+                                    % " -> ".join(loop + [loop[0]]))
 
-    if not isinstance(LAYOUT, dict):
+    stageable = list(SEASONS) + [n for n in periods if isinstance(n, str)]
+    if not isinstance(layout, dict):
         problems.append("LAYOUT must be a dict of {mod folder: {...}}")
     else:
-        for name, cfg in LAYOUT.items():
-            where = "LAYOUT[%r]" % name
+        for name, cfg in layout.items():
+            where = "LAYOUT[%r]" % (name,)
+            bad = _folder_problem(name)
+            if bad:
+                problems.append(where + ": the name " + bad)
+                continue
             if not isinstance(cfg, dict):
                 problems.append(where + " must be a dict with 'archive' and 'options'")
                 continue
-            if not isinstance(cfg.get("archive"), str) or not cfg.get("archive"):
+            archive = cfg.get("archive")
+            if not isinstance(archive, str) or not archive:
                 problems.append(where + ": 'archive' must be a filename in downloads/")
+            elif not archive.lower().endswith((".7z", ".rar")):
+                problems.append(where + ": 'archive' must be a .7z or .rar - those are what "
+                                "season.py can open")
             opts = cfg.get("options")
             if not isinstance(opts, dict) or not opts:
                 problems.append(where + ": 'options' must map each season to a list of "
                                 "folder names inside the archive")
             else:
                 for season, folders in opts.items():
-                    if season not in known:
-                        problems.append(where + ": unknown season %r in 'options' - valid: %s"
-                                        % (season, valid))
+                    if season not in stageable:
+                        problems.append(where + ": %r in 'options' is not a season or a "
+                                        "period - valid: %s"
+                                        % (season, ", ".join(stageable)))
                     if (isinstance(folders, str) or not isinstance(folders, (list, tuple))
                             or not folders or not all(isinstance(f, str) for f in folders)):
                         problems.append(where + ": options[%r] must be a list of folder "
-                                        "names, e.g. [\"Spring\"]" % season)
+                                        "names, e.g. [\"Spring\"]" % (season,))
 
-    if SOUND_SRC is not None and (not isinstance(SOUND_SRC, str) or not SOUND_SRC):
-        problems.append("SOUND_SRC must be None or a mod folder name")
+    if sound_src is not None:
+        bad = _folder_problem(sound_src)
+        if bad:
+            problems.append("SOUND_SRC must be None or a mod folder name")
+        elif sound_src in own:
+            problems.append("SOUND_SRC names %s, which season.py writes itself; name the "
+                            "ambience mod it reads from" % sound_src)
     if calendar is not None:
         problems += calendar_problems(calendar)
+    if names is not None:
+        problems += names_problems(names)
     return problems
 
 
@@ -376,14 +594,65 @@ def _drop_season(name):
     page, so a season in the mod's own name is said twice on screen."""
     low = name.lower()
     for s in SEASONS:
-        tail = " - " + season_label(s)
+        tail = " - " + default_label(s)
         if low.endswith(tail):
             return name[:-len(tail)]
     return name
 
 
-def season_label(s):
+def default_label(s):
+    """The name a season goes by unless the player gives it one."""
     return {"winter_snow": "deep winter", "late_winter": "late winter"}.get(s, s)
+
+
+def season_label(s, names=None):
+    """How a season is shown: the player's own name for it (NAMES), else its usual one."""
+    names = NAMES if names is None else names
+    v = names.get(s) if isinstance(names, dict) else None
+    return v.strip() if isinstance(v, str) and v.strip() else default_label(s)
+
+
+def custom_names(names=None):
+    """{season: name} for each season the player has renamed."""
+    names = NAMES if names is None else names
+    if not isinstance(names, dict):
+        return {}
+    return {s: v.strip() for s, v in names.items() if s in SEASONS and isinstance(v, str)
+            and v.strip() and v.strip() != default_label(s)}
+
+
+def names_problems(names):
+    """What is wrong with a NAMES table, one sentence each."""
+    if not isinstance(names, dict):
+        return ["NAMES must be a dict of {season: \"its name\"}, or None for the usual "
+                "names"]
+    out = []
+    for s, name in names.items():
+        where = "NAMES[%r]" % (s,)
+        if s not in SEASONS:
+            out.append(where + ": not a season - they are: " + ", ".join(SEASONS))
+        elif not isinstance(name, str) or not name.strip():
+            out.append(where + " must be the name in quotes, like \"The long cold\"")
+        elif len(name.strip()) > NAME_CHARS:
+            out.append(where + ": %r is %d characters; the dial and the pages have room "
+                       "for %d" % (name.strip(), len(name.strip()), NAME_CHARS))
+        elif any(ord(c) < 32 for c in name) or any(c in name for c in ";[]"):
+            out.append(where + ": a name can't hold ; [ ] or a line break")
+        else:
+            try:
+                name.encode("cp1251")
+            except UnicodeEncodeError:
+                out.append(where + ": %r has letters the game can't show. It takes English "
+                           "and Cyrillic letters." % name.strip())
+    if not out:
+        seen = {}
+        for s in SEASONS:
+            shown = season_label(s, names)
+            if shown.casefold() in seen:
+                out.append("NAMES: %s and %s would both be called \"%s\""
+                           % (seen[shown.casefold()], s, shown))
+            seen.setdefault(shown.casefold(), s)
+    return out
 
 
 def seasons_text(seasons):
@@ -425,6 +694,10 @@ def read_prefs():
     return out
 
 
+# the season-scoped mods apply_toggles() could not place, for the summary line
+SKIPPED = []
+
+
 def apply_toggles(active, dry_run=False, prefs=None):
     """Enable or disable the season-scoped mods and place each above its anchor.
     Returns [(name, from, to)] for what changed. With the texture layer off, every
@@ -452,6 +725,7 @@ def apply_toggles(active, dry_run=False, prefs=None):
             print("  ! %s: anchor %r is not in the modlist - SKIPPED. Fix 'above' in"
                   " seasons_config.py (season.py whowins <a file it ships> --for"
                   " \"%s\" names the right mod)." % (name[:40], above, name))
+            SKIPPED.append(name)
             return
         if idx is None:
             body.insert(ref, want + name)
@@ -467,8 +741,10 @@ def apply_toggles(active, dry_run=False, prefs=None):
             changed.append((name, body[idx][:1], want))
             body[idx] = want + name
 
+    folders = _mod_folders()
+    del SKIPPED[:]
     for name, cfg in TOGGLE_MODS.items():
-        if not os.path.isdir(os.path.join(MODS, name)):
+        if name not in folders:
             continue
         # A mod is on if ANY period it is scoped to is active today - that is what
         # makes an event additive on top of its season. MCM holds are per base
@@ -501,6 +777,23 @@ def apply_toggles(active, dry_run=False, prefs=None):
     return changed
 
 
+def _mod_folders():
+    """The folders in mods/, spelled exactly. Windows finds "winter pack" for "Winter
+    Pack", but modlist.txt does not, and a line for a name MO2 has no folder under is a
+    line MO2 cannot use."""
+    try:
+        return set(os.listdir(MODS))
+    except OSError:
+        return set()
+
+
+def near_folder(name, folders=None):
+    """The folder `name` was probably meant to be, or None."""
+    folders = _mod_folders() if folders is None else folders
+    key = str(name).strip().rstrip(".").lower()
+    return next((f for f in sorted(folders) if f.lower() == key), None)
+
+
 def toggle_status(active, prefs=None):
     """[(name, installed, state, wanted, held)] for each season-scoped mod. `held` is why
     a wanted mod stays off: "off" (texture layer off), "mod" (switched off in MCM), None."""
@@ -508,9 +801,10 @@ def toggle_status(active, prefs=None):
     active = [active] if isinstance(active, str) else list(active)
     base, active_set = active[0], set(active)
     body = (_modlist_lines() or [])[1:]
+    folders = _mod_folders()
     out = []
     for name, cfg in TOGGLE_MODS.items():
-        installed = os.path.isdir(os.path.join(MODS, name))
+        installed = name in folders
         state = next((l[:1] for l in body if l[:1] in ("+", "-") and l[1:] == name), None)
         held = None
         if not prefs["stage_textures"]:
@@ -860,23 +1154,22 @@ def season_lengths(starts):
 
 def calendar_problems(calendar):
     """What is wrong with a CALENDAR table, one sentence each."""
-    if not isinstance(calendar, dict) or not calendar:
-        return ["CALENDAR must list at least one season and the day it starts, like "
-                "{\"summer\": (5, 20)}"]
+    if not isinstance(calendar, dict):
+        return ["CALENDAR must be a dict of {season: (month, day)}, or None for Polesia's "
+                "dates"]
+    if not calendar:
+        return ["CALENDAR turns every season off; at least one has to be on"]
     out, seen = [], {}
     for s, md in calendar.items():
         if s not in SEASONS:
             out.append("CALENDAR names %r, which is not a season - they are: %s"
                        % (s, ", ".join(SEASONS)))
             continue
-        try:
-            m, d = int(md[0]), int(md[1])
-            ok = len(md) == 2 and 1 <= m <= 12 and 1 <= d <= (29 if m == 2 else MONTH_DAYS[m - 1])
-        except (TypeError, ValueError, IndexError):
-            ok = False
-        if not ok:
+        if not _is_day(md, leap=True):
             out.append("CALENDAR[%r] must be (month, day), like (5, 20)" % s)
-        elif (m, d) == (2, 29):
+            continue
+        m, d = md
+        if (m, d) == (2, 29):
             out.append("CALENDAR[%r] starts on February 29, which three years in four do not "
                        "have. Use February 28 or March 1." % s)
         elif (m, d) in seen:
@@ -910,11 +1203,21 @@ def is_default(table):
     return sorted(table) == sorted(PHENO)
 
 
+def is_plain(table, names=None):
+    """Polesia's dates under their usual names: the shipped dial fits, nothing to hand on."""
+    return is_default(table) and not custom_names(names)
+
+
 def calendar_text(mapping="pheno"):
     """One line: whose dates these are, and what is off."""
     table = calendar_table(mapping)
     if is_default(table):
-        return "Polesia (the Zone's own dates)"
+        named = custom_names()
+        return "Polesia (the Zone's own dates)%s" % (
+            ("; named: " + ", ".join("%s \"%s\"" % (default_label(s), n)
+                                     for s, n in sorted(named.items(),
+                                                        key=lambda kv: SEASONS.index(kv[0]))))
+            if named else "")
     if not CALENDAR:
         return "meteorological (month starts)"
     days = season_lengths({s: (m, d) for s, m, d in table})
@@ -924,10 +1227,11 @@ def calendar_text(mapping="pheno"):
     return "your own: %s%s" % (", ".join(parts), ("; off: " + ", ".join(off)) if off else "")
 
 
-def _signature(table):
-    """What a redrawn dial depends on: the dates, and the arc colors and drawing code,
-    so a mod update that changes either redraws it too."""
+def _signature(table, names=None):
+    """What a redrawn dial depends on: the dates and names, and the arc colors and drawing
+    code, so a mod update that changes either redraws it too."""
     h = hashlib.md5(",".join("%s=%d-%d" % t for t in sorted(table)).encode("utf-8"))
+    h.update(repr(sorted(custom_names(names).items())).encode("utf-8"))
     for p in (os.path.join(MODS, SOTZ, "gamedata", "configs", "seasons_of_the_zone.ltx"),
               os.path.join(os.path.dirname(os.path.abspath(__file__)),
                            "build_season_dial.py")):
@@ -944,19 +1248,19 @@ def _calendar_path():
 
 DIAL_TEXT = {
     "default": "the shipped one, for Polesia's dates",
-    "custom": "drawn for your dates",
-    "stale": "to be drawn for your dates at the next play.bat",
-    "none": "hidden - drawing one for your dates needs Pillow "
-            "(python -m pip install pillow)",
+    "custom": "drawn for your calendar",
+    "stale": "to be drawn for your calendar at the next play.bat",
+    "none": "hidden - the game has no dial for your calendar",
 }
+PILLOW_NOTE = "drawing one needs Pillow: python -m pip install pillow"
 
 
-def dial_state(mapping="pheno", calendar=None):
+def dial_state(mapping="pheno", calendar=None, names=None):
     """What the game will show for the dial, without writing anything: 'default',
     'custom' when the redrawn one matches the calendar, 'stale' when it needs redrawing
     and can be, or 'none' when it cannot be (no Pillow)."""
     table = calendar_table(mapping, calendar)
-    if is_default(table):
+    if is_plain(table, names):
         return "default"
     tex = os.path.join(MODS, SOTZ, "gamedata", "textures")
     # a set drawn for other dates is stale even when every file is there
@@ -966,7 +1270,7 @@ def dial_state(mapping="pheno", calendar=None):
         old = io.open(_calendar_path(), encoding="cp1251").read()
     except OSError:
         old = ""
-    if have and ("dial_sig = %s" % _signature(table)) in old:
+    if have and ("dial_sig = %s" % _signature(table, names)) in old:
         return "custom"
     try:
         import PIL                              # noqa: F401 - only asking whether it is here
@@ -975,10 +1279,11 @@ def dial_state(mapping="pheno", calendar=None):
         return "none"
 
 
-def write_calendar(mapping="pheno", calendar=None, redraw=True):
+def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None):
     """Write configs/season_calendar.ltx for the game, and draw the dial a custom calendar
     needs. Returns (dial state, a sentence to show or None)."""
     table = calendar_table(mapping, calendar)
+    named = custom_names(names)
     path = _calendar_path()
     if not os.path.isdir(os.path.dirname(path)):
         return None, "the mod's configs folder is missing"
@@ -986,7 +1291,7 @@ def write_calendar(mapping="pheno", calendar=None, redraw=True):
              "[calendar]"]
     note = None
     tex = os.path.join(MODS, SOTZ, "gamedata", "textures")
-    if is_default(table):
+    if is_plain(table, names):
         state = "default"
         lines += ["custom = false", "dial = default"]
         # a redrawn set is 18 MB and the shipped one is back in use
@@ -998,27 +1303,33 @@ def write_calendar(mapping="pheno", calendar=None, redraw=True):
                 except OSError:
                     pass
     else:
-        state = dial_state(mapping, calendar)
+        state = dial_state(mapping, calendar, names)
         if state == "stale" and redraw:
             try:
                 import build_season_dial
                 build_season_dial.write_set(
                     [(m, d, s) for s, m, d in table], tex, DIAL_PREFIX,
                     os.path.join(MODS, SOTZ, "gamedata", "configs",
-                                 "seasons_of_the_zone.ltx"), quiet=True)
+                                 "seasons_of_the_zone.ltx"), quiet=True,
+                    names=named)
                 state = "custom"
             except Exception as e:                  # the dial is a nicety; staging goes on
-                state, note = "none", "the dial could not be drawn (%s), so it is hidden" % e
+                state, note = "none", "the dial could not be drawn (%s)" % e
         elif state in ("stale", "none"):
-            state = "none"
+            state, note = "none", PILLOW_NOTE
         lines += ["custom = true", "dial = %s" % state]
         if state == "custom":
-            lines.append("dial_sig = %s" % _signature(table))
+            lines.append("dial_sig = %s" % _signature(table, names))
         for s, m, d in sorted(table, key=lambda t: SEASONS.index(t[0])):
             lines.append("%s = %d, %d" % (s, m, d))
+        # the game's reader keeps a value's spaces; the letters are cp1251, which the
+        # rules have checked
+        for s in SEASONS:
+            if s in named:
+                lines.append("name_%s = %s" % (s, named[s]))
     body = "\r\n".join(lines) + "\r\n"
     try:
-        old = io.open(path, encoding="cp1251", newline="").read()
+        old = io.open(path, encoding="cp1251", errors="replace", newline="").read()
     except OSError:
         old = None
     if old != body:
@@ -1050,6 +1361,153 @@ def _in_window(d, start, end):
     b = (int(end[0]), int(end[1]))
     x = (d.month, d.day)
     return a <= x <= b if a <= b else (x >= a or x <= b)
+
+
+# --- events ------------------------------------------------------------------------------
+#
+# An event is a window of dates, ((12, 24), (12, 26)), or a rule: a dict of any of
+#   "weekdays": ("sat", "sun")      those days of the week
+#   "days":     (1, 15, -1)         those days of the month; -1 is its last, -2 the one before
+#   "weeks":    (1, -1)             with weekdays: the first, or the last, of them in the month
+#   "months":   (12, 1, 2)          only in those months
+#   "within":   ((12, 1), (2, 28))  only in that window
+# A day is in the event when it is everything the rule names at once: {"weekdays":
+# ("fri",), "days": (13,)} is each Friday the 13th. Events are decided when play.bat stages
+# the launch, so a weekend event switches its mods at the first launch on a Saturday.
+
+WEEKDAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+EVENT_KEYS = ("weekdays", "days", "weeks", "months", "within")
+
+
+def _month_len(year, month):
+    return MONTH_DAYS[month - 1] + (1 if month == 2 and (
+        year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)) else 0)
+
+
+def _ints(v, lo, hi, negative=False):
+    """Is v a tuple or list of whole numbers from lo to hi, or -hi to -lo with negative?"""
+    return (isinstance(v, (tuple, list)) and len(v) > 0
+            and all(isinstance(x, int) and not isinstance(x, bool)
+                    and (lo <= x <= hi or (negative and -hi <= x <= -lo)) for x in v))
+
+
+def event_on(d, spec):
+    """Is the event `spec` on date d?"""
+    if isinstance(spec, (tuple, list)):
+        return _in_window(d, spec[0], spec[1])
+    if "within" in spec and not _in_window(d, spec["within"][0], spec["within"][1]):
+        return False
+    if "months" in spec and d.month not in spec["months"]:
+        return False
+    if "weekdays" in spec and WEEKDAYS[d.weekday()] not in spec["weekdays"]:
+        return False
+    last = _month_len(d.year, d.month)
+    if "days" in spec and not any(d.day == (x if x > 0 else last + 1 + x)
+                                  for x in spec["days"]):
+        return False
+    if "weeks" in spec:
+        nth, from_end = (d.day - 1) // 7 + 1, -((last - d.day) // 7 + 1)
+        if nth not in spec["weeks"] and from_end not in spec["weeks"]:
+            return False
+    return True
+
+
+def event_problems(name, spec):
+    """What is wrong with one EVENTS entry, one sentence each."""
+    where = "EVENTS[%r]" % (name,)
+    if isinstance(spec, (tuple, list)):
+        if len(spec) == 2 and all(_is_day(x, leap=True) for x in spec):
+            return []
+        return [where + " must be ((month, day), (month, day)), its first day and its last, "
+                "like ((12, 24), (12, 26)), or a rule, like {\"weekdays\": (\"sat\", "
+                "\"sun\")}"]
+    if not isinstance(spec, dict) or not spec:
+        return [where + " must be a window of dates, like ((12, 24), (12, 26)), or a rule, "
+                "like {\"weekdays\": (\"sat\", \"sun\")}"]
+    out = []
+    odd = [k for k in spec if k not in EVENT_KEYS]
+    if odd:
+        out.append(where + ": %s is not part of a rule - the parts are %s"
+                   % (", ".join(repr(k) for k in odd), ", ".join(EVENT_KEYS)))
+    wd = spec.get("weekdays")
+    if "weekdays" in spec and not (isinstance(wd, (tuple, list)) and wd
+                                   and all(x in WEEKDAYS for x in wd)):
+        out.append(where + ": 'weekdays' must list days of the week as %s, like (\"sat\", "
+                   "\"sun\")" % ", ".join(WEEKDAYS))
+    if "days" in spec and not _ints(spec["days"], 1, 31, negative=True):
+        out.append(where + ": 'days' must list days of the month, 1 to 31, or -1 for the "
+                   "last, like (1, 15, -1)")
+    if "weeks" in spec:
+        if not _ints(spec["weeks"], 1, 5, negative=True):
+            out.append(where + ": 'weeks' must list which of the weekdays in the month, 1 to "
+                       "5, or -1 for the last, like (1,)")
+        elif "weekdays" not in spec:
+            out.append(where + ": 'weeks' needs 'weekdays', to say which day it counts")
+    if "months" in spec and not _ints(spec["months"], 1, 12):
+        out.append(where + ": 'months' must list months, 1 to 12, like (12, 1, 2)")
+    win = spec.get("within")
+    if "within" in spec and not (isinstance(win, (tuple, list)) and len(win) == 2
+                                 and all(_is_day(x, leap=True) for x in win)):
+        out.append(where + ": 'within' must be ((month, day), (month, day)), like "
+                   "((12, 1), (2, 28))")
+    if not out:
+        # a rule nothing can meet, like the 31st in February: 28 years is every weekday
+        # on every date, leap years included
+        day, end = datetime.date(2024, 1, 1), datetime.date(2052, 1, 1)
+        while day < end and not event_on(day, spec):
+            day += datetime.timedelta(days=1)
+        if day >= end:
+            out.append(where + " never happens: no day is all of that at once")
+    return out
+
+
+def _ordinal(n):
+    return {1: "1st", 2: "2nd", 3: "3rd", 21: "21st", 22: "22nd", 23: "23rd",
+            31: "31st"}.get(n, "%dth" % n)
+
+
+def _and(words):
+    words = list(words)
+    return words[0] if len(words) == 1 else ", ".join(words[:-1]) + " and " + words[-1]
+
+
+def event_text(spec):
+    """An event in words: "Dec 24 - Dec 26", "weekends", "the first Mon of the month"."""
+    months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov",
+              "Dec")
+
+    def day(md):
+        return "%s %d" % (months[md[0] - 1], md[1])
+
+    def window(w):
+        return day(w[0]) if tuple(w[0]) == tuple(w[1]) else "%s - %s" % (day(w[0]), day(w[1]))
+
+    if isinstance(spec, (tuple, list)):
+        return window(spec)
+    parts = []
+    wd = [w for w in WEEKDAYS if w in spec.get("weekdays", ())]
+    names = [w.capitalize() for w in wd]
+    if "weeks" in spec:
+        which = {1: "first", 2: "second", 3: "third", 4: "fourth", 5: "fifth", -1: "last",
+                 -2: "second-last", -3: "third-last", -4: "fourth-last", -5: "fifth-last"}
+        parts.append("the %s %s of the month" % (_and(which[w] for w in spec["weeks"]),
+                                                 _and(names)))
+    elif wd == ["sat", "sun"]:
+        parts.append("weekends")
+    elif wd == ["mon", "tue", "wed", "thu", "fri"]:
+        parts.append("workdays")
+    elif wd:
+        parts.append(_and(names))
+    if "days" in spec:
+        days = [_ordinal(x) if x > 0 else ("last day" if x == -1 else "%s-last day"
+                                            % _ordinal(-x)) for x in spec["days"]]
+        parts.append("the %s of the month" % _and(days) if "weeks" not in spec
+                     else "the %s" % _and(days))
+    if "months" in spec:
+        parts.append("in " + _and(months[m - 1] for m in spec["months"]))
+    if "within" in spec:
+        parts.append(window(spec["within"]))
+    return ", ".join(parts)
 
 
 def weather_flags():
@@ -1118,8 +1576,8 @@ def active_for(d, mapping="pheno", base=None):
     does not displace winter, so December 25th keeps its snow and adds to it. Pass
     `base` to honour an MCM pin or --season while events still resolve by date."""
     out = [base or season_for(d, mapping)]
-    for name, win in EVENTS.items():
-        if _in_window(d, win[0], win[1]) and name not in out:
+    for name, spec in EVENTS.items():
+        if event_on(d, spec) and name not in out:
             out.append(name)
     for name in weather_flags():
         if name not in out:
@@ -1249,12 +1707,16 @@ def _extract_options(archive, wanted, dest):
         except ImportError:
             raise SystemExit("  the LAYOUT layer needs the py7zr package to read .7z archives:\n"
                              "    python -m pip install py7zr\n"
-                             "  Nothing has been changed.")
-        with py7zr.SevenZipFile(src) as z:
-            names = [n for n in z.getnames()
-                     if any(n.replace("\\", "/").split("/")[0] == w for w in wanted)]
-            z.reset()
-            z.extract(path=dest, targets=names)
+                             "  No texture has been changed.")
+        try:
+            with py7zr.SevenZipFile(src) as z:
+                names = [n for n in z.getnames()
+                         if any(n.replace("\\", "/").split("/")[0] == w for w in wanted)]
+                z.reset()
+                z.extract(path=dest, targets=names)
+        except Exception as e:
+            raise SystemExit("  %s could not be read as a .7z: %s\n"
+                             "  No texture has been changed." % (archive, e))
     else:
         try:
             import rarfile
@@ -1262,12 +1724,17 @@ def _extract_options(archive, wanted, dest):
             raise SystemExit("  the LAYOUT layer needs the rarfile package to read .rar archives:\n"
                              "    python -m pip install rarfile\n"
                              "  (and WinRAR or 7-Zip installed, for the unrar tool). "
-                             "Nothing has been changed.")
+                             "No texture has been changed.")
         rarfile.UNRAR_TOOL = _find_unrar()
-        with rarfile.RarFile(src) as z:
-            names = [i.filename for i in z.infolist()
-                     if any(i.filename.replace("\\", "/").split("/")[0] == w for w in wanted)]
-            z.extractall(dest, members=names)
+        try:
+            with rarfile.RarFile(src) as z:
+                names = [i.filename for i in z.infolist()
+                         if any(i.filename.replace("\\", "/").split("/")[0] == w
+                                for w in wanted)]
+                z.extractall(dest, members=names)
+        except Exception as e:
+            raise SystemExit("  %s could not be read as a .rar: %s\n"
+                             "  No texture has been changed." % (archive, e))
     return dest
 
 
@@ -1319,7 +1786,8 @@ def identify(mod, cfg, tmp, prefer=None):
     when it is among the matches."""
     live = hashes(os.path.join(MODS, mod, "gamedata"))
     if not live:
-        return None, "no gamedata"
+        return None, ("its gamedata/ is empty" if os.path.isdir(os.path.join(MODS, mod))
+                      else "not in mods/")
     matches, detail = [], []
     for season in cfg["options"]:
         cand = _option_hashes(cfg["archive"], cfg["options"][season], tmp, mod)
@@ -1538,7 +2006,8 @@ def main():
                          "textures/terrain/terrain_escape.dds")
     ap.add_argument("--for", dest="mine", metavar="MOD",
                     help="for `whowins`: the mod you are placing, left out of the answer")
-    ap.add_argument("--season", choices=period_names())
+    ap.add_argument("--season", metavar="PERIOD",
+                    help="stage this season or period instead of today's")
     ap.add_argument("--mapping", choices=["pheno", "met"], default="pheno")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--no-textures", action="store_true",
@@ -1558,13 +2027,16 @@ def main():
         raise SystemExit(who_wins(a.path, a.mine))
 
     _validate_config()
+    if a.season and a.season not in period_names(a.mapping):
+        raise SystemExit("  --season %s: your calendar has no such season or period. These "
+                         "are: %s" % (a.season, ", ".join(period_names(a.mapping))))
     if a.cmd == "dial":
         # What configure.bat runs after saving a calendar. The game reads the calendar
         # when it starts, whether or not that start goes through play.bat.
         state, note = write_calendar(a.mapping)
         print("  calendar        %s" % calendar_text(a.mapping))
         print("  dial            %s" % DIAL_TEXT.get(state, "not written"))
-        if note and state != "custom":
+        if note:
             print("  - " + note)
         raise SystemExit(0 if state else 1)
     _check_mod_state()
@@ -1603,30 +2075,48 @@ def main():
     if writing:
         dial, note = write_calendar(a.mapping)
     else:
-        dial, note = dial_state(a.mapping), None
+        dial = dial_state(a.mapping)
+        note = PILLOW_NOTE if dial == "none" else None
     if dial != "default":
         print("  dial            %s" % DIAL_TEXT.get(dial, "not written"))
-    if note and dial != "custom":
+    if note:
         print("  - " + note)
     print("  texture layer   %s" % ("on" if stage_tex else
                                     "OFF - textures left alone, in-engine seasons still run"))
     print()
 
     try:
+        # `installed` holds the LAYOUT mods this launch can stage for `want`. One missing
+        # from mods/ is left alone, and so is one with no option for `want`: that keeps
+        # whatever it has, as CONFIGURING.md says.
         installed = {}
         for mod, cfg in LAYOUT.items():
-            got, detail = identify(mod, cfg, tmp, want)
-            installed[mod] = got
             print("  %s" % mod[:70])
+            if not os.path.isdir(os.path.join(MODS, mod)):
+                near = near_folder(mod)
+                print("     not in mods/ - left alone%s"
+                      % (" (MO2 has '%s')" % near if near else
+                         ". Check the name in LAYOUT, as MO2 shows it"))
+                continue
+            got, detail = identify(mod, cfg, tmp, want)
             print("     installed: %s" % (got or "UNRECOGNIZED - not a clean copy of any season"))
-            if got is None:
+            if got is None and isinstance(detail, list):
                 for s, n, shared, same in detail:
                     print("        %-8s archive %3d | shared %3d | identical %3d" % (s, n, shared, same))
+            elif got is None:
+                print("        (%s)" % detail)
+            if want in cfg["options"]:
+                installed[mod] = got
+            else:
+                print("     no option for %s in LAYOUT - what it has stays" % want)
         print()
 
+        folders = _mod_folders()
         for name, inst, state, should, held in toggle_status(active, prefs):
             if not inst:
-                print("  %-30s NOT INSTALLED" % name[:30])
+                near = near_folder(name, folders)
+                print("  %-30s NOT INSTALLED%s" % (name[:30], "   (MO2 has '%s' - use that "
+                                                   "name exactly)" % near if near else ""))
             else:
                 note = {"off": "held back - texture layer off",
                         "mod": "held back - switched off in MCM"}.get(
@@ -1641,9 +2131,22 @@ def main():
             if w and w <= (set(SEASONS) - set(on)):
                 print("  - %s is scoped only to %s, which your calendar has off"
                       % (name[:40], seasons_text(sorted(w, key=SEASONS.index))))
+        # MCM keys a mod's per-season tick by its name with the punctuation dropped, so
+        # "Winter Pack" and "Winter-Pack" would share one tick
+        keys = {}
+        for name in TOGGLE_MODS:
+            keys.setdefault(_slug(name), []).append(name)
+        for key, same in keys.items():
+            if len(same) > 1:
+                print("  - %s share one tick in MCM, so unticking one holds back all of them"
+                      % " and ".join(same))
         sound_now = soundscape_installed()
+        listed = SOUND_SRC and any(l[1:] == SOUND_SRC for l in (_modlist_lines() or [])
+                                   if l[:1] in ("+", "-"))
         print("  soundscape     installed: %s%s"
               % (sound_now or "not present",
+                 ("   (SOUND_SRC '%s' is not in MO2's list - check the name)" % SOUND_SRC)
+                 if (SOUND_SRC and not listed) else
                  "   (source mod disabled - overrides removed)"
                  if (SOUND_SRC and not _mod_enabled(SOUND_SRC)) else
                  "" if prefs["stage_sound"] else "   (gating switched off in MCM)"))
@@ -1677,6 +2180,9 @@ def main():
             elif tg:
                 print("  => %s: season-scoped mods need correcting - run `season.py apply`"
                       " (or play.bat)." % want)
+            elif SKIPPED:
+                print("  => %s: %d season-scoped mod(s) skipped - fix their 'above' (see above)"
+                      % (want, len(SKIPPED)))
             elif not stage_tex:
                 print("  => %s in-engine; texture layer off, nothing staged" % want)
             else:
@@ -1688,7 +2194,8 @@ def main():
             return
         if not tex_ok:
             print("  => textures: %s" % " and ".join(
-                "%s %s -> %s" % (m.split(" ")[0], installed[m] or "?", want) for m in LAYOUT))
+                "%s %s -> %s" % (m.split(" ")[0], installed[m] or "?", want)
+                for m in installed if installed[m] != want))
         if not sound_ok:
             print("  => sound   : %s -> %s" % (sound_now or "?", want))
 
@@ -1704,7 +2211,7 @@ def main():
         print()
         done = []
         # Only when the textures are wrong: a sound-only correction must not copy gigabytes.
-        for mod, cfg in (LAYOUT.items() if not tex_ok else []):
+        for mod, cfg in ([(m, LAYOUT[m]) for m in installed] if not tex_ok else []):
             merged = extract(cfg["archive"], cfg["options"][want],
                              os.path.join(tmp, "apply", mod[:18].replace(" ", "_")))
             target = os.path.join(MODS, mod, "gamedata")

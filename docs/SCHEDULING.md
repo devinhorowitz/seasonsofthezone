@@ -50,12 +50,32 @@ PERIODS = {
 }
 
 EVENTS = {
-    # name: ((start month, day), (end month, day)) - both inclusive
+    # a window of dates: ((start month, day), (end month, day)) - both inclusive
     "christmas":  ((12, 24), (12, 26)),
     "halloween":  ((10, 31), (10, 31)),   # a single day is fine
     "twelvetide": ((12, 26), (1, 6)),     # start after end wraps the year
+
+    # or a rule: a day is in the event when it is everything the rule names
+    "weekend":      {"weekdays": ("sat", "sun")},
+    "payday":       {"days": (1, 15, -1)},              # -1 is the month's last day
+    "first_monday": {"weekdays": ("mon",), "weeks": (1,)},
+    "friday_13th":  {"weekdays": ("fri",), "days": (13,)},
+    "winter_weekends": {"weekdays": ("sat", "sun"), "within": ((12, 1), (2, 28))},
 }
 ```
+
+A rule takes any of five parts:
+
+| Part | What it holds |
+|---|---|
+| `weekdays` | days of the week: `"mon"` to `"sun"` |
+| `days` | days of the month, 1 to 31; -1 is the last, -2 the one before |
+| `weeks` | with `weekdays`, which of them in the month: 1 is the first, -1 the last |
+| `months` | only in these months, 1 to 12 |
+| `within` | only inside this window of dates |
+
+A rule nothing can meet, such as the 31st of February, is refused rather than left to never
+fire.
 
 Then scope a mod to them exactly as you would a season:
 
@@ -77,6 +97,10 @@ or from a command prompt in your GAMMA folder:
 
 ```
 python _tools\configure.py event christmas 12-24 12-26
+python _tools\configure.py event weekend --weekdays weekends
+python _tools\configure.py event payday --days 1 15 last
+python _tools\configure.py event first_monday --weekdays mon --weeks first
+python _tools\configure.py event winter_weekends --weekdays sat sun --between 12-01 02-28
 python _tools\configure.py add "Christmas Lights" --when christmas
 ```
 
@@ -97,6 +121,10 @@ TOGGLE_MODS = {"Peace On Earth": {"when": ("christmas",), "above": "..."}}
 
 **A window across new year.** Put the start after the end: `((12, 26), (1, 6))`.
 
+**Weekends.** `{"weekdays": ("sat", "sun")}`. The day is decided when `play.bat` stages
+the launch, so a weekend mod comes on at the first launch on a Saturday, and a session that
+runs past midnight on Sunday keeps it until the next launch.
+
 **An anniversary.** The Chornobyl disaster was April 26th. A one-day event can swap in a
 loading screen set, an ambient track, or a spawn table.
 
@@ -113,9 +141,6 @@ with them by start date.
 
 Worth stating plainly, because the model above invites all of these.
 
-- **No weekday or nth-of-month recurrence.** Windows are `(month, day)` pairs, so "every
-  weekend" and "the first Monday of the month" cannot be expressed. This is the most
-  obvious next step.
 - **No moveable feasts.** Easter moves; a fixed window cannot follow it.
 - **No MCM page for events.** The per-mod ticks in MCM are grouped by base period, because
   that is what has a page. An event-scoped mod is staged by the calendar and can be held

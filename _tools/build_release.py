@@ -5,8 +5,9 @@ below are reviewable, but it is not part of the package: it expects a GAMMA inst
 around it (`mods/`, `_tools/`, `_release/`), so running it from a clone will not work.
 Copy it to `<your GAMMA>/_tools/` to build.
 
-Ships: the mod, the tools, play.bat, configure.bat, the patcher, README, CHANGELOG, LICENSE
-and docs.
+Ships: the mod, the tools and their presets, play.bat, configure.bat, the patcher, README,
+CHANGELOG, LICENSE and docs. The presets are the ones marked as shipped, never one saved on
+this install, and a "GAMMA example" preset made from this install's config.
 Does not ship: any third-party asset, the generated Seasonal Soundscape mod, this
 install's seasons_config.py (it ships as the example), MO2's meta.ini, or the fetched
 weather.
@@ -200,7 +201,8 @@ def selftest_mo2_base():
 def check_contents(names, base):
     """What the zip must carry, and what it must never carry."""
     must = [MARKER, "play.bat", "configure.bat", "_tools/season.py",
-            "_tools/fetch_weather.py", "_tools/configure.py", "_tools/config_edit.py"]
+            "_tools/fetch_weather.py", "_tools/configure.py", "_tools/config_edit.py",
+            "_tools/presets/Polesia.json", "_tools/presets/GAMMA example.json"]
     never = ["meta.ini",                            # MO2 writes its own
              "_tools/seasons_config.py",            # would overwrite the user's on update
              "gamedata/configs/season_weather.ltx"  # one machine's fetched day
@@ -389,6 +391,26 @@ def verify_fresh_install(zp, base, name):
                  code == 0 and code2 == 0 and body == STUB_CALENDAR and not [
                      f for f in os.listdir(os.path.join(mod, "gamedata", "textures"))
                      if f.startswith(CUSTOM_DIAL)], text + text2 + body)
+    # The presets that come with the tool, a name of the player's own, and an event that
+    # repeats: each through the command the window's buttons stand for, then season.py.
+    code, text = run([configure, "preset"])
+    ok &= report("presets listed", code == 0 and "Two seasons" in text
+                 and "GAMMA example" in text, text)
+    code, text = run([configure, "preset", "load", "Two seasons"])
+    code2, text2 = run([season, "status"])
+    ok &= report("a shipped preset loads", code == 0 and code2 == 0
+                 and "your own: summer May 1, deep winter Nov 15" in text2, text + text2)
+    code, text = run([configure, "name", "deep winter", "The Long Cold"])
+    body = io.open(calendar, encoding="cp1251").read()
+    ok &= report("a season named", code == 0 and "name_winter_snow = The Long Cold" in body,
+                 text + body)
+    code, text = run([configure, "event", "weekend", "--weekdays", "weekends"])
+    code2, text2 = run([season, "status"])
+    ok &= report("an event that repeats", code == 0 and code2 == 0
+                 and "needs fixing" not in text2, text + text2)
+    code, text = run([configure, "preset", "save", "Mine"])
+    ok &= report("a preset saved", code == 0 and os.path.isfile(
+        os.path.join(root, "_tools", "presets", "Mine.json")), text)
     for f in (cfg, cfg + ".bak"):
         if os.path.isfile(f):
             os.remove(f)
@@ -404,6 +426,42 @@ def verify_fresh_install(zp, base, name):
 
     shutil.rmtree(sb, ignore_errors=True)
     return ok
+
+
+def write_presets(td):
+    """The presets marked as shipped, and one made from this install's config. A preset
+    saved on this install stays here: it names this install's mods and dates."""
+    sys.path.insert(0, TOOLS)
+    import config_edit as ce
+    out = os.path.join(td, "presets")
+    os.makedirs(out)
+    n = 0
+    for name, path in ce.preset_files().items():
+        p, problems = ce.read_preset(path)
+        if p and p["shipped"]:
+            if problems:
+                raise SystemExit("  refusing to package: preset %s can't be used: %s"
+                                 % (name, problems))
+            shutil.copy2(path, os.path.join(out, name + ".json"))
+            n += 1
+    cal = ce.Calendar(os.path.join(TOOLS, "seasons_config.py"))
+    if cal.error or cal.problems:
+        raise SystemExit("  refusing to package: this install's config can't make the GAMMA "
+                         "example: %s" % (cal.error or cal.problems))
+    # the parts with something in them: an empty one would empty that part of the setup
+    # of whoever loads it
+    data = ce.preset_from(cal, [p for p in ce.parts_with_content(cal) if p != "calendar"])
+    data["shipped"] = True
+    data["about"] = ("The setup these tools were made on: GAMMA's seasonal texture sets, "
+                     "each on the calendar, and the ambience mod the soundscape comes from. "
+                     "Mods you don't have are left out when it loads.")
+    io.open(os.path.join(out, "GAMMA example.json"), "w", encoding="utf-8",
+            newline="\n").write(ce.preset_json(data) + "\n")
+    p, problems = ce.read_preset(os.path.join(out, "GAMMA example.json"))
+    if problems:
+        raise SystemExit("  refusing to package: the GAMMA example can't be used: %s"
+                         % problems)
+    return n
 
 
 def copytree(src, dst):
@@ -474,6 +532,7 @@ def main():
     if os.path.isfile(live):
         shutil.copy2(live, os.path.join(td, "seasons_config.example.py"))
     print("  tools                  %3d files  (+ worked example)" % len(TOOL_FILES))
+    print("  presets                %3d shipped (+ GAMMA example)" % write_presets(td))
 
     write_crlf(os.path.join(ROOT, "play.bat"), os.path.join(STAGE, "play.bat"))
     write_crlf(os.path.join(ROOT, "configure.bat"), os.path.join(STAGE, "configure.bat"))

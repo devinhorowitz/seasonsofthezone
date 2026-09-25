@@ -14,7 +14,7 @@
 	</string>
 
 	<string id="ui_mcm_seasons_zone_desc_top">
-		<text>Light, foliage, fog, wind, wetness and snowfall follow the real-world date across Polesia's six seasons, and change as you play. Terrain and grass textures cannot: the engine binds them at load, so they are swapped at launch and need a restart.</text>
+		<text>Light, foliage, fog, wind, wetness and snowfall follow the real-world date through the seasons, Polesia's six unless configure.bat has set your own, and change as you play. Terrain and grass textures cannot: the engine binds them at load, so they are swapped at launch and need a restart.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_enabled">

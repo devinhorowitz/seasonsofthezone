@@ -17,7 +17,7 @@ import os
 import re
 import sys
 
-from lupa import LuaRuntime
+from lua_runtime import LuaRuntime, NAME as LUA_NAME
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(ROOT, "mods", "Seasons of the Zone", "gamedata", "scripts")
@@ -306,7 +306,7 @@ def t_one_name_for_each_section():
 
 
 if __name__ == "__main__":
-    print("  running the shipped PDA wiring under Lua")
+    print("  running the shipped PDA wiring under %s" % LUA_NAME)
     bad = 0
     for fn in CASES:
         try:

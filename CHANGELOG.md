@@ -2,24 +2,50 @@
 
 ## 1.9.0 — 2026-09-25
 
-- **`configure.bat` puts mods on the calendar without editing Python.** A window lists your
-  MO2 mods; tick the seasons each one belongs to, and save. It works out the mod each one
-  has to sit above from the files they share, names any other seasonal mod it overlaps
-  with in the same season, and makes and deletes events such as Christmas. Copy it into
-  your GAMMA folder along with `_tools/` and `play.bat`.
+- **`configure.bat` sets the mod up without editing Python.** A window lists your MO2
+  mods; tick the seasons each one belongs to, and save. It works out the mod each one has
+  to sit above from the files they share, names any other seasonal mod it overlaps with in
+  the same season, and makes and deletes events. Copy it into your GAMMA folder along with
+  `_tools/` and `play.bat`.
 - **Your own calendar.** The window's Seasons tab moves the day each season starts and
   turns seasons off, for a year of only summer and deep winter, or one on the
   meteorological dates. Polesia's stays the default. A season turned off gives its days to
   the one before it; the game follows from its next start, MCM shows pages and pins for the
   seasons that are on, and the year dial is redrawn for your dates. Redrawing needs Pillow,
   which the tool offers to install; without it the dial is hidden.
+- **Names of your own for the seasons.** Call deep winter "The Long Cold" and the PDA, the
+  messages, MCM's pages and the dial all say so.
+- **Presets.** Save your setup under a name - the calendar and names, the events, the mods
+  on the calendar, texture sets and sound - and load it again, or load someone else's.
+  Loading leaves out mods you don't have and places the rest for your install. Four
+  calendars come with the tool, and a GAMMA example with the setup these tools were made
+  on. Between the window and the presets, the config needs no editing by hand.
+- **Events that repeat.** Besides a window of dates, an event can be days of the week, days
+  of the month, the first or last of a weekday in the month, some months, or any mix of
+  them: weekends, paydays, Friday the 13th.
 - **The same from a command prompt,** for when someone is helping you: `configure.py add`,
-  `remove`, `event`, `calendar` and `list`. A mod name MO2 doesn't have gets suggestions
-  instead of a silent skip.
+  `remove`, `event`, `calendar`, `name`, `preset` and `list`. A mod name MO2 doesn't have
+  gets suggestions instead of a silent skip.
 - **Every save is checked with `season.py`'s own rules first,** keeps the previous file as
   `seasons_config.py.bak`, and rewrites only the entries that changed, so comments and
-  anything written by hand stay. It also repairs two common mistakes: an empty
-  `TOGGLE_MODS = {}` left below the real table, and `("summer,spring")`.
+  anything written by hand stay. It repairs two common mistakes - an empty
+  `TOGGLE_MODS = {}` left below the real table, and `("summer,spring")` - and refuses
+  rather than guess: a file in another encoding, a table sharing its line with another
+  statement, or a file changed since it was opened is left as it is, with a message.
+- **`season.py` refuses more broken configs with a plain message** instead of a traceback
+  or a wrong reading: dates written as text or decimals, periods and events on days that
+  don't exist, a mod anchored above itself or in a loop with another, this mod on its own
+  calendar, a file saved as UTF-16 or ANSI, and `exit()` in the config. It reads the
+  config fresh on every run.
+- The weather a mod can be scoped to - `freezing`, `thaw` and `heat`, as docs/API.md
+  describes - is accepted in `when`.
+- Fixed: a LAYOUT mod that isn't installed, or has no option for the season, stopped
+  staging with a traceback. It is now left as it is.
+- Fixed: a TOGGLE_MODS name that differs from the mod's folder only in case wrote a line
+  for a mod MO2 doesn't have into modlist.txt.
+- Fixed: in the week before each season turned, the log warned that the textures were
+  staged for the wrong season.
+- Fixed: the PDA message could say a season "begins in 1 days".
 - Fixed: in December of a leap year, and the December before one, the PDA message on load
   counted a day wrong to late winter. February 29 itself was always handled.
 - Fixed: the 1.8 zips carried the old `play.bat` comment about `SHORTCUT`.

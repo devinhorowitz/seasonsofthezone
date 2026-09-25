@@ -9,7 +9,7 @@ produce the tier under test - so a function that returned a constant would be ca
 """
 import io, sys
 import tempfile
-from lupa import LuaRuntime
+from lua_runtime import LuaRuntime, NAME as LUA_NAME
 
 import os
 SRC = (os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),

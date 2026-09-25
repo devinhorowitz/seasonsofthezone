@@ -7,8 +7,9 @@ mod's config, so the dial is also a legend.
 Textures are uncompressed RGBA DDS, the format MCM's own AMCM_Banner.dds uses. DXT5 was
 a quarter the size but put block artefacts over the amber arc and fringed the text.
 
-A calendar of the player's own gets its own set, drawn by season.py through write_set()
-as ui_seasons_dial_cNN.dds, so the shipped set is never touched.
+A calendar of the player's own, or names of their own for the seasons, gets its own set,
+drawn by season.py through write_set() as ui_seasons_dial_cNN.dds, so the shipped set is
+never touched.
 
 Usage:
   python build_season_dial.py --preview        one PNG for today
@@ -164,8 +165,22 @@ def radial_text(im, txt, fnt, col, deg, radius):
                               int(round(y - tile.height / 2.0))))
 
 
-def render(date, cols, bounds=None):
+def fit(dr, text, avail, sizes):
+    """(text, font) at the largest of `sizes` that fits `avail`; at the smallest, a name
+    that still does not fit is shortened, with an ellipsis."""
+    for size in sizes:
+        f = font(size)
+        if dr.textbbox((0, 0), text, font=f)[2] <= avail:
+            return text, f
+    while len(text) > 1 and dr.textbbox((0, 0), text + "\u2026", font=f)[2] > avail:
+        text = text[:-1].rstrip()
+    return text + "\u2026", f
+
+
+def render(date, cols, bounds=None, names=None):
+    """The dial for `date`. `names` is {season: name} for seasons the player renamed."""
     bounds = bounds or BOUNDS
+    names = names or {}
     ss = 2                                   # supersample: PIL has no arc antialiasing
     im = Image.new("RGBA", (SIZE * ss, SIZE * ss), (0, 0, 0, 0))
     dr = ImageDraw.Draw(im)
@@ -224,7 +239,7 @@ def render(date, cols, bounds=None):
         mid = (a0 + a1) / 2.0
         is_cur = (s == cur)
         x, y = polar(mid, R_LABEL)
-        disp = LABEL.get(s, s.capitalize())
+        disp = names.get(s) or LABEL.get(s, s.capitalize())
         name = disp.upper() if is_cur else disp
         narrow = (a1 - a0) < 46.0
         nc = (255, 255, 255, 255) if is_cur else (240, 244, 240, 240)
@@ -240,12 +255,8 @@ def render(date, cols, bounds=None):
                 or (narrow and dr.textbbox((0, 0), "%d days" % days, font=f_days)[2] > avail)):
             # A season of a player's own can be two weeks long, too short to hold its
             # name across it: the name runs along the radius instead, and the days go.
-            size = 17
-            f_r = font(size)
-            while dr.textbbox((0, 0), name, font=f_r)[2] > (R_OUT - R_IN - 14) and size > 11:
-                size -= 1
-                f_r = font(size)
-            radial_text(im, name, f_r, nc, mid, (R_OUT + R_IN) / 2.0)
+            text, f_r = fit(dr, name, R_OUT - R_IN - 14, range(17, 10, -1))
+            radial_text(im, text, f_r, nc, mid, (R_OUT + R_IN) / 2.0)
             continue
         # a 30-day arc has no room for the theme lines
         if narrow:
@@ -262,8 +273,9 @@ def render(date, cols, bounds=None):
 
     # center: the season name, above the hub. The date is live text in the MCM row
     # above the dial, not baked in.
-    f_big = font(31)
-    ctr = LABEL.get(cur, cur.capitalize()).upper()
+    # 200px is the inner circle's width at the top of the line: "DEEP WINTER" is 197
+    ctr, f_big = fit(dr, (names.get(cur) or LABEL.get(cur, cur.capitalize())).upper(), 200,
+                     range(31, 13, -1))
     w = dr.textbbox((0, 0), ctr, font=f_big)
     dr.text((CX - (w[2] - w[0]) / 2, CY - 68), ctr, font=f_big,
             fill=(255, 255, 255, 250))
@@ -292,9 +304,10 @@ def positions_per_season(bounds):
     return got
 
 
-def write_set(bounds, texdir, prefix, cfg=None, quiet=False):
+def write_set(bounds, texdir, prefix, cfg=None, quiet=False, names=None):
     """Draw every hand position for `bounds`, [(month, day, season), ...], as
-    <texdir>/<prefix>NN.dds. Returns how many were written."""
+    <texdir>/<prefix>NN.dds, with `names` ({season: name}) for seasons the player renamed.
+    Returns how many were written."""
     bounds = sorted(bounds)
     got = positions_per_season(bounds)
     missing = [s for s, n in got.items() if not n]
@@ -304,7 +317,8 @@ def write_set(bounds, texdir, prefix, cfg=None, quiet=False):
     cols = season_colors(cfg)
     os.makedirs(texdir, exist_ok=True)
     for i, d in positions():
-        save_dds(render(d, cols, bounds), os.path.join(texdir, "%s%02d.dds" % (prefix, i)))
+        save_dds(render(d, cols, bounds, names),
+                 os.path.join(texdir, "%s%02d.dds" % (prefix, i)))
     if not quiet:
         print("  positions per season: %s"
               % "  ".join("%s=%d" % (s, got[s]) for _, _, s in bounds))

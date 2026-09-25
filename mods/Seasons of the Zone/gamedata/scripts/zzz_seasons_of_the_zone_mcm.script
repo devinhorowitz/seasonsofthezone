@@ -107,6 +107,14 @@ local function seasons_on()
     return ALL_SEASONS
 end
 
+-- A season's name as MCM shows it: the player's own when configure.bat set one, else
+-- `id`, the string that holds its usual name. MCM runs both through translate_string,
+-- which hands back a name it has no string for unchanged.
+local function shown(s, id)
+    local ok, name = pcall(function() return zzz_seasons_of_the_zone.season_name(s) end)
+    return (ok and name) or id
+end
+
 -- The dropdown of presets, shared by every season page and the neutral picker.
 local function preset_choices()
     local okp, c = pcall(function() return zzz_seasons_of_the_zone.preset_choices() end)
@@ -135,10 +143,13 @@ local function page_main()
     add({id = "line_cal2", type = "line"})
 
     add({id = "enabled", type = "check", val = 1, def = true})
-    -- only the seasons the calendar has on can be pinned
-    local modes = {{"auto", "auto"}}
-    for _, s in ipairs(seasons_on()) do modes[#modes + 1] = {s, s} end
-    add({id = "mode", type = "list", val = 0, def = "auto", content = modes})
+    -- only the seasons the calendar has on can be pinned. no_str: each label is a
+    -- string id or a name, not a suffix, so a season the player renamed shows that name.
+    local modes = {{"auto", "seasons_zone_main_mode_lst_auto"}}
+    for _, s in ipairs(seasons_on()) do
+        modes[#modes + 1] = {s, shown(s, "seasons_zone_main_mode_lst_" .. s)}
+    end
+    add({id = "mode", type = "list", val = 0, def = "auto", no_str = true, content = modes})
     add({id = "blend_days", type = "track", val = 2, min = 0, max = 30, step = 1, def = 14})
     add({id = "intensity", type = "track", val = 2, min = 0.0, max = 1.0, step = 0.05, def = 1.0})
     -- neutral is the intensity-0 baseline, not a season, so its preset lives here
@@ -242,8 +253,8 @@ function on_mcm_load()
         {id = "main", sh = true, text = "ui_mcm_seasons_zone_page_main", gr = page_main()},
     }
     for _, s in ipairs(seasons_on()) do
-        pages[#pages + 1] = {id = s, sh = true,
-            text = "ui_mcm_seasons_zone_page_" .. s, gr = page_season(s, choices, info)}
+        pages[#pages + 1] = {id = s, sh = true, text = shown(s, "ui_mcm_seasons_zone_page_" .. s),
+            gr = page_season(s, choices, info)}
     end
 
     op = {id = "seasons_zone", sh = false, gr = pages}

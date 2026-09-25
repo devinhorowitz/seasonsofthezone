@@ -60,21 +60,33 @@ def keys(src):
         hint = re.search(r'hint\s*=\s*"([^"]+)"', body)
         out.append(("ui_mcm_" + (hint.group(1) if hint else "seasons_zone_" + oid),
                     "label of %s" % oid))
-        if kind == "list" and "no_str = true" not in body:
+        built = re.search(r"content\s*=\s*(\w+)\s*[,}]", body)
+        if kind == "list" and built and built.group(1) != "choices":
+            # A list assembled before the add() from the seasons that are on. With no_str
+            # each label is a whole string id (or a name of the player's own, which has
+            # none); without it, a suffix to the option's own path.
+            assert page == "main", "a built list on page_%s - extend this test" % page
+            name = built.group(1)
+            head = re.search(r"local %s = \{(.*)\}\n" % name, src).group(1)
+            entries = re.findall(r'\{\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\}', head)
+            each = re.search(r'%s\[#%s \+ 1\] = \{s, shown\(s, "([^"]+)" \.\. s\)\}'
+                             % (name, name), src)
+            if "no_str = true" in body:
+                for value, sid in entries:
+                    out.append((sid, "%s entry %r" % (oid, value)))
+                if each:
+                    out += [(each.group(1) + s, "%s entry %r" % (oid, s)) for s in every]
+            else:
+                if re.search(r"%s\[#%s \+ 1\] = \{s, s\}" % (name, name), src):
+                    entries += [(s, s) for s in every]
+                for value, label in entries:
+                    out.append(("seasons_zone_main_%s_lst_%s" % (oid, label),
+                                "%s entry %r" % (oid, value)))
+        elif kind == "list" and "no_str = true" not in body:
             # only the main page has lists with strings; a season page's path would
             # carry the season, which this cannot know
             assert page == "main", "a string list on page_%s - extend this test" % page
-            entries = re.findall(r'\{\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\}', body)
-            built = re.search(r"content\s*=\s*(\w+)", body)
-            if built:
-                # a list assembled before the add(): its literal entries, and {s, s} for
-                # each season when the seasons are appended
-                name = built.group(1)
-                head = re.search(r"local %s = \{(.*)\}\n" % name, src).group(1)
-                entries = re.findall(r'\{\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\}', head)
-                if re.search(r"%s\[#%s \+ 1\] = \{s, s\}" % (name, name), src):
-                    entries += [(s, s) for s in every]
-            for value, label in entries:
+            for value, label in re.findall(r'\{\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\}', body):
                 out.append(("seasons_zone_main_%s_lst_%s" % (oid, label),
                             "%s entry %r" % (oid, value)))
     for s in every:
