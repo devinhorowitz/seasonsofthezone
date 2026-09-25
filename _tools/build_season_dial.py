@@ -7,6 +7,9 @@ mod's config, so the dial is also a legend.
 Textures are uncompressed RGBA DDS, the format MCM's own AMCM_Banner.dds uses. DXT5 was
 a quarter the size but put block artefacts over the amber arc and fringed the text.
 
+A calendar of the player's own gets its own set, drawn by season.py through write_set()
+as ui_seasons_dial_cNN.dds, so the shipped set is never touched.
+
 Usage:
   python build_season_dial.py --preview        one PNG for today
   python build_season_dial.py --all            the full set of hand positions
@@ -46,6 +49,7 @@ R_IN = 116
 R_LABEL = 159
 POSITIONS = 32          # hand positions around the year (~11 days apart)
 TEX = 384               # saved texture size; 512 is the drawing canvas
+YEAR = 2026             # a year without Feb 29: the hand angles are drawn for it
 
 FONTS = [r"C:\Windows\Fonts\seguisb.ttf", r"C:\Windows\Fonts\segoeui.ttf",
          r"C:\Windows\Fonts\calibrib.ttf", r"C:\Windows\Fonts\arial.ttf"]
@@ -58,7 +62,7 @@ def font(sz):
     return ImageFont.load_default()
 
 
-def season_colors():
+def season_colors(cfg=None):
     """Arc color per season: the color grade, tinted green by how much diffuse light
     reaches the foliage (sss_int * (hemi + amb)).
 
@@ -69,7 +73,7 @@ def season_colors():
     this is a legend, not a light meter.
     """
     out, cur = {}, None
-    for ln in io.open(CFG, encoding="cp1251", errors="replace", newline=""):
+    for ln in io.open(cfg or CFG, encoding="cp1251", errors="replace", newline=""):
         s = ln.strip()
         m = re.match(r"^\[([a-z_]+)\]$", s)
         if m:
@@ -112,12 +116,13 @@ def year_len(year):
     return datetime.date(year, 12, 31).timetuple().tm_yday
 
 
-def arcs(year):
+def arcs(year, bounds=None):
     """(start_deg, end_deg, season, days), 0 deg at 12 o'clock, clockwise."""
+    bounds = bounds or BOUNDS
     yl = year_len(year)
     out = []
-    for i, (m, d, s) in enumerate(BOUNDS):
-        nm, nd, _ = BOUNDS[(i + 1) % len(BOUNDS)]
+    for i, (m, d, s) in enumerate(bounds):
+        nm, nd, _ = bounds[(i + 1) % len(bounds)]
         a = doy(m, d, year)
         b = doy(nm, nd, year)
         days = b - a
@@ -132,9 +137,36 @@ def polar(deg, radius):
     return (CX + radius * math.cos(rad), CY + radius * math.sin(rad))
 
 
-def render(date, cols):
+def season_on(date, bounds=None):
+    """The season a date falls in: the last start on or before it, else the one that
+    wraps the year end."""
+    bounds = bounds or BOUNDS
+    cur = bounds[-1][2]
+    for m, d, s in bounds:
+        if date.timetuple().tm_yday >= doy(m, d, date.year):
+            cur = s
+    return cur
+
+
+def radial_text(im, txt, fnt, col, deg, radius):
+    """txt along the radius at deg, centered on `radius`: reading outward on the right half
+    of the dial and inward on the left, so it is never upside down. For an arc too short
+    to hold its name across it."""
+    dr = ImageDraw.Draw(im)
+    l, t, r, b = dr.textbbox((0, 0), txt, font=fnt)
+    tile = Image.new("RGBA", (r - l + 4, b - t + 4), (0, 0, 0, 0))
+    ImageDraw.Draw(tile).text((2 - l, 2 - t), txt, font=fnt, fill=col)
+    a = deg % 360.0
+    tile = tile.rotate((90.0 - a) if a <= 180.0 else (270.0 - a),
+                       resample=Image.BICUBIC, expand=True)
+    x, y = polar(deg, radius)
+    im.alpha_composite(tile, (int(round(x - tile.width / 2.0)),
+                              int(round(y - tile.height / 2.0))))
+
+
+def render(date, cols, bounds=None):
+    bounds = bounds or BOUNDS
     ss = 2                                   # supersample: PIL has no arc antialiasing
-    global CX, CY
     im = Image.new("RGBA", (SIZE * ss, SIZE * ss), (0, 0, 0, 0))
     dr = ImageDraw.Draw(im)
 
@@ -145,12 +177,9 @@ def render(date, cols):
     yl = year_len(year)
     today_deg = (date.timetuple().tm_yday - 1) / yl * 360.0
 
-    cur = BOUNDS[-1][2]
-    for m, d, s in BOUNDS:
-        if date.timetuple().tm_yday >= doy(m, d, year):
-            cur = s
+    cur = season_on(date, bounds)
 
-    for a0, a1, s, days in arcs(year):
+    for a0, a1, s, days in arcs(year, bounds):
         col = cols[s]
         is_cur = (s == cur)
         # inactive arcs are darkened, not made transparent: the green panel behind
@@ -159,7 +188,7 @@ def render(date, cols):
         dr.pieslice(box(R_OUT), a0 - 90, a1 - 90, fill=fill)
     dr.ellipse(box(R_IN), fill=(0, 0, 0, 0))
 
-    for a0, _, _, _ in arcs(year):
+    for a0, _, _, _ in arcs(year, bounds):
         p1, p2 = polar(a0, R_IN), polar(a0, R_OUT)
         dr.line([p1[0] * ss, p1[1] * ss, p2[0] * ss, p2[1] * ss],
                 fill=(20, 24, 20, 230), width=3 * ss)
@@ -191,7 +220,7 @@ def render(date, cols):
     dr.ellipse([CX - 11, CY - 11, CX + 11, CY + 11], fill=(252, 252, 252, 255),
                outline=(14, 17, 14, 255), width=3)
 
-    for a0, a1, s, days in arcs(year):
+    for a0, a1, s, days in arcs(year, bounds):
         mid = (a0 + a1) / 2.0
         is_cur = (s == cur)
         x, y = polar(mid, R_LABEL)
@@ -201,12 +230,23 @@ def render(date, cols):
         nc = (255, 255, 255, 255) if is_cur else (240, 244, 240, 240)
         tc = (246, 249, 246, 240) if is_cur else (224, 230, 224, 215)
         # A long name on a short arc shrinks to fit the chord it sits on: "LATE WINTER"
-        # at full size runs out of its 41 days.
-        avail = 2 * R_LABEL * math.sin(math.radians(a1 - a0) / 2) - 10
+        # at full size runs out of its 41 days. Past a half circle the chord is no limit.
+        avail = 2 * R_LABEL * math.sin(math.radians(min(a1 - a0, 180.0)) / 2) - 10
         f_n, size = f_name, 21
         while dr.textbbox((0, 0), name, font=f_n)[2] > avail and size > 14:
             size -= 1
             f_n = font(size)
+        if (dr.textbbox((0, 0), name, font=f_n)[2] > avail
+                or (narrow and dr.textbbox((0, 0), "%d days" % days, font=f_days)[2] > avail)):
+            # A season of a player's own can be two weeks long, too short to hold its
+            # name across it: the name runs along the radius instead, and the days go.
+            size = 17
+            f_r = font(size)
+            while dr.textbbox((0, 0), name, font=f_r)[2] > (R_OUT - R_IN - 14) and size > 11:
+                size -= 1
+                f_r = font(size)
+            radial_text(im, name, f_r, nc, mid, (R_OUT + R_IN) / 2.0)
+            continue
         # a 30-day arc has no room for the theme lines
         if narrow:
             rows = ((name, f_n, nc, -16),
@@ -234,6 +274,44 @@ def save_dds(im, path):
     im.convert("RGBA").resize((TEX, TEX), Image.LANCZOS).save(path, "DDS")
 
 
+def positions(year=YEAR):
+    """(index, date) for each hand position. floor(x + 0.5), not round(): the mod's
+    dial_texture() works the same days out in Lua, and round() halves to even."""
+    yl = year_len(year)
+    return [(i, datetime.date(year, 1, 1)
+             + datetime.timedelta(days=int(math.floor(i * yl / POSITIONS + 0.5))))
+            for i in range(POSITIONS)]
+
+
+def positions_per_season(bounds):
+    """{season: hand positions inside it}. The mod shows the nearest dial whose own date
+    is in today's season, so a season with none would show another season's dial."""
+    got = {s: 0 for _, _, s in bounds}
+    for _, d in positions():
+        got[season_on(d, bounds)] += 1
+    return got
+
+
+def write_set(bounds, texdir, prefix, cfg=None, quiet=False):
+    """Draw every hand position for `bounds`, [(month, day, season), ...], as
+    <texdir>/<prefix>NN.dds. Returns how many were written."""
+    bounds = sorted(bounds)
+    got = positions_per_season(bounds)
+    missing = [s for s, n in got.items() if not n]
+    if missing:
+        raise ValueError("POSITIONS=%d leaves %s with no dial"
+                         % (POSITIONS, ", ".join(missing)))
+    cols = season_colors(cfg)
+    os.makedirs(texdir, exist_ok=True)
+    for i, d in positions():
+        save_dds(render(d, cols, bounds), os.path.join(texdir, "%s%02d.dds" % (prefix, i)))
+    if not quiet:
+        print("  positions per season: %s"
+              % "  ".join("%s=%d" % (s, got[s]) for _, _, s in bounds))
+        print("  wrote %d dials to %s" % (POSITIONS, texdir))
+    return POSITIONS
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--preview", action="store_true")
@@ -256,37 +334,12 @@ def main():
         print("  preview -> %s  (%s)" % (out, d))
         return
 
-    os.makedirs(TEXDIR, exist_ok=True)
-    year = 2026                       # non-leap reference year for hand angles
-    yl = year_len(year)
-
-    # Every season needs at least one position: the mod picks the nearest dial within
-    # the current season, and winter is only 30 days.
-    got = {}
-    for i in range(POSITIONS):
-        day = int(round(i * yl / POSITIONS)) + 1
-        d = datetime.date(year, 1, 1) + datetime.timedelta(days=day - 1)
-        cur = BOUNDS[-1][2]
-        for m, dd, s in BOUNDS:
-            if d.timetuple().tm_yday >= doy(m, dd, year):
-                cur = s
-        got[cur] = got.get(cur, 0) + 1
-    missing = [s for _, _, s in BOUNDS if s not in got]
-    if missing:
-        raise SystemExit("POSITIONS=%d leaves %s with no dial - raise it"
-                         % (POSITIONS, ", ".join(missing)))
-    print("  positions per season: %s"
-          % "  ".join("%s=%d" % (s, got[s]) for _, _, s in BOUNDS))
-    for i in range(POSITIONS):
-        day = int(round(i * yl / POSITIONS)) + 1
-        d = datetime.date(year, 1, 1) + datetime.timedelta(days=day - 1)
-        p = os.path.join(TEXDIR, "ui_seasons_dial_%02d.dds" % i)
-        save_dds(render(d, cols), p)
-    print("  wrote %d dials to %s" % (POSITIONS, TEXDIR))
+    write_set(BOUNDS, TEXDIR, "ui_seasons_dial_")
     print("  each %.0f KB, total %.1f MB"
           % (os.path.getsize(os.path.join(TEXDIR, "ui_seasons_dial_00.dds")) / 1024.0,
              sum(os.path.getsize(os.path.join(TEXDIR, f))
-                 for f in os.listdir(TEXDIR) if f.startswith("ui_seasons_dial_"))
+                 for f in os.listdir(TEXDIR) if f.startswith("ui_seasons_dial_")
+                 and not f.startswith("ui_seasons_dial_c"))
              / 1048576.0))
 
 

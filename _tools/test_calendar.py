@@ -99,7 +99,9 @@ end
 """
 
 
-def build(year=2026, month=9, day=22):
+def build(year=2026, month=9, day=22, calendar=None, mcm=None):
+    """`calendar` is season_calendar.ltx's [calendar] section, {key: value string}, as
+    season.py writes it; `mcm` the saved MCM values, {path: value}."""
     lua = LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
     lua.execute(PRELUDE)
@@ -115,16 +117,22 @@ def build(year=2026, month=9, day=22):
     g.RegisterScriptCallback = lambda *a: None
     g.relation_registry = lua.table_from({"community_goodwill": lambda f, a: 0})
     g.ui_options = lua.table_from({"get": lambda k: None})
-    g.ui_mcm = lua.table_from({"get": lambda p: None})
+    g.ui_mcm = lua.table_from({"get": lambda p: (mcm or {}).get(p)})
     g.level_weathers = lua.table_from({})
     g.surge_manager = lua.table_from({})
     g.psi_storm_manager = lua.table_from({})
     g.game = lua.table_from({"get_game_time": lambda: lua.table_from({
         "diffSec": lambda self, other: 0, "get": lambda self, *a: year})})
-    g.ini_file = lambda name: lua.table_from({
-        "section_exist": lambda self, s: False,
-        "r_float_ex": lambda self, s, k: None,
-        "r_string_ex": lambda self, s, k: None})
+    cal = calendar or {}
+
+    def ini_file(name):
+        mine = (name == "season_calendar.ltx" and calendar is not None)
+        return lua.table_from({
+            "section_exist": lambda self, s: mine and s == "calendar",
+            "line_exist": lambda self, s, k: mine and s == "calendar" and k in cal,
+            "r_float_ex": lambda self, s, k: None,
+            "r_string_ex": lambda self, s, k: cal.get(k) if mine else None})
+    g.ini_file = ini_file
     # the page's own engine bindings
     g.GetARGB = lambda a, r, gg, b: lua.table_from({"a": a, "r": r, "g": gg, "b": b})
     g.vector2 = lua.eval("function() local v = {}"
@@ -549,6 +557,157 @@ def t_the_page_says_nothing_about_the_mod():
                   encoding="utf-8").read()
     assert "mod_list()" in mcm, "MCM no longer lists the staged mods"
     return "no mod data on the page; MCM still carries it"
+
+
+# --- a calendar of the player's own ------------------------------------------------------
+
+# spring and both late winters off, summer from May 1, deep winter from November 15
+OWN = {"custom": "true", "dial": "custom", "summer": "5, 1", "autumn": "9, 15",
+       "winter_snow": "11, 15"}
+
+
+@case
+def t_a_calendar_of_your_own_moves_the_turns():
+    """season_calendar.ltx replaces the Polesia dates, and a season it leaves out never
+    comes: its days go to the season before it."""
+    want = [((4, 30), "winter_snow"), ((5, 1), "summer"), ((9, 14), "summer"),
+            ((9, 15), "autumn"), ((11, 14), "autumn"), ((11, 15), "winter_snow"),
+            ((3, 20), "winter_snow")]
+    for (m, day), season in want:
+        _, g = build(2026, m, day, calendar=OWN)
+        got = g.zzz_seasons_of_the_zone.calendar_page()["season"]
+        assert got == season, "%d/%d reads as %s, expected %s" % (m, day, got, season)
+    # and the control: without the file, May 10 is Polesia's spring
+    _, g = build(2026, 5, 10)
+    assert g.zzz_seasons_of_the_zone.calendar_page()["season"] == "spring"
+    return "%d dates on the new turns; Polesia's spring is back without the file" % len(want)
+
+
+@case
+def t_the_page_lists_only_the_seasons_that_are_on():
+    bars, _, _, _, d = draw(*build(2026, 7, 1, calendar=OWN)[:2])
+    rows = [d["seasons"][i] for i in range(1, len(d["seasons"]) + 1)]
+    assert [r["key"] for r in rows] == ["summer", "autumn", "winter_snow"], \
+        [r["key"] for r in rows]
+    assert sum(r["span"] for r in rows) == d["year_len"], "the seasons do not fill the year"
+    for a, b in zip(rows, rows[1:] + rows[:1]):
+        assert a["to"] == b["from"], "%s ends %s but %s starts %s" % (
+            a["key"], a["to"], b["key"], b["from"])
+    # the grid draws the same three: April is deep winter's colour all the way through
+    apr = runs_in(bars, 4, None)
+    dec = runs_in(bars, 12, None)
+    assert len(apr) == 1 and apr[0]["rgb"] == dec[-1]["rgb"], "April is not deep winter"
+    # With spring off the list starts at summer, the first season on in MCM's order,
+    # even when another one comes earlier in the year: here late winter, from March 1.
+    _, _, _, _, d = draw(*build(2026, 7, 1, calendar=dict(OWN, late_winter="3, 1"))[:2])
+    keys = [d["seasons"][i]["key"] for i in range(1, len(d["seasons"]) + 1)]
+    assert keys == ["summer", "autumn", "winter_snow", "late_winter"], keys
+    return "from summer, filling the year and the grid, with late winter last"
+
+
+@case
+def t_seasons_turned_off_are_not_offered():
+    _, g = build(2026, 7, 1, calendar=OWN)
+    on = g.zzz_seasons_of_the_zone.enabled_seasons()
+    assert list(on.values()) == ["summer", "autumn", "winter_snow"], list(on.values())
+    _, g = build(2026, 7, 1)
+    assert len(g.zzz_seasons_of_the_zone.enabled_seasons()) == 6
+    return "three with the file, all six without"
+
+
+@case
+def t_a_pin_on_a_season_turned_off_counts_as_automatic():
+    """A pin can outlive its season: set in MCM, then turned off in configure.bat. It has
+    no dates to stand on, so the date decides - and a pin on a season that is on holds."""
+    pin = "seasons_zone/main/mode"
+    _, g = build(2026, 7, 1, calendar=OWN, mcm={pin: "spring"})
+    mix = g.zzz_seasons_of_the_zone.season_mix()
+    assert mix["summer"] == 1.0 and mix["spring"] == 0, dict(mix)
+    _, g = build(2026, 7, 1, calendar=OWN, mcm={pin: "autumn"})
+    mix = g.zzz_seasons_of_the_zone.season_mix()
+    assert mix["autumn"] == 1.0 and mix["summer"] == 0, dict(mix)
+    return "spring (off) falls back to July's summer; autumn (on) holds"
+
+
+@case
+def t_the_dial_follows_the_calendar():
+    """dial_texture() picks the redrawn set for a calendar of your own, none when it could
+    not be drawn, and the shipped set without one. The dial it picks has to be one drawn
+    with today's season lit: the positions are worked out the way build_season_dial.py
+    drew them, not re-derived for this year."""
+    import datetime
+    import build_season_dial as b
+    bounds = sorted((int(v.split(",")[0]), int(v.split(",")[1]), k)
+                    for k, v in OWN.items() if k not in ("custom", "dial"))
+    drawn = {i: b.season_on(d, bounds) for i, d in b.positions()}
+    checked = 0
+    for y, m, day in ((2026, 5, 1), (2026, 9, 14), (2026, 11, 15), (2028, 2, 29),
+                      (2028, 11, 15), (2026, 12, 31), (2027, 1, 1)):
+        _, g = build(y, m, day, calendar=OWN)
+        tex = g.zzz_seasons_of_the_zone.dial_texture()
+        assert tex and tex.startswith("ui_seasons_dial_c"), tex
+        today = g.zzz_seasons_of_the_zone.calendar_page()["season"]
+        i = int(tex[len("ui_seasons_dial_c"):len("ui_seasons_dial_c") + 2])
+        assert drawn[i] == today, "%04d-%02d-%02d is %s; dial %d was drawn for %s" % (
+            y, m, day, today, i, drawn[i])
+        checked += 1
+    _, g = build(2026, 7, 1, calendar=dict(OWN, dial="none"))
+    assert g.zzz_seasons_of_the_zone.dial_texture() is None, "a hidden dial was named"
+    _, g = build(2026, 7, 1)
+    tex = g.zzz_seasons_of_the_zone.dial_texture()
+    assert re.match(r"ui_seasons_dial_\d\d\.dds$", tex), \
+        "without a calendar the dial is %s, not one of the shipped set" % tex
+    return "%d dates on the redrawn set, each lit for its season; none when hidden" % checked
+
+
+@case
+def t_a_calendar_that_does_not_read_keeps_polesia():
+    for bad in ({"summer": "2, 30"}, {"summer": "13, 1"}, {"summer": "may"},
+                {"summer": "5, 1", "autumn": "5, 1"}):
+        _, g = build(2026, 5, 10, calendar=dict(bad, custom="true", dial="custom"))
+        assert len(g.zzz_seasons_of_the_zone.enabled_seasons()) == 6, bad
+        assert g.zzz_seasons_of_the_zone.calendar_page()["season"] == "spring", bad
+    # custom = false is Polesia's too, whatever else the file says
+    _, g = build(2026, 5, 10, calendar=dict(OWN, custom="false"))
+    assert len(g.zzz_seasons_of_the_zone.enabled_seasons()) == 6
+    return "four broken files and custom = false all leave the six Polesia seasons"
+
+
+@case
+def t_one_season_all_year():
+    _, g = build(2026, 7, 1, calendar={"custom": "true", "dial": "custom",
+                                       "winter_snow": "1, 1"})
+    page = g.zzz_seasons_of_the_zone.calendar_page()
+    assert page["season"] == "winter_snow" and page["next"] is None, dict(page)
+    rows = page["seasons"]
+    assert len(rows) == 1 and rows[1]["span"] == page["year_len"], "not the whole year"
+    mix = g.zzz_seasons_of_the_zone.season_mix()
+    assert mix["winter_snow"] == 1.0, dict(mix)
+    return "deep winter all year, with no next season to announce"
+
+
+def mcm_pages(calendar=None):
+    """The shipped MCM script's on_mcm_load(), run against the data layer: the page ids,
+    and the values the pin list offers."""
+    lua, g = build(2026, 7, 1, calendar=calendar)
+    src = io.open(os.path.join(SCRIPTS, "zzz_seasons_of_the_zone_mcm.script"),
+                  encoding="utf-8").read()
+    op = g.load_in(src, "zzz_seasons_of_the_zone_mcm", g).on_mcm_load()
+    pages = [op.gr[i] for i in range(1, len(op.gr) + 1)]
+    main = [pages[0].gr[i] for i in range(1, len(pages[0].gr) + 1)]
+    mode = [o for o in main if o.id == "mode"][0]
+    return ([p.id for p in pages],
+            [mode.content[i][1] for i in range(1, len(mode.content) + 1)])
+
+
+@case
+def t_mcm_offers_only_the_seasons_that_are_on():
+    pages, pins = mcm_pages(OWN)
+    assert pages == ["main", "summer", "autumn", "winter_snow"], pages
+    assert pins == ["auto", "summer", "autumn", "winter_snow"], pins
+    pages, pins = mcm_pages()
+    assert len(pages) == 7 and len(pins) == 7, (pages, pins)
+    return "a page and a pin for each season on; all six without a calendar"
 
 
 if __name__ == "__main__":

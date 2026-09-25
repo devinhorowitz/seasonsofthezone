@@ -645,9 +645,13 @@ function SeasonsPDA:Fill()
         put(self.marked, "")
     end
 
+    -- no dial is a calendar of the player's own that could not be drawn (no Pillow)
     if self.dial then
-        local okd = pcall(function() self.dial:InitTexture(tex(d.dial)) end)
-        if not okd then say("dial texture failed: " .. tostring(d.dial)) end
+        self.dial:Show(d.dial ~= nil)
+        if d.dial then
+            local okd = pcall(function() self.dial:InitTexture(tex(d.dial)) end)
+            if not okd then say("dial texture failed: " .. tostring(d.dial)) end
+        end
     end
 
     -- the dial shows where the year stands; the caption gives the current span

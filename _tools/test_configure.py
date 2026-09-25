@@ -15,7 +15,9 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TOOLS = ("season.py", "config_edit.py", "configure.py")
+TOOLS = ("season.py", "config_edit.py", "configure.py", "build_season_dial.py")
+MOD_CFG = os.path.join(os.path.dirname(HERE), "mods", "Seasons of the Zone", "gamedata",
+                       "configs", "seasons_of_the_zone.ltx")
 CRLF = "\r\n"
 
 # highest priority first, as modlist.txt lists them
@@ -54,10 +56,10 @@ def install(root, config=None, mods=MODS):
             encoding="utf-8", newline="").write(CRLF.join(lines) + CRLF)
 
 
-def run(root, *args, tool="configure.py"):
+def run(root, *args, tool="configure.py", env=None):
     r = subprocess.run([sys.executable, os.path.join(root, "_tools", tool)] + list(args),
                        capture_output=True, text=True, cwd=root, encoding="utf-8",
-                       errors="replace")
+                       errors="replace", env=env)
     assert "Traceback" not in r.stdout + r.stderr, r.stdout + r.stderr
     return r.returncode, r.stdout + r.stderr
 
@@ -71,6 +73,27 @@ def table(root):
     ns = {}
     exec(config(root), ns)
     return ns.get("TOGGLE_MODS", {}), ns.get("EVENTS", {})
+
+
+def calendar_of(root):
+    ns = {}
+    exec(config(root), ns)
+    return ns.get("CALENDAR")
+
+
+def with_mod(root):
+    """The parts of the mod a calendar needs: its configs, for the file the game reads and
+    the dial's colors, and its textures folder, for the dial."""
+    gd = os.path.join(root, "mods", "Seasons of the Zone", "gamedata")
+    os.makedirs(os.path.join(gd, "configs"))
+    os.makedirs(os.path.join(gd, "textures"))
+    shutil.copy2(MOD_CFG, os.path.join(gd, "configs"))
+    return (os.path.join(gd, "configs", "season_calendar.ltx"),
+            os.path.join(gd, "textures"))
+
+
+def drawn(tex):
+    return len([f for f in os.listdir(tex) if f.startswith("ui_seasons_dial_c")])
 
 
 def accepted(root):
@@ -317,6 +340,204 @@ root.destroy()
         assert e == {"halloween": ((10, 31), (10, 31))}, e
         accepted(d)
     return "ticks, a new event and an untick saved; season.py accepts the file"
+
+
+@case
+def t_the_window_deletes_an_event():
+    """Deleting an event unticks it everywhere; a mod that had nothing else comes off the
+    calendar rather than staying scoped to nothing."""
+    driver = r'''
+import sys
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+import config_edit as ce
+import configure
+root = tk.Tk()
+root.withdraw()
+cal, inst = ce.Calendar(), ce.Install()
+app = configure.App(root, cal, inst)
+app.select("Winter Pack")
+app.set_when("Winter Pack", ["winter"])
+app.add_event("halloween", (10, 31), (10, 31))
+app.select("Map Pack")
+app.set_when("Map Pack", ["halloween"])
+print("before", sorted(cal.toggle), sorted(cal.events))
+app.delete_event("halloween", ask=False)
+print("saved", app.save(quiet=True))
+root.destroy()
+'''
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        p = os.path.join(d, "drive.py")
+        io.open(p, "w", encoding="utf-8").write(driver)
+        r = subprocess.run([sys.executable, p, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True)
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "saved True" in out, out
+        assert "before ['Map Pack', 'Winter Pack'] ['halloween']" in out, out
+        t, e = table(d)
+        assert t == {"Winter Pack": {"when": ("winter",), "above": "Grass Compat"}}, t
+        assert e == {}, e
+        accepted(d)
+    return "unticked on Winter Pack, Map Pack off the calendar, the event gone"
+
+
+@case
+def t_the_calendar_command_moves_and_turns_off_seasons():
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        game, tex = with_mod(d)
+        rc, out = run(d, "calendar")
+        assert rc == 0 and "Polesia's calendar" in out and "Late winter" in out, out
+        rc, out = run(d, "calendar", "summer=5-1", "deep winter=11-15", "--only")
+        assert rc == 0, out
+        assert calendar_of(d) == {"summer": (5, 1), "winter_snow": (11, 15)}, calendar_of(d)
+        assert "off: spring, autumn, winter, late winter" in out, out
+        accepted(d)
+        body = io.open(game, encoding="cp1251").read()
+        assert "custom = true" in body and "summer = 5, 1" in body \
+            and "winter_snow = 11, 15" in body and "autumn" not in body, body
+        assert "dial = custom" in body and drawn(tex) == 32, (body, os.listdir(tex))
+        rc, out = run(d, "calendar", "--on", "autumn")
+        assert rc == 0 and calendar_of(d)["autumn"] == (9, 15), out
+        rc, out = run(d, "calendar", "--off", "summer")
+        assert rc == 0 and "summer" not in calendar_of(d), out
+    return "moved, three off, handed to the game with a dial; --on and --off"
+
+
+@case
+def t_a_calendar_season_py_would_refuse_is_not_saved():
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        with_mod(d)
+        run(d, "calendar", "summer=5-1")
+        before = config(d)
+        for args, says in ((["winter=11-25"], "winter would last 6 days"),
+                           (["spring=2-29"], "February 29"),
+                           (["summer=12-1"], "both start on Dec 1"),
+                           (["summr=5-1"], "not a season"),
+                           (["summer=5-41"], "not a date"),
+                           (["--off", "spring", "summer", "autumn", "winter",
+                             "winter_snow", "late_winter"], "at least one season")):
+            rc, out = run(d, "calendar", *args)
+            assert rc == 1 and says in out, "%s: %s" % (args, out)
+            assert config(d) == before, "%s changed the file" % args
+    return "too short, Feb 29, a shared day, typos and no season at all: refused, unchanged"
+
+
+@case
+def t_the_reset_brings_polesia_back():
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        game, tex = with_mod(d)
+        run(d, "calendar", "summer=5-1", "winter_snow=11-15", "--only")
+        assert drawn(tex) == 32
+        rc, out = run(d, "calendar", "--reset")
+        assert rc == 0, out
+        assert calendar_of(d) is None and "CALENDAR = None" in config(d), config(d)
+        body = io.open(game, encoding="cp1251").read()
+        assert "custom = false" in body and "dial = default" in body, body
+        assert drawn(tex) == 0, "the redrawn dials were left behind"
+        accepted(d)
+    return "CALENDAR = None, the game back on Polesia's, the redrawn dials gone"
+
+
+@case
+def t_status_follows_the_calendar():
+    """season.py runs on the calendar: one season on is the season all year, a mod scoped
+    only to seasons that are off is named, and an MCM pin on one of them gives way."""
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        with_mod(d)
+        run(d, "add", "Winter Pack", "--when", "winter")
+        run(d, "calendar", "summer=1-1", "--only")
+        ow = os.path.join(d, "overwrite", "gamedata", "configs")
+        os.makedirs(ow)
+        opts = os.path.join(ow, "axr_options.ltx")
+        io.open(opts, "w").write("[mcm]\nseasons_zone/main/mode = spring\n")
+        rc, out = run(d, "status", tool="season.py")
+        assert rc == 0, out
+        assert "season          summer" in out, out
+        assert "your own: summer Jan 1" in out, out
+        assert "Winter Pack is scoped only to winter, which your calendar has off" in out, out
+        assert "MCM pins spring, which your calendar has off" in out, out
+        io.open(opts, "w").write("[mcm]\nseasons_zone/main/mode = summer\n")
+        rc, out = run(d, "status", tool="season.py")
+        assert "(pinned in MCM)" in out and "has off" not in out.split("Winter Pack")[0], out
+    return "summer all year, Winter Pack named, the spring pin set aside, a summer pin kept"
+
+
+@case
+def t_the_window_sets_the_calendar():
+    driver = r'''
+import sys
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+import config_edit as ce
+import configure
+root = tk.Tk()
+root.withdraw()
+cal, inst = ce.Calendar(), ce.Install()
+app = configure.App(root, cal, inst)
+app.set_when("Winter Maps", ["late_winter"])
+app.use_dates(ce.meteorological())
+app.srows["late_winter"][0].set(False)
+app.dates_edited()
+print("note", app.cal_note.cget("text").replace("\n", " "))
+app.srows["summer"][2].set("")
+app.dates_edited()
+print("refused", app.save(quiet=True))
+app.srows["summer"][2].set("1")
+app.dates_edited()
+print("saved", app.save(quiet=True))
+print("dirty after", cal.dirty())
+root.destroy()
+'''
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        game, tex = with_mod(d)
+        p = os.path.join(d, "drive.py")
+        io.open(p, "w", encoding="utf-8").write(driver)
+        r = subprocess.run([sys.executable, p, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True)
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "saved True" in out, out
+        assert "refused False" in out, "saved with a blank day:\n" + out
+        assert "never switched on: Winter Maps" in out, out
+        assert "dirty after False" in out, out
+        want = {"winter_snow": (12, 1), "spring": (4, 1), "summer": (6, 1),
+                "autumn": (9, 1), "winter": (11, 1)}
+        assert calendar_of(d) == want, calendar_of(d)
+        accepted(d)
+        body = io.open(game, encoding="cp1251").read()
+        assert "custom = true" in body and "late_winter" not in body and drawn(tex) == 32, body
+    return "meteorological dates, late winter off, a blank day refused; saved and drawn"
+
+
+@case
+def t_without_pillow_the_dial_is_hidden():
+    """The game gets the dates and no dial, since the shipped one shows Polesia's. A PIL
+    that will not import stands in for no Pillow, as a broken install would."""
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        game, tex = with_mod(d)
+        block = os.path.join(d, "nopil", "PIL")
+        os.makedirs(block)
+        io.open(os.path.join(block, "__init__.py"), "w").write(
+            "raise ImportError('no Pillow here')\n")
+        env = dict(os.environ, PYTHONPATH=os.path.join(d, "nopil"))
+        rc, out = run(d, "calendar", "summer=5-1", env=env)
+        assert rc == 0 and "needs Pillow" in out, out
+        body = io.open(game, encoding="cp1251").read()
+        assert "custom = true" in body and "dial = none" in body and drawn(tex) == 0, body
+        # status says what it would take, rather than promising a dial at the next launch
+        rc, out = run(d, "status", tool="season.py", env=env)
+        assert "dial            hidden" in out and "needs Pillow" in out, out
+        # and the control: with Pillow the same kind of change is drawn
+        rc, out = run(d, "calendar", "summer=5-2")
+        body = io.open(game, encoding="cp1251").read()
+        assert rc == 0 and "dial = custom" in body and drawn(tex) == 32, out + body
+    return "dial = none and nothing drawn without it; drawn with it"
 
 
 @case

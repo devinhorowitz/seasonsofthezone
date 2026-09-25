@@ -1,9 +1,9 @@
 -- Seasons of the Zone - MCM pages
 --
--- Six pages under one entry: Main (the calendar and the global settings) and one per
--- season (Spring, Summer, Autumn, Winter, Deep winter). A season page holds that season's
--- color-grade preset, a read-out of its resolved values, and the ticks for the texture
--- mods active in it. Options are stored as seasons_zone/<page>/<id>.
+-- Pages under one entry: Main (the calendar and the global settings) and one per
+-- season the calendar has on. A season page holds that season's color-grade preset, a
+-- read-out of its resolved values, and the ticks for the texture mods active in it.
+-- Options are stored as seasons_zone/<page>/<id>.
 --
 -- String keys (from ui_mcm.script, not its tutorial):
 --     page title    the node's `text` field: ui_mcm_seasons_zone_page_<page>
@@ -96,6 +96,17 @@ local function calendar_rows(out)
     end
 end
 
+-- Every season, in page order
+local ALL_SEASONS = {"spring", "summer", "autumn", "winter", "winter_snow", "late_winter"}
+
+-- The seasons the calendar has on (configure.bat can turn some off), in page order.
+-- All six if the main script cannot say.
+local function seasons_on()
+    local ok, on = pcall(function() return zzz_seasons_of_the_zone.enabled_seasons() end)
+    if ok and type(on) == "table" and #on > 0 then return on end
+    return ALL_SEASONS
+end
+
 -- The dropdown of presets, shared by every season page and the neutral picker.
 local function preset_choices()
     local okp, c = pcall(function() return zzz_seasons_of_the_zone.preset_choices() end)
@@ -124,11 +135,10 @@ local function page_main()
     add({id = "line_cal2", type = "line"})
 
     add({id = "enabled", type = "check", val = 1, def = true})
-    add({id = "mode", type = "list", val = 0, def = "auto", content = {
-        {"auto", "auto"}, {"spring", "spring"}, {"summer", "summer"},
-        {"autumn", "autumn"}, {"winter", "winter"}, {"winter_snow", "winter_snow"},
-        {"late_winter", "late_winter"},
-    }})
+    -- only the seasons the calendar has on can be pinned
+    local modes = {{"auto", "auto"}}
+    for _, s in ipairs(seasons_on()) do modes[#modes + 1] = {s, s} end
+    add({id = "mode", type = "list", val = 0, def = "auto", content = modes})
     add({id = "blend_days", type = "track", val = 2, min = 0, max = 30, step = 1, def = 14})
     add({id = "intensity", type = "track", val = 2, min = 0.0, max = 1.0, step = 0.05, def = 1.0})
     -- neutral is the intensity-0 baseline, not a season, so its preset lives here
@@ -231,8 +241,7 @@ function on_mcm_load()
     local pages = {
         {id = "main", sh = true, text = "ui_mcm_seasons_zone_page_main", gr = page_main()},
     }
-    for _, s in ipairs({"spring", "summer", "autumn", "winter", "winter_snow",
-                        "late_winter"}) do
+    for _, s in ipairs(seasons_on()) do
         pages[#pages + 1] = {id = s, sh = true,
             text = "ui_mcm_seasons_zone_page_" .. s, gr = page_season(s, choices, info)}
     end

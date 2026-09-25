@@ -1,8 +1,8 @@
 """Read and write seasons_config.py for configure.py, the window and its commands.
 
-The config stays a Python file people can edit by hand. This rewrites only the two tables
-it manages, TOGGLE_MODS and EVENTS, and inside them only the entries that changed: the rest
-of the file, comments included, stays as written. A new file is checked with season.py's
+The config stays a Python file people can edit by hand. This rewrites only the tables it
+manages, TOGGLE_MODS, EVENTS and CALENDAR, and inside them only the entries that changed: the
+rest of the file, comments included, stays as written. A new file is checked with season.py's
 own rules before it replaces the old one, and the old one is kept as seasons_config.py.bak.
 """
 import ast
@@ -27,6 +27,12 @@ ALIASES = {"deep winter": "winter_snow", "deep_winter": "winter_snow",
            "deepwinter": "winter_snow", "late winter": "late_winter",
            "latewinter": "late_winter", "fall": "autumn"}
 
+# written above CALENDAR, in a new file and when the tool adds one to an old file
+CALENDAR_HEAD = [
+    "# The seasons that are on and the day each starts, (month, day). configure.bat's",
+    "# Seasons tab writes this; None is Polesia's dates with all six seasons on.",
+]
+
 TEMPLATE = '''"""Which mods this install stages, and when.
 
 Written by configure.py (configure.bat), and still yours to edit by hand: the tool only
@@ -38,7 +44,10 @@ TOGGLE_MODS = {}
 SOUND_SRC = None
 PERIODS = {}
 EVENTS = {}
-'''
+
+%s
+CALENDAR = None
+''' % "\n".join(CALENDAR_HEAD)
 
 
 # --- the install ----------------------------------------------------------------------
@@ -176,9 +185,19 @@ def window_text(win):
     return day_text(a) if a == b else "%s - %s" % (day_text(a), day_text(b))
 
 
-def season_windows():
-    """{season: "Apr 15 - May 19"}, from season.py's own start dates."""
-    starts = sorted((m, d, s) for s, m, d in season.PHENO)
+def polesia():
+    """{season: (month, day)}: the default calendar, all six on."""
+    return {s: (m, d) for s, m, d in season.PHENO}
+
+
+def meteorological():
+    return {s: (m, d) for s, m, d in season.MET}
+
+
+def season_windows(dates=None):
+    """{season: "Apr 15 - May 19"} for each season on in `dates`, {season: (month, day)};
+    Polesia's by default."""
+    starts = sorted((m, d, s) for s, (m, d) in (dates or polesia()).items())
     out = {}
     for i, (m, d, s) in enumerate(starts):
         nm, nd, _ = starts[(i + 1) % len(starts)]
@@ -210,6 +229,10 @@ def entry_text(name, when, above):
 def event_text(name, win):
     (a, b), (c, d) = win
     return ["%s: ((%d, %d), (%d, %d))," % (_q(name), a, b, c, d)]
+
+
+def start_text(name, md):
+    return ["%s: (%d, %d)," % (_q(name), md[0], md[1])]
 
 
 def _assignments(tree, var):
@@ -264,7 +287,7 @@ def splice(text, var, plan):
         return text, True                   # empty, and staying empty: as written
     if laid is None or not laid[1]:
         lines[node.lineno - 1:node.end_lineno] = fresh
-        return "\n".join(lines), laid is not None
+        return "\n".join(lines), laid is not None or _is_empty_literal(node)
     have, order, tail = laid
     ind = have[order[0]][2]
     body = []
@@ -285,11 +308,20 @@ def _is_empty_literal(node):
         isinstance(v, ast.Constant) and v.value is None)
 
 
+def set_none(text, var):
+    """`text` with the last assignment to `var` replaced by `var = None`."""
+    lines = text.split("\n")
+    node = _assignments(ast.parse(text), var)[-1]
+    lines[node.lineno - 1:node.end_lineno] = ["%s = None" % var]
+    return "\n".join(lines)
+
+
 class Calendar(object):
     """seasons_config.py as the tool edits it.
 
-    `toggle` maps each mod on the calendar to {"when": [...], "above": "..."} and `events`
-    each event to ((m, d), (m, d)). Everything else in the file is read only. `error` is
+    `toggle` maps each mod on the calendar to {"when": [...], "above": "..."}, `events`
+    each event to ((m, d), (m, d)), and `dates` each season that is on to the (m, d) it
+    starts. Everything else in the file is read only. `error` is
     set, as lines, when Python cannot run the file; `problems` lists what season.py would
     refuse in it; `fixes` what saving from the tool repairs."""
 
@@ -306,6 +338,7 @@ class Calendar(object):
         self.toggle, self.events = {}, {}
         self.periods, self.layout, self.sound_src = {}, {}, None
         self._kept_toggle, self._kept_events = {}, {}
+        self.dates, self._kept_dates = polesia(), None     # None: the file has none
         self._load()
 
     # loading
@@ -349,8 +382,17 @@ class Calendar(object):
         self.sound_src = ns.get("SOUND_SRC")
         self.periods = ns.get("PERIODS", {}) or {}
         toggle, events = ns.get("TOGGLE_MODS", {}) or {}, ns.get("EVENTS", {}) or {}
+        calendar = ns.get("CALENDAR")
         self.problems = season.config_problems(toggle, self.layout, self.sound_src,
-                                               self.periods, events)
+                                               self.periods, events, calendar)
+        if calendar is not None:
+            if isinstance(calendar, dict) and not season.calendar_problems(calendar):
+                self.dates = {s: (int(md[0]), int(md[1])) for s, md in calendar.items()}
+                self._kept_dates = dict(self.dates)
+            else:
+                self._kept_dates = {}
+                self.fixes.append("CALENDAR can't be used as written; saving puts the "
+                                  "dates on the Seasons tab in its place")
         if not isinstance(toggle, dict) or not isinstance(events, dict):
             self.error = ["TOGGLE_MODS and EVENTS must each be a table, {...}."]
             return
@@ -390,11 +432,18 @@ class Calendar(object):
     def users_of(self, period):
         return [n for n, cfg in self.toggle.items() if period in cfg["when"]]
 
+    def custom(self):
+        """Is the calendar anything but Polesia's, all six on?"""
+        return self.dates != polesia()
+
+    def dates_changed(self):
+        return self.dates != (polesia() if self._kept_dates is None else self._kept_dates)
+
     def dirty(self):
         return (self.fixes != [] or set(self.toggle) != set(self._kept_toggle)
                 or any((frozenset(c["when"]), c["above"]) != self._kept_toggle.get(n)
                        for n, c in self.toggle.items())
-                or self.events != self._kept_events)
+                or self.events != self._kept_events or self.dates_changed())
 
     # writing
 
@@ -409,6 +458,19 @@ class Calendar(object):
         if eplan or _assignments(ast.parse(text), "EVENTS"):
             text, kept_e = splice(text, "EVENTS", eplan)
             kept = kept and kept_e
+        have = _assignments(ast.parse(text), "CALENDAR")
+        if self.custom():
+            kept_dates = self._kept_dates or {}
+            cplan = [(s, start_text(s, self.dates[s]), kept_dates.get(s) == self.dates[s])
+                     for s in season.SEASONS if s in self.dates]
+            if not have:
+                lines = text.rstrip("\n").split("\n")
+                text = "\n".join(lines + [""] + CALENDAR_HEAD + ["CALENDAR = None", ""])
+            text, kept_c = splice(text, "CALENDAR", cplan)
+            kept = kept and kept_c
+        elif have and not (isinstance(have[-1].value, ast.Constant)
+                           and have[-1].value.value is None):
+            text = set_none(text, "CALENDAR")
         return text, kept
 
     def check(self, text):
@@ -420,7 +482,7 @@ class Calendar(object):
             return season._config_error(e)
         return season._set_twice(text) + season.config_problems(
             ns.get("TOGGLE_MODS", {}), ns.get("LAYOUT", {}), ns.get("SOUND_SRC"),
-            ns.get("PERIODS", {}), ns.get("EVENTS", {}))
+            ns.get("PERIODS", {}), ns.get("EVENTS", {}), ns.get("CALENDAR"))
 
     def save(self):
         """Write the file. Returns (saved, lines to show)."""

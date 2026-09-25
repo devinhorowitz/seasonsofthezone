@@ -47,6 +47,11 @@ def calls(src):
 def keys(src):
     """(key, what) for every string the MCM pages look up."""
     out = []
+    # the pages and the pin list are built at load from the seasons the calendar has on,
+    # so any of the six can appear
+    every = re.findall(r'"([a-z_]+)"', re.search(
+        r"local ALL_SEASONS = \{([^}]*)\}", src).group(1))
+    assert len(every) == 6, "read %d seasons from ALL_SEASONS" % len(every)
     for page, body in calls(src):
         oid = re.match(r'\{\s*id\s*=\s*"([^"]+)"', body).group(1)
         kind = re.search(r'type\s*=\s*"([^"]+)"', body).group(1)
@@ -59,11 +64,20 @@ def keys(src):
             # only the main page has lists with strings; a season page's path would
             # carry the season, which this cannot know
             assert page == "main", "a string list on page_%s - extend this test" % page
-            for value, label in re.findall(r'\{\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\}', body):
+            entries = re.findall(r'\{\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\}', body)
+            built = re.search(r"content\s*=\s*(\w+)", body)
+            if built:
+                # a list assembled before the add(): its literal entries, and {s, s} for
+                # each season when the seasons are appended
+                name = built.group(1)
+                head = re.search(r"local %s = \{(.*)\}\n" % name, src).group(1)
+                entries = re.findall(r'\{\s*"([^"]*)"\s*,\s*"([^"]*)"\s*\}', head)
+                if re.search(r"%s\[#%s \+ 1\] = \{s, s\}" % (name, name), src):
+                    entries += [(s, s) for s in every]
+            for value, label in entries:
                 out.append(("seasons_zone_main_%s_lst_%s" % (oid, label),
                             "%s entry %r" % (oid, value)))
-    for s in re.findall(r'"([a-z_]+)"', re.search(
-            r"for _, s in ipairs\(\{([^}]*)\}\)", src).group(1)):
+    for s in every:
         out.append(("ui_mcm_seasons_zone_page_" + s, "page title %s" % s))
     out.append(("ui_mcm_seasons_zone_page_main", "page title main"))
     return out

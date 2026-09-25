@@ -18,7 +18,10 @@ Two kinds of name.
 
 **Base periods** partition the year. Exactly one is active on any date: a period runs from
 its start until the next one begins, and the last of the year wraps around into January.
-The six seasons are base periods.
+The six seasons are base periods. Their starts can move and seasons can be turned off,
+with `configure.bat`'s Seasons tab or `CALENDAR` in the config (see
+[CONFIGURING.md](CONFIGURING.md#calendar)); a mod scoped to a season that is off is never
+staged.
 
 **Events** overlay. An event is a window with a start and an end, and it does not displace
 the period it lands in — it is added to it.

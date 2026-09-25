@@ -17,8 +17,12 @@ winter_snow  Dec 01 - Mar 04    94 d   snow on the ground
 late_winter  Mar 05 - Apr 14    41 d   the thaw: patchy snow, mud, bare trees
 ```
 
-These are the dates the landscape changes, not the equinoxes. `--mapping met` uses
-Ukraine's meteorological convention instead.
+These are the dates the landscape changes, not the equinoxes. They are the default:
+`CALENDAR` in `seasons_config.py`, which `configure.bat`'s Seasons tab writes, moves them
+and turns seasons off. `season.py` hands it to the game as `configs/season_calendar.ltx`,
+which the script reads when it loads, and draws a dial for it with Pillow. A file that does
+not read leaves the Polesia dates running. `--mapping met` uses Ukraine's meteorological
+convention for one run of the tools.
 
 The season comes from `os.date()` in game and `datetime.date.today()` in the tooling.
 There is no server, no save data and no timer.

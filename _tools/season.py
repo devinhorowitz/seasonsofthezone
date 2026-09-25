@@ -19,7 +19,9 @@ Seasons (phenological, for Polesia):
   winter       Nov 01 - Nov 30    30 d   first snowfall, bare ground
   winter_snow  Dec 01 - Mar 04    94 d   snow on the ground
   late_winter  Mar 05 - Apr 14    41 d   the thaw: patchy snow, mud, bare trees
---mapping met uses Ukraine's meteorological convention instead.
+--mapping met uses Ukraine's meteorological convention instead. CALENDAR in
+seasons_config.py (configure.bat's Seasons tab) moves the dates and turns seasons off; apply
+passes it to the game in configs/season_calendar.ltx, with a dial drawn for it.
 
 What is installed is identified by hashing the mod folder against the archive's options,
 never by a stored note. The archive side is cached (_baseline/season-archive-hashes.json,
@@ -90,7 +92,7 @@ def profile_name():
 
 APPDATA = os.path.join(game_dir(), "appdata")
 
-CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS")
+CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS", "CALENDAR")
 
 
 def _config_error(e):
@@ -144,6 +146,8 @@ SOUND_SRC = getattr(_cfg, "SOUND_SRC", None)
 # which is what lets a one-day event keep the season around it.
 PERIODS = getattr(_cfg, "PERIODS", {})
 EVENTS = getattr(_cfg, "EVENTS", {})
+# The seasons that are on and the day each starts. None is Polesia's dates (PHENO).
+CALENDAR = getattr(_cfg, "CALENDAR", None)
 
 
 def _set_twice(text=None):
@@ -186,14 +190,15 @@ def _validate_config():
                          "    - " + CONFIG_ERROR[0]
                          + "".join("\n        " + l for l in CONFIG_ERROR[1:])
                          + "\n  Nothing has been changed.")
-    problems = _set_twice() + config_problems(TOGGLE_MODS, LAYOUT, SOUND_SRC, PERIODS, EVENTS)
+    problems = _set_twice() + config_problems(TOGGLE_MODS, LAYOUT, SOUND_SRC, PERIODS, EVENTS,
+                                              CALENDAR)
     if problems:
         raise SystemExit("  seasons_config.py needs fixing before anything runs:\n"
                          + "\n".join("    - " + p for p in problems)
                          + "\n  Nothing has been changed.")
 
 
-def config_problems(toggle_mods, layout, sound_src, periods, events):
+def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=None):
     """What is wrong with a set of config tables, one sentence per entry at fault. The
     configure tool checks a file with this before it writes one."""
     problems = []
@@ -258,6 +263,8 @@ def config_problems(toggle_mods, layout, sound_src, periods, events):
 
     if SOUND_SRC is not None and (not isinstance(SOUND_SRC, str) or not SOUND_SRC):
         problems.append("SOUND_SRC must be None or a mod folder name")
+    if calendar is not None:
+        problems += calendar_problems(calendar)
     return problems
 
 
@@ -819,10 +826,213 @@ def install_presets(write):
     return shipped, present, copied
 
 
+# --- the calendar -----------------------------------------------------------------------
+#
+# CALENDAR in seasons_config.py moves the seasons or turns some off. A season it leaves
+# out is off, and the one before it runs on until the next starts. The game reads the
+# same dates from configs/season_calendar.ltx, which write_calendar() makes at every
+# launch, and a custom calendar gets its own dial, drawn here because the shipped one has
+# Polesia's season lengths baked in.
+
+MIN_SEASON_DAYS = 14        # every season gets a dial position and a full blend window
+MONTH_DAYS = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+CALENDAR_REL = ("configs", "season_calendar.ltx")
+DIALS = 32
+DIAL_PREFIX = "ui_seasons_dial_c"
+
+
+def _md(m, d):
+    return "%s %d" % (("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
+                       "Nov", "Dec")[m - 1], d)
+
+
+def season_lengths(starts):
+    """{season: days} for {season: (month, day)}, measured in a year without Feb 29."""
+    order = sorted((int(m), int(d), s) for s, (m, d) in starts.items())
+    out = {}
+    for i, (m, d, s) in enumerate(order):
+        nm, nd, _ = order[(i + 1) % len(order)]
+        a = datetime.date(2026, m, d).toordinal()
+        b = datetime.date(2026, nm, nd).toordinal()
+        out[s] = (b - a) if b > a else (b + 365 - a)
+    return out
+
+
+def calendar_problems(calendar):
+    """What is wrong with a CALENDAR table, one sentence each."""
+    if not isinstance(calendar, dict) or not calendar:
+        return ["CALENDAR must list at least one season and the day it starts, like "
+                "{\"summer\": (5, 20)}"]
+    out, seen = [], {}
+    for s, md in calendar.items():
+        if s not in SEASONS:
+            out.append("CALENDAR names %r, which is not a season - they are: %s"
+                       % (s, ", ".join(SEASONS)))
+            continue
+        try:
+            m, d = int(md[0]), int(md[1])
+            ok = len(md) == 2 and 1 <= m <= 12 and 1 <= d <= (29 if m == 2 else MONTH_DAYS[m - 1])
+        except (TypeError, ValueError, IndexError):
+            ok = False
+        if not ok:
+            out.append("CALENDAR[%r] must be (month, day), like (5, 20)" % s)
+        elif (m, d) == (2, 29):
+            out.append("CALENDAR[%r] starts on February 29, which three years in four do not "
+                       "have. Use February 28 or March 1." % s)
+        elif (m, d) in seen:
+            out.append("CALENDAR: %s and %s both start on %s" % (seen[(m, d)], s, _md(m, d)))
+        else:
+            seen[(m, d)] = s
+    if not out and len(seen) > 1:
+        for s, days in season_lengths(calendar).items():
+            if days < MIN_SEASON_DAYS:
+                out.append("CALENDAR: %s would last %d days; a season needs at least %d"
+                           % (season_label(s), days, MIN_SEASON_DAYS))
+    return out
+
+
+def calendar_table(mapping="pheno", calendar=None):
+    """(season, month, day) for each season that is on: CALENDAR when the config has one,
+    else Polesia's dates, or the meteorological ones with --mapping met."""
+    calendar = CALENDAR if calendar is None else calendar
+    if calendar:
+        return [(s, int(md[0]), int(md[1])) for s, md in calendar.items()]
+    return list(PHENO if mapping == "pheno" else MET)
+
+
+def seasons_on(mapping="pheno"):
+    """The seasons that are on, in the order MCM lists them."""
+    on = {s for s, _, _ in calendar_table(mapping)}
+    return [s for s in SEASONS if s in on]
+
+
+def is_default(table):
+    return sorted(table) == sorted(PHENO)
+
+
+def calendar_text(mapping="pheno"):
+    """One line: whose dates these are, and what is off."""
+    table = calendar_table(mapping)
+    if is_default(table):
+        return "Polesia (the Zone's own dates)"
+    if not CALENDAR:
+        return "meteorological (month starts)"
+    days = season_lengths({s: (m, d) for s, m, d in table})
+    parts = ["%s %s" % (season_label(s), _md(m, d)) for s, m, d in
+             sorted(table, key=lambda t: (t[1], t[2]))]
+    off = [season_label(s) for s in SEASONS if s not in days]
+    return "your own: %s%s" % (", ".join(parts), ("; off: " + ", ".join(off)) if off else "")
+
+
+def _signature(table):
+    """What a redrawn dial depends on: the dates, and the arc colors and drawing code,
+    so a mod update that changes either redraws it too."""
+    h = hashlib.md5(",".join("%s=%d-%d" % t for t in sorted(table)).encode("utf-8"))
+    for p in (os.path.join(MODS, SOTZ, "gamedata", "configs", "seasons_of_the_zone.ltx"),
+              os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "build_season_dial.py")):
+        try:
+            h.update(io.open(p, "rb").read())
+        except OSError:
+            pass
+    return h.hexdigest()[:8]
+
+
+def _calendar_path():
+    return os.path.join(MODS, SOTZ, "gamedata", *CALENDAR_REL)
+
+
+DIAL_TEXT = {
+    "default": "the shipped one, for Polesia's dates",
+    "custom": "drawn for your dates",
+    "stale": "to be drawn for your dates at the next play.bat",
+    "none": "hidden - drawing one for your dates needs Pillow "
+            "(python -m pip install pillow)",
+}
+
+
+def dial_state(mapping="pheno", calendar=None):
+    """What the game will show for the dial, without writing anything: 'default',
+    'custom' when the redrawn one matches the calendar, 'stale' when it needs redrawing
+    and can be, or 'none' when it cannot be (no Pillow)."""
+    table = calendar_table(mapping, calendar)
+    if is_default(table):
+        return "default"
+    tex = os.path.join(MODS, SOTZ, "gamedata", "textures")
+    # a set drawn for other dates is stale even when every file is there
+    have = all(os.path.isfile(os.path.join(tex, "%s%02d.dds" % (DIAL_PREFIX, i)))
+               for i in range(DIALS))
+    try:
+        old = io.open(_calendar_path(), encoding="cp1251").read()
+    except OSError:
+        old = ""
+    if have and ("dial_sig = %s" % _signature(table)) in old:
+        return "custom"
+    try:
+        import PIL                              # noqa: F401 - only asking whether it is here
+        return "stale"
+    except ImportError:
+        return "none"
+
+
+def write_calendar(mapping="pheno", calendar=None, redraw=True):
+    """Write configs/season_calendar.ltx for the game, and draw the dial a custom calendar
+    needs. Returns (dial state, a sentence to show or None)."""
+    table = calendar_table(mapping, calendar)
+    path = _calendar_path()
+    if not os.path.isdir(os.path.dirname(path)):
+        return None, "the mod's configs folder is missing"
+    lines = ["; generated by _tools/season.py from seasons_config.py - do not edit by hand",
+             "[calendar]"]
+    note = None
+    tex = os.path.join(MODS, SOTZ, "gamedata", "textures")
+    if is_default(table):
+        state = "default"
+        lines += ["custom = false", "dial = default"]
+        # a redrawn set is 18 MB and the shipped one is back in use
+        for i in range(DIALS):
+            p = os.path.join(tex, "%s%02d.dds" % (DIAL_PREFIX, i))
+            if os.path.isfile(p):
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
+    else:
+        state = dial_state(mapping, calendar)
+        if state == "stale" and redraw:
+            try:
+                import build_season_dial
+                build_season_dial.write_set(
+                    [(m, d, s) for s, m, d in table], tex, DIAL_PREFIX,
+                    os.path.join(MODS, SOTZ, "gamedata", "configs",
+                                 "seasons_of_the_zone.ltx"), quiet=True)
+                state = "custom"
+            except Exception as e:                  # the dial is a nicety; staging goes on
+                state, note = "none", "the dial could not be drawn (%s), so it is hidden" % e
+        elif state in ("stale", "none"):
+            state = "none"
+        lines += ["custom = true", "dial = %s" % state]
+        if state == "custom":
+            lines.append("dial_sig = %s" % _signature(table))
+        for s, m, d in sorted(table, key=lambda t: SEASONS.index(t[0])):
+            lines.append("%s = %d, %d" % (s, m, d))
+    body = "\r\n".join(lines) + "\r\n"
+    try:
+        old = io.open(path, encoding="cp1251", newline="").read()
+    except OSError:
+        old = None
+    if old != body:
+        try:
+            io.open(path, "w", encoding="cp1251", newline="").write(body)
+        except OSError as e:
+            return None, "%s could not be written (%s)" % (os.path.basename(path), e)
+    return state, note
+
+
 def base_table(mapping="pheno"):
-    """The base periods: the shipped seasons plus anything in PERIODS. These
+    """The base periods: the seasons that are on plus anything in PERIODS. These
     partition the year - exactly one is active on any date."""
-    table = list(PHENO if mapping == "pheno" else MET)
+    table = calendar_table(mapping)
     for name, when in PERIODS.items():
         table.append((name, int(when[0]), int(when[1])))
     return table
@@ -1322,7 +1532,7 @@ def _check_install():
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["status", "apply", "whowins"])
+    ap.add_argument("cmd", choices=["status", "apply", "whowins", "dial"])
     ap.add_argument("path", nargs="?",
                     help="for `whowins`: a gamedata-relative file path, e.g. "
                          "textures/terrain/terrain_escape.dds")
@@ -1348,6 +1558,15 @@ def main():
         raise SystemExit(who_wins(a.path, a.mine))
 
     _validate_config()
+    if a.cmd == "dial":
+        # What configure.bat runs after saving a calendar. The game reads the calendar
+        # when it starts, whether or not that start goes through play.bat.
+        state, note = write_calendar(a.mapping)
+        print("  calendar        %s" % calendar_text(a.mapping))
+        print("  dial            %s" % DIAL_TEXT.get(state, "not written"))
+        if note and state != "custom":
+            print("  - " + note)
+        raise SystemExit(0 if state else 1)
     _check_mod_state()
     shadow_check(force=(a.cmd == "status"))
 
@@ -1356,8 +1575,11 @@ def main():
 
     # MCM offers "automatic, or pin one" and the in-engine layers honour it, so the
     # staged layers follow it too - otherwise pinning a season gives you its light
-    # over another season's ground. An explicit --season still wins over the pin.
-    pinned = prefs["mode"] if prefs["mode"] in SEASONS else None
+    # over another season's ground. An explicit --season still wins over the pin. A pin
+    # left on a season the calendar has turned off counts as automatic, as in game.
+    on = seasons_on(a.mapping)
+    pinned = prefs["mode"] if prefs["mode"] in on else None
+    pin_off = prefs["mode"] in SEASONS and prefs["mode"] not in on
     want = a.season or pinned or season_for(today, a.mapping)
     # A pin or --season fixes the BASE period; events still resolve by real date,
     # so pinning summer in December does not cancel a Christmas event.
@@ -1369,13 +1591,23 @@ def main():
     writing = (a.cmd == "apply") and not a.dry_run
 
     print("  date            %s" % today.isoformat())
-    print("  mapping         %s" % ("phenological (Polesia)" if a.mapping == "pheno"
-                                    else "meteorological (UA convention)"))
+    print("  calendar        %s" % calendar_text(a.mapping))
     why = ("   (forced with --season)" if a.season else
            "   (pinned in MCM)" if pinned else "")
     print("  season          %s%s" % (want, why))
     if pinned and not a.season:
         print("  calendar says   %s" % season_for(today, a.mapping))
+    if pin_off and not a.season:
+        print("  - MCM pins %s, which your calendar has off, so the date decides"
+              % season_label(prefs["mode"]))
+    if writing:
+        dial, note = write_calendar(a.mapping)
+    else:
+        dial, note = dial_state(a.mapping), None
+    if dial != "default":
+        print("  dial            %s" % DIAL_TEXT.get(dial, "not written"))
+    if note and dial != "custom":
+        print("  - " + note)
     print("  texture layer   %s" % ("on" if stage_tex else
                                     "OFF - textures left alone, in-engine seasons still run"))
     print()
@@ -1402,6 +1634,13 @@ def main():
                 print("  %-30s %-9s (should be %s)"
                       % (name[:30],
                          {"+": "ENABLED", "-": "disabled", None: "absent"}[state], note))
+        # A mod scoped only to seasons that are off never comes on: worth saying, since
+        # nothing else would
+        for name, cfg in TOGGLE_MODS.items():
+            w = set(_when(cfg))
+            if w and w <= (set(SEASONS) - set(on)):
+                print("  - %s is scoped only to %s, which your calendar has off"
+                      % (name[:40], seasons_text(sorted(w, key=SEASONS.index))))
         sound_now = soundscape_installed()
         print("  soundscape     installed: %s%s"
               % (sound_now or "not present",

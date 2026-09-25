@@ -47,8 +47,11 @@ winter_snow  Dec 01 - Mar 04    94 d   snow on the ground
 late_winter  Mar 05 - Apr 14    41 d   the thaw: patchy snow, mud, bare trees
 ```
 
-These are the dates the landscape changes, not the equinoxes. `--mapping met` uses
-Ukraine's meteorological convention (round month starts) instead.
+These are the dates the landscape changes, not the equinoxes, and they are only the
+default. `configure.bat`'s Seasons tab moves the day any season starts and turns seasons
+off, for a year of only summer and deep winter, say, or one on Ukraine's meteorological
+dates. A season turned off gives its days to the one before it, and the game, MCM and the
+dial all follow.
 
 ---
 
@@ -222,8 +225,8 @@ If you never use the texture layer, launch however you like.
 
 ## The MCM pages
 
-**Mod Configuration Menu → Seasons of the Zone** has seven pages: Main, then one for
-each season.
+**Mod Configuration Menu → Seasons of the Zone** has a Main page, then one for each
+season your calendar has on: seven pages with the default calendar.
 
 - **Main** — the year dial and today's date; the master switch; season (automatic, or
   pin one — a pin also decides what is staged at the next launch); transition length (0 for a hard switch on the boundary date, 14 by default);
@@ -254,6 +257,12 @@ python _tools\configure.py add "INVERNO Winter Textures" --when winter "deep win
 python _tools\configure.py event christmas 12-24 12-26
 python _tools\configure.py list
 ```
+
+The window's **Seasons** tab sets the calendar itself: the day each season starts, and
+which seasons are on. `python _tools\configure.py calendar` shows it, and
+`configure.py calendar summer=5-1 "deep winter=11-15" --only` makes a two-season year.
+
+![The Seasons tab: summer moved to May 1 and late winter off, so deep winter runs to April 14](docs/images/configure-seasons.png)
 
 **By hand.** Both write `_tools/seasons_config.py`, which you can also edit yourself:
 

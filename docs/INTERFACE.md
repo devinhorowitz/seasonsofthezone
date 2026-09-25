@@ -2,7 +2,8 @@
 
 Two surfaces. **MCM → Seasons of the Zone** is where the mod is configured: seven pages in
 MCM's second column, Main and then one per season — Spring, Summer, Autumn, Winter, Deep
-winter, Late winter. The **Seasons** app in the PDA is where it is read: one app with two faces, **The
+winter, Late winter. A calendar of your own, from `configure.bat`, leaves out the pages
+of the seasons it turns off. The **Seasons** app in the PDA is where it is read: one app with two faces, **The
 Year** and **Forecast**. There is no HUD element, no pop-up and no key binding.
 
 ---
@@ -23,12 +24,15 @@ on the current day. Each wedge is sized by the season's real length: summer is a
 the year, autumn seven weeks.
 
 The dial's colors are each season's own color grade, so it also shows what the game is
-graded towards. It follows the calendar and ignores the pin below it.
+graded towards. It follows the calendar and ignores the pin below it. With a calendar of
+your own the dial is redrawn for your dates; when it could not be drawn (that needs
+Pillow, see [CONFIGURING.md](CONFIGURING.md#calendar)) it is left out.
 
 Below the dial:
 
 - **Enable seasonal atmosphere** — the master switch.
-- **Season** — automatic, or pin one. A pin drives every layer: the in-engine ones
+- **Season** — automatic, or pin one of the seasons your calendar has on. A pin drives
+  every layer: the in-engine ones
   change within five seconds, and the textures and soundscape follow at the next
   launch, since both are staged before the game starts.
 - **Transition length (days)** — the blend window centered on each boundary. 0 switches on
@@ -134,8 +138,9 @@ It is read-only:
 - **Days the Zone marks** — the six fixed days, soonest first, with how far off each is and
   what it does: *Clear sky. The Zone goes quiet.* for the two remembrance days, *Storm.
   Artefacts surface.* for the four anniversaries.
-- **The year** — the six seasons, starting with spring, and the date each begins, beside
-  the dial.
+- **The year** — the seasons, starting with spring, and the date each begins, beside the
+  dial. A calendar of your own lists the seasons it has on, starting from the first of
+  them in that order.
 
 Today and the marked days are red, a color no season uses. Today fills its cell and a marked
 day is underlined, so the two stay distinct when they fall on the same day. On one of the six

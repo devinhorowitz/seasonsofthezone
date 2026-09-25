@@ -9,8 +9,9 @@ starts; `play.bat` runs it for you.
 
 The quickest way in is `configure.bat` in your GAMMA folder. It lists your MO2 mods;
 tick the seasons each one belongs to, and it writes `_tools/seasons_config.py` for you,
-with the `above` for each mod worked out from the files the mods share. To start from a
-full working setup instead:
+with the `above` for each mod worked out from the files the mods share. Its Seasons tab
+moves the season dates and turns seasons off; see [`CALENDAR`](#calendar). To start from
+a full working setup instead:
 
 ```bash
 cp _tools/seasons_config.example.py _tools/seasons_config.py
@@ -33,10 +34,12 @@ python _tools/season.py apply --dry-run        # report what would change
 python _tools/season.py apply --season winter  # stage a period other than today's
 python _tools/season.py apply --no-textures    # in-engine only, this run
 python _tools/season.py whowins <gamedata path> --for "<your mod>"
+python _tools/season.py dial                   # hand CALENDAR to the game, draw its dial
 ```
 
 `status` changes nothing. `apply` does nothing when the staged season already matches the
-date. `--mapping met` uses Ukraine's meteorological calendar (round month starts).
+date. `--mapping met` uses Ukraine's meteorological calendar (round month starts) for one
+run; `CALENDAR` is the lasting way to change the dates.
 
 The configure tool, as commands:
 
@@ -47,6 +50,12 @@ python _tools/configure.py add "<mod>" --when winter "deep winter" [--above "<mo
 python _tools/configure.py remove "<mod>"
 python _tools/configure.py event christmas 12-24 12-26
 python _tools/configure.py event christmas --remove
+python _tools/configure.py calendar           # when each season starts, and which are off
+python _tools/configure.py calendar summer=5-1 "deep winter=11-15" [--only]
+python _tools/configure.py calendar --off late_winter
+python _tools/configure.py calendar --on late_winter      # back on, at Polesia's date
+python _tools/configure.py calendar --preset met          # the meteorological dates
+python _tools/configure.py calendar --reset               # Polesia's again
 ```
 
 `add` puts a mod on the calendar, or replaces its seasons if it is already there. The
@@ -189,6 +198,38 @@ the next launch. Leave `SOUND_SRC = None` to skip the layer.
 
 ---
 
+## `CALENDAR`
+
+```python
+CALENDAR = {
+    "summer": (5, 1),            # (month, day) the season starts
+    "winter_snow": (11, 15),
+}
+```
+
+The seasons that are on and the day each starts. `configure.bat`'s Seasons tab writes it,
+and `configure.py calendar` does from a command prompt. Each season runs until the next one
+that is on, so a season left out gives its days to the one before it; the example is
+summer from May 1 and deep winter from November 15, and nothing else. `None`, or no
+`CALENDAR` at all, is Polesia's six.
+
+Every season needs at least 14 days, no two can start on the same day, and none can start
+on February 29, which three years in four do not have. At least one has to be on.
+
+A mod scoped only to seasons that are off is never switched on; `season.py status` names
+it. An MCM pin on a season that is off counts as automatic.
+
+`play.bat` hands the calendar to the game in `configs/season_calendar.ltx`, and saving from
+the tool does too, so the in-engine layer follows it from the next start even without
+`play.bat`. MCM shows a page and a pin for each season that is on.
+
+The year dial is redrawn for your dates, 32 images in the mod's `textures/` folder. That
+needs Pillow, a Python package: `python -m pip install pillow`, which the tool offers to
+run. Without Pillow the dial is hidden, since the shipped one shows Polesia's dates.
+`season.py dial` draws it by hand, and a return to Polesia's calendar deletes it.
+
+---
+
 ## Presets
 
 The mod ships its season grades as `cfg_load` presets, `Seasons_*.ltx`, in
@@ -220,6 +261,9 @@ field. The usual mistakes:
   `TOGGLE_MODS = {}`. Python keeps the last one, so the entry would be thrown away.
 
 `whowins` still runs while the file has a mistake in it.
+
+**The year dial is gone.** A calendar of your own needs a dial drawn for it, and drawing
+one needs Pillow: `python -m pip install pillow`, then `python _tools/season.py dial`.
 
 **Textures are wrong for the season.** The mod says so on load: *"TEXTURES ARE STAGED FOR
 X but the season running is Y"*. Run `season.py apply` or `play.bat` and restart.

@@ -1,15 +1,21 @@
 # Changelog
 
-## 1.9.0 — 2026-09-23
+## 1.9.0 — 2026-09-25
 
 - **`configure.bat` puts mods on the calendar without editing Python.** A window lists your
   MO2 mods; tick the seasons each one belongs to, and save. It works out the mod each one
   has to sit above from the files they share, names any other seasonal mod it overlaps
-  with in the same season, and makes events such as Christmas. Copy it into your GAMMA
-  folder along with `_tools/` and `play.bat`.
+  with in the same season, and makes and deletes events such as Christmas. Copy it into
+  your GAMMA folder along with `_tools/` and `play.bat`.
+- **Your own calendar.** The window's Seasons tab moves the day each season starts and
+  turns seasons off, for a year of only summer and deep winter, or one on the
+  meteorological dates. Polesia's stays the default. A season turned off gives its days to
+  the one before it; the game follows from its next start, MCM shows pages and pins for the
+  seasons that are on, and the year dial is redrawn for your dates. Redrawing needs Pillow,
+  which the tool offers to install; without it the dial is hidden.
 - **The same from a command prompt,** for when someone is helping you: `configure.py add`,
-  `remove`, `event` and `list`. A mod name MO2 doesn't have gets suggestions instead of a
-  silent skip.
+  `remove`, `event`, `calendar` and `list`. A mod name MO2 doesn't have gets suggestions
+  instead of a silent skip.
 - **Every save is checked with `season.py`'s own rules first,** keeps the previous file as
   `seasons_config.py.bak`, and rewrites only the entries that changed, so comments and
   anything written by hand stay. It also repairs two common mistakes: an empty

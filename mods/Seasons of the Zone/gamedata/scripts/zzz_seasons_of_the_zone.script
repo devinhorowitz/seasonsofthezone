@@ -35,6 +35,10 @@ local BOUNDS = {
     {m = 11, d = 1,  season = "winter"},       -- 30d,  first snowfall, bare ground
     {m = 12, d = 1,  season = "winter_snow"},  -- 94d,  cover (wraps the year end)
 }
+-- A player's own calendar (configure.bat) replaces these; see load_calendar() below.
+
+-- The six seasons in the order MCM lists them
+local SEASON_KEYS = {"spring", "summer", "autumn", "winter", "winter_snow", "late_winter"}
 
 -- Engine ranges, from the SSS MCM sliders. A value outside these is clamped and logged.
 local RANGES = {
@@ -215,6 +219,73 @@ local function circ(delta, len)
     if delta >  len * 0.5 then delta = delta - len end
     if delta < -len * 0.5 then delta = delta + len end
     return delta
+end
+
+-- --- the player's calendar -----------------------------------------------------------
+--
+-- configure.bat can move the season starts and turn seasons off. play.bat writes the
+-- result to season_calendar.ltx at every launch, with a dial redrawn for those dates when
+-- it could draw one. With no file, custom = false, or a date that does not read, the
+-- Polesia dates above stay.
+local DIAL = "default"      -- "custom": redrawn for the player's dates; "none": no dial
+local MONTH_LEN = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+
+-- The starts in date order and the dial to use, or nil for Polesia's
+local function read_calendar()
+    local ini = ini_file("season_calendar.ltx")
+    if not (ini and ini:section_exist("calendar")) then return nil end
+    if ini:r_string_ex("calendar", "custom") ~= "true" then return nil end
+    local out, seen = {}, {}
+    for _, s in ipairs(SEASON_KEYS) do
+        if ini:line_exist("calendar", s) then
+            local t = nums(ini:r_string_ex("calendar", s))
+            local m, d = t[1], t[2]
+            if not (m and d and MONTH_LEN[m] and d >= 1 and d <= MONTH_LEN[m])
+               or seen[m * 100 + d] then
+                say("!season_calendar.ltx: " .. s .. " has no usable start date - "
+                    .. "keeping the Polesia calendar")
+                return nil
+            end
+            seen[m * 100 + d] = true
+            out[#out + 1] = {m = m, d = d, season = s}
+        end
+    end
+    if #out == 0 then return nil end
+    table.sort(out, function(a, b) return a.m * 100 + a.d < b.m * 100 + b.d end)
+    return out, ini:r_string_ex("calendar", "dial") == "custom" and "custom" or "none"
+end
+
+-- at load, and never fatal: a file that cannot be read leaves Polesia's calendar running
+local ok_cal, cal_bounds, cal_dial = pcall(read_calendar)
+if not ok_cal then
+    say("!season_calendar.ltx could not be read (" .. tostring(cal_bounds)
+        .. ") - keeping the Polesia calendar")
+elseif cal_bounds then
+    BOUNDS, DIAL = cal_bounds, cal_dial
+end
+
+local function is_on(s)
+    for _, b in ipairs(BOUNDS) do
+        if b.season == s then return true end
+    end
+    return false
+end
+
+-- The seasons that are on, in the order MCM lists them
+function enabled_seasons()
+    local out = {}
+    for _, s in ipairs(SEASON_KEYS) do
+        if is_on(s) then out[#out + 1] = s end
+    end
+    return out
+end
+
+-- The MCM pin, or "auto". A pin on a season the calendar has since turned off has no
+-- dates to stand on, so it counts as automatic; MCM's list shows it as automatic too.
+local function pinned()
+    local mode = mcm("mode", "auto")
+    if mode ~= "auto" and not is_on(mode) then return "auto" end
+    return mode
 end
 
 -- --- color grade presets ------------------------------------------------------------
@@ -466,7 +537,7 @@ function snow_factor()
 
     local v = 0.0
     if mcm("enabled", true) then
-        local mode = mcm("mode", "auto")
+        local mode = pinned()
         if mode ~= "auto" then
             v = SNOW_WEIGHT[mode] or 0.0
         else
@@ -493,7 +564,7 @@ function season_mix()
     local m = {spring = 0, summer = 0, autumn = 0, winter = 0, winter_snow = 0,
                late_winter = 0}
     if mcm("enabled", true) then
-        local mode = mcm("mode", "auto")
+        local mode = pinned()
         if mode ~= "auto" and m[mode] then
             m[mode] = 1.0
         else
@@ -510,8 +581,10 @@ function season_mix()
     return m
 end
 
--- Pre-rendered dials, ~11 days apart. The date itself is live text above the dial.
+-- Pre-rendered dials, ~11 days apart, drawn for DIAL_YEAR's dates by
+-- _tools/build_season_dial.py. The date itself is live text above the dial.
 DIAL_POSITIONS = 32
+local DIAL_YEAR = 2026
 
 -- which season a day-of-year falls in, ignoring blending
 local function season_at(doy, year)
@@ -524,22 +597,27 @@ end
 
 -- The nearest dial whose own date is in today's season. Each dial has its season's arc
 -- highlighted, so the nearest by date alone can light the wrong arc near a boundary.
+-- Positions are worked out for the year they were drawn for, not this one: in a leap
+-- year they would move a day and could land on the wrong side of a boundary. nil when a
+-- calendar of the player's own has no dial drawn for it.
 function dial_texture()
+    if DIAL == "none" then return nil end
     local year = os.date("*t").year
     local doy  = tonumber(os.date("%j"))
-    local yl   = doy_of(12, 31, year)
+    local yl   = doy_of(12, 31, DIAL_YEAR)
     local want = season_at(doy, year)
 
     local best, best_d
     for i = 0, DIAL_POSITIONS - 1 do
         local day = math.floor(i * yl / DIAL_POSITIONS + 0.5) + 1
-        if season_at(day, year) == want then
+        if season_at(day, DIAL_YEAR) == want then
             local d = math.abs(day - doy)
             if d > yl / 2 then d = yl - d end   -- wrap the year end
             if not best_d or d < best_d then best, best_d = i, d end
         end
     end
-    return string.format("ui_seasons_dial_%02d.dds", best or 0)
+    return string.format(DIAL == "custom" and "ui_seasons_dial_c%02d.dds"
+                         or "ui_seasons_dial_%02d.dds", best or 0)
 end
 
 
@@ -678,7 +756,7 @@ local function apply(announce)
         wet   = mcm("do_wet",   true),
     }
     local intensity = mcm("intensity", 1.0)
-    local mode      = mcm("mode", "auto")
+    local mode      = pinned()
 
     local from, to, k
     if mode == "auto" then
@@ -758,7 +836,7 @@ local function pda_announce()
     end
     local date = today_text()
 
-    local mode = mcm("mode", "auto")
+    local mode = pinned()
     local msg
     if mode ~= "auto" then
         -- pinned: no date, which would only contradict the season
@@ -767,8 +845,13 @@ local function pda_announce()
         local from, to, k = resolve(mcm("blend_days", 14))
         if from == to then
             local d, nxt = days_to_next()
-            msg = string.format("%s in the Zone. %s. %s begins in %s days.",
-                                cap(to), date, cap(nxt), tostring(d))
+            if nxt == to then
+                -- a calendar with one season on: it never gives way
+                msg = string.format("%s in the Zone. %s.", cap(to), date)
+            else
+                msg = string.format("%s in the Zone. %s. %s begins in %s days.",
+                                    cap(to), date, cap(nxt), tostring(d))
+            end
         else
             local phase
             if k < 0.35 then
@@ -1306,7 +1389,7 @@ local function actor_on_first_update()
         local s = staged:r_string_ex("staged", "season")
         local on = (staged:r_string_ex("staged", "staging") or "on") ~= "off"
         local from, to = resolve(mcm("blend_days", 14))
-        local mode = mcm("mode", "auto")
+        local mode = pinned()
         local running = (mode ~= "auto") and mode or to
         -- with the texture layer off they are meant to disagree
         if on and s and s ~= "unknown" and s ~= running then
@@ -1384,7 +1467,7 @@ function calendar_page()
         extra   = {},
     }
 
-    -- the six shipped seasons, with length and range
+    -- each season that is on, with length and range
     local yl = doy_of(12, 31, year)
     for i, b in ipairs(BOUNDS) do
         local nxt = BOUNDS[i % #BOUNDS + 1]
@@ -1403,10 +1486,11 @@ function calendar_page()
             starts_in = days_until(b.m, b.d),
         }
     end
-    -- listed from spring, like the MCM pages; BOUNDS stays in date order
-    -- because the lookups need it
+    -- listed from spring, like the MCM pages, or from the first season on after it;
+    -- BOUNDS stays in date order because the lookups need it
+    local first = enabled_seasons()[1]
     for _ = 1, #out.seasons do
-        if out.seasons[1].key == "spring" then break end
+        if out.seasons[1].key == first then break end
         table.insert(out.seasons, table.remove(out.seasons, 1))
     end
 
