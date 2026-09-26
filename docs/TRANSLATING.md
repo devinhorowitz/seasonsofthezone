@@ -131,6 +131,10 @@ What to keep:
   inside a date take the genitive: "сентября".
 - **One line each.** A `<text>` stays on one line, with no double spaces and no spaces at
   its ends: the game's XML reader drops them.
+- **Short where the English is short.** The PDA's labels have fixed widths, and a longer
+  word runs past its box. The sky words (`st_sotz_sky_*`) are the tightest: one of them
+  fills a slot about as wide as "Partly cloudy", so a shorter word, or a short form, fits
+  best.
 
 What stays English for now:
 
