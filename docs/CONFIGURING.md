@@ -388,7 +388,9 @@ comes after its last runs across the new year.
 
 `configure.bat`'s Seasons step makes them, and so does `configure.py season`. Taking one
 off takes it off every mod on in it; a mod on in nothing else comes off the calendar, and
-the window asks first. Renaming one renames it for its mods too. They are not on the dial
+the window asks first.
+
+![The Seasons step, further down: seasons of your own, and spells, each with Change and Remove](images/configure-own-seasons.png) Renaming one renames it for its mods too. They are not on the dial
 or the MCM pages, and `status` names the ones on today on its `also today` line.
 
 ---
@@ -419,7 +421,9 @@ over it. The mods on during a spell come on whether it brings a season or not.
 
 The Seasons step's **Add a spell...** shows how often a spell comes on average as you set
 it - 3% a day in Polesia's summer is about 4 a year - and `configure.py spell` lists each
-one that way. `status` shows a spell on today on its `season` line.
+one that way.
+
+![A spell: where it can start, the chance each day, how long it runs, and the season it brings](images/configure-spell.png) `status` shows a spell on today on its `season` line.
 
 ---
 

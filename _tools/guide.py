@@ -754,8 +754,10 @@ class Guide(object):
             self.button(line, _("Change..."), lambda n=n: cf.spell_dialog(
                 self.root, self.cal, editing=n, done=lambda name: self.show_own()),
                 side="right")
-            ttk.Label(line, text=cf.spell_words(cal, cal.spells[n]), foreground=cf.GREY,
-                      wraplength=340, justify="left").pack(side="left")
+            # under its name: too long to share the line with the buttons
+            ttk.Label(self.spell_box_list, text=cf.spell_words(cal, cal.spells[n]),
+                      foreground=cf.GREY, wraplength=520, justify="left").pack(
+                anchor="w", padx=(18, 0), pady=(0, 4))
 
     def add_own(self):
         cf.own_season_dialog(self.root, self.cal, done=lambda name: self.show_own())

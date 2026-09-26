@@ -326,6 +326,11 @@ year.
 
 ![The Seasons step: Polesia's calendar and the others, your own dates, and the year dial](docs/images/configure-seasons.png)
 
+Further down the same step, **Add a season of your own...** and **Add a spell...**, with
+how often each spell comes on average.
+
+![The Seasons step, further down: seasons of your own, and spells](docs/images/configure-own-seasons.png)
+
 The **Weather** step picks where the real weather comes from: Chornobyl, or a town you look
 up by name. The PDA's temperature, its Forecast page and the freezing, thaw and heat days
 follow the weather there.
