@@ -1899,6 +1899,30 @@ msgid "It is not a Seasons of the Zone preset."
 msgstr ""
 
 #: config_edit.py
+msgid "it must be a table of own_seasons, spells, events and periods."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "event %(event)s came with %(mod)s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "season %(season)s came with %(mod)s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "spell %(spell)s came with %(mod)s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "period %(period)s came with %(mod)s"
+msgstr ""
+
+#: config_edit.py
 #, python-format
 msgid "calendar: %s"
 msgstr ""
@@ -1925,21 +1949,6 @@ msgstr ""
 #: config_edit.py
 #, python-format
 msgid "dropped the events seasons_config.py had that could not be used: %s"
-msgstr ""
-
-#: config_edit.py
-#, python-format
-msgid "event %(event)s came with %(mod)s"
-msgstr ""
-
-#: config_edit.py
-#, python-format
-msgid "season %(season)s came with %(mod)s"
-msgstr ""
-
-#: config_edit.py
-#, python-format
-msgid "spell %(spell)s came with %(mod)s"
 msgstr ""
 
 #: config_edit.py
@@ -2274,6 +2283,7 @@ msgstr ""
 msgid "can't be used; see below"
 msgstr ""
 
+#. the words each line of a preset's parts starts with, lined up
 #: configure.py
 msgctxt "start of a line"
 msgid "season"
@@ -2870,6 +2880,11 @@ msgstr ""
 #: configure.py
 #, python-format
 msgid "%(season)s is called \"%(name)s\""
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "starts in %s"
 msgstr ""
 
 #: configure.py
@@ -4694,6 +4709,10 @@ msgid "Remove"
 msgstr ""
 
 #: guide.py
+msgid "play.bat can't use it as it is"
+msgstr ""
+
+#: guide.py
 msgctxt "a season, turned off"
 msgid "off"
 msgstr ""
@@ -4756,7 +4775,25 @@ msgid "Check it, then save"
 msgstr ""
 
 #: guide.py
+#, python-format
+msgid "%s, pinned in MCM"
+msgstr ""
+
+#: guide.py
 msgid "With no seasonal mods, play.bat has nothing to switch. The seasonal atmosphere runs all the same."
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "Texture swapping is off in MCM, so play.bat keeps the seasonal mod off. The seasonal atmosphere runs all the same."
+msgid_plural "Texture swapping is off in MCM, so play.bat keeps the %(n)d seasonal mods off. The seasonal atmosphere runs all the same."
+msgstr[0] ""
+msgstr[1] ""
+
+#. %(on)s is a list of the mods on today
+#: guide.py
+#, python-format
+msgid "Today is %(season)s. With this setup, play.bat has %(on)s on."
 msgstr ""
 
 #. %(on)s is a list of the mods on today
@@ -4769,10 +4806,25 @@ msgstr[1] ""
 
 #: guide.py
 #, python-format
-msgid "Today is %(season)s. With this setup, play.bat has none of them on, and the other %(off)d off until their seasons."
-msgid_plural "Today is %(season)s. With this setup, play.bat has none of them on, and the other %(off)d off until their seasons."
+msgid "Today is %(season)s. With this setup, play.bat has the seasonal mod off until its season."
+msgid_plural "Today is %(season)s. With this setup, play.bat has the %(off)d seasonal mods off until their seasons."
 msgstr[0] ""
 msgstr[1] ""
+
+#: guide.py
+#, python-format
+msgid "Today is %s."
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "%s is unchecked in MCM for this season, so it stays off."
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "%s are unchecked in MCM for this season, so they stay off."
+msgstr ""
 
 #: guide.py
 msgid "Fix these first; play.bat would refuse the setup as it is:"

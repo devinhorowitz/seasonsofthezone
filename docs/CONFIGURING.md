@@ -485,8 +485,10 @@ change in the window it is written only when you save. `configure.py preset load
 at once, so it refuses to replace anything of yours unless you add `--force`. A preset made
 on another install loads here: a mod you don't have is left out, a mod whose `above` you
 don't have gets another for your list, a texture set whose archive is not in your
-`downloads/` is left out, and loading says which. Every part goes through the same rules
-as a save, and a preset that would break the config is refused whole.
+`downloads/` is left out, and loading says which. A mod on in something your setup doesn't
+have - a season of your own, a spell, an event or a period - brings it along from the
+preset, and a preset of the mods alone carries those for them. Every part goes through the
+same rules as a save, and a preset that would break the config is refused whole.
 
 Four calendars come with the tool: Polesia, Meteorological, Two seasons and Southern
 hemisphere. The GAMMA example holds the seasonal mods, events, texture sets and sound

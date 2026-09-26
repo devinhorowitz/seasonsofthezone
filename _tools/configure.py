@@ -870,10 +870,18 @@ def cmd_preset(a):
             for s, n in (p.get("names") or {}).items():
                 print("    " + _("%(season)s is called \"%(name)s\"") % {
                     "season": season.cap_first(season.usual_name(s)), "name": n})
-        if "events" in have:
-            for n, spec in p.get("events", {}).items():
-                print("    %-5s %-18s %s" % (pgettext("start of a line", "event"), n,
-                                             ce.window_text(spec)))
+        if "events" in have or p.get("needs"):
+            tables = p if "events" in have else p["needs"]
+            # translators: the words each line of a preset's parts starts with, lined up
+            for word, key in ((pgettext("start of a line", "season"), "own_seasons"),
+                              (pgettext("start of a line", "spell"), "spells"),
+                              (pgettext("start of a line", "event"), "events"),
+                              (pgettext("start of a line", "period"), "periods")):
+                for n, spec in (tables.get(key) or {}).items():
+                    what = (ce.window_text(spec) if key in ("own_seasons", "events") else
+                            _("starts in %s") % comma_list(spec["in"]) if key == "spells"
+                            else season._md(*spec))
+                    print("    %-6s %-18s %s" % (word, n, what))
         if "mods" in have:
             for n, c in p["mods"].items():
                 print("    %s  (%s)" % (n, _("on in %s") % when_text(c["when"])))

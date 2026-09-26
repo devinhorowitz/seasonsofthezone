@@ -495,6 +495,52 @@ def t_a_preset_carries_seasons_of_ones_own_and_spells():
 
 
 @case
+def t_a_preset_of_the_mods_alone_brings_what_they_are_on_in():
+    """A preset of the mods alone, where they are on in an event, a season of one's own and
+    a spell, was saved without those and could never be loaded. It carries them now, and
+    loaded elsewhere brings them, with the season the spell starts in. A preset whose spell
+    brings a season its own calendar has off is refused in the list; show lists seasons of
+    one's own and spells."""
+    config = ('OWN_SEASONS = {"Wormhole season": ((8, 1), (8, 31))}\n'
+              'EVENTS = {"christmas": ((12, 24), (12, 26))}\n'
+              'SPELLS = {"Wormhole storm": {"in": ("Wormhole season",), "chance": 10, '
+              '"days": 2, "as": None}}\n'
+              'TOGGLE_MODS = {"Lonely Mod": {"when": ("Wormhole storm",), "above": "Base '
+              'Grass"},\n'
+              '               "Winter Maps": {"when": ("christmas",), "above": "Map Pack"}}\n')
+    with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as e:
+        tc.install(d, config=config)
+        rc, out = tc.run(d, "preset", "save", "Mods only", "--parts", "mods")
+        assert rc == 0, out
+        rc, out = tc.run(d, "preset")
+        assert rc == 0 and "can't be used" not in out, out
+        rc, out = tc.run(d, "preset", "show", "Mods only")
+        assert "spell  Wormhole storm     starts in Wormhole season" in out \
+            and "season Wormhole season    Aug 1 - Aug 31" in out, out
+        tc.install(e)
+        os.makedirs(os.path.join(e, "_tools", "presets"))
+        src = os.path.join(d, "_tools", "presets", "Mods only.json")
+        io.open(os.path.join(e, "_tools", "presets", "Mods only.json"), "wb").write(
+            open(src, "rb").read())
+        rc, out = tc.run(e, "preset", "load", "Mods only")
+        assert rc == 0 and "spell Wormhole storm came with Lonely Mod" in out \
+            and "season Wormhole season came with Wormhole storm" in out \
+            and "event christmas came with Winter Maps" in out, out
+        ns = tg.table(e)
+        assert set(ns["OWN_SEASONS"]) == {"Wormhole season"} and set(ns["SPELLS"]) == {
+            "Wormhole storm"} and set(ns["EVENTS"]) == {"christmas"}, ns
+        tc.accepted(e)
+        io.open(os.path.join(e, "_tools", "presets", "Odd.json"), "w", encoding="utf-8").write(
+            '{"seasons_of_the_zone_preset": 1, "calendar": {"summer": [5, 20], '
+            '"winter_snow": [12, 1]}, "spells": {"Summer frost": {"in": ["summer"], '
+            '"chance": 3, "days": [1, 2], "as": "winter"}}}')
+        rc, out = tc.run(e, "preset")
+        line = [l for l in out.splitlines() if l.strip().startswith("Odd")]
+        assert line and "can't be used" in line[0], out
+    return "carried and brought, the spell's season with it; the odd one refused in the list"
+
+
+@case
 def t_a_mod_in_a_season_of_ones_own_meets_the_season_it_falls_in():
     """Winter Overlay made seasonal in a season of one's own inside winter, where Winter Pack
     is on and ships a file it ships: the player is asked whose the game uses, as for two

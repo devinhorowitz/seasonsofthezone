@@ -1362,21 +1362,46 @@ def read_preset(path):
     if isinstance(spells, dict):
         spells = {n: norm_spell(s) if not season.spell_problems(
             {n: s}, own=own if isinstance(own, dict) else {}) else s for n, s in spells.items()}
+    # a spell is checked against the calendar that comes with it, when one does
+    dates = out.get("calendar")
+    dates = dates if isinstance(dates, dict) and dates else None
     if any(k in data for k in PART_KEYS["events"]):
         problems += season.config_problems({}, {}, None, periods, events, own=own,
-                                           spells=spells)
+                                           spells=spells, calendar=dates)
         out["events"], out["periods"], out["own_seasons"] = events, periods, own
         out["spells"] = spells
+    # what a preset of the mods alone brings for them to be on in
+    needs = data.get("needs", {})
+    if not isinstance(needs, dict) or not all(isinstance(needs.get(k, {}), dict)
+                                              for k in PART_KEYS["events"]):
+        problems.append("needs: " + _("it must be a table of own_seasons, spells, events "
+                                      "and periods."))
+        needs = {}
+    needs = {"own_seasons": {n: norm_event(w) if not season.own_problems({n: w}) else w
+                             for n, w in needs.get("own_seasons", {}).items()},
+             "spells": {n: norm_spell(s) if not season.spell_problems({n: s}) else s
+                        for n, s in needs.get("spells", {}).items()},
+             "events": {n: norm_event(w) if not season.event_problems(n, w) else w
+                        for n, w in needs.get("events", {}).items()},
+             "periods": {n: _days(md) for n, md in needs.get("periods", {}).items()}}
+    if any(needs.values()):
+        problems += season.config_problems({}, {}, None, needs["periods"], needs["events"],
+                                           own=needs["own_seasons"], spells=needs["spells"],
+                                           calendar=dates)
+        out["needs"] = needs
+
+    def both(mine, key):
+        table = dict(needs[key])
+        table.update(mine if isinstance(mine, dict) else {})
+        return table
     if "mods" in data:
         mods = data["mods"]
         if isinstance(mods, dict):
             mods = {n: dict(c, when=tuple(c["when"])) if isinstance(c, dict)
                     and isinstance(c.get("when"), list) else c for n, c in mods.items()}
         problems += [p for p in season.config_problems(
-            mods, {}, None, periods if isinstance(periods, dict) else {},
-            events if isinstance(events, dict) else {},
-            own=own if isinstance(own, dict) else {},
-            spells=spells if isinstance(spells, dict) else {})
+            mods, {}, None, both(periods, "periods"), both(events, "events"),
+            own=both(own, "own_seasons"), spells=both(spells, "spells"))
             if p.startswith("TOGGLE_MODS")]
         out["mods"] = mods
     if "layout" in data or "sound_src" in data:
@@ -1417,12 +1442,30 @@ def preset_from(cal, parts):
     if "mods" in parts:
         out["mods"] = {n: {"when": list(c["when"]), "above": c["above"]}
                        for n, c in cal.toggle.items()}
+        if "events" not in parts:
+            need = {k: v for k, v in needed(cal).items() if v}
+            if need:
+                out["needs"] = need
     if "textures" in parts:
         out["layout"] = {n: {"archive": c["archive"],
                              "options": {s: list(f) for s, f in c["options"].items()}}
                          for n, c in cal.layout.items()}
         out["sound_src"] = cal.sound_src
     return out
+
+
+def needed(cal):
+    """What the mods on the calendar are on in, beyond the seasons and the weather: each
+    season of one's own, spell, event and period they name, and the seasons of one's own
+    those spells start in. A preset of the mods alone carries these, to load elsewhere."""
+    names = {p for c in cal.toggle.values() for p in c["when"]}
+    spells = {n: s for n, s in cal.spells.items() if n in names}
+    for s in spells.values():
+        names |= set(s["in"])
+    return {"own_seasons": {n: event_json(w) for n, w in cal.own.items() if n in names},
+            "spells": {n: spell_json(s) for n, s in spells.items()},
+            "events": {n: event_json(w) for n, w in cal.events.items() if n in names},
+            "periods": {n: list(md) for n, md in cal.periods.items() if n in names}}
 
 
 def preset_path(name):
@@ -1449,6 +1492,35 @@ def write_preset(name, about, data):
     with io.open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(preset_json(data) + "\n")
     return path
+
+
+def bring(cal, preset, p, mod):
+    """Add `p`, which `mod` is on in, to `cal` from `preset` - its events part or what a
+    preset of the mods alone needs - when `cal` lacks it; a spell brings the seasons of
+    one's own it starts in. Returns what came, as lines."""
+    if p in cal.known():
+        return []
+    needs = preset.get("needs") or {}
+
+    def found(key, n):
+        got = (preset.get(key) or {}).get(n)
+        return got if got is not None else (needs.get(key) or {}).get(n)
+    if found("events", p) is not None:
+        cal.events[p] = norm_event(found("events", p))
+        return ["  " + _("event %(event)s came with %(mod)s") % {"event": p, "mod": mod}]
+    if found("own_seasons", p) is not None:
+        cal.own[p] = norm_event(found("own_seasons", p))
+        return ["  " + _("season %(season)s came with %(mod)s") % {"season": p, "mod": mod}]
+    if found("spells", p) is not None:
+        cal.spells[p] = norm_spell(found("spells", p))
+        out = ["  " + _("spell %(spell)s came with %(mod)s") % {"spell": p, "mod": mod}]
+        for q in cal.spells[p]["in"]:
+            out += bring(cal, preset, q, p)
+        return out
+    if found("periods", p) is not None:
+        cal.periods[p] = tuple(found("periods", p))
+        return ["  " + _("period %(period)s came with %(mod)s") % {"period": p, "mod": mod}]
+    return []
 
 
 def apply_preset(cal, inst, preset, parts):
@@ -1484,20 +1556,9 @@ def apply_preset(cal, inst, preset, parts):
                 continue
             when = list(c["when"])
             # a mod scoped to an event this setup does not have brings the event along,
-            # and a season of the player's own likewise
+            # and a season of the player's own, a spell and a period likewise
             for p in when:
-                if p not in cal.known() and p in preset.get("events", {}):
-                    cal.events[p] = norm_event(preset["events"][p])
-                    said.append("  " + _("event %(event)s came with %(mod)s")
-                                % {"event": p, "mod": name})
-                elif p not in cal.known() and p in preset.get("own_seasons", {}):
-                    cal.own[p] = norm_event(preset["own_seasons"][p])
-                    said.append("  " + _("season %(season)s came with %(mod)s")
-                                % {"season": p, "mod": name})
-                elif p not in cal.known() and p in preset.get("spells", {}):
-                    cal.spells[p] = norm_spell(preset["spells"][p])
-                    said.append("  " + _("spell %(spell)s came with %(mod)s")
-                                % {"spell": p, "mod": name})
+                said += bring(cal, preset, p, name)
             above = c["above"]
             if not inst.listed(above):
                 above = anchor_for(inst, name, when, dict(toggle, **{name: c}))[0] or above
