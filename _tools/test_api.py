@@ -354,7 +354,12 @@ def t_tomorrow():
     # and with no fetched file at all there is no modelled stand-in
     _, g = build(hour=12.0, month=9, observed=None)
     assert g.sotz_api.tomorrow() is None, "invented a tomorrow with no observations"
-    return "tomorrow read from its own section, no modelled fallback"
+    # a file from an earlier day holds that day's tomorrow, which is today or before
+    for stale in (_pinned(9, 15), _pinned(9, 10)):
+        _, g = build(hour=12.0, month=9, observed=dict(obs, _next=dict(obs["_next"],
+                                                                       date=stale)))
+        assert g.sotz_api.tomorrow() is None, "an old file's tomorrow was shown: " + stale
+    return "tomorrow read from its own section, no modelled fallback, none from an old file"
 
 
 def t_units_both_shapes():

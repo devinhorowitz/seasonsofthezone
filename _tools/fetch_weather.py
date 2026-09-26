@@ -169,17 +169,26 @@ def configured_place():
         return DEFAULT, None
 
 
+# letters that take no accent off, and have no letter of cp1251 to stand for them
+PLAIN = {"\u0142": "l", "\u0141": "L", "\u00df": "ss", "\u00f8": "o", "\u00d8": "O",
+         "\u00e6": "ae", "\u00c6": "Ae", "\u0153": "oe", "\u0152": "Oe", "\u0111": "d",
+         "\u0110": "D", "\u00f0": "d", "\u00d0": "D", "\u00fe": "th", "\u00de": "Th",
+         "\u0131": "i", "\u0127": "h", "\u0126": "H", "\u0167": "t", "\u0166": "T"}
+
+
 def shown_name(name):
     """The place's name as the game can show it: in cp1251, with accents taken off the
-    letters it lacks, and nothing that would break the file."""
+    letters it lacks, and nothing that would break the file. An underscore is a space:
+    the file writes a space as one, since the game's reader drops spaces."""
     out = []
     for ch in unicodedata.normalize("NFC", name):
         try:
             ch.encode("cp1251")
             out.append(ch)
         except UnicodeEncodeError:
-            out.append(unicodedata.normalize("NFKD", ch).encode("ascii", "ignore").decode())
-    text = " ".join(re.sub(r"[;\[\]=]", " ", "".join(out)).split())
+            out.append(PLAIN.get(ch) or unicodedata.normalize("NFKD", ch).encode(
+                "ascii", "ignore").decode())
+    text = " ".join(re.sub(r"[;\[\]=_]", " ", "".join(out)).split())
     return text[:PLACE_CHARS].strip() or "?"
 
 
@@ -239,7 +248,8 @@ def read_existing(section="weather"):
                 continue
             if here == section and "=" in line:
                 k, v = line.split("=", 1)
-                out[k.strip()] = v.strip()
+                k, v = k.strip(), v.strip()
+                out[k] = v.replace("_", " ") if k in ("name", "place") else v
     except Exception:
         return {}
     return out
@@ -342,7 +352,10 @@ NORMALS = """
 def write(rows, place=DEFAULT, norms=None):
     """The file for `place`: today and tomorrow when `rows` has them, and the place's own
     normals when there are any. With no rows the game models the day from the normals."""
-    fields = {"name": shown_name(place["name"]), "lat": place["lat"], "lon": place["lon"]}
+    # "_" for each space: X-Ray's reader drops the spaces in a value, and sotz_api turns the
+    # underscores back
+    fields = {"name": shown_name(place["name"]).replace(" ", "_"), "lat": place["lat"],
+              "lon": place["lon"]}
     body = HEAD % fields
     if rows:
         today = rows[0]

@@ -175,7 +175,7 @@ fw.main()
         rc, out = drive(d, FAKE_WEB + 'import sys\nsys.argv = ["x"]\nfw.main()\n',
                         env=ONLINE)
         s = sections(ltx)
-        assert s["place"]["name"] == "Sao Paulo" and s["weather"]["place"] == "Sao Paulo", s
+        assert s["place"]["name"] == "Sao_Paulo" and s["weather"]["place"] == "Sao_Paulo", s
         assert s["weather"]["high"] == "18.4" and s["weather_next"]["freezing"] == "true", s
         # Chornobyl again: its normals are the game's own, so none are written
         io.open(os.path.join(d, "_tools", "seasons_config.py"), "w").write(
@@ -228,6 +228,58 @@ def t_the_game_models_the_place_s_own_climate():
                                     "(Open-Meteo.com)",
                     "modeled": "No station data - temperature modeled"}, line
     return "January at 27, not Chornobyl's -2; a short table ignored; the page credits it"
+
+
+def engine_sections(path):
+    """season_weather.ltx as the game reads it: r_string_ex drops a value's spaces."""
+    out, here = {}, None
+    for line in io.open(path, encoding="cp1251"):
+        line = line.split(";")[0].strip()
+        if line.startswith("[") and line.endswith("]"):
+            here = out.setdefault(line[1:-1], {})
+        elif "=" in line and here is not None:
+            k, v = line.split("=", 1)
+            here[k.strip()] = "".join(v.split())
+    return out
+
+
+@case
+def t_a_place_s_name_reaches_the_page_whole():
+    """The game's reader drops the spaces in a value, so "New York" read as "NewYork", and
+    letters with no accent to take off were dropped: Lodz lost its first letter. The file
+    writes each space as an underscore, which the game turns back, and those letters as
+    plain ones. Chornobyl, the default, is the string table's, in the player's language."""
+    import fetch_weather as fw
+    got = {}
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "season_weather.ltx")
+        was = fw.OUTS, fw.OUT
+        fw.OUTS, fw.OUT = [path], path
+        try:
+            for name in ("New York", "Łódź", "Gießen", "Tromsø"):
+                fw.write([], {"name": name, "lat": 1.0, "lon": 2.0}, [(20.0, 10.0)] * 12)
+                secs = engine_sections(path)
+                lua, g = ta.build(hour=15.0, month=1, cycle="clear", observed=None)
+                g.ini_file = lambda n, lua=lua, secs=secs: lua.table_from({
+                    "section_exist": lambda self, s: s in secs,
+                    "r_float_ex": lambda self, s, k: None,
+                    "r_string_ex": lambda self, s, k: secs.get(s, {}).get(k)})
+                got[name] = ta.F(g.sotz_api.temperature(), "place")
+                assert fw.read_existing("place")["name"] == got[name], got
+        finally:
+            fw.OUTS, fw.OUT = was
+    assert list(got.values()) == ["New York", "Lodz", "Giessen", "Tromso"], got
+
+    def russian(lua, g):
+        real = g.game.translate_string
+        g.game.translate_string = lambda s: ("Chornobyl-RU" if s == "st_sotz_fc_chornobyl"
+                                             else real(s))
+    lua, _, fx = tf.expose("ui_seasons_forecast.script", ["source_line"], russian)
+    line = [fx.source_line(lua.table_from({"source": "observed", "place": p}))
+            for p in ("Chornobyl", "Kyiv")]
+    assert line == ["Live from Chornobyl-RU - weather data by Open-Meteo.com",
+                    "Live from Kyiv - weather data by Open-Meteo.com"], line
+    return "New York, Lodz, Giessen and Tromso whole; Chornobyl in the player's language"
 
 
 @case

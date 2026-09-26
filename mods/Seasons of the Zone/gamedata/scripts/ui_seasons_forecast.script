@@ -97,7 +97,11 @@ local GAUGE_BAND = {
 -- and credited wherever it is shown; the built-in Chornobyl normals are the mod's own.
 local function source_line(temp)
     if temp and temp.source == "observed" then
-        local place = temp.place or sotz_text.text("st_sotz_fc_chornobyl")
+        -- the default place in the player's language; one of their own as they named it
+        local place = temp.place
+        if place == nil or place == "Chornobyl" then
+            place = sotz_text.text("st_sotz_fc_chornobyl")
+        end
         return sotz_text.text("st_sotz_fc_live", {place = place})
     elseif temp and temp.place then
         return sotz_text.text("st_sotz_fc_modeled_on", {place = temp.place})
