@@ -192,8 +192,8 @@ the date and its name; if the number falls under its chance, it starts that day 
 for its days, past the end of the season if it has to; a start while it runs, or on the
 day after, keeps it going. With `"as"`, the season it brings takes over while it lasts:
 that season's mods come on, the calendar's season's go off, and `play.bat` tells the game,
-whose light, weather and PDA follow it until its last day. With `"as": None` the season
-stays, and only the mods on during the spell come on.
+whose light and weather follow it until its last day; the PDA says so as the game loads.
+With `"as": None` the season stays, and only the mods on during the spell come on.
 
 The same date and name always draw the same number, on every machine and every launch, so
 a spell can't come and go between launches on the same day, and two players with the same
@@ -224,8 +224,9 @@ The model above invites all of these.
   over while you play takes effect at the next launch.
 - **One base period at a time.** Base periods partition the year by design. If you want two
   things true at once, one of them is an event, a season of your own or a spell.
-- **Seasons of your own and spells aren't on the dial or the MCM pages.** The dial shows
-  the calendar's seasons; a spell that brings a season shows as that season in game.
+- **Seasons of your own and spells aren't on the dial or the MCM pages.** The dial and
+  the PDA's Seasons app show the calendar's seasons, as they do under an MCM pin; a spell
+  that brings a season is that season in the light and the weather.
 
 ---
 

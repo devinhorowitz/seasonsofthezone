@@ -206,7 +206,9 @@ moves the frequency slider.
 player's own name for the season (2.0.0). Treat an
 unknown key as a season rather than an error, since the calendar can grow. A player's own
 calendar (2.0.0) can turn seasons off and move their dates, so do not assume all six
-occur, or when; `next` is nil when only one season is on.
+occur, or when; `next` is nil when only one season is on. `season` is the calendar's: an
+MCM pin, or a spell that brings another season (2.0.0), changes the light and the weather
+but not `season`.
 
 `marked` is nil on ordinary days. `kind` is `memorial` or `anniversary`.
 

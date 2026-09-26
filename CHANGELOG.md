@@ -10,9 +10,10 @@
 - **Spells: a season by chance.** A spell starts by chance on a day of the seasons you
   pick, 3% a day in summer, say, and runs 1 to 6 days. It can bring another season with it:
   a spell of winter in summer switches the winter mods on and summer's off, and the game's
-  light, weather and PDA follow it until it ends. Or it leaves the season be and switches
-  on only the mods you put on during it. The date decides, so every launch that day agrees,
-  and the setup says how often each comes on average. An MCM pin still wins over a spell.
+  light and weather follow it until it ends; the PDA says so as the game loads. Or it
+  leaves the season be and switches on only the mods you put on during it. The date
+  decides, so every launch that day agrees, and the setup says how often each comes on
+  average. An MCM pin still wins over a spell.
 - **Ready for translation.** Every word the tools show - the setup, the advanced editor, the
   commands, `play.bat`'s lines - and the game's own text on the PDA, the Forecast page and
   MCM now comes from translation files, so a translation needs no code. None is included

@@ -416,8 +416,10 @@ A spell is a short stretch that starts by chance. See
 
 A spell that brings a season makes it the season for as long as it lasts: `play.bat` stages
 that season's mods, texture sets and sound, and writes the spell into the file the game
-reads, so the light, the weather and the PDA follow it until its last day. An MCM pin wins
-over it. The mods on during a spell come on whether it brings a season or not.
+reads, so the light and the weather follow it until its last day, and the PDA's message as
+the game loads and the MCM page name it. The PDA's Seasons app keeps to the calendar, as
+it does for an MCM pin. An MCM pin wins over a spell. The mods on during a spell come on
+whether it brings a season or not.
 
 The Seasons step's **Add a spell...** shows how often a spell comes on average as you set
 it - 3% a day in Polesia's summer is about 3 a year - and `configure.py spell` lists each
