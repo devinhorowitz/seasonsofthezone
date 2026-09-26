@@ -82,10 +82,9 @@ REM  temperature from the place's climate instead, so the error is never fatal.
 if errorlevel 1 (
     echo.
     %PY% "_tools\season.py" say stopped 2>nul || (
-        echo  season.py stopped with an error - read the lines above. Seasonal mods and
-        echo  textures stay as they were after the last launch; light and weather still
-        echo  follow the season. Press a key to start the game anyway, or close this
-        echo  window to fix it first.
+        echo  season.py stopped with an error - the lines above say why, and what it did
+        echo  before it stopped. Light and weather still follow the season. Press a key to
+        echo  start the game anyway, or close this window to fix it first.
     )
     echo.
     pause

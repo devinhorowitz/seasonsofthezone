@@ -2909,10 +2909,10 @@ def play_words(key):
     and falls back on its own English."""
     return {"checking": _("Checking the season..."),
             # translators: play.bat's console window shows it; keep its lines about this long
-            "stopped": _("season.py stopped with an error - read the lines above. Seasonal "
-                         "mods and\ntextures stay as they were after the last launch; light "
-                         "and weather still\nfollow the season. Press a key to start the "
-                         "game anyway, or close this\nwindow to fix it first."),
+            "stopped": _("season.py stopped with an error - the lines above say why, and "
+                         "what it did\nbefore it stopped. Light and weather still follow the "
+                         "season. Press a key to\nstart the game anyway, or close this window "
+                         "to fix it first."),
             "starting": _("Starting Anomaly...")}.get(key)
 
 
@@ -3320,6 +3320,9 @@ def main():
                  "what": pgettext("between words in a list", ", ").join(
                      words[w] for w in dict.fromkeys(done)) or _("nothing to do")})
         say_skipped()
+    except OSError as e:
+        # a file locked, read-only or out of room: said as the other stops are
+        raise SystemExit("  ** " + _("Stopped: %s. Run play.bat again.") % e + " **")
     finally:
         if os.path.isdir(tmp):
             shutil.rmtree(tmp, ignore_errors=True)

@@ -471,6 +471,39 @@ def t_every_seasonal_mod_has_a_section_and_a_checkbox_of_its_own():
     return "%d sections, each once; the Polish uncheck read back" % len(sections)
 
 
+@case
+def t_a_file_that_cant_be_written_stops_apply_in_words():
+    """A read-only season_staged.ltx, met after apply has switched a mod, ended in a
+    traceback; and play.bat then said the mods stayed as they were. apply says why it
+    stopped, and play.bat's words, its own English and season.py's alike, say to read what
+    it did."""
+    import season
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=cfg(TOGGLE_MODS='{"Lonely Mod": {"when": ("winter",), '
+                                             '"above": "Base Grass"}}'))
+        tc.with_mod(d)
+        staged = os.path.join(d, "mods", "Seasons of the Zone", "gamedata", "configs",
+                              "season_staged.ltx")
+        io.open(staged, "w").write("[staged]\n")
+        os.chmod(staged, 0o444)
+        try:
+            rc, out = status(d, "apply", "--season", "winter")
+        finally:
+            os.chmod(staged, 0o666)
+        assert rc == 1 and "Stopped: [Errno 13] Permission denied" in out \
+            and "Run play.bat again." in out, out
+    bat = io.open(os.path.join(os.path.dirname(HERE), "play.bat"), encoding="utf-8").read()
+    for key in ("checking", "stopped", "starting"):
+        assert "season.py\" say %s " % key in bat, key
+    # the English play.bat echoes when season.py can't say it: the lines of the ( ) block
+    lines = bat.splitlines()
+    start = next(n for n, l in enumerate(lines) if "say stopped" in l) + 1
+    end = next(n for n in range(start, len(lines)) if lines[n].strip() == ")")
+    fallback = [l.strip()[len("echo  "):] for l in lines[start:end]]
+    assert "\n".join(fallback) == season.play_words("stopped"), fallback
+    return "stopped in words; play.bat's English is season.py's"
+
+
 if __name__ == "__main__":
     print("  breaking the shipped season.py")
     bad = 0
