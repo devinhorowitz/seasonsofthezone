@@ -28,11 +28,14 @@ import shutil
 import stat
 import tokenize
 
+import lang
 import season
+from lang import _, N_, ngettext, pgettext
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG = os.path.join(HERE, "seasons_config.py")
 
+# as the date pickers list them and people type them; lang.month() is what to show
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 DAYS = (31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
@@ -222,15 +225,18 @@ def anchor_for(inst, name, when, toggle, cal=None):
         if on and other not in skip and mine:
             n = len(mine & inst.files(other))
             if n:
-                return other, "ships %d of the same files" % n, rivals
+                # translators: why a mod wins over the one it does; said after that one's name
+                return other, ngettext("ships %d of the same files",
+                                       "ships %d of the same files", n) % n, rivals
     i = inst.names.index(name) if name in inst.names else len(inst.names)
     below = [o for o, on in inst.order[i + 1:] if on and o not in skip]
     if below:
-        return below[0], "nothing else ships its files, so it stays where it is", rivals
+        return below[0], _("nothing else ships its files, so it stays where it is"), rivals
     above = [o for o, on in reversed(inst.order[:i]) if on and o not in skip]
     if above:
-        return above[0], "nothing else ships its files", rivals
-    return None, "no other mod is enabled", rivals
+        return above[0], _("nothing else ships its files"), rivals
+    # translators: why no mod can be picked for a mod to win over
+    return None, _("no other mod is enabled"), rivals
 
 
 # --- periods and dates -----------------------------------------------------------------
@@ -282,7 +288,7 @@ def parse_day(text):
 
 
 def day_text(md):
-    return "%s %d" % (MONTHS[md[0] - 1], md[1])
+    return lang.day(md[0], md[1])
 
 
 def window_text(win):
@@ -687,12 +693,14 @@ class Calendar(object):
     {"name", "lat", "lon"}, or None for Chornobyl. `periods`, `layout` and
     `sound_src` change only when a preset is loaded. `error` is set, as lines, when the
     file can't be read or edited safely; `problems` lists what season.py would refuse in
-    it; `fixes` what saving from the tool repairs."""
+    it; `fixes` what saving from the tool repairs, and `fixed_tables` the tables those
+    repairs are in, for code to check: the sentences are in the player's language."""
 
     def __init__(self, path=CONFIG):
         self.path = path
         self.exists = os.path.isfile(path)
         self.error, self.problems, self.fixes = None, [], []
+        self.fixed_tables = set()
         self.wrote = False
         self.toggle, self.events = {}, {}
         self.periods, self.layout, self.sound_src = {}, {}, None
@@ -724,15 +732,16 @@ class Calendar(object):
         try:
             data = open(self.path, "rb").read()
         except OSError as e:
-            self.error = ["seasons_config.py can't be read: %s" % e]
+            self.error = [_("seasons_config.py can't be read: %s") % e]
             return False
         self.original = data
         if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
-            self.error = ["seasons_config.py is saved as UTF-16 (\"Unicode\" in Notepad). "
-                          + season.SAVE_AS_UTF8]
+            self.error = [_("seasons_config.py is saved as UTF-16 (\"Unicode\" in Notepad). "
+                            "Save it as UTF-8: in Notepad, File > Save as, set Encoding to "
+                            "UTF-8, then Save.")]
             return False
         try:
-            enc, _ = tokenize.detect_encoding(io.BytesIO(data).readline)
+            enc = tokenize.detect_encoding(io.BytesIO(data).readline)[0]
             self.bom = data.startswith(codecs.BOM_UTF8)
             text = data.decode(enc)
         except (SyntaxError, UnicodeDecodeError, LookupError) as e:
@@ -759,14 +768,14 @@ class Calendar(object):
                 before = lines[n.lineno - 1][:_char_col(lines[n.lineno - 1], n.col_offset)]
                 after = _trailing(lines, n).strip()
                 if before.strip() or (after and not after.startswith("#")):
-                    self.error = ["line %d holds %s and another statement. Give %s a line "
-                                  "of its own so configure.bat can edit it."
-                                  % (n.lineno, var, var)]
+                    self.error = [_("line %(line)d holds %(table)s and another statement. "
+                                    "Give %(table)s a line of its own so configure.bat can "
+                                    "edit it.") % {"line": n.lineno, "table": var}]
                     return
                 if isinstance(n, ast.Assign) and len(n.targets) > 1:
-                    self.error = ["line %d sets %s and another name at once. Give %s a line "
-                                  "of its own so configure.bat can edit it."
-                                  % (n.lineno, var, var)]
+                    self.error = [_("line %(line)d sets %(table)s and another name at once. "
+                                    "Give %(table)s a line of its own so configure.bat can "
+                                    "edit it.") % {"line": n.lineno, "table": var}]
                     return
         # An empty table set as well as a real one: the template's own TOGGLE_MODS = {}
         # under an entry typed above it throws the real one away. It is dropped on save.
@@ -778,23 +787,26 @@ class Calendar(object):
             full = [n for n in nodes if not _is_empty_literal(n)]
             if len(full) > 1:
                 at = [str(n.lineno) for n in full]
-                self.error = ["%s is set on lines %s and %s, and more than one of them has "
-                              "entries. Merge them into one by hand."
-                              % (var, ", ".join(at[:-1]), at[-1])]
+                # translators: %(lines)s is two line numbers or more, as in "3, 5 and 9"
+                self.error = [_("%(table)s is set on lines %(lines)s, and more than one of "
+                                "them has entries. Merge them into one by hand.")
+                              % {"table": var, "lines": lang.and_list(at)}]
                 return
             keep = full[0] if full else nodes[-1]
             for n in nodes:
                 if n is keep:
                     continue
                 drop.append((n.lineno, n.end_lineno))
+                self.fixed_tables.add(var)
+                said = {"line": n.lineno, "table": var, "kept": keep.lineno}
                 if n.lineno > keep.lineno:
-                    self.fixes.append("line %d sets %s again, to nothing, which throws away "
-                                      "the one on line %d; saving removes line %d"
-                                      % (n.lineno, var, keep.lineno, n.lineno))
+                    self.fixes.append(_("line %(line)d sets %(table)s again, to nothing, which "
+                                        "throws away the one on line %(kept)d; saving removes "
+                                        "line %(line)d") % said)
                 else:
-                    self.fixes.append("line %d sets %s to nothing before line %d sets it; "
-                                      "saving removes line %d"
-                                      % (n.lineno, var, keep.lineno, n.lineno))
+                    self.fixes.append(_("line %(line)d sets %(table)s to nothing before line "
+                                        "%(kept)d sets it; saving removes line %(line)d")
+                                      % said)
         for a, b in sorted(drop, reverse=True):
             del lines[a - 1:b]
         self.text = "\n".join(lines)
@@ -812,8 +824,9 @@ class Calendar(object):
             nodes = _assignments(tree, var)
             if not nodes:
                 if var in ns:
-                    self.error = ["%s is set in a way the tool can't edit. Write it as one "
-                                  "plain line of its own: %s = {...}" % (var, var)]
+                    self.error = [_("%(table)s is set in a way the tool can't edit. Write it "
+                                    "as one plain line of its own: %(table)s = {...}")
+                                  % {"table": var}]
                     return
                 continue
             try:
@@ -821,9 +834,9 @@ class Calendar(object):
             except (ValueError, SyntaxError, TypeError):
                 continue            # dict(...) or a name: rewritten whole when it changes
             if written != ns.get(var):
-                self.error = ["%s is changed after its table on line %d, which the tool "
-                              "can't edit. Move those entries into the table." % (
-                                  var, nodes[-1].lineno)]
+                self.error = [_("%(table)s is changed after its table on line %(line)d, which "
+                                "the tool can't edit. Move those entries into the table.")
+                              % {"table": var, "line": nodes[-1].lineno}]
                 return
 
         toggle, events = ns.get("TOGGLE_MODS", {}), ns.get("EVENTS", {})
@@ -839,13 +852,13 @@ class Calendar(object):
         for var, v in (("TOGGLE_MODS", toggle), ("EVENTS", events), ("OWN_SEASONS", own),
                        ("SPELLS", spells)):
             if not isinstance(v, dict):
-                self.error = ["%s must be a table, {...}." % var]
+                self.error = [_("%s must be a table, {...}.") % var]
                 return
         odd = [k for k in list(toggle) + list(events) + list(own) + list(spells)
                if not isinstance(k, str)]
         if odd:
-            self.error = ["%r in TOGGLE_MODS, EVENTS, OWN_SEASONS or SPELLS is not a name in "
-                          "quotes. Put it in quotes, or take it out." % (odd[0],)]
+            self.error = [_("%r in TOGGLE_MODS, EVENTS, OWN_SEASONS or SPELLS is not a name "
+                            "in quotes. Put it in quotes, or take it out.") % (odd[0],)]
             return
         self.layout = ns.get("LAYOUT", {}) or {}
         self.sound_src = ns.get("SOUND_SRC")
@@ -878,7 +891,9 @@ class Calendar(object):
                     spells={n: s for n, s in spells.items()
                             if not season.spell_problems({n: s}, own=own)}):
                 # only a repair saving really makes; one it would refuse stays a problem
-                self.fixes.append("%s: saving rewrites this entry in the right shape" % name)
+                self.fixes.append(_("%s: saving rewrites this entry in the right shape")
+                                  % name)
+                self.fixed_tables.add("TOGGLE_MODS")
         for name, spec in events.items():
             if not season.event_problems(name, spec):
                 self.events[name] = norm_event(spec)
@@ -1235,54 +1250,57 @@ class Calendar(object):
         anything was written, as the lines, in the player's language, can't."""
         self.wrote = False
         if self.error:
-            return False, ["seasons_config.py can't be edited here:"] + self.error
+            return False, [_("seasons_config.py can't be edited here:")] + self.error
         if not self.dirty():
-            return True, ["Nothing to save."]
+            return True, [_("Nothing to save.")]
         fixes = list(self.fixes)
         text, kept = self.render()
         problems = self.check(text)
         if problems:
-            return False, ["Not saved, because play.bat would refuse the result:"] + problems
+            return False, ([_("Not saved, because play.bat would refuse the result:")]
+                           + problems)
         try:
             data = text.replace("\n", self.nl).encode(self.encoding)
         except UnicodeEncodeError as e:
-            return False, ["Not saved: \"%s\" can't be written in this file's encoding (%s). "
-                           "Delete the # coding line at the top of seasons_config.py, save it "
-                           "as UTF-8 (Notepad: File > Save as, Encoding: UTF-8), then try "
-                           "again." % (e.object[e.start:e.end], self.encoding)]
+            return False, [_("Not saved: \"%(text)s\" can't be written in this file's encoding "
+                             "(%(encoding)s). Delete the # coding line at the top of "
+                             "seasons_config.py, save it as UTF-8 (Notepad: File > Save as, "
+                             "Encoding: UTF-8), then try again.")
+                           % {"text": e.object[e.start:e.end], "encoding": self.encoding}]
         # the file as it is now: if it changed since it was read - by hand, or a command
         # run while the window was open - writing would throw that change away
         try:
             now = open(self.path, "rb").read() if os.path.isfile(self.path) else None
         except OSError as e:
-            return False, ["Not saved: seasons_config.py can't be read: %s" % e]
+            return False, [_("Not saved: seasons_config.py can't be read: %s") % e]
         if now != self.original:
-            return False, ["Not saved: seasons_config.py has changed since it was read (by "
-                           "hand, or by a configure command). Close configure.bat and open it "
-                           "again, or run the command again, then redo your change."]
+            return False, [_("Not saved: seasons_config.py has changed since it was read (by "
+                             "hand, or by a configure command). Close configure.bat and open "
+                             "it again, or run the command again, then redo your change.")]
         if now is not None and not os.access(self.path, os.W_OK):
-            return False, ["Not saved: seasons_config.py is read-only. Right-click it (in "
-                           "_tools), choose Properties, uncheck Read-only, then save again."]
+            return False, [_("Not saved: seasons_config.py is read-only. Right-click it (in "
+                             "_tools), choose Properties, uncheck Read-only, then save "
+                             "again.")]
         notes = []
         try:
             if now is not None:
                 bak = self.path + ".bak"
                 _writable(bak)
                 shutil.copyfile(self.path, bak)
-                notes.append("The previous file is %s." % os.path.basename(bak))
+                notes.append(_("The previous file is %s.") % os.path.basename(bak))
                 if not kept:
-                    notes.append("Comments inside the tables could not be kept, because of "
-                                 "how they were laid out; %s has them, and no later save "
-                                 "touches it." % self._keepsake("before"))
+                    notes.append(_("Comments inside the tables could not be kept, because of "
+                                   "how they were laid out; %s has them, and no later save "
+                                   "touches it.") % self._keepsake("before"))
             with open(self.path, "wb") as f:
                 f.write((codecs.BOM_UTF8 if self.bom else b"") + data)
         except OSError as e:
-            return False, ["Not saved: %s. Close any program that has seasons_config.py "
-                           "open, then try again." % e]
+            return False, [_("Not saved: %s. Close any program that has seasons_config.py "
+                             "open, then try again.") % e]
         self.__init__(self.path)
         self.wrote = True
-        return True, (["Saved %s." % os.path.basename(self.path)] + notes
-                      + (["Also fixed:"] + ["  " + f for f in fixes] if fixes else []))
+        return True, ([_("Saved %s.") % os.path.basename(self.path)] + notes
+                      + ([_("Also fixed:")] + ["  " + f for f in fixes] if fixes else []))
 
     def start_over(self):
         """Replace a file that can't be read with a new, empty one. The old one is kept,
@@ -1310,9 +1328,10 @@ PARTS = ("calendar", "events", "mods", "textures")
 PART_KEYS = {"calendar": ("calendar", "names"),
              "events": ("events", "periods", "own_seasons", "spells"),
              "mods": ("mods",), "textures": ("layout", "sound_src")}
-PART_TEXT = {"calendar": "calendar and season names",
-             "events": "seasons of your own, spells, events and periods",
-             "mods": "seasonal mods", "textures": "texture sets and ambient sound"}
+# the parts in words, in English: _(PART_TEXT[p]) shows one in the player's language
+PART_TEXT = {"calendar": N_("calendar and season names"),
+             "events": N_("seasons of your own, spells, events and periods"),
+             "mods": N_("seasonal mods"), "textures": N_("texture sets and ambient sound")}
 PRESET_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.,'()-]{0,39}$")
 
 
@@ -1335,10 +1354,10 @@ def read_preset(path):
     try:
         data = json.loads(io.open(path, encoding="utf-8-sig").read())
     except (OSError, ValueError) as e:
-        return None, ["It can't be read (%s). Check it is valid JSON, or delete it from "
-                      "_tools\\presets." % e]
+        return None, [_("It can't be read (%s). Check it is valid JSON, or delete it from "
+                        "_tools\\presets.") % e]
     if not isinstance(data, dict) or data.get(PRESET_KEY) != 1:
-        return None, ["It is not a Seasons of the Zone preset."]
+        return None, [_("It is not a Seasons of the Zone preset.")]
     out = {"about": data.get("about") if isinstance(data.get("about"), str) else "",
            "shipped": data.get("shipped") is True}
     problems = []
@@ -1381,7 +1400,9 @@ def read_preset(path):
         problems += [p for p in season.config_problems(
             mods, {}, None, periods if isinstance(periods, dict) else {},
             events if isinstance(events, dict) else {},
-            own=own if isinstance(own, dict) else {}) if p.startswith("TOGGLE_MODS")]
+            own=own if isinstance(own, dict) else {},
+            spells=spells if isinstance(spells, dict) else {})
+            if p.startswith("TOGGLE_MODS")]
         out["mods"] = mods
     if "layout" in data or "sound_src" in data:
         layout = data.get("layout", {})
@@ -1463,7 +1484,7 @@ def apply_preset(cal, inst, preset, parts):
         dates = preset.get("calendar")
         cal.set_dates({s: tuple(md) for s, md in dates.items()} if dates else polesia())
         cal.set_names(preset.get("names") or {})
-        said.append("calendar: %s" % calendar_words(cal))
+        said.append(_("calendar: %s") % calendar_words(cal))
     if "events" in parts and any(k in preset for k in PART_KEYS["events"]):
         cal.own = {n: norm_event(w) for n, w in preset.get("own_seasons", {}).items()}
         cal.spells = {n: norm_spell(s) for n, s in preset.get("spells", {}).items()}
@@ -1472,13 +1493,14 @@ def apply_preset(cal, inst, preset, parts):
         dropped = sorted(cal._bad_events) + sorted(cal._bad_own) + sorted(cal._bad_spells)
         cal._bad_events, cal._bad_own, cal._bad_spells = {}, {}, {}
         if cal.own:
-            said.append("seasons of your own: %s" % ", ".join(cal.own_order()))
+            said.append(_("seasons of your own: %s") % commas(cal.own_order()))
         if cal.spells:
-            said.append("spells: %s" % ", ".join(sorted(cal.spells, key=str.casefold)))
-        said.append("events: %s" % (", ".join(sorted(cal.events)) or "none"))
+            said.append(_("spells: %s") % commas(sorted(cal.spells, key=str.casefold)))
+        said.append(_("events: %s") % commas(sorted(cal.events)) if cal.events
+                    else _("events: none"))
         if dropped:
-            said.append("  dropped the events seasons_config.py had that could not be used: "
-                        + ", ".join(dropped))
+            said.append("  " + _("dropped the events seasons_config.py had that could not be "
+                                 "used: %s") % commas(dropped))
     if "mods" in parts and "mods" in preset:
         toggle, skipped, moved = {}, [], []
         for name, c in preset["mods"].items():
@@ -1491,66 +1513,90 @@ def apply_preset(cal, inst, preset, parts):
             for p in when:
                 if p not in cal.known() and p in preset.get("events", {}):
                     cal.events[p] = norm_event(preset["events"][p])
-                    said.append("  event %s came with %s" % (p, name))
+                    said.append("  " + _("event %(event)s came with %(mod)s")
+                                % {"event": p, "mod": name})
                 elif p not in cal.known() and p in preset.get("own_seasons", {}):
                     cal.own[p] = norm_event(preset["own_seasons"][p])
-                    said.append("  season %s came with %s" % (p, name))
+                    said.append("  " + _("season %(season)s came with %(mod)s")
+                                % {"season": p, "mod": name})
                 elif p not in cal.known() and p in preset.get("spells", {}):
                     cal.spells[p] = norm_spell(preset["spells"][p])
-                    said.append("  spell %s came with %s" % (p, name))
+                    said.append("  " + _("spell %(spell)s came with %(mod)s")
+                                % {"spell": p, "mod": name})
             above = c["above"]
             if not inst.listed(above):
                 above = anchor_for(inst, name, when, dict(toggle, **{name: c}))[0] or above
-                moved.append("%s (now wins over %s)" % (name, above))
+                moved.append(_("%(mod)s (now wins over %(other)s)")
+                             % {"mod": name, "other": above})
             toggle[name] = {"when": when, "above": above, "extra": []}
         cal.toggle = toggle
-        said.append("seasonal mods: %d" % len(toggle))
+        said.append(ngettext("seasonal mods: %d", "seasonal mods: %d", len(toggle))
+                    % len(toggle))
         if skipped:
-            said.append("  not installed here, left out: " + ", ".join(skipped))
+            said.append("  " + _("not installed here, left out: %s") % commas(skipped))
         if moved:
-            said.append("  given another mod to win over, since the one they won over is not "
-                        "installed here: "
-                        + ", ".join(moved))
+            said.append("  " + _("given another mod to win over, since the one they won over "
+                                 "is not installed here: %s") % commas(moved))
     if "textures" in parts and ("layout" in preset or "sound_src" in preset):
         layout, left = {}, []
         for name, c in (preset.get("layout") or {}).items():
             archive = os.path.join(season.DOWNLOADS, c["archive"])
             if name not in inst.names:
-                left.append("%s (not installed here)" % name)
+                left.append(_("%s (not installed here)") % name)
             elif not os.path.isfile(archive):
-                left.append("%s (no %s in downloads)" % (name, c["archive"]))
+                left.append(_("%(mod)s (no %(archive)s in downloads)")
+                            % {"mod": name, "archive": c["archive"]})
             else:
                 layout[name] = c
         cal.layout = layout
-        said.append("texture sets: %d" % len(layout))
+        said.append(ngettext("texture sets: %d", "texture sets: %d", len(layout)) % len(layout))
         if left:
-            said.append("  left out: " + ", ".join(left))
+            said.append("  " + _("left out: %s") % commas(left))
         src = preset.get("sound_src")
-        if src and not inst.listed(src):
-            said.append("  ambient sound: %s is not installed here, so it stays %s"
-                        % (src, cal.sound_src or "off"))
+        if src and not inst.listed(src) and cal.sound_src:
+            said.append("  " + _("ambient sound: %(mod)s is not installed here, so it stays "
+                                 "%(now)s") % {"mod": src, "now": cal.sound_src})
+        elif src and not inst.listed(src):
+            said.append("  " + _("ambient sound: %s is not installed here, so it stays off")
+                        % src)
         else:
             cal.sound_src = src
-            said.append("ambient sound: %s" % (src or "off"))
+            said.append(_("ambient sound: %s") % src if src else _("ambient sound: off"))
     return said
 
 
 def calendar_words(cal):
     """The calendar and names `cal` holds, in a few words."""
-    on = len(cal.dates)
-    dates = ("Polesia's dates" if not cal.custom() else "own dates" if on == len(season.SEASONS)
-             else "own dates, %d of %d seasons on" % (on, len(season.SEASONS)))
+    on, total = len(cal.dates), len(season.SEASONS)
+    if not cal.custom():
+        dates = _("Polesia's dates")
+    elif on == total:
+        dates = _("own dates")
+    else:
+        dates = ngettext("own dates, %(on)d of %(all)d seasons on",
+                         "own dates, %(on)d of %(all)d seasons on", on) % {
+            "on": on, "all": total}
     n = len(cal.names)
-    return "%s; %s" % (dates, "the usual names" if not n
-                       else "%d season%s renamed" % (n, "" if n == 1 else "s"))
+    names = (ngettext("%d season renamed", "%d seasons renamed", n) % n if n
+             else _("the usual names"))
+    # translators: the calendar in a few words: its dates, then its names
+    return _("%(dates)s; %(names)s") % {"dates": dates, "names": names}
+
+
+def commas(names):
+    """Names in a list, as the lines here run them: "a, b, c"."""
+    return pgettext("between words in a list", ", ").join(names)
 
 
 def few(names, most=4):
     """A list of names, cut short past `most`."""
     names = sorted(names, key=str.lower)
     if len(names) > most:
-        return "%s and %d more" % (", ".join(names[:most]), len(names) - most)
-    return ", ".join(names)
+        more = len(names) - most
+        # translators: a list cut short, as in "a, b, c, d and 2 more"
+        return ngettext("%(names)s and %(more)d more", "%(names)s and %(more)d more",
+                        more) % {"names": commas(names[:most]), "more": more}
+    return commas(names)
 
 
 def preset_effect(cal, inst, preset, parts):
@@ -1566,12 +1612,13 @@ def preset_effect(cal, inst, preset, parts):
     out, losses = [], []
     if "calendar" in parts:
         if (trial.dates, trial.names) == (cal.dates, cal.names):
-            out.append("Calendar: the same as yours.")
+            out.append(_("Calendar: the same as yours."))
         else:
-            out.append("Calendar: %s. Yours now: %s." % (calendar_words(trial),
-                                                         calendar_words(cal)))
+            out.append(_("Calendar: %(theirs)s. Yours now: %(yours)s.")
+                       % {"theirs": calendar_words(trial), "yours": calendar_words(cal)})
             if cal.custom() or cal.names:
-                losses.append("your calendar and names")
+                # translators: what loading a preset takes the place of, in a list
+                losses.append(_("your calendar and names"))
     if "events" in parts:
         mine = dict(cal.periods, **cal.events)
         mine.update(cal.own)
@@ -1582,49 +1629,78 @@ def preset_effect(cal, inst, preset, parts):
         gone = set(mine) - set(theirs)
         changed = [n for n in mine if n in theirs and mine[n] != theirs[n]]
         if trial.own:
-            out.append("Seasons of your own: %s." % few(trial.own))
+            out.append(_("Seasons of your own: %s.") % few(trial.own))
         if trial.spells:
-            out.append("Spells: %s." % few(trial.spells))
-        out.append("Events: %s." % (few(set(theirs) - set(trial.own) - set(trial.spells))
-                                    or "none"))
+            out.append(_("Spells: %s.") % few(trial.spells))
+        events = few(set(theirs) - set(trial.own) - set(trial.spells))
+        out.append(_("Events: %s.") % events if events else _("Events: none."))
         if gone:
-            out.append("  takes off yours: %s" % few(gone))
+            out.append("  " + _("takes off yours: %s") % few(gone))
         if changed:
-            out.append("  changes yours: %s" % few(changed))
+            out.append("  " + _("changes yours: %s") % few(changed))
         if gone or changed:
             lost = set(gone) | set(changed)
-            if len(lost) > 1:
-                losses.append("%d of your %s" % (len(lost), "seasons, spells and events" if lost
-                                                 & (set(cal.own) | set(cal.spells))
-                                                 else "events"))
+            one = next(iter(lost))
+            if len(lost) > 1 and lost & (set(cal.own) | set(cal.spells)):
+                # translators: what loading a preset takes the place of, in a list
+                losses.append(ngettext("%d of your seasons, spells and events",
+                                       "%d of your seasons, spells and events", len(lost))
+                              % len(lost))
+            elif len(lost) > 1:
+                # translators: what loading a preset takes the place of, in a list
+                losses.append(ngettext("%d of your events", "%d of your events", len(lost))
+                              % len(lost))
+            elif one in cal.own:
+                # translators: what loading a preset takes the place of, in a list
+                losses.append(_("your season %s") % one)
+            elif one in cal.spells:
+                # translators: what loading a preset takes the place of, in a list
+                losses.append(_("your spell %s") % one)
             else:
-                one = next(iter(lost))
-                losses.append("your %s %s" % ("season" if one in cal.own else "spell"
-                                              if one in cal.spells else "event", one))
+                # translators: what loading a preset takes the place of, in a list
+                losses.append(_("your event %s") % one)
     if "mods" in parts:
         gone = set(cal.toggle) - set(trial.toggle)
         changed = [n for n in cal.toggle if n in trial.toggle and (
             set(cal.toggle[n]["when"]) != set(trial.toggle[n]["when"])
             or cal.toggle[n]["above"] != trial.toggle[n]["above"])]
-        out.append("Seasonal mods: %d." % len(trial.toggle))
+        out.append(ngettext("Seasonal mods: %d.", "Seasonal mods: %d.", len(trial.toggle))
+                   % len(trial.toggle))
         if gone:
-            out.append("  stops switching %d of yours: %s" % (len(gone), few(gone)))
+            out.append("  " + ngettext("stops switching %(n)d of yours: %(mods)s",
+                                       "stops switching %(n)d of yours: %(mods)s", len(gone))
+                       % {"n": len(gone), "mods": few(gone)})
         if changed:
-            out.append("  changes when %d of yours are on: %s" % (len(changed), few(changed)))
+            out.append("  " + ngettext("changes when %(n)d of yours are on: %(mods)s",
+                                       "changes when %(n)d of yours are on: %(mods)s",
+                                       len(changed)) % {"n": len(changed), "mods": few(changed)})
         left = [n for n in preset.get("mods", {}) if n not in inst.names]
         if left:
-            out.append("  not installed here, so left out: %s" % few(left))
+            out.append("  " + _("not installed here, so left out: %s") % few(left))
         if gone or changed:
-            losses.append("%d of your seasonal mods" % (len(gone) + len(changed)))
+            # translators: what loading a preset takes the place of, in a list
+            losses.append(ngettext("%d of your seasonal mods", "%d of your seasonal mods",
+                                   len(gone) + len(changed)) % (len(gone) + len(changed)))
     if "textures" in parts:
-        out.append("Texture sets: %s. Ambient sound: %s." % (few(trial.layout) or "none",
-                                                             trial.sound_src or "off"))
+        sets, sound = few(trial.layout), trial.sound_src
+        if sets and sound:
+            out.append(_("Texture sets: %(sets)s. Ambient sound: %(sound)s.")
+                       % {"sets": sets, "sound": sound})
+        elif sets:
+            out.append(_("Texture sets: %s. Ambient sound: off.") % sets)
+        elif sound:
+            out.append(_("Texture sets: none. Ambient sound: %s.") % sound)
+        else:
+            out.append(_("Texture sets: none. Ambient sound: off."))
         if (set(cal.layout) - set(trial.layout)
                 or (cal.sound_src and cal.sound_src != trial.sound_src)):
-            losses.append("your texture sets or ambient sound")
+            # translators: what loading a preset takes the place of, in a list
+            losses.append(_("your texture sets or ambient sound"))
     stuck = sorted(n for n, c in trial.toggle.items()
                    if any(p not in trial.known() for p in c["when"]))
     if stuck:
-        out.append("%s would still be on for events it takes off. Uncheck those before "
-                   "saving." % few(stuck))
+        out.append(ngettext("%s would still be on for events it takes off. Uncheck those "
+                            "before saving.",
+                            "%s would still be on for events it takes off. Uncheck those "
+                            "before saving.", len(stuck)) % few(stuck))
     return out, losses

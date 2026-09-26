@@ -31,6 +31,8 @@ import unicodedata
 import urllib.parse
 import urllib.request
 
+from lang import _, N_, ngettext, pgettext
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODS = os.path.join(os.path.dirname(HERE), "mods")
 # The mod is found by its main script, not its folder name: MO2 names a mod after the
@@ -73,12 +75,11 @@ TIMEOUT = 12
 
 # Open-Meteo's data is CC BY 4.0, credited wherever it is shown: here, in configure.bat
 # and on the PDA. Its place search is built on GeoNames, and its history on Copernicus'
-# ERA5 reanalysis.
-CREDIT = "Weather data by Open-Meteo.com (CC BY 4.0)"
-PLACES_CREDIT = "Places from Open-Meteo.com, based on GeoNames (CC BY 4.0)"
-CLIMATE_CREDIT = ("Climate from Open-Meteo.com (CC BY 4.0); contains modified Copernicus "
-                  "Climate Change Service information")
+# ERA5 reanalysis. credit() and the two after it say so in the player's language.
+SOURCE = "Open-Meteo.com"
 LINK = "https://open-meteo.com/"
+# the place search's credit in English, as configure.py's place command prints it
+PLACES_CREDIT = N_("Places from %s, based on GeoNames (CC BY 4.0)") % SOURCE
 
 # the longest name the Forecast page has room for, beside its credit
 PLACE_CHARS = 24
@@ -110,6 +111,33 @@ def code_to_cycle(code):
     return "cloudy"
 
 
+def sky_word(cycle):
+    """A cycle name as the lines here show it, in the player's language; one this doesn't
+    know, as it is."""
+    return {"clear": pgettext("sky", "clear"),
+            # translators: partly cloudy
+            "partly": pgettext("sky", "partly"),
+            "cloudy": pgettext("sky", "cloudy"), "foggy": pgettext("sky", "foggy"),
+            "rain": pgettext("sky", "rain"), "snow": pgettext("sky", "snow"),
+            "storm": pgettext("sky", "storm")}.get(cycle, cycle)
+
+
+def credit():
+    # translators: %s is Open-Meteo.com; CC BY 4.0 is the data's license, as it is
+    return _("Weather data by %s (CC BY 4.0)") % SOURCE
+
+
+def places_credit():
+    # translators: %s is Open-Meteo.com; GeoNames and CC BY 4.0 stay as they are
+    return _("Places from %s, based on GeoNames (CC BY 4.0)") % SOURCE
+
+
+def climate_credit():
+    # translators: %s is Open-Meteo.com; CC BY 4.0 is the data's license, as it is
+    return _("Climate from %s (CC BY 4.0); contains modified Copernicus Climate Change "
+             "Service information") % SOURCE
+
+
 # --- the place ----------------------------------------------------------------------------
 
 def is_default(place):
@@ -127,11 +155,12 @@ def configured_place():
         mod, err = season._load_config()
         value = getattr(mod, "WEATHER_PLACE", None) if mod else None
         if err:
-            return DEFAULT, "seasons_config.py can't be read, so the weather is Chornobyl's"
+            return DEFAULT, _("seasons_config.py can't be read, so the weather is "
+                              "Chornobyl's")
         if value is None:
             return DEFAULT, None
         if season.place_problems(value):
-            return DEFAULT, "WEATHER_PLACE can't be used, so the weather is Chornobyl's"
+            return DEFAULT, _("WEATHER_PLACE can't be used, so the weather is Chornobyl's")
         return {"name": value["name"].strip(), "lat": float(value["lat"]),
                 "lon": float(value["lon"])}, None
     except Exception:
@@ -337,35 +366,47 @@ def show():
     e = read_existing()
     p = read_existing("place")
     if not e:
-        print("  no weather in season_weather.ltx - the game will use climate normals%s"
-              % (" for %s" % p["name"] if p.get("name") and kept_normals() else ""))
+        if p.get("name") and kept_normals():
+            print("  " + _("no weather in season_weather.ltx - the game will use climate "
+                           "normals for %s") % p["name"])
+        else:
+            print("  " + _("no weather in season_weather.ltx - the game will use climate "
+                           "normals"))
         return
-    print("  %s, %s: high %s low %s, %s%s"
-          % (e.get("place", "?"), e.get("date", "?"), e.get("high", "?"),
-             e.get("low", "?"), e.get("cycle", "?"),
-             "  FREEZING" if e.get("freezing") == "true" else ""))
-    print("  fetched %s (%s)" % (e.get("fetched_at", "?"),
-                                 "fresh" if is_fresh(e) else "stale"))
+    day = {"place": e.get("place", "?"), "date": e.get("date", "?"),
+           "high": e.get("high", "?"), "low": e.get("low", "?"),
+           "sky": sky_word(e.get("cycle", "?"))}
+    if e.get("freezing") == "true":
+        # translators: a day's weather: its place and date, high and low, sky, and a warning
+        print("  " + _("%(place)s, %(date)s: high %(high)s low %(low)s, %(sky)s  FREEZING")
+              % day)
+    else:
+        print("  " + _("%(place)s, %(date)s: high %(high)s low %(low)s, %(sky)s") % day)
+    if is_fresh(e):
+        print("  " + _("fetched %s (fresh)") % e.get("fetched_at", "?"))
+    else:
+        print("  " + _("fetched %s (stale)") % e.get("fetched_at", "?"))
 
 
 def main():
     ap = argparse.ArgumentParser(
-        description="Fetch the day's weather for the place set in configure.bat "
-                    "(Chornobyl by default); play.bat runs this.")
-    ap.add_argument("--force", action="store_true", help="fetch even if the file is fresh")
+        description=_("Fetch the day's weather for the place set in configure.bat "
+                      "(Chornobyl by default); play.bat runs this."))
+    ap.add_argument("--force", action="store_true",
+                    help=_("fetch even if the file is fresh"))
     ap.add_argument("--offline", action="store_true",
-                    help="do nothing, for testing the fallback")
-    ap.add_argument("--show", action="store_true", help="print what the game would read")
+                    help=_("do nothing, for testing the fallback"))
+    ap.add_argument("--show", action="store_true", help=_("print what the game would read"))
     a = ap.parse_args()
 
     if a.show:
         show()
         return 0
     if a.offline or os.environ.get("SEASONS_OFFLINE"):
-        print("  offline: leaving season_weather.ltx as it is")
+        print("  " + _("offline: leaving season_weather.ltx as it is"))
         return 0
     if not OUTS:
-        print("  Seasons of the Zone is not in mods/ - no weather to write")
+        print("  " + _("Seasons of the Zone is not in mods/ - no weather to write"))
         return 0
 
     place, note = configured_place()
@@ -373,7 +414,10 @@ def main():
         print("  " + note)
     same = same_place(place)
     if same and not a.force and is_fresh(read_existing()):
-        print("  weather is under %dh old, not refetching" % REFRESH_HOURS)
+        # translators: %dh is a number of hours
+        print("  " + ngettext("weather is under %dh old, not refetching",
+                              "weather is under %dh old, not refetching", REFRESH_HOURS)
+              % REFRESH_HOURS)
         return 0
 
     # a place of the player's own brings its own climate, for days without a reading:
@@ -386,18 +430,23 @@ def main():
                 norms = normals(place["lat"], place["lon"])
                 looked_up = True
             except Exception as e:
-                print("  %s's climate is unavailable (%s) - days without a reading will use "
-                      "Chornobyl's" % (shown_name(place["name"]), type(e).__name__))
+                # translators: %(error)s is the kind of error, as Python names it
+                print("  " + _("%(place)s's climate is unavailable (%(error)s) - days without "
+                               "a reading will use Chornobyl's")
+                      % {"place": shown_name(place["name"]), "error": type(e).__name__})
 
     try:
         rows = to_rows(fetch(place))
     except Exception as e:
         # Never the reason a launch fails. A file for another place is not kept, though:
         # the game would show that place's weather under this one's name.
-        print("  weather unavailable (%s) - %s" % (type(e).__name__, (
-            "keeping what is there" if same else
-            "the game models %s's day until a reading comes" % shown_name(place["name"]))))
-        if not same:
+        if same:
+            print("  " + _("weather unavailable (%s) - keeping what is there")
+                  % type(e).__name__)
+        else:
+            print("  " + _("weather unavailable (%(error)s) - the game models %(place)s's day "
+                           "until a reading comes")
+                  % {"error": type(e).__name__, "place": shown_name(place["name"])})
             try:
                 write([], place, norms)
             except Exception:
@@ -407,18 +456,24 @@ def main():
     try:
         write(rows, place, norms)
     except Exception as e:
-        print("  could not write season_weather.ltx (%s) - carrying on" % type(e).__name__)
+        print("  " + _("could not write season_weather.ltx (%s) - carrying on")
+              % type(e).__name__)
         return 0
 
     t = rows[0]
-    print("  %s %s: high %.1f low %.1f, %s%s"
-          % (shown_name(place["name"]), t["date"], t["high"], t["low"], t["cycle"],
-             "  FREEZING" if t["low"] <= 0.0 else ""))
-    print("  " + CREDIT)
+    day = {"place": shown_name(place["name"]), "date": t["date"], "high": t["high"],
+           "low": t["low"], "sky": sky_word(t["cycle"])}
+    if t["low"] <= 0.0:
+        # translators: a day's weather: its place and date, high and low, sky, and a warning
+        print("  " + _("%(place)s %(date)s: high %(high).1f low %(low).1f, %(sky)s  FREEZING")
+              % day)
+    else:
+        print("  " + _("%(place)s %(date)s: high %(high).1f low %(low).1f, %(sky)s") % day)
+    print("  " + credit())
     if looked_up:
-        print("  Also looked up %s's climate, for days without a reading." % shown_name(
-            place["name"]))
-        print("  " + CLIMATE_CREDIT)
+        print("  " + _("Also looked up %s's climate, for days without a reading.")
+              % shown_name(place["name"]))
+        print("  " + climate_credit())
     return 0
 
 

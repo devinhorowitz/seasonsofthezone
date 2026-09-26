@@ -19,6 +19,8 @@ import re
 import subprocess
 import sys
 
+from lang import _, ngettext, pgettext
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 # the folder these tools came in: the mod's folder, or the GAMMA folder once installed
 SOURCE = os.path.dirname(HERE)
@@ -149,32 +151,46 @@ class Plan(object):
         """Are the tools there newer than these?"""
         return bool(self.there) and self.here is not None and newer(self.there, self.here)
 
-    def versions(self):
-        """"1.8.3 there, 1.9.0 here", when the tools were there before; None for a first
-        install."""
+    def compared(self):
+        """How the versions there and here compare, when the tools were there before:
+        "same", "two" different ones, or "older" for a copy there from before there were
+        versions. None for a first install."""
         if self.there is None or not self.here:
             return None
         if self.there == self.here:
-            return "%s there and here" % self.here
-        return "%s there, %s here" % (self.there or "an older version", self.here)
+            return "same"
+        return "two" if self.there else "older"
+
+    def values(self):
+        """What the sentences about this install are filled in with."""
+        return {"gamma": self.gamma, "there": self.there, "here": self.here}
 
     def counts(self):
         """"Files: 2 new, 5 updated, 17 the same.", leaving out what there is none of."""
-        said = ["%d %s" % (self.count(s), w) for s, w in (
-            ("new", "new"), ("updated", "updated"), ("same", "the same"),
-            ("kept", "of your presets kept")) if self.count(s)]
-        return "Files: %s." % ", ".join(said)
+        parts = []
+        for state in ("new", "updated", "same", "kept"):
+            n = self.count(state)
+            if n:
+                parts.append({"new": ngettext("%d new", "%d new", n),
+                              "updated": ngettext("%d updated", "%d updated", n),
+                              "same": ngettext("%d the same", "%d the same", n),
+                              "kept": ngettext("%d of your presets kept",
+                                               "%d of your presets kept", n)}[state] % n)
+        comma = pgettext("between words in a list", ", ")
+        # translators: %s is a list of counts of files: "2 new, 5 updated, 17 the same"
+        return _("Files: %s.") % comma.join(parts)
 
     def entry_line(self):
         """What play.bat starts once installed, when that is the player's pick, or when
         their pick can't be kept. None otherwise."""
         if self.entry:
-            return 'play.bat keeps starting "%s".' % self.entry
+            return _('play.bat keeps starting "%s".') % self.entry
         if self.lost:
-            return ('play.bat starts "%s" from now on: the entry it started, "%s", has a '
-                    'character in its name that a batch file reads as something else. Rename '
-                    'that entry in MO2, then pick it in the setup.'
-                    % (read_shortcut(os.path.join(self.source, "play.bat")), self.lost))
+            return (_('play.bat starts "%(entry)s" from now on: the entry it started, '
+                      '"%(old)s", has a character in its name that a batch file reads as '
+                      'something else. Rename that entry in MO2, then pick it in the setup.')
+                    % {"entry": read_shortcut(os.path.join(self.source, "play.bat")),
+                       "old": self.lost})
         return None
 
 
@@ -198,20 +214,25 @@ def put(plan):
     """Write the new and updated files. Returns (the files written, None), or (those
     written before it stopped, what stopped it)."""
     done = []
-    for rel, data, _ in plan.todo():
+    for rel, data, __ in plan.todo():
         try:
             write(os.path.join(plan.gamma, rel), data)
         except OSError as e:
-            return done, "Couldn't write %s: %s." % (rel, (e.strerror or str(e)).rstrip("."))
+            return done, _("Couldn't write %(file)s: %(error)s.") % {
+                "file": rel, "error": (e.strerror or str(e)).rstrip(".")}
         done.append(rel)
     return done, None
 
 
 def stopped(plan, done, error):
     """What to say when a file couldn't be written."""
-    return [error, "%d of the %d files were copied; the rest are as they were. Check that the "
-                   "file isn't read-only or open in another program, then try again."
-                   % (len(done), len(plan.todo()))]
+    n = len(plan.todo())
+    return [error, ngettext("%(done)d of the %(all)d files were copied; the rest are as they "
+                            "were. Check that the file isn't read-only or open in another "
+                            "program, then try again.",
+                            "%(done)d of the %(all)d files were copied; the rest are as they "
+                            "were. Check that the file isn't read-only or open in another "
+                            "program, then try again.", n) % {"done": len(done), "all": n}]
 
 
 def hand_off(gamma):
@@ -236,32 +257,52 @@ def fail(*lines):
     raise SystemExit(1)
 
 
+def state_word(state):
+    """What an install does with a file, as the console lists it: new, updated, kept."""
+    return {"new": pgettext("a file the install copies", "new"),
+            "updated": pgettext("a file the install copies", "updated"),
+            "kept": pgettext("a file the install leaves as it is", "kept")}.get(state, state)
+
+
 def console(plan):
     """configure.py install --yes: the plan, then the result, in the console."""
-    gamma = "your GAMMA folder, %s" % plan.gamma
+    v = plan.values()
     if plan.downgrade():
-        fail("The tools in %s, are newer than these: %s." % (gamma, plan.versions()),
-             "Nothing was changed. To put these older ones there anyway, open configure.bat",
-             "in %s." % plan.source)
+        fail(_("The tools in your GAMMA folder, %(gamma)s, are newer than these: %(there)s "
+               "there, %(here)s here.") % v,
+             # translators: \n starts the next line in the console; put it where it suits
+             *(_("Nothing was changed. To put these older ones there anyway, open "
+                 "configure.bat\nin %s.") % plan.source).split("\n"))
     if not plan.todo():
-        say("The tools in %s, are up to date%s." % (gamma, " (%s)" % plan.here
-                                                    if plan.here else ""))
+        say(_("The tools in your GAMMA folder, %(gamma)s, are up to date (%(here)s).") % v
+            if plan.here else
+            _("The tools in your GAMMA folder, %s, are up to date.") % plan.gamma)
         return
-    v = plan.versions()
-    say(("Updating the tools in %s%s." % (gamma, ": " + v if v else "")) if plan.update()
-        else "Installing the tools into %s." % gamma)
-    for rel, _, state in plan.files:
-        if state != "same":
-            say("  %-8s %s%s" % (state, rel, " - yours, not the one that comes with the tools"
-                                 if state == "kept" else ""))
+    if plan.update():
+        say({"same": _("Updating the tools in your GAMMA folder, %(gamma)s: %(here)s there "
+                       "and here."),
+             "two": _("Updating the tools in your GAMMA folder, %(gamma)s: %(there)s there, "
+                      "%(here)s here."),
+             "older": _("Updating the tools in your GAMMA folder, %(gamma)s: an older "
+                        "version there, %(here)s here.")}.get(
+            plan.compared(), _("Updating the tools in your GAMMA folder, %(gamma)s.")) % v)
+    else:
+        say(_("Installing the tools into your GAMMA folder, %s.") % plan.gamma)
+    for rel, __, state in plan.files:
+        if state == "kept":
+            say("  %-8s %s" % (state_word(state), _("%s - yours, not the one that comes with "
+                                                    "the tools") % rel))
+        elif state != "same":
+            say("  %-8s %s" % (state_word(state), rel))
     say(plan.counts())
     if plan.entry_line():
         say(plan.entry_line())
     done, error = put(plan)
     if error:
         fail(*stopped(plan, done, error))
-    say("Done." + (" Your settings there are kept." if plan.update() else ""),
-        "From now on, open configure.bat and play.bat in %s." % gamma)
+    say(_("Done. Your settings there are kept.") if plan.update() else _("Done."),
+        _("From now on, open configure.bat and play.bat in your GAMMA folder, %s.")
+        % plan.gamma)
 
 
 class Window(object):
@@ -278,10 +319,10 @@ class Window(object):
         if plan.todo():
             first = self.ask()
         else:
-            first = self.page("Up to date", [
-                ("The tools in your GAMMA folder, %s, are up to date. From now on, open "
-                 "configure.bat and play.bat there." % plan.gamma, None)],
-                [("Continue", self.go_on)])
+            first = self.page(_("Up to date"), [
+                (_("The tools in your GAMMA folder, %s, are up to date. From now on, open "
+                   "configure.bat and play.bat there.") % plan.gamma, None)],
+                [(pgettext("button", "Continue"), self.go_on)])
         cf.present(self.win, root, first)
         self.win.lift()
         self.win.focus_force()
@@ -303,36 +344,46 @@ class Window(object):
 
     def ask(self):
         p, cf = self.plan, self.cf
-        lines = [("It puts play.bat, configure.bat and the _tools folder in your GAMMA folder, "
-                  "%s, where they run from.%s" % (p.gamma, " Your settings there are kept."
-                                                  if p.update() else ""), None)]
-        v = p.versions()
-        if v and p.downgrade():
-            lines.append((v[:1].upper() + v[1:] + ": the tools there are newer.", cf.RED))
-        elif v:
-            lines.append((v[:1].upper() + v[1:] + ".", cf.GREY))
+        v = p.values()
+        lines = [((_("It puts play.bat, configure.bat and the _tools folder in your GAMMA "
+                     "folder, %s, where they run from. Your settings there are kept.")
+                   if p.update() else
+                   _("It puts play.bat, configure.bat and the _tools folder in your GAMMA "
+                     "folder, %s, where they run from.")) % p.gamma, None)]
+        how = p.compared()
+        if how and p.downgrade():
+            lines.append((_("%(there)s there, %(here)s here: the tools there are newer.") % v,
+                          cf.RED))
+        elif how:
+            lines.append(({"same": _("%(here)s there and here."),
+                           "two": _("%(there)s there, %(here)s here."),
+                           "older": _("An older version there, %(here)s here.")}[how] % v,
+                          cf.GREY))
         lines.append((p.counts(), cf.GREY))
         if p.entry_line():
             lines.append((p.entry_line(), cf.RED if p.lost else cf.GREY))
-        return self.page("Update the tools" if p.update() else "Install the tools", lines,
-                         [("Install", self.install), ("Cancel", self.win.destroy)])
+        return self.page(_("Update the tools") if p.update() else _("Install the tools"),
+                         lines, [(pgettext("button", "Install"), self.install),
+                                 (pgettext("button", "Cancel"), self.win.destroy)])
 
     def install(self):
         from tkinter import messagebox
         p = self.plan
         if p.downgrade() and not messagebox.askyesno(
-                self.cf.TITLE, "The tools in your GAMMA folder are newer than these: %s. Put "
-                "these older ones in their place?" % p.versions(), icon="warning",
+                self.cf.TITLE, _("The tools in your GAMMA folder are newer than these: "
+                                 "%(there)s there, %(here)s here. Put these older ones in "
+                                 "their place?") % p.values(), icon="warning",
                 default="no", parent=self.win):
             return
         done, error = put(p)
         if error:
             self.error = stopped(p, done, error)
-            self.page("Not finished", [(self.error[0], self.cf.RED), (self.error[1], None)],
-                      [("Close", self.win.destroy)])
+            self.page(_("Not finished"), [(self.error[0], self.cf.RED), (self.error[1], None)],
+                      [(pgettext("button", "Close"), self.win.destroy)])
             return
-        self.page("Done", [("From now on, open configure.bat and play.bat in your GAMMA "
-                            "folder, %s." % p.gamma, None)], [("Continue", self.go_on)])
+        self.page(_("Done"), [(_("From now on, open configure.bat and play.bat in your GAMMA "
+                                 "folder, %s.") % p.gamma, None)],
+                  [(pgettext("button", "Continue"), self.go_on)])
 
     def go_on(self):
         self.on = True
@@ -345,9 +396,9 @@ def window(plan):
         import tkinter as tk
     except ImportError:
         import season
-        fail("The window needs tkinter, which this Python does not have. Reinstall Python "
-             "from python.org with \"tcl/tk and IDLE\" checked. Until then, this command "
-             "installs the tools without the window, typed in %s:" % plan.source,
+        fail(_("The window needs tkinter, which this Python does not have. Reinstall Python "
+               "from python.org with \"tcl/tk and IDLE\" checked. Until then, this command "
+               "installs the tools without the window, typed in %s:") % plan.source,
              "  " + season.command("configure.py", "install --yes"))
     root = tk.Tk()
     root.withdraw()
@@ -364,25 +415,29 @@ def main(a):
     --yes in the console; otherwise in a window that then goes on to the setup."""
     yes = getattr(a, "yes", False)
     if os.path.isfile(os.path.join(SOURCE, "ModOrganizer.ini")):
-        say("The tools already run from your GAMMA folder, %s." % SOURCE)
+        say(_("The tools already run from your GAMMA folder, %s.") % SOURCE)
         if not yes:
             hand_off(SOURCE)
         return
     gamma = gamma_for(SOURCE)
     if not gamma:
-        fail("No GAMMA folder to put the tools in.", "",
-             "  this copy : %s" % SOURCE,
-             "  looked in : %s, two folders up" % os.path.dirname(os.path.dirname(SOURCE)),
-             "  expected  : ModOrganizer.ini   MISSING", "",
-             "The tools install from the mod's folder, where MO2 installs the zip:",
-             "mods\\<name> in your GAMMA folder. Install the zip with MO2, right-click the mod",
-             "there and choose Open in Explorer, then open configure.bat.",
-             "Nothing has been changed.")
+        # translators: three lines, their labels lined up; ModOrganizer.ini is a file's name
+        where = _("this copy : %(copy)s\n"
+                  "looked in : %(parent)s, two folders up\n"
+                  "expected  : ModOrganizer.ini   MISSING") % {
+            "copy": SOURCE, "parent": os.path.dirname(os.path.dirname(SOURCE))}
+        # translators: \n starts the next line in the console; put them where they suit
+        how = _("The tools install from the mod's folder, where MO2 installs the zip:\n"
+                "mods\\<name> in your GAMMA folder. Install the zip with MO2, right-click the "
+                "mod\nthere and choose Open in Explorer, then open configure.bat.")
+        fail(*([_("No GAMMA folder to put the tools in."), ""]
+               + ["  " + l for l in where.split("\n")] + [""] + how.split("\n")
+               + [_("Nothing has been changed.")]))
     try:
         plan = Plan(SOURCE, gamma)
     except OSError as e:
-        fail("Couldn't read %s: %s. Nothing has been changed."
-             % (e.filename, (e.strerror or str(e)).rstrip(".")))
+        fail(_("Couldn't read %(file)s: %(error)s. Nothing has been changed.")
+             % {"file": e.filename, "error": (e.strerror or str(e)).rstrip(".")})
     if yes:
         console(plan)
     elif window(plan):
@@ -432,10 +487,10 @@ def read_shortcut(play_bat):
 def shortcut_problem(title):
     """Why play.bat can't be set to start `title`, or None."""
     if not title or not title.strip():
-        return "Pick the entry play.bat should start."
+        return _("Pick the entry play.bat should start.")
     if UNSAFE.search(title):
-        return ("play.bat can't hold the name \"%s\": it has a character a batch file reads "
-                "as something else. Rename that entry in MO2, then pick it here." % title)
+        return (_("play.bat can't hold the name \"%s\": it has a character a batch file reads "
+                  "as something else. Rename that entry in MO2, then pick it here.") % title)
     return None
 
 
@@ -449,7 +504,7 @@ def set_shortcut(raw, title):
         if m:
             lines[i] = m.group(1) + title + m.group(3)
             return nl.decode().join(lines).encode("cp1252")
-    raise ValueError("play.bat has no SHORTCUT line to set.")
+    raise ValueError(_("play.bat has no SHORTCUT line to set."))
 
 
 def write_shortcut(play_bat, title):

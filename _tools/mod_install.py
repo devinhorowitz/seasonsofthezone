@@ -22,17 +22,19 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 import season
+from lang import _, N_, ngettext, pgettext
 
 ARCHIVES = (".7z", ".zip", ".rar")
 GROUP_TYPES = ("SelectExactlyOne", "SelectAtMostOne", "SelectAtLeastOne", "SelectAny",
                "SelectAll")
 PLUGIN_TYPES = ("Required", "Optional", "Recommended", "NotUsable", "CouldBeUsable")
-FOLLOW = ("Its installer asks questions this tool can't follow. Install it with MO2 - Install "
-          "a new mod from archive - then add it here.")
-LOCKED = "%s is locked with a password, which this tool can't open."
-TAKEN = "A mod called %s is installed already. Pick another name."
-BAD_NAME = ("A mod's name can't start or end with a space, end with a dot, or hold any of "
-            "/ \\ : * ? \" < > |. Pick another name.")
+# translators: "Install a new mod from archive" is an item of MO2's menu
+FOLLOW = N_("Its installer asks questions this tool can't follow. Install it with MO2 - "
+            "Install a new mod from archive - then add it here.")
+LOCKED = N_("%s is locked with a password, which this tool can't open.")
+TAKEN = N_("A mod called %s is installed already. Pick another name.")
+BAD_NAME = N_("A mod's name can't start or end with a space, end with a dot, or hold any of "
+              "/ \\ : * ? \" < > |. Pick another name.")
 CHUNK = 1 << 20
 TICK = 0.25                 # seconds between calls to install()'s progress, at the least
 
@@ -161,8 +163,9 @@ def _py7zr():
     try:
         import py7zr
     except ImportError:
-        raise ArchiveError("Opening a .7z needs py7zr, a Python package: %s -m pip install "
-                           "py7zr" % season._python())
+        # translators: %s is the command that installs it
+        raise ArchiveError(_("Opening a .7z needs py7zr, a Python package: %s")
+                           % (season._python() + " -m pip install py7zr"))
     return py7zr
 
 
@@ -172,9 +175,10 @@ def _rarfile():
     try:
         import rarfile
     except ImportError:
-        raise ArchiveError("Opening a .rar needs rarfile, a Python package: %s -m pip install "
-                           "rarfile. It also needs WinRAR or 7-Zip installed."
-                           % season._python())
+        # translators: %s is the command that installs it
+        raise ArchiveError(_("Opening a .rar needs rarfile, a Python package: %s. It also "
+                             "needs WinRAR or 7-Zip installed.")
+                           % (season._python() + " -m pip install rarfile"))
     tool = season._find_unrar()
     if os.path.splitext(os.path.basename(tool))[0].lower() == "7z":
         rarfile.SEVENZIP_TOOL = tool
@@ -183,8 +187,8 @@ def _rarfile():
     try:
         rarfile.tool_setup()
     except rarfile.RarCannotExec:
-        raise ArchiveError("Opening a .rar needs WinRAR or 7-Zip installed. Install either "
-                           "one, then try again.")
+        raise ArchiveError(_("Opening a .rar needs WinRAR or 7-Zip installed. Install either "
+                             "one, then try again."))
     return rarfile
 
 
@@ -205,9 +209,11 @@ def _reading(archive):
     except Exception as e:
         name = os.path.basename(archive)
         if type(e).__name__ in ("PasswordRequired", "RarWrongPassword"):
-            raise ArchiveError(LOCKED % name)
-        raise ArchiveError("%s can't be read as a %s (%s). It may be damaged or not fully "
-                           "downloaded; download it again." % (name, kind(archive), _said(e)))
+            raise ArchiveError(_(LOCKED) % name)
+        # translators: %(kind)s is .7z, .zip or .rar; %(error)s what the library said
+        raise ArchiveError(_("%(archive)s can't be read as a %(kind)s (%(error)s). It may be "
+                             "damaged or not fully downloaded; download it again.")
+                           % {"archive": name, "kind": kind(archive), "error": _said(e)})
 
 
 def listing(archive):
@@ -216,25 +222,25 @@ def listing(archive):
     name = os.path.basename(archive)
     k = kind(archive)
     if not k:
-        raise ArchiveError("%s isn't a .7z, .zip or .rar." % name)
+        raise ArchiveError(_("%s isn't a .7z, .zip or .rar.") % name)
     with _reading(archive):
         if k == ".7z":
             py7zr = _py7zr()
             with open(archive, "rb") as fp, py7zr.SevenZipFile(fp) as z:
                 if z.needs_password():
-                    raise ArchiveError(LOCKED % name)
+                    raise ArchiveError(_(LOCKED) % name)
                 return [(f.filename, f.uncompressed) for f in z.list()
                         if not f.is_directory and not f.is_symlink]
         if k == ".zip":
             with zipfile.ZipFile(archive) as z:
                 infos = [i for i in z.infolist() if not i.is_dir()]
                 if any(i.flag_bits & 1 for i in infos):
-                    raise ArchiveError(LOCKED % name)
+                    raise ArchiveError(_(LOCKED) % name)
                 return [(i.filename, i.file_size) for i in infos]
         rarfile = _rarfile()
         with rarfile.RarFile(archive) as z:
             if z.needs_password():
-                raise ArchiveError(LOCKED % name)
+                raise ArchiveError(_(LOCKED) % name)
             return [(i.filename, i.file_size) for i in z.infolist() if i.is_file()]
 
 
@@ -584,23 +590,25 @@ class Fomod(object):
                     continue
                 n = sum(1 for p in g["plugins"] if p["id"] in chosen)
                 if g["type"] == "SelectExactlyOne" and n != 1:
-                    out.append("Pick one of %s." % g["name"])
+                    # translators: %s is the name of a group of options in a mod's installer
+                    out.append(_("Pick one of %s.") % g["name"])
                 elif g["type"] == "SelectAtMostOne" and n > 1:
-                    out.append("Pick no more than one of %s." % g["name"])
+                    out.append(_("Pick no more than one of %s.") % g["name"])
                 elif g["type"] == "SelectAtLeastOne" and n < 1:
-                    out.append("Pick at least one of %s." % g["name"])
+                    out.append(_("Pick at least one of %s.") % g["name"])
                 for p in g["plugins"]:
                     if p["type"] == "NotUsable" and p["id"] in chosen:
-                        out.append("%s can't be used here. Uncheck it." % p["name"])
+                        out.append(_("%s can't be used here. Uncheck it.") % p["name"])
                     elif (p["type"] == "Required" or g["type"] == "SelectAll") \
                             and p["type"] != "NotUsable" and p["id"] not in chosen:
-                        out.append("%s is required. Check it." % p["name"])
+                        out.append(_("%s is required. Check it.") % p["name"])
         for src in self.missing[None]:
-            out.append("Its installer always installs %s, which isn't in the archive." % src)
+            out.append(_("Its installer always installs %s, which isn't in the archive.") % src)
         for p in self.plugins():
             if p["id"] in chosen:
                 for src in self.missing[p["id"]]:
-                    out.append("%s installs %s, which isn't in the archive." % (p["name"], src))
+                    out.append(_("%(option)s installs %(file)s, which isn't in the archive.")
+                               % {"option": p["name"], "file": src})
         return out
 
     def files(self, chosen):
@@ -644,8 +652,9 @@ class Package(object):
         try:
             self.members = listing(archive)
         except OSError as e:
-            raise ArchiveError("Can't open %s: %s." % (os.path.basename(archive),
-                                                       (e.strerror or _said(e)).rstrip(".")))
+            raise ArchiveError(_("Can't open %(archive)s: %(error)s.")
+                               % {"archive": os.path.basename(archive),
+                                  "error": (e.strerror or _said(e)).rstrip(".")})
         self.sizes = dict(self.members)
         paths = [(m, slashed(m)) for m, _ in self.members]
         fomod = sorted((p.count("/"), m, p) for m, p in paths
@@ -659,14 +668,15 @@ class Package(object):
         try:
             data = unpack(archive, {m: [] for m in want}) if want else {}
         except OSError as e:
-            raise ArchiveError("Can't read %s: %s." % (os.path.basename(archive),
-                                                       (e.strerror or _said(e)).rstrip(".")))
+            raise ArchiveError(_("Can't read %(archive)s: %(error)s.")
+                               % {"archive": os.path.basename(archive),
+                                  "error": (e.strerror or _said(e)).rstrip(".")})
         if infos:
             self.read_info(data.get(infos[0][1], b""))
         if fomod:
             self.read_fomod(data.get(fomod[0][1], b""), fomod[0][2], base)
         elif any(re.search(r"(^|/)fomod/script\.(cs|vb|py)$", p, re.I) for _, p in paths):
-            self.problem = FOLLOW
+            self.problem = _(FOLLOW)
         else:
             self.read_plain(paths)
 
@@ -683,11 +693,12 @@ class Package(object):
         try:
             root = parse_xml(data)
         except (ET.ParseError, ValueError) as e:
-            self.problem = "Its installer, %s, can't be read: %s." % (where, _said(e))
+            self.problem = (_("Its installer, %(file)s, can't be read: %(error)s.")
+                            % {"file": where, "error": _said(e)})
             return
         self.name = folder_name(_text(_kid(root, "modulename"))) or self.name
         if asks_more(root):
-            self.problem = FOLLOW
+            self.problem = _(FOLLOW)
             return
         self.fomod = Fomod(root, base.rstrip("/"), self.members)
         if not self.about:
@@ -711,15 +722,23 @@ class Package(object):
                 top = "/".join(parts[:low.index("gamedata")])
                 roots.setdefault(top.casefold(), top)
         if not roots:
-            self.problem = "It has no gamedata folder, so it isn't a mod this tool can install."
+            self.problem = _("It has no gamedata folder, so it isn't a mod this tool can "
+                             "install.")
             return
         if len(roots) > 1:
-            where = sorted(("the top" if not r else r) for r in roots.values())
-            self.problem = ("It has gamedata folders in %d places (%s) and no installer to "
-                            "choose between them. Install it with MO2 - Install a new mod "
-                            "from archive - then add it here."
-                            % (len(where), ", ".join(where[:3] + (["..."] if where[3:]
-                                                                  else []))))
+            # translators: the archive's top folder, in a list of the folders gamedata is in
+            where = sorted(r or _("the top") for r in roots.values())
+            # translators: "Install a new mod from archive" is an item of MO2's menu
+            self.problem = (ngettext("It has gamedata folders in %(n)d places (%(places)s) and "
+                                     "no installer to choose between them. Install it with "
+                                     "MO2 - Install a new mod from archive - then add it here.",
+                                     "It has gamedata folders in %(n)d places (%(places)s) and "
+                                     "no installer to choose between them. Install it with "
+                                     "MO2 - Install a new mod from archive - then add it here.",
+                                     len(where))
+                            % {"n": len(where),
+                               "places": pgettext("between words in a list", ", ").join(
+                                   where[:3] + (["..."] if where[3:] else []))})
             return
         top = next(iter(roots.values()))
         under = top.casefold() + "/" if top else ""
@@ -768,7 +787,8 @@ def meta_ini(pkg):
 
 
 def _gb(n):
-    return "%.1f GB" % (n / 2 ** 30) if n >= 2 ** 30 / 10 else "%d MB" % max(1, n // 2 ** 20)
+    return (_("%.1f GB") % (n / 2 ** 30) if n >= 2 ** 30 / 10
+            else _("%d MB") % max(1, n // 2 ** 20))
 
 
 class _Stop(BaseException):
@@ -816,7 +836,7 @@ def _dest(dest):
     """A dest as a path under the mod folder, or ArchiveError for one that leaves it."""
     d = slashed(dest)
     if not safe(d):
-        raise ArchiveError("%s isn't a place inside a mod's folder." % dest)
+        raise ArchiveError(_("%s isn't a place inside a mod's folder.") % dest)
     return d
 
 
@@ -839,16 +859,16 @@ def install(pkg, name, chosen=None, extra=(), progress=None, mods=None):
     was raised: a way for the window to cancel."""
     mods = os.path.abspath(mods or season.MODS)
     if not isinstance(name, str) or not name.strip():
-        raise ArchiveError("Give the mod a name.")
+        raise ArchiveError(_("Give the mod a name."))
     if season._folder_problem(name):
-        raise ArchiveError(BAD_NAME)
+        raise ArchiveError(_(BAD_NAME))
     if pkg.problem:
         raise ArchiveError(pkg.problem)
     final = os.path.join(mods, name)
     if os.path.lexists(final):
-        raise ArchiveError(TAKEN % name)
+        raise ArchiveError(_(TAKEN) % name)
     if not os.path.isdir(mods):
-        raise ArchiveError("There is no mods folder at %s." % mods)
+        raise ArchiveError(_("There is no mods folder at %s.") % mods)
     if pkg.fomod:
         chosen = pkg.fomod.default() if chosen is None else set(chosen)
         refused = pkg.fomod.problems(chosen)
@@ -856,18 +876,19 @@ def install(pkg, name, chosen=None, extra=(), progress=None, mods=None):
             raise ArchiveError(" ".join(refused))
     plan = pkg.files(chosen)
     if not plan:
-        raise ArchiveError("Nothing is chosen to install."
-                           + (" Check at least one option." if pkg.fomod else ""))
+        raise ArchiveError(_("Nothing is chosen to install. Check at least one option.")
+                           if pkg.fomod else _("Nothing is chosen to install."))
     extra = [(src, _dest(dest)) for src, dest in extra]
-    for src, _ in extra:
+    for src, __ in extra:
         if not os.path.isfile(src):
-            raise ArchiveError("%s isn't there any more." % src)
+            raise ArchiveError(_("%s isn't there any more.") % src)
     total = pkg.size(chosen)
     need = total + sum(os.path.getsize(src) for src, _ in extra)
     free = shutil.disk_usage(mods).free
     if free < need + (64 << 20):
-        raise ArchiveError("It needs %s of room on the drive with the mods folder, which has "
-                           "%s free. Make room, then try again." % (_gb(need), _gb(free)))
+        raise ArchiveError(_("It needs %(need)s of room on the drive with the mods folder, "
+                             "which has %(free)s free. Make room, then try again.")
+                           % {"need": _gb(need), "free": _gb(free)})
 
     tmp = tempfile.mkdtemp(prefix=name + ".installing-", dir=mods)
     try:
@@ -880,14 +901,19 @@ def install(pkg, name, chosen=None, extra=(), progress=None, mods=None):
         try:
             unpack(pkg.archive, targets, tick)
         except ArchiveError as e:
-            raise ArchiveError("%s Nothing was installed." % e)
+            # translators: %s is why the archive couldn't be read, in a sentence or two
+            raise ArchiveError(_("%s Nothing was installed.") % e)
         tick.end()
         for member, dest in plan:
             got = os.path.getsize(season.lp(os.path.join(tmp, *dest.split("/"))))
             if got != pkg.sizes.get(member):
-                raise ArchiveError("%s came out of %s at %d bytes, not %d. Nothing was "
-                                   "installed." % (dest, os.path.basename(pkg.archive), got,
-                                                   pkg.sizes.get(member)))
+                raise ArchiveError(ngettext(
+                    "%(file)s came out of %(archive)s at %(got)d bytes, not %(want)d. Nothing "
+                    "was installed.",
+                    "%(file)s came out of %(archive)s at %(got)d bytes, not %(want)d. Nothing "
+                    "was installed.", got)
+                    % {"file": dest, "archive": os.path.basename(pkg.archive), "got": got,
+                       "want": pkg.sizes.get(member)})
         for src, dest in extra:
             to = season.lp(os.path.join(tmp, *dest.split("/")))
             os.makedirs(os.path.dirname(to), exist_ok=True)
@@ -899,13 +925,14 @@ def install(pkg, name, chosen=None, extra=(), progress=None, mods=None):
                 os.rename(tmp, final)
                 break
             except FileExistsError:
-                raise ArchiveError(TAKEN % name)
+                raise ArchiveError(_(TAKEN) % name)
             except PermissionError as e:
                 # Windows refuses while another program has a file in the folder open
                 if attempt == 9:
-                    raise ArchiveError("Couldn't rename the new mod's folder to %s: %s. "
-                                       "Nothing was installed."
-                                       % (name, (e.strerror or _said(e)).rstrip(".")))
+                    raise ArchiveError(_("Couldn't rename the new mod's folder to %(mod)s: "
+                                         "%(error)s. Nothing was installed.")
+                                       % {"mod": name,
+                                          "error": (e.strerror or _said(e)).rstrip(".")})
                 time.sleep(0.3)
     except BaseException as e:
         _remove(tmp)
@@ -916,14 +943,16 @@ def install(pkg, name, chosen=None, extra=(), progress=None, mods=None):
         if isinstance(e, OSError):
             what = e.filename if isinstance(e.filename, str) else ""
             what = what[4:] if what.startswith("\\\\?\\") else what
+            said = {"file": what, "mod": name, "error": (e.strerror or _said(e)).rstrip(".")}
             if what.startswith(tmp):
-                said = "Couldn't write %s" % what[len(tmp) + 1:]
-            elif what:
-                said = "Couldn't read %s" % what
-            else:
-                said = "Couldn't install %s" % name
-            raise ArchiveError("%s: %s. Nothing was installed."
-                               % (said, (e.strerror or _said(e)).rstrip(".")))
-        raise ArchiveError("Couldn't install %s: %s. Nothing was installed."
-                           % (name, _said(e)))
+                said["file"] = what[len(tmp) + 1:]
+                raise ArchiveError(_("Couldn't write %(file)s: %(error)s. Nothing was "
+                                     "installed.") % said)
+            if what:
+                raise ArchiveError(_("Couldn't read %(file)s: %(error)s. Nothing was "
+                                     "installed.") % said)
+            raise ArchiveError(_("Couldn't install %(mod)s: %(error)s. Nothing was "
+                                 "installed.") % said)
+        raise ArchiveError(_("Couldn't install %(mod)s: %(error)s. Nothing was installed.")
+                           % {"mod": name, "error": _said(e)})
     return final
