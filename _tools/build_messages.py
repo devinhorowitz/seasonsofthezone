@@ -252,8 +252,9 @@ def fit_problems(path):
     except ValueError as e:
         return ["%s: %s" % (os.path.basename(path), e)]
     for ctx, msgid in cat.dropped:
-        out.append("%s: the translation of %r has other placeholders than the English, so "
-                   "it isn't used" % (os.path.basename(path), msgid))
+        out.append("%s: the translation of %r can't be filled in as the English is - a "
+                   "placeholder lost, added or changed, or a %% on its own (a percent sign is "
+                   "%%%%) - so it isn't used" % (os.path.basename(path), msgid))
     return out
 
 

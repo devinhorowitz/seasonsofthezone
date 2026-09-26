@@ -159,6 +159,15 @@ msgstr "%(mod)s включён."
 
 msgid "%(mod)s is on."
 msgstr "%(mod)s включён в %(season)s."
+
+msgid "%d%% done"
+msgstr "%d%% готово, на 100%."
+
+msgid "%(place)s is %(n)d km away."
+msgstr "%(place)s в %(n)d км - 5%"
+
+msgid "100%% sure"
+msgstr "на 100%% уверен"
 '''
     with Folder({"ru.po": ru}) as d:
         lang.use("ru")
@@ -166,12 +175,17 @@ msgstr "%(mod)s включён в %(season)s."
                  lang._("%d days") % 3,
                  lang._("%(mod)s wins over %(other)s.") % {"mod": "A", "other": "B"},
                  lang._("%(mod)s is on in %(season)s.") % {"mod": "A", "season": "S"},
-                 lang._("%(mod)s is on.") % {"mod": "A"}]
+                 lang._("%(mod)s is on.") % {"mod": "A"},
+                 lang._("%d%% done") % 5,
+                 lang._("%(place)s is %(n)d km away.") % {"place": "Kyiv", "n": 3},
+                 lang._("100%% sure") % ()]
         assert shown == ["Сегодня включён X.", "A wins over B.", "3 days", "B уступает A.",
-                         "A включён.", "A is on."], shown
+                         "A включён.", "A is on.", "5% done", "Kyiv is 3 km away.",
+                         "на 100% уверен"], shown
         said = bm.fit_problems(os.path.join(d, "ru.po"))
-        assert len(said) == 3 and all("other placeholders" in s for s in said), said
-    return "3 unfit translations left out and reported; reordered and dropped names kept"
+        assert len(said) == 5 and all("can't be filled in" in s for s in said), said
+    return ("5 unfit translations - 3 with lost or added placeholders, 2 with a stray % - "
+            "left out and reported; reordered and dropped names, and %% as written, kept")
 
 
 @case

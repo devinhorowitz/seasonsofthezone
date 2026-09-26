@@ -214,10 +214,37 @@ def holders(text):
 def fits(text, *english):
     """Can `text` stand in for the English strings given, when the code fills it in? Its
     unnamed placeholders must come as theirs do - one more or less and filling it fails -
-    and its named ones must be among theirs; a name can be left out."""
+    and its named ones must be among theirs; a name can be left out. And it must fill in
+    as they do: a stray % - "50%." - is a crash, not a percent sign."""
     named, order = holders(text)
     want = [holders(e) for e in english]
-    return named <= frozenset().union(*(w[0] for w in want)) and order in {w[1] for w in want}
+    if not (named <= frozenset().union(*(w[0] for w in want))
+            and order in {w[1] for w in want}):
+        return False
+    return fills(text, *english)
+
+
+_STAND_IN = {"d": 1, "i": 1, "x": 1, "X": 1, "f": 1.0, "g": 1.0}
+
+
+def fills(text, *english):
+    """Does `text` fill in with values like those the code gives the English: a tuple of
+    their kinds, or a dict of their names? The code leaves a string with no placeholder
+    and no %% alone, so any text fills in for that."""
+    found = []
+    for e in english:
+        found = [(m.group(1), m.group(2)) for m in _HOLDER.finditer(e)]
+        if found:
+            break
+    if not found:
+        return True
+    names = {n: _STAND_IN.get(c, "x") for n, c in found if n is not None}
+    values = names or tuple(_STAND_IN.get(c, "x") for n, c in found if c != "%")
+    try:
+        text % values
+    except (TypeError, ValueError, KeyError):
+        return False
+    return True
 
 
 # --- a catalog ----------------------------------------------------------------------------

@@ -38,8 +38,10 @@ Fill in `msgstr`. What to keep:
 
 - **Placeholders.** `%s` and `%d` are filled in by the tools in the order they come, so a
   translation keeps every one, in the same order. `%(name)s` is filled in by name: move it
-  anywhere, or leave it out. A translation whose placeholders don't fit its English is not
-  used - the English shows instead - and `build_messages.py --check` lists it.
+  anywhere, or leave it out. In a string with placeholders, a percent sign of its own is
+  written `%%`, as the English does. A translation that can't be filled in the way its
+  English is - a placeholder lost or added, or a `%` on its own - is not used: the English
+  shows instead, and `build_messages.py --check` lists it.
 - **Counts.** A string with `msgid_plural` has one `msgstr[n]` per form the language has.
   Russian has three - the header's `Plural-Forms` says which numbers take which: `[0]` for
   1, 21, 31..., `[1]` for 2-4, 22-24..., `[2]` for 0, 5-20, 25-30...
