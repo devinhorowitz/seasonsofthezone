@@ -203,6 +203,13 @@ climbs above 0°C by afternoon, and `heat` one whose high reaches 28°C. Like an
 weather day is added to whatever season is running. A launch without a connection uses
 the forecast the last fetch kept, 16 days of it; past that, none of them is on.
 
+**Switch with care.** Switching a mod off is safe for one that changes how the Zone looks
+and sounds: textures, shaders, grass, weather. A mod that adds locations, quest lines or
+items can leave a save needing it: a save made while it is on may not load once
+`play.bat` turns it off, until its season comes back. No list could keep up with which
+mods do; `configure.bat` says this whenever a mod joins the rotation, and the choice is
+yours.
+
 Each seasonal mod gets its own checkbox on the MCM page of every season it is on in, with
 its file count and size. Unchecking it there means "never mount this in that season"; the
 same mod can stay on for another season.

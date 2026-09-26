@@ -29,6 +29,10 @@
   It now keeps the 16 days of forecast it fetches, so the weather stays real that long
   without it, or without a connection; after that the temperature comes from the place's
   climate, so a mod that reads it never goes without.
+- **Switch with care.** Whenever a mod joins the seasonal rotation, the setup, the
+  advanced editor and `configure.py add` say what is at stake: switching off a mod that
+  changes looks and sounds is safe, and one that adds locations, quest lines or items can
+  leave a save that won't load until its season comes back.
 - **Ready for translation.** The tools' words - the setup, the advanced editor, the
   commands, `play.bat`'s lines - and the game's own text on the PDA, the Forecast page and
   MCM now come from translation files, so a translation needs no code. None is included

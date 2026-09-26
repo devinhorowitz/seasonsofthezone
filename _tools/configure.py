@@ -392,6 +392,8 @@ def cmd_add(a):
             _("%(seasons)s are off in your calendar, so the mod does not switch on then. To "
               "turn them back on: %(command)s")) % {"seasons": season.seasons_text(off),
                                                     "command": on}))
+    if not was:
+        print("  %-9s %s" % (pgettext("start of a line", "careful"), _(SWITCH_CAUTION)))
     print("  " + _("play.bat switches it from the next launch."))
 
 
@@ -1037,6 +1039,13 @@ WEATHER_TEXT = {"freezing": N_("the low is 0°C or below"),
                 "thaw": N_("it freezes overnight and climbs above 0°C by afternoon"),
                 "heat": N_("the high reaches 28°C")}
 GREY, RED, AMBER = "#666666", "#b03020", "#9a5b00"
+# what to know before making a mod seasonal; no list could keep up with which mods a save
+# comes to depend on, so the player decides, knowing what is at stake
+SWITCH_CAUTION = N_("Switching a mod off is safe for one that changes how the Zone looks and "
+                    "sounds: textures, shaders, grass, weather. A mod that adds locations, "
+                    "quest lines or items can leave a save needing it: one made while it is on "
+                    "may not load once play.bat turns it off, until its season comes back. "
+                    "Make a mod like that seasonal only on purpose.")
 TITLE = N_("Seasons of the Zone setup")
 SEP = "|sep|"               # a list row that is a separator; no mod folder holds a |
 
@@ -1355,6 +1364,8 @@ class App(object):
         self.only_ours = tk.BooleanVar(value=False)
         ttk.Checkbutton(top, text=_("Only seasonal mods"), variable=self.only_ours,
                         command=self.fill).pack(side="left", padx=10)
+        ttk.Label(mods, text=_(SWITCH_CAUTION), foreground=AMBER, wraplength=1100,
+                  justify="left").pack(anchor="w", pady=(0, 6))
 
         panes = ttk.PanedWindow(mods, orient="horizontal")
         panes.pack(fill="both", expand=True)

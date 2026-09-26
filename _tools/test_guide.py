@@ -587,6 +587,44 @@ print("SAVED", said[-1][0])
             "over the mod it recolors; saved and placed")
 
 
+@case
+def t_making_a_mod_seasonal_says_what_is_at_stake():
+    """Switching a mod off by season is safe for looks and sounds, and can leave a save
+    needing a mod that adds locations, quest lines or items: said on the Seasonal mods step,
+    in the dialog for a mod joining the rotation (not one already in it), in the advanced
+    editor, and by configure.py add for a new seasonal mod only."""
+    import configure as cf
+    caution = cf.SWITCH_CAUTION
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config='TOGGLE_MODS = {"Winter Pack": {"when": ("winter",), '
+                          '"above": "Grass Compat"}}\n')
+        rc, out = drive(d, r"""
+caution = cf.SWITCH_CAUTION
+g.edit("mods")
+settle()
+print("STEP", caution in texts(g.page))
+new = guide.ModDialog(g)
+settle()
+print("NEW", caution in texts(new.win))
+new.win.destroy()
+old = guide.ModDialog(g, "Winter Pack")
+settle()
+print("OLD", caution in texts(old.win))
+old.win.destroy()
+app = cf.App(tk.Toplevel(root), g.cal, g.inst)
+settle()
+print("EDITOR", caution in texts(app.root))
+""")
+        assert rc == 0 and "STEP True" in out and "NEW True" in out and "OLD False" in out \
+            and "EDITOR True" in out, out
+        rc, out = tc.run(d, "add", "Lonely Mod", "--when", "winter")
+        assert rc == 0 and "careful" in out and "quest lines or items" in out, out
+        rc, out = tc.run(d, "add", "Lonely Mod", "--when", "summer")
+        assert rc == 0 and "careful" not in out, out
+    assert "textures, shaders, grass, weather" in caution and "locations" in caution
+    return "on the step, for a new mod in the dialog and not an old one, in the editor, on add"
+
+
 if __name__ == "__main__":
     print("  the guided setup")
     bad = 0

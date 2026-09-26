@@ -2614,6 +2614,11 @@ msgid "%(seasons)s are off in your calendar, so the mod does not switch on then.
 msgstr ""
 
 #: configure.py
+msgctxt "start of a line"
+msgid "careful"
+msgstr ""
+
+#: configure.py
 msgid "play.bat switches it from the next launch."
 msgstr ""
 
@@ -3190,6 +3195,10 @@ msgstr ""
 
 #: configure.py
 msgid "the high reaches 28°C"
+msgstr ""
+
+#: configure.py
+msgid "Switching a mod off is safe for one that changes how the Zone looks and sounds: textures, shaders, grass, weather. A mod that adds locations, quest lines or items can leave a save needing it: one made while it is on may not load once play.bat turns it off, until its season comes back. Make a mod like that seasonal only on purpose."
 msgstr ""
 
 #: configure.py

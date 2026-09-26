@@ -501,6 +501,7 @@ class Guide(object):
         self.para(_("play.bat switches each checked mod on in its seasons and off the rest of "
                     "the year, before the game starts. Nothing is copied: MO2 just doesn't "
                     "load a mod while it's off."))
+        self.para(_(cf.SWITCH_CAUTION), color=cf.AMBER, pad=(6, 0))
         box = self.page
         chosen = sorted(set(self.cal.toggle) | set(self.kept), key=str.casefold)
         known = (self.default or {}).get("mods", {})
@@ -1576,6 +1577,10 @@ class ModDialog(object):
                           if n not in cal.toggle and n not in own]
             self.fill()
             focus = e
+        if name not in cal.toggle:
+            # a mod joining the rotation: what to know first
+            ttk.Label(f, text=_(cf.SWITCH_CAUTION), foreground=cf.AMBER, wraplength=520,
+                      justify="left").pack(anchor="w", pady=(10, 0))
         ttk.Label(f, text=_("On in these seasons"), style="Head.TLabel").pack(anchor="w",
                                                                               pady=(12, 4))
         grid = ttk.Frame(f)

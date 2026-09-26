@@ -423,6 +423,12 @@ a fresh install.
 
 If MO2 can mount it as a folder, it can be seasonal: footstep audio, menu art, a flower pack.
 
+**Switch with care.** Switching a mod off is safe for one that changes how the Zone looks
+and sounds: textures, shaders, grass, weather. A mod that adds locations, quest lines or
+items can leave your save needing it: a save made while it is on may not load once
+`play.bat` turns it off, until its season comes back. The setup says so whenever a mod
+joins the rotation. Make a mod like that seasonal only on purpose.
+
 ### MCM settings that follow the season
 
 A mod you keep on all year can still follow the season through its own MCM options: a
