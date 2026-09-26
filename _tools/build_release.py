@@ -317,8 +317,11 @@ def verify_installer(root, mod):
     an update puts a changed tool back and keeps the entry play.bat starts. `root` is the
     GAMMA folder, `mod` the mod's folder in it."""
     def install():
+        # in English, whatever language this machine picked: the checks read what it says
         r = subprocess.run([sys.executable, os.path.join(mod, "_tools", "configure.py"),
-                            "install", "--yes"], capture_output=True, text=True, cwd=mod)
+                            "install", "--yes"], capture_output=True, text=True, cwd=mod,
+                           env=dict(os.environ, SEASONS_LANG="en"), encoding="utf-8",
+                           errors="replace")
         return r.returncode, r.stdout + r.stderr
 
     def arrived(rel):
@@ -398,10 +401,14 @@ def verify_fresh_install(zp, base, name):
         return False
 
     def run(args, offline=False):
-        # offline: nothing a check starts goes out to open-meteo
+        # offline: nothing a check starts goes out to open-meteo. In English, whatever
+        # language this machine picked: the checks read what the tools say.
+        env = dict(os.environ, SEASONS_LANG="en")
+        if offline:
+            env["SEASONS_OFFLINE"] = "1"
         r = subprocess.run([sys.executable] + args, capture_output=True, text=True,
                            cwd=os.path.join(root, "_tools") if args[0] == "-c" else root,
-                           env=dict(os.environ, SEASONS_OFFLINE="1") if offline else None)
+                           env=env, encoding="utf-8", errors="replace")
         return r.returncode, r.stdout + r.stderr
 
     season = os.path.join(root, "_tools", "season.py")

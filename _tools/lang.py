@@ -322,11 +322,28 @@ def available():
     return out
 
 
+def gamma_root():
+    """The GAMMA folder these tools belong to: the one above _tools, or, for the copy in a
+    mod's own folder (mods\\<mod>\\_tools, where the installer runs), two further up."""
+    above = os.path.dirname(HERE)
+    for root in (above, os.path.dirname(os.path.dirname(above))):
+        if os.path.isfile(os.path.join(root, "ModOrganizer.ini")):
+            return root
+    return above
+
+
 def saved_choice():
-    try:
-        return io.open(CHOICE, encoding="utf-8").read().strip() or None
-    except OSError:
-        return None
+    """The language picked in the window: in this _tools, or, when these are the mod
+    folder's own tools, in the GAMMA folder's."""
+    theirs = os.path.join(gamma_root(), "_tools", "lang", "language.txt")
+    for path in (CHOICE, theirs):
+        try:
+            got = io.open(path, encoding="utf-8").read().strip()
+        except OSError:
+            continue
+        if got:
+            return got
+    return None
 
 
 def save_choice(code):
@@ -354,8 +371,9 @@ def _mo2(root):
 
 def game_language(root=None):
     """The language the game shows, as our code, from the configs/localization.ltx that
-    wins in MO2, or the game's own; None when neither says."""
-    root = root or os.path.dirname(HERE)
+    wins among MO2's enabled mods - a translation mod sets it there - or None when none
+    has one, which is English: the game's own is packed, and English."""
+    root = root or gamma_root()
     mods, enabled = _mo2(root)
     places = [os.path.join(mods, m, "gamedata", "configs", "localization.ltx")
               for m in enabled] if mods else []

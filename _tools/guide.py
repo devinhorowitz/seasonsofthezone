@@ -177,7 +177,8 @@ def setup_words(cal):
 
 
 def parts_words(preset):
-    return _("Holds its %s.") % comma_list(ce.PART_TEXT[p] for p in ce.preset_parts(preset))
+    return _("Holds its %s.") % comma_list(_(ce.PART_TEXT[p])
+                                            for p in ce.preset_parts(preset))
 
 
 def raw_problems(cal):

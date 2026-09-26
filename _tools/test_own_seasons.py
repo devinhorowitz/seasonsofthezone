@@ -305,6 +305,35 @@ def t_a_spell_in_the_command_line_and_the_list():
 
 
 @case
+def t_a_preset_carries_seasons_of_ones_own_and_spells():
+    """A preset saved where a mod is on in a season of one's own and during a spell loads
+    on another install with both, and the mod on in them."""
+    config = ('OWN_SEASONS = {"Wormhole season": ((8, 1), (8, 31))}\n'
+              'SPELLS = {"Summer frost": {"in": ("summer",), "chance": 3, "days": (1, 2), '
+              '"as": "winter"}}\n'
+              'TOGGLE_MODS = {"Winter Maps": {"when": ("Wormhole season", "Summer frost"), '
+              '"above": "Map Pack"}}\n')
+    with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as e:
+        tc.install(d, config=config)
+        rc, out = tc.run(d, "preset", "save", "Mine", "--parts", "events", "mods")
+        assert rc == 0, out
+        tc.install(e)
+        os.makedirs(os.path.join(e, "_tools", "presets"))
+        src = os.path.join(d, "_tools", "presets", "Mine.json")
+        io.open(os.path.join(e, "_tools", "presets", "Mine.json"), "wb").write(
+            open(src, "rb").read())
+        rc, out = tc.run(e, "preset", "load", "Mine", "--force")
+        assert rc == 0, out
+        ns = tg.table(e)
+        assert ns["OWN_SEASONS"] == {"Wormhole season": ((8, 1), (8, 31))}, ns
+        assert ns["SPELLS"]["Summer frost"]["as"] == "winter", ns
+        assert ns["TOGGLE_MODS"]["Winter Maps"]["when"] == ("Wormhole season",
+                                                            "Summer frost"), ns
+        tc.accepted(e)
+    return "saved with both, loaded elsewhere with both and the mod on in them"
+
+
+@case
 def t_a_mod_in_a_season_of_ones_own_meets_the_season_it_falls_in():
     """Winter Overlay made seasonal in a season of one's own inside winter, where Winter Pack
     is on and ships a file it ships: the player is asked whose the game uses, as for two

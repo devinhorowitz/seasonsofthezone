@@ -135,7 +135,7 @@ msgctxt "a day of the year, short: Aug 1"
 msgid "%(month)s %(day)d"
 msgstr ""
 
-#: lang.py
+#: lang.py season.py
 #, python-format
 msgctxt "the last two in a list"
 msgid "%(rest)s and %(last)s"
@@ -147,7 +147,7 @@ msgctxt "the last two in a list of choices"
 msgid "%(rest)s or %(last)s"
 msgstr ""
 
-#: lang.py guide.py
+#: lang.py season.py config_edit.py guide.py installer.py mod_install.py
 msgctxt "between words in a list"
 msgid ", "
 msgstr ""
@@ -156,6 +156,269 @@ msgstr ""
 #, python-format
 msgctxt "a date in full: September 26, 2026"
 msgid "%(month)s %(day)d, %(year)d"
+msgstr ""
+
+#: season.py
+msgid "invalid syntax"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Python can't run this line (%s)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Python can't run seasons_config.py (%s)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "this stops the program (%s). Take it out."
+msgstr ""
+
+#. the first is what Python said, like: name 'winter' is not defined
+#: season.py
+#, python-format
+msgid "%(error)s. Names go in quotes: \"%(name)s\"."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "lines %(first)d to %(last)d: %(what)s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "line %(line)d: %(what)s"
+msgstr ""
+
+#: season.py
+msgid "Save it as UTF-8: in Notepad, File > Save as, set Encoding to UTF-8, then Save."
+msgstr ""
+
+#: season.py config_edit.py
+#, python-format
+msgid "seasons_config.py can't be read: %s"
+msgstr ""
+
+#: season.py
+msgid "The # coding line at the top of seasons_config.py names an encoding Python does not know. Delete that line and save the file as UTF-8: in Notepad, File > Save as, set Encoding to UTF-8, then Save."
+msgstr ""
+
+#. English says "bytes in" for any number, 1 too
+#: season.py
+#, python-format
+msgid "seasons_config.py is not saved as UTF-8 (byte 0x%(byte)02X, %(at)d bytes in). Save it as UTF-8: in Notepad, File > Save as, set Encoding to UTF-8, then Save."
+msgid_plural "seasons_config.py is not saved as UTF-8 (byte 0x%(byte)02X, %(at)d bytes in). Save it as UTF-8: in Notepad, File > Save as, set Encoding to UTF-8, then Save."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "seasons_config.py is not saved as UTF-8. Save it as UTF-8: in Notepad, File > Save as, set Encoding to UTF-8, then Save."
+msgstr ""
+
+#: season.py config_edit.py
+msgid "seasons_config.py is saved as UTF-16 (\"Unicode\" in Notepad). Save it as UTF-8: in Notepad, File > Save as, set Encoding to UTF-8, then Save."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "line %(line)d sets %(table)s again, which throws away the one on line %(first)d. Keep one."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "lists %(key)s twice, on lines %(first)d and %(second)d; only the second counts. Keep one."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s needs fixing before play.bat can switch anything:"
+msgstr ""
+
+#: season.py installer.py
+msgid "Nothing has been changed."
+msgstr ""
+
+#: season.py
+msgid "that is not a name in quotes. Put the mod's folder name in quotes."
+msgstr ""
+
+#: season.py
+msgid "the name is empty. Put the mod's folder name in the quotes."
+msgstr ""
+
+#: season.py
+msgid "the name has spaces at its start or end, which a folder name can't."
+msgstr ""
+
+#: season.py
+msgid "that can't be a folder name: folder names can't end with a dot or hold any of / \\ : * ? \" < > |."
+msgstr ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+msgid "must be a table, {name: (month, day)}, or {} for none."
+msgstr ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+msgid "must be a table, {name: ((month, day), (month, day))}, or {} for none."
+msgstr ""
+
+#: season.py
+msgid "a name is letters, digits and underscores, like high_summer."
+msgstr ""
+
+#: season.py
+msgid "that is already a season. Rename it."
+msgstr ""
+
+#: season.py
+msgid "that is already a kind of weather. Rename the event."
+msgstr ""
+
+#: season.py
+msgid "that is already a kind of weather. Rename the period."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s is both a period and an event. Rename one."
+msgstr ""
+
+#: season.py
+msgid "the start must be (month, day), like (7, 1)."
+msgstr ""
+
+#. follows an entry, like PERIODS['x'], which stays English
+#: season.py
+msgid "can't start on February 29, which three years in four don't have. Use February 28 or March 1."
+msgstr ""
+
+#. follows an entry, like PERIODS['x'], which stays English
+#: season.py
+#, python-format
+msgid "starts on %(day)s, the same day as %(season)s, so one of them would never be on. Give it another day."
+msgstr ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+msgid "must be a table, {mod folder: {...}}."
+msgstr ""
+
+#: season.py
+msgid "that is the soundscape season.py makes, which it switches itself. Take the entry out."
+msgstr ""
+
+#: season.py
+msgid "that is this mod itself, which stays on all year. Take the entry out."
+msgstr ""
+
+#. follows an entry, like PERIODS['x'], which stays English
+#: season.py
+msgid "must be {\"when\": (...), \"above\": \"...\"}."
+msgstr ""
+
+#. follows an entry, like PERIODS['x'], which stays English
+#: season.py
+msgid "has both \"when\" and \"seasons\", which are the same thing. Keep one."
+msgstr ""
+
+#. follows an entry, like PERIODS['x'], which stays English
+#: season.py
+#, python-format
+msgid "has no \"when\" (it has %s). It names the seasons, events or weather the mod is on in, like \"when\": (\"winter\",)."
+msgstr ""
+
+#. follows an entry, like PERIODS['x'], which stays English
+#: season.py
+msgid "has no \"when\". It names the seasons, events or weather the mod is on in, like \"when\": (\"winter\",)."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "\"when\" is the single name \"%(name)s\". Give each season its own quotes: (%(names)s)."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "a single name in \"when\" needs a trailing comma: (\"%(name)s\",), not (\"%(name)s\")."
+msgstr ""
+
+#: season.py
+msgid "\"when\" must list seasons, events or weather in brackets, like (\"winter\", \"winter_snow\")."
+msgstr ""
+
+#: season.py
+msgid "\"when\" is empty, so the mod would never be on."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "\"when\" names %(names)s, which is not a season, an event or weather. Valid: %(valid)s."
+msgid_plural "\"when\" names %(names)s, which are not seasons, events or weather. Valid: %(valid)s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "\"above\" must name the mod this one wins over. Pick it in configure.bat, or find it with: %s."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "\"above\" is the mod itself. Name the mod it wins over (%s)."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s each win over the next, in a circle, so play.bat would move them at every launch. Make one of them win over a different mod."
+msgstr ""
+
+#. follows an entry, like PERIODS['x'], which stays English
+#: season.py
+msgid "must be {\"archive\": \"...\", \"options\": {...}}."
+msgstr ""
+
+#: season.py
+msgid "\"archive\" must be the name of a file in downloads."
+msgstr ""
+
+#: season.py
+msgid "\"archive\" must be a .7z or .rar, which is what season.py can open."
+msgstr ""
+
+#: season.py
+msgid "\"options\" must map each season to a list of folder names in the archive."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(name)s in \"options\" is not a season or a period. Valid: %(valid)s."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "\"options\" for %s must be a list of folder names, like [\"Spring\"]."
+msgstr ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+msgid "must be None or a mod's folder name in quotes."
+msgstr ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+#, python-format
+msgid "names %s, which season.py writes itself. Name the ambient sound mod to read from."
+msgstr ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+#, python-format
+msgid "names %s, which is this mod itself. Name the ambient sound mod to read from."
 msgstr ""
 
 #: season.py
@@ -187,6 +450,1743 @@ msgstr ""
 msgctxt "season"
 msgid "late winter"
 msgstr ""
+
+#. a place and where it is: N north, S south, E east, W west
+#: season.py
+#, python-format
+msgid "%(name)s (%(lat).2f N, %(lon).2f E)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(name)s (%(lat).2f N, %(lon).2f W)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(name)s (%(lat).2f S, %(lon).2f E)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(name)s (%(lat).2f S, %(lon).2f W)"
+msgstr ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+msgid "must be a table like {\"name\": \"Kyiv\", \"lat\": 50.45, \"lon\": 30.52}, or None for Chornobyl."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s is not one of its parts, which are name, lat and lon."
+msgid_plural "%s are not one of its parts, which are name, lat and lon."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "give the place a name in quotes, like \"Kyiv\"."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "the name \"%(name)s\" is %(n)d character; the PDA has room for %(most)d."
+msgid_plural "the name \"%(name)s\" is %(n)d characters; the PDA has room for %(most)d."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "the name can't contain ; [ ] = or a line break."
+msgstr ""
+
+#. %s is lat, as the config spells it
+#: season.py
+#, python-format
+msgid "%s must be the latitude in degrees, -90 to 90, north and east positive, like 50.45."
+msgstr ""
+
+#. %s is lon, as the config spells it
+#: season.py
+#, python-format
+msgid "%s must be the longitude in degrees, -180 to 180, north and east positive, like 30.52."
+msgstr ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+msgid "must be a table, {season: \"its name\"}, or None for the usual names."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "not a season. The seasons are: %s."
+msgstr ""
+
+#: season.py
+msgid "give the name in quotes, like \"The Long Cold\", or take the line out."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "the name \"%(name)s\" is %(n)d character; the dial and the PDA have room for %(most)d."
+msgid_plural "the name \"%(name)s\" is %(n)d characters; the dial and the PDA have room for %(most)d."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "the name can't contain ; [ ] or a line break."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "the name \"%s\" has letters the game can't show. Use English or Cyrillic letters."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(first)s and %(second)s would both be called \"%(name)s\". Give one of them another name."
+msgstr ""
+
+#: season.py
+msgid "added, enabled"
+msgstr ""
+
+#: season.py
+msgid "added, disabled"
+msgstr ""
+
+#: season.py
+msgid "moved, enabled"
+msgstr ""
+
+#: season.py
+msgid "moved, disabled"
+msgstr ""
+
+#: season.py
+msgid "disabled -> enabled"
+msgstr ""
+
+#: season.py
+msgid "enabled -> disabled"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "MO2's mod list (%s) does not start with MO2's header line, so no seasonal mod was switched."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(mod)s skipped: the mod it wins over, \"%(above)s\", is not in MO2's mod list."
+msgstr ""
+
+#: season.py
+msgid "Pick another in its \"Wins over\" box in configure.bat."
+msgstr ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+msgid "must be a table, {season: (month, day)}, or None for Polesia's dates."
+msgstr ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+msgid "turns every season off. At least one has to stay on."
+msgstr ""
+
+#: season.py
+msgid "the start must be (month, day), like (5, 20)."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(first)s and %(second)s both start on %(day)s. Give each season its own day."
+msgstr ""
+
+#. English says "days" for 1 too
+#: season.py
+#, python-format
+msgid "%(season)s would last %(days)d days. A season needs at least %(least)d."
+msgid_plural "%(season)s would last %(days)d days. A season needs at least %(least)d."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "that is already the name of a season. Give it another name."
+msgstr ""
+
+#: season.py
+msgid "that is already a season of your own. Give it another name."
+msgstr ""
+
+#: season.py
+msgid "that is already a period. Give it another name."
+msgstr ""
+
+#: season.py
+msgid "that is already an event. Give it another name."
+msgstr ""
+
+#: season.py
+msgid "that is already a kind of weather. Give it another name."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(n)d season of your own, and the year has room for %(most)d, a week each. Take some out."
+msgid_plural "%(n)d seasons of your own, and the year has room for %(most)d, a week each. Take some out."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "give the season a name in quotes, like \"Wormhole season\"."
+msgstr ""
+
+#: season.py
+msgid "the name has spaces at its start or end. Take them out."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "the name is %(n)d character long; it can have %(most)d at most."
+msgid_plural "the name is %(n)d characters long; it can have %(most)d at most."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "the name can't contain a line break or a tab."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s is a season of yours already. Give this one another name."
+msgstr ""
+
+#: season.py
+msgid "give its first and last day, like ((8, 1), (8, 31))."
+msgstr ""
+
+#. follows an entry, like PERIODS['x'], which stays English
+#: season.py
+msgid "can't start or end on February 29, which three years in four don't have. Use February 28 or March 1."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "it runs %(n)d day, %(first)s to %(last)s. A season of your own runs at least a week."
+msgid_plural "it runs %(n)d days, %(first)s to %(last)s. A season of your own runs at least a week."
+msgstr[0] ""
+msgstr[1] ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+msgid "must be a table, {name: {\"in\": (\"summer\",), \"chance\": 3, \"days\": (1, 2), \"as\": \"winter\"}}, or {} for none."
+msgstr ""
+
+#: season.py
+msgid "give the spell a name in quotes, like \"Summer frost\"."
+msgstr ""
+
+#: season.py
+msgid "the name has letters the game can't show. Use English or Cyrillic letters."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s is a spell already. Give this one another name."
+msgstr ""
+
+#. follows an entry, like PERIODS['x'], which stays English
+#: season.py
+msgid "must be {\"in\": (\"summer\",), \"chance\": 3, \"days\": (1, 2), \"as\": \"winter\"}."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(keys)s is not a part of a spell. The parts are %(parts)s."
+msgid_plural "%(keys)s are not parts of a spell. The parts are %(parts)s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "\"in\" names the seasons it can start in, like (\"summer\",)."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "\"in\" names %(names)s, which is not a season. The seasons are %(seasons)s."
+msgid_plural "\"in\" names %(names)s, which are not seasons. The seasons are %(seasons)s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "%s is off in your calendar, so it never starts."
+msgid_plural "%s are off in your calendar, so it never starts."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "\"chance\" is the percent chance it starts on each day of those seasons, more than 0 and up to 100, like 3."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "\"days\" is how long it runs, 1 to %d, or the fewest and the most, like (1, 2). A week or longer is a season of your own."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "\"as\" is the season it brings, one of %s, or None to leave the season as it is."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "it brings %s, which is off in your calendar."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "it would bring %(season)s to %(season)s, which changes nothing."
+msgstr ""
+
+#: season.py
+msgid "Polesia (the Zone's own dates)"
+msgstr ""
+
+#. a season's usual name, then the player's own name for it
+#: season.py
+#, python-format
+msgctxt "a season and its name"
+msgid "%(season)s \"%(name)s\""
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Polesia (the Zone's own dates); named: %s"
+msgstr ""
+
+#: season.py
+msgid "meteorological (month starts)"
+msgstr ""
+
+#. a season and the day it starts: "summer May 20"
+#: season.py
+#, python-format
+msgctxt "a season and its first day"
+msgid "%(season)s %(day)s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "your own: %(seasons)s; off: %(off)s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "your own: %s"
+msgstr ""
+
+#: season.py
+msgid "the shipped one, for Polesia's dates"
+msgstr ""
+
+#: season.py
+msgid "drawn for your dates and names"
+msgstr ""
+
+#: season.py
+msgid "to be drawn for your dates and names at the next play.bat"
+msgstr ""
+
+#: season.py
+msgid "hidden - the game has no dial for your dates and names"
+msgstr ""
+
+#: season.py
+msgid "not written"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "drawing one needs Pillow: %s"
+msgstr ""
+
+#: season.py
+msgid "the mod's configs folder is missing"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "the dial could not be drawn (%s)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(file)s could not be written (%(error)s)"
+msgstr ""
+
+#: season.py
+msgid "give its first and last day, like ((12, 24), (12, 26)), or a rule, like {\"weekdays\": (\"sat\", \"sun\")}."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(keys)s is not a part of a rule. The parts are %(parts)s."
+msgid_plural "%(keys)s are not parts of a rule. The parts are %(parts)s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "\"weekdays\" must list days of the week as %s, like (\"sat\", \"sun\")."
+msgstr ""
+
+#: season.py
+msgid "\"days\" must list days of the month, 1 to 31, or -1 for the last, like (1, 15, -1)."
+msgstr ""
+
+#: season.py
+msgid "\"weeks\" must say which of those weekdays in the month count, 1 to 5 or -1 for the last, like (1,)."
+msgstr ""
+
+#: season.py
+msgid "\"weeks\" needs \"weekdays\" too (--weekdays on the command line), to say which day of the week it counts."
+msgstr ""
+
+#: season.py
+msgid "\"months\" must list months, 1 to 12, like (12, 1, 2)."
+msgstr ""
+
+#: season.py
+msgid "\"within\" must be a first and last day, like ((12, 1), (2, 28))."
+msgstr ""
+
+#: season.py
+msgid "never happens - no date matches every part of the rule."
+msgstr ""
+
+#. a day of the month: 1st, 21st, 31st
+#: season.py
+#, python-format
+msgctxt "a day of the month"
+msgid "%dst"
+msgstr ""
+
+#. a day of the month: 2nd, 22nd
+#: season.py
+#, python-format
+msgctxt "a day of the month"
+msgid "%dnd"
+msgstr ""
+
+#. a day of the month: 3rd, 23rd
+#: season.py
+#, python-format
+msgctxt "a day of the month"
+msgid "%drd"
+msgstr ""
+
+#. a day of the month: 4th to 20th, 24th to 30th
+#: season.py
+#, python-format
+msgctxt "a day of the month"
+msgid "%dth"
+msgstr ""
+
+#: season.py
+msgctxt "a day of the week, short"
+msgid "Mon"
+msgstr ""
+
+#: season.py
+msgctxt "a day of the week, short"
+msgid "Tue"
+msgstr ""
+
+#: season.py
+msgctxt "a day of the week, short"
+msgid "Wed"
+msgstr ""
+
+#: season.py
+msgctxt "a day of the week, short"
+msgid "Thu"
+msgstr ""
+
+#: season.py
+msgctxt "a day of the week, short"
+msgid "Fri"
+msgstr ""
+
+#: season.py
+msgctxt "a day of the week, short"
+msgid "Sat"
+msgstr ""
+
+#: season.py
+msgctxt "a day of the week, short"
+msgid "Sun"
+msgstr ""
+
+#: season.py
+msgctxt "which of those weekdays in the month"
+msgid "first"
+msgstr ""
+
+#: season.py
+msgctxt "which of those weekdays in the month"
+msgid "second"
+msgstr ""
+
+#: season.py
+msgctxt "which of those weekdays in the month"
+msgid "third"
+msgstr ""
+
+#: season.py
+msgctxt "which of those weekdays in the month"
+msgid "fourth"
+msgstr ""
+
+#: season.py
+msgctxt "which of those weekdays in the month"
+msgid "fifth"
+msgstr ""
+
+#: season.py
+msgctxt "which of those weekdays in the month"
+msgid "last"
+msgstr ""
+
+#: season.py
+msgctxt "which of those weekdays in the month"
+msgid "second-last"
+msgstr ""
+
+#: season.py
+msgctxt "which of those weekdays in the month"
+msgid "third-last"
+msgstr ""
+
+#: season.py
+msgctxt "which of those weekdays in the month"
+msgid "fourth-last"
+msgstr ""
+
+#: season.py
+msgctxt "which of those weekdays in the month"
+msgid "fifth-last"
+msgstr ""
+
+#. the first and last day of a stretch of the year: "Dec 24 - Dec 26"
+#: season.py
+#, python-format
+msgctxt "a stretch of days"
+msgid "%(first)s - %(last)s"
+msgstr ""
+
+#. "the first and last Mon and Fri of the month"
+#: season.py
+#, python-format
+msgid "the %(which)s %(days)s of the month"
+msgstr ""
+
+#: season.py
+msgid "weekends"
+msgstr ""
+
+#: season.py
+msgid "workdays"
+msgstr ""
+
+#: season.py
+msgid "last day"
+msgstr ""
+
+#. "2nd-last day", the day before the last of the month
+#: season.py
+#, python-format
+msgid "%s-last day"
+msgstr ""
+
+#. "the 1st, 15th and last day of the month"
+#: season.py
+#, python-format
+msgid "the %s of the month"
+msgstr ""
+
+#. days of the month after the weekdays: "the 8th and 9th"
+#: season.py
+#, python-format
+msgctxt "days of the month, after the weekdays"
+msgid "the %s"
+msgstr ""
+
+#. the months a rule is in: "in Dec, Jan and Feb"
+#: season.py
+#, python-format
+msgctxt "the months of a rule"
+msgid "in %s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Could not list the running programs (%s), so MO2 and the game are taken to be closed."
+msgstr ""
+
+#. a program's file name, like anomalydx11avx.exe
+#: season.py
+#, python-format
+msgid "%s (path unreadable, assumed this install)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Close %s first. Nothing was changed."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s is not in downloads. Put it back, or take the mod that uses it out of LAYOUT in seasons_config.py."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "The folder \"%s\" in the archive has no gamedata folder. Check the option names in LAYOUT."
+msgstr ""
+
+#: season.py
+msgid "Texture sets in a .7z archive need the py7zr package. Install it with:"
+msgstr ""
+
+#: season.py
+msgid "No texture has been changed."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(archive)s could not be read as a .7z: %(error)s"
+msgstr ""
+
+#: season.py
+msgid "Texture sets in a .rar archive need the rarfile package, and WinRAR or 7-Zip installed. Install rarfile with:"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(archive)s could not be read as a .rar: %(error)s"
+msgstr ""
+
+#: season.py
+msgid "its gamedata/ is empty"
+msgstr ""
+
+#: season.py
+msgid "not in mods/"
+msgstr ""
+
+#: season.py
+msgctxt "a mod in MO2's list"
+msgid "enabled"
+msgstr ""
+
+#: season.py
+msgctxt "a mod in MO2's list"
+msgid "disabled"
+msgstr ""
+
+#: season.py
+msgctxt "a mod in MO2's list"
+msgid "not listed"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Can't read MO2's mod list (%s)."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "No mod named \"%s\" in MO2's mod list. Use the name exactly as MO2 shows it."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "file: %s"
+msgstr ""
+
+#. marks the mod being placed, in the list of mods that ship a file
+#: season.py
+msgid "yours"
+msgstr ""
+
+#. marks the mod whose copy of a file the game uses
+#: season.py
+msgid "WINS"
+msgstr ""
+
+#: season.py
+msgid "yours has to win over this one"
+msgstr ""
+
+#. a line of MO2's mod list, by its number
+#: season.py
+#, python-format
+msgid "line %5d"
+msgstr ""
+
+#. a file's size in bytes
+#: season.py
+#, python-format
+msgid "%d B"
+msgstr ""
+
+#: season.py
+msgid "In the config:"
+msgstr ""
+
+#: season.py
+msgid "(in configure.bat: its Wins over box)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s does not ship this file. Pick a file it does ship."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "No other enabled mod ships it, so %s wins it wherever it sits."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Make %(mod)s win over:  %(other)s"
+msgstr ""
+
+#: season.py
+msgid ""
+"No mod ships this file. Either the base game has it in its .db archives, or\n"
+"the path is misspelled. A mod that ships it wins it wherever it sits."
+msgstr ""
+
+#: season.py
+msgid "Only disabled mods ship it, so the base game's copy, if it has one, is in use."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Make your seasonal mod win over:  %s"
+msgstr ""
+
+#: season.py
+msgid "If that is the mod you are placing, make it win over the next one down:"
+msgstr ""
+
+#: season.py
+msgid "If that is the mod you are placing, it wins this file wherever it sits."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "(%s leaves your mod out and gives one answer.)"
+msgstr ""
+
+#: season.py
+msgid ""
+"Seasons of the Zone is not in mods/. Install the zip with MO2's\n"
+"\"Install a new mod from archive\", then enable it."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Seasons of the Zone is installed %(n)d time: %(folders)s."
+msgid_plural "Seasons of the Zone is installed %(n)d times: %(folders)s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "Using '%s'. Remove the others in MO2."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid ""
+"\"%(mod)s\" is not in MO2's mod list for profile \"%(profile)s\". MO2 adds it disabled\n"
+"at its next start. Enable it in MO2, or nothing happens in the game."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "\"%(mod)s\" is disabled in profile \"%(profile)s\". Enable it in MO2."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid ""
+"%(mod)s is enabled. It is this mod's old prototype and sets the same foliage\n"
+"and fog values, so the two fight. Disable %(mod)s in MO2."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(mod)s loses %(n)d file to \"%(other)s\", which is enabled and wins over it in MO2's mod list (like %(file)s)."
+msgid_plural "%(mod)s loses %(n)d files to \"%(other)s\", which is enabled and wins over it in MO2's mod list (like %(file)s)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "In configure.bat, make it win over that mod, or disable that mod."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(n)d disabled mod in MO2 would win some of %(mod)s's files if enabled (like \"%(other)s\": %(files)s, %(file)s)."
+msgid_plural "%(n)d disabled mods in MO2 would win some of %(mod)s's files if enabled (like \"%(other)s\": %(files)s, %(file)s)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "%d file"
+msgid_plural "%d files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "After enabling one, check with %s."
+msgstr ""
+
+#. English says "files" for 1 too: "wins 1 of X's files"
+#: season.py
+#, python-format
+msgid "\"%(other)s\" wins %(n)d of %(mod)s's files in %(seasons)s (like %(file)s)."
+msgid_plural "\"%(other)s\" wins %(n)d of %(mod)s's files in %(seasons)s (like %(file)s)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "Fine if that is the intent; if not, make %(mod)s win over \"%(other)s\" in configure.bat."
+msgstr ""
+
+#: season.py
+msgid "This does not look like a Mod Organizer install."
+msgstr ""
+
+#: season.py
+msgid "looked in"
+msgstr ""
+
+#: season.py
+msgid "expected"
+msgstr ""
+
+#: season.py
+msgctxt "a file"
+msgid "found"
+msgstr ""
+
+#: season.py
+msgctxt "a file"
+msgid "MISSING"
+msgstr ""
+
+#: season.py
+msgid ""
+"The tools run from your GAMMA folder, the one with ModOrganizer.exe. To put\n"
+"them there, open configure.bat in the mod's folder: in MO2, right-click the\n"
+"mod and choose Open in Explorer. Nothing has been changed."
+msgstr ""
+
+#: season.py
+msgid "Checking the season..."
+msgstr ""
+
+#. play.bat's console window shows it; keep its lines about this long
+#: season.py
+msgid ""
+"season.py stopped with an error - read the lines above. Seasonal mods and\n"
+"textures stay as they were after the last launch; light and weather still\n"
+"follow the season. Press a key to start the game anyway, or close this\n"
+"window to fix it first."
+msgstr ""
+
+#: season.py
+msgid "Starting Anomaly..."
+msgstr ""
+
+#: season.py
+msgid "Stage today's season for Seasons of the Zone (play.bat runs apply)."
+msgstr ""
+
+#. status, apply, whowins, dial and say are typed; keep them
+#: season.py
+msgid "status: what the next launch would do; apply: do it; whowins: which mod wins a file; dial: send the calendar and names to the game; say: a line play.bat shows"
+msgstr ""
+
+#. the path, and checking, stopped and starting, are typed
+#: season.py
+msgid "for whowins: a file path inside gamedata, like textures/terrain/terrain_escape.dds; for say: checking, stopped or starting"
+msgstr ""
+
+#: season.py
+msgid "for whowins: the mod you are placing, left out of the answer"
+msgstr ""
+
+#: season.py
+msgid "stage this season or event instead of today's"
+msgstr ""
+
+#. pheno and met are typed; keep them
+#: season.py
+msgid "pheno: Polesia's dates (the default); met: meteorological. Ignored when seasons_config.py sets CALENDAR"
+msgstr ""
+
+#: season.py
+msgid "show what apply would change, and change nothing"
+msgstr ""
+
+#: season.py
+msgid "turn texture swapping off for this run only: seasonal mods disabled, texture sets kept. MCM has the lasting switch"
+msgstr ""
+
+#: season.py
+msgid "whowins needs a file path inside gamedata, like:"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "--season %(season)s: your calendar has %(label)s off. These are: %(names)s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "--season %(season)s: your calendar has no such season or event. These are: %(names)s"
+msgstr ""
+
+#: season.py
+msgctxt "report"
+msgid "calendar"
+msgstr ""
+
+#: season.py
+msgctxt "report"
+msgid "dial"
+msgstr ""
+
+#: season.py
+msgctxt "report"
+msgid "date"
+msgstr ""
+
+#: season.py
+msgid "(forced with --season)"
+msgstr ""
+
+#: season.py
+msgid "(pinned in MCM)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "(a spell: %(name)s, %(first)s to %(last)s)"
+msgstr ""
+
+#: season.py
+msgctxt "report"
+msgid "season"
+msgstr ""
+
+#: season.py
+msgctxt "report"
+msgid "calendar says"
+msgstr ""
+
+#: season.py
+msgctxt "report"
+msgid "also today"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "MCM pins %s, which your calendar has off, so the date decides."
+msgstr ""
+
+#: season.py
+msgctxt "report"
+msgid "weather from"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "(today: %s)"
+msgstr ""
+
+#: season.py
+msgctxt "report"
+msgid "texture layer"
+msgstr ""
+
+#: season.py
+msgctxt "the texture layer"
+msgid "on"
+msgstr ""
+
+#: season.py
+msgid "OFF for this run (--no-textures) - seasonal mods disabled, texture sets kept; the seasonal atmosphere still runs"
+msgstr ""
+
+#: season.py
+msgid "OFF in MCM - seasonal mods disabled, texture sets kept; the seasonal atmosphere still runs"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "not in mods/ - left alone (MO2 has \"%s\")"
+msgstr ""
+
+#: season.py
+msgid "not in mods/ - left alone. Check the name in LAYOUT, as MO2 shows it."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "no option for %s in LAYOUT - what it has stays"
+msgstr ""
+
+#: season.py
+msgid "Its textures are left as they are."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "installed: %s"
+msgstr ""
+
+#: season.py
+msgid "unrecognized - not a clean copy of any season"
+msgstr ""
+
+#. files in the archive's set, in both, and the same in both
+#: season.py
+#, python-format
+msgid "archive %(archive)3d | shared %(shared)3d | identical %(same)3d"
+msgstr ""
+
+#: season.py
+msgid "not installed"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "(MO2 has \"%s\"; use that name exactly)"
+msgstr ""
+
+#: season.py
+msgid "(no folder with that name in mods)"
+msgstr ""
+
+#: season.py
+msgid "(today: off)"
+msgstr ""
+
+#: season.py
+msgid "(today: on)"
+msgstr ""
+
+#: season.py
+msgid "(today: off - texture swapping is off for this run (--no-textures))"
+msgstr ""
+
+#: season.py
+msgid "(today: off - texture swapping is off in MCM)"
+msgstr ""
+
+#: season.py
+msgid "(today: off - unchecked for this season in MCM)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(mod)s is on only in %(seasons)s, which your calendar has off, so it never switches on."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s share one checkbox in MCM, so unchecking it keeps all of them disabled in that season."
+msgstr ""
+
+#: season.py
+msgctxt "report"
+msgid "soundscape"
+msgstr ""
+
+#: season.py
+msgid "none set up"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "staged for %s"
+msgstr ""
+
+#: season.py
+msgid "none staged"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "(SOUND_SRC \"%s\" is not in MO2's mod list; check the name)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "(\"%s\" is disabled in MO2, so the soundscape is off)"
+msgstr ""
+
+#: season.py
+msgid "(gating is off in MCM)"
+msgstr ""
+
+#: season.py
+msgctxt "report"
+msgid "grade presets"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(shipped)d shipped, %(there)d in appdata"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "(copied: %s)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(season)s: %(mods)s and %(sets)s skipped; the ! lines above say why."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%d seasonal mod"
+msgid_plural "%d seasonal mods"
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "%d texture set"
+msgid_plural "%d texture sets"
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "%(season)s: %(n)d seasonal mod skipped; the ! lines above say why."
+msgid_plural "%(season)s: %(n)d seasonal mods skipped; the ! lines above say why."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "%(season)s: %(n)d texture set skipped; the ! lines above say why."
+msgid_plural "%(season)s: %(n)d texture sets skipped; the ! lines above say why."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "%s: seasonal mods switched. The game picks this up when it starts."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(season)s: seasonal mods need switching. Start the game with play.bat, or run %(command)s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s: texture swapping is off for this run (--no-textures), nothing staged; the seasonal atmosphere still runs"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s: texture swapping is off in MCM, nothing staged; the seasonal atmosphere still runs"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "already on %s, nothing to do"
+msgstr ""
+
+#. a texture set, restaged: "Tex Mod (summer) -> autumn"
+#: season.py
+#, python-format
+msgid "%(mod)s (%(now)s) -> %(want)s"
+msgstr ""
+
+#: season.py
+msgctxt "restaged"
+msgid "textures"
+msgstr ""
+
+#: season.py
+msgctxt "a texture set"
+msgid "unrecognized"
+msgstr ""
+
+#: season.py
+msgctxt "restaged"
+msgid "sound"
+msgstr ""
+
+#: season.py
+msgctxt "the soundscape"
+msgid "none"
+msgstr ""
+
+#: season.py
+msgid "off (gating is off in MCM)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "off (\"%s\" is not enabled in MO2)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "off (\"%s\" has no ambient sound files)"
+msgstr ""
+
+#: season.py
+msgid "(dry run, so nothing was changed)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Copying the textures into %(mod)s failed (robocopy code %(code)d). Run play.bat again."
+msgstr ""
+
+#. English says MISMATCH for any number
+#: season.py
+#, python-format
+msgid "%d MISMATCH"
+msgid_plural "%d MISMATCH"
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "file"
+msgid_plural "files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "VERIFIED"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Stopped: %(n)d file in %(mod)s did not match the archive after copying (like %(file)s). Run play.bat again."
+msgid_plural "Stopped: %(n)d files in %(mod)s did not match the archive after copying (like %(file)s). Run play.bat again."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "skipped: \"%s\" is not installed"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "soundscape -> %(season)s (%(n)d channel cut)"
+msgid_plural "soundscape -> %(season)s (%(n)d channel cuts)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "soundscape off, its files removed"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "reads as %s"
+msgstr ""
+
+#: season.py
+msgid "Stopped: the soundscape files did not come out right. Run play.bat again."
+msgstr ""
+
+#: season.py
+msgctxt "staged"
+msgid "textures"
+msgstr ""
+
+#: season.py
+msgctxt "staged"
+msgid "soundscape"
+msgstr ""
+
+#: season.py
+msgctxt "staged"
+msgid "seasonal mods"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(season)s staged (%(what)s). The game picks this up when it starts."
+msgstr ""
+
+#: season.py
+msgid "nothing to do"
+msgstr ""
+
+#. why a mod wins over the one it does; said after that one's name
+#: config_edit.py
+#, python-format
+msgid "ships %d of the same files"
+msgid_plural "ships %d of the same files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: config_edit.py
+msgid "nothing else ships its files, so it stays where it is"
+msgstr ""
+
+#: config_edit.py
+msgid "nothing else ships its files"
+msgstr ""
+
+#. why no mod can be picked for a mod to win over
+#: config_edit.py
+msgid "no other mod is enabled"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "line %(line)d holds %(table)s and another statement. Give %(table)s a line of its own so configure.bat can edit it."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "line %(line)d sets %(table)s and another name at once. Give %(table)s a line of its own so configure.bat can edit it."
+msgstr ""
+
+#. %(lines)s is two line numbers or more, as in "3, 5 and 9"
+#: config_edit.py
+#, python-format
+msgid "%(table)s is set on lines %(lines)s, and more than one of them has entries. Merge them into one by hand."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "line %(line)d sets %(table)s again, to nothing, which throws away the one on line %(kept)d; saving removes line %(line)d"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "line %(line)d sets %(table)s to nothing before line %(kept)d sets it; saving removes line %(line)d"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "%(table)s is set in a way the tool can't edit. Write it as one plain line of its own: %(table)s = {...}"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "%(table)s is changed after its table on line %(line)d, which the tool can't edit. Move those entries into the table."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "%s must be a table, {...}."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "%r in TOGGLE_MODS, EVENTS, OWN_SEASONS or SPELLS is not a name in quotes. Put it in quotes, or take it out."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "%s: saving rewrites this entry in the right shape"
+msgstr ""
+
+#: config_edit.py
+msgid "seasons_config.py can't be edited here:"
+msgstr ""
+
+#: config_edit.py
+msgid "Nothing to save."
+msgstr ""
+
+#: config_edit.py
+msgid "Not saved, because play.bat would refuse the result:"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "Not saved: \"%(text)s\" can't be written in this file's encoding (%(encoding)s). Delete the # coding line at the top of seasons_config.py, save it as UTF-8 (Notepad: File > Save as, Encoding: UTF-8), then try again."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "Not saved: seasons_config.py can't be read: %s"
+msgstr ""
+
+#: config_edit.py
+msgid "Not saved: seasons_config.py has changed since it was read (by hand, or by a configure command). Close configure.bat and open it again, or run the command again, then redo your change."
+msgstr ""
+
+#: config_edit.py
+msgid "Not saved: seasons_config.py is read-only. Right-click it (in _tools), choose Properties, uncheck Read-only, then save again."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "The previous file is %s."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "Comments inside the tables could not be kept, because of how they were laid out; %s has them, and no later save touches it."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "Not saved: %s. Close any program that has seasons_config.py open, then try again."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "Saved %s."
+msgstr ""
+
+#: config_edit.py
+msgid "Also fixed:"
+msgstr ""
+
+#: config_edit.py
+msgid "calendar and season names"
+msgstr ""
+
+#: config_edit.py
+msgid "seasons of your own, spells, events and periods"
+msgstr ""
+
+#: config_edit.py
+msgid "seasonal mods"
+msgstr ""
+
+#: config_edit.py
+msgid "texture sets and ambient sound"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "It can't be read (%s). Check it is valid JSON, or delete it from _tools\\presets."
+msgstr ""
+
+#: config_edit.py
+msgid "It is not a Seasons of the Zone preset."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "calendar: %s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "seasons of your own: %s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "spells: %s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "events: %s"
+msgstr ""
+
+#: config_edit.py
+msgid "events: none"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "dropped the events seasons_config.py had that could not be used: %s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "event %(event)s came with %(mod)s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "season %(season)s came with %(mod)s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "spell %(spell)s came with %(mod)s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "%(mod)s (now wins over %(other)s)"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "seasonal mods: %d"
+msgid_plural "seasonal mods: %d"
+msgstr[0] ""
+msgstr[1] ""
+
+#: config_edit.py
+#, python-format
+msgid "not installed here, left out: %s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "given another mod to win over, since the one they won over is not installed here: %s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "%s (not installed here)"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "%(mod)s (no %(archive)s in downloads)"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "texture sets: %d"
+msgid_plural "texture sets: %d"
+msgstr[0] ""
+msgstr[1] ""
+
+#: config_edit.py
+#, python-format
+msgid "left out: %s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "ambient sound: %(mod)s is not installed here, so it stays %(now)s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "ambient sound: %s is not installed here, so it stays off"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "ambient sound: %s"
+msgstr ""
+
+#: config_edit.py
+msgid "ambient sound: off"
+msgstr ""
+
+#: config_edit.py guide.py
+msgid "Polesia's dates"
+msgstr ""
+
+#: config_edit.py
+msgid "own dates"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "own dates, %(on)d of %(all)d seasons on"
+msgid_plural "own dates, %(on)d of %(all)d seasons on"
+msgstr[0] ""
+msgstr[1] ""
+
+#: config_edit.py
+#, python-format
+msgid "%d season renamed"
+msgid_plural "%d seasons renamed"
+msgstr[0] ""
+msgstr[1] ""
+
+#: config_edit.py
+msgid "the usual names"
+msgstr ""
+
+#. the calendar in a few words: its dates, then its names
+#: config_edit.py
+#, python-format
+msgid "%(dates)s; %(names)s"
+msgstr ""
+
+#. a list cut short, as in "a, b, c, d and 2 more"
+#: config_edit.py
+#, python-format
+msgid "%(names)s and %(more)d more"
+msgid_plural "%(names)s and %(more)d more"
+msgstr[0] ""
+msgstr[1] ""
+
+#: config_edit.py
+msgid "Calendar: the same as yours."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "Calendar: %(theirs)s. Yours now: %(yours)s."
+msgstr ""
+
+#. what loading a preset takes the place of, in a list
+#: config_edit.py
+msgid "your calendar and names"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "Seasons of your own: %s."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "Spells: %s."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "Events: %s."
+msgstr ""
+
+#: config_edit.py
+msgid "Events: none."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "takes off yours: %s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "changes yours: %s"
+msgstr ""
+
+#. what loading a preset takes the place of, in a list
+#: config_edit.py
+#, python-format
+msgid "%d of your seasons, spells and events"
+msgid_plural "%d of your seasons, spells and events"
+msgstr[0] ""
+msgstr[1] ""
+
+#. what loading a preset takes the place of, in a list
+#: config_edit.py
+#, python-format
+msgid "%d of your events"
+msgid_plural "%d of your events"
+msgstr[0] ""
+msgstr[1] ""
+
+#. what loading a preset takes the place of, in a list
+#: config_edit.py
+#, python-format
+msgid "your season %s"
+msgstr ""
+
+#. what loading a preset takes the place of, in a list
+#: config_edit.py
+#, python-format
+msgid "your spell %s"
+msgstr ""
+
+#. what loading a preset takes the place of, in a list
+#: config_edit.py
+#, python-format
+msgid "your event %s"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "Seasonal mods: %d."
+msgid_plural "Seasonal mods: %d."
+msgstr[0] ""
+msgstr[1] ""
+
+#: config_edit.py
+#, python-format
+msgid "stops switching %(n)d of yours: %(mods)s"
+msgid_plural "stops switching %(n)d of yours: %(mods)s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: config_edit.py
+#, python-format
+msgid "changes when %(n)d of yours are on: %(mods)s"
+msgid_plural "changes when %(n)d of yours are on: %(mods)s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: config_edit.py
+#, python-format
+msgid "not installed here, so left out: %s"
+msgstr ""
+
+#. what loading a preset takes the place of, in a list
+#: config_edit.py
+#, python-format
+msgid "%d of your seasonal mods"
+msgid_plural "%d of your seasonal mods"
+msgstr[0] ""
+msgstr[1] ""
+
+#: config_edit.py
+#, python-format
+msgid "Texture sets: %(sets)s. Ambient sound: %(sound)s."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "Texture sets: %s. Ambient sound: off."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "Texture sets: none. Ambient sound: %s."
+msgstr ""
+
+#: config_edit.py
+msgid "Texture sets: none. Ambient sound: off."
+msgstr ""
+
+#. what loading a preset takes the place of, in a list
+#: config_edit.py
+msgid "your texture sets or ambient sound"
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "%s would still be on for events it takes off. Uncheck those before saving."
+msgid_plural "%s would still be on for events it takes off. Uncheck those before saving."
+msgstr[0] ""
+msgstr[1] ""
 
 #: guide.py
 msgid "Start"
@@ -227,10 +2227,6 @@ msgstr ""
 #: guide.py
 #, python-format
 msgid "Polesia's dates; %s"
-msgstr ""
-
-#: guide.py
-msgid "Polesia's dates"
 msgstr ""
 
 #. %(calendar)s is the name of a calendar that comes with the tool
@@ -1046,12 +3042,618 @@ msgstr ""
 msgid "Installing..."
 msgstr ""
 
-#: guide.py
+#: guide.py mod_install.py
 #, python-format
 msgid "%.1f GB"
 msgstr ""
 
-#: guide.py
+#: guide.py mod_install.py
 #, python-format
 msgid "%d MB"
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "%d new"
+msgid_plural "%d new"
+msgstr[0] ""
+msgstr[1] ""
+
+#: installer.py
+#, python-format
+msgid "%d updated"
+msgid_plural "%d updated"
+msgstr[0] ""
+msgstr[1] ""
+
+#: installer.py
+#, python-format
+msgid "%d the same"
+msgid_plural "%d the same"
+msgstr[0] ""
+msgstr[1] ""
+
+#: installer.py
+#, python-format
+msgid "%d of your presets kept"
+msgid_plural "%d of your presets kept"
+msgstr[0] ""
+msgstr[1] ""
+
+#. %s is a list of counts of files: "2 new, 5 updated, 17 the same"
+#: installer.py
+#, python-format
+msgid "Files: %s."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "play.bat keeps starting \"%s\"."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "play.bat starts \"%(entry)s\" from now on: the entry it started, \"%(old)s\", has a character in its name that a batch file reads as something else. Rename that entry in MO2, then pick it in the setup."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "Couldn't write %(file)s: %(error)s."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "%(done)d of the %(all)d files were copied; the rest are as they were. Check that the file isn't read-only or open in another program, then try again."
+msgid_plural "%(done)d of the %(all)d files were copied; the rest are as they were. Check that the file isn't read-only or open in another program, then try again."
+msgstr[0] ""
+msgstr[1] ""
+
+#: installer.py
+msgctxt "a file the install copies"
+msgid "new"
+msgstr ""
+
+#: installer.py
+msgctxt "a file the install copies"
+msgid "updated"
+msgstr ""
+
+#: installer.py
+msgctxt "a file the install leaves as it is"
+msgid "kept"
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "The tools in your GAMMA folder, %(gamma)s, are newer than these: %(there)s there, %(here)s here."
+msgstr ""
+
+#. \n starts the next line in the console; put it where it suits
+#: installer.py
+#, python-format
+msgid ""
+"Nothing was changed. To put these older ones there anyway, open configure.bat\n"
+"in %s."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "The tools in your GAMMA folder, %(gamma)s, are up to date (%(here)s)."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "The tools in your GAMMA folder, %s, are up to date."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "Updating the tools in your GAMMA folder, %(gamma)s: %(here)s there and here."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "Updating the tools in your GAMMA folder, %(gamma)s: %(there)s there, %(here)s here."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "Updating the tools in your GAMMA folder, %(gamma)s: an older version there, %(here)s here."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "Updating the tools in your GAMMA folder, %(gamma)s."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "Installing the tools into your GAMMA folder, %s."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "%s - yours, not the one that comes with the tools"
+msgstr ""
+
+#: installer.py
+msgid "Done. Your settings there are kept."
+msgstr ""
+
+#: installer.py
+msgid "Done."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "From now on, open configure.bat and play.bat in your GAMMA folder, %s."
+msgstr ""
+
+#: installer.py
+msgid "Up to date"
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "The tools in your GAMMA folder, %s, are up to date. From now on, open configure.bat and play.bat there."
+msgstr ""
+
+#: installer.py
+msgctxt "button"
+msgid "Continue"
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "It puts play.bat, configure.bat and the _tools folder in your GAMMA folder, %s, where they run from. Your settings there are kept."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "It puts play.bat, configure.bat and the _tools folder in your GAMMA folder, %s, where they run from."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "%(there)s there, %(here)s here: the tools there are newer."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "%(here)s there and here."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "%(there)s there, %(here)s here."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "An older version there, %(here)s here."
+msgstr ""
+
+#: installer.py
+msgid "Update the tools"
+msgstr ""
+
+#: installer.py
+msgid "Install the tools"
+msgstr ""
+
+#: installer.py
+msgctxt "button"
+msgid "Install"
+msgstr ""
+
+#: installer.py
+msgctxt "button"
+msgid "Cancel"
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "The tools in your GAMMA folder are newer than these: %(there)s there, %(here)s here. Put these older ones in their place?"
+msgstr ""
+
+#: installer.py
+msgid "Not finished"
+msgstr ""
+
+#: installer.py
+msgctxt "button"
+msgid "Close"
+msgstr ""
+
+#: installer.py
+msgid "Done"
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "The window needs tkinter, which this Python does not have. Reinstall Python from python.org with \"tcl/tk and IDLE\" checked. Until then, this command installs the tools without the window, typed in %s:"
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "The tools already run from your GAMMA folder, %s."
+msgstr ""
+
+#. three lines, their labels lined up; ModOrganizer.ini is a file's name
+#: installer.py
+#, python-format
+msgid ""
+"this copy : %(copy)s\n"
+"looked in : %(parent)s, two folders up\n"
+"expected  : ModOrganizer.ini   MISSING"
+msgstr ""
+
+#. \n starts the next line in the console; put them where they suit
+#: installer.py
+msgid ""
+"The tools install from the mod's folder, where MO2 installs the zip:\n"
+"mods\\<name> in your GAMMA folder. Install the zip with MO2, right-click the mod\n"
+"there and choose Open in Explorer, then open configure.bat."
+msgstr ""
+
+#: installer.py
+msgid "No GAMMA folder to put the tools in."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "Couldn't read %(file)s: %(error)s. Nothing has been changed."
+msgstr ""
+
+#: installer.py
+msgid "Pick the entry play.bat should start."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "play.bat can't hold the name \"%s\": it has a character a batch file reads as something else. Rename that entry in MO2, then pick it here."
+msgstr ""
+
+#: installer.py
+msgid "play.bat has no SHORTCUT line to set."
+msgstr ""
+
+#. "Install a new mod from archive" is an item of MO2's menu
+#: mod_install.py
+msgid "Its installer asks questions this tool can't follow. Install it with MO2 - Install a new mod from archive - then add it here."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "%s is locked with a password, which this tool can't open."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "A mod called %s is installed already. Pick another name."
+msgstr ""
+
+#: mod_install.py
+msgid "A mod's name can't start or end with a space, end with a dot, or hold any of / \\ : * ? \" < > |. Pick another name."
+msgstr ""
+
+#. %s is the command that installs it
+#: mod_install.py
+#, python-format
+msgid "Opening a .7z needs py7zr, a Python package: %s"
+msgstr ""
+
+#. %s is the command that installs it
+#: mod_install.py
+#, python-format
+msgid "Opening a .rar needs rarfile, a Python package: %s. It also needs WinRAR or 7-Zip installed."
+msgstr ""
+
+#: mod_install.py
+msgid "Opening a .rar needs WinRAR or 7-Zip installed. Install either one, then try again."
+msgstr ""
+
+#. %(kind)s is .7z, .zip or .rar; %(error)s what the library said
+#: mod_install.py
+#, python-format
+msgid "%(archive)s can't be read as a %(kind)s (%(error)s). It may be damaged or not fully downloaded; download it again."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "%s isn't a .7z, .zip or .rar."
+msgstr ""
+
+#. %s is the name of a group of options in a mod's installer
+#: mod_install.py
+#, python-format
+msgid "Pick one of %s."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "Pick no more than one of %s."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "Pick at least one of %s."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "%s can't be used here. Uncheck it."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "%s is required. Check it."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "Its installer always installs %s, which isn't in the archive."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "%(option)s installs %(file)s, which isn't in the archive."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "Can't open %(archive)s: %(error)s."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "Can't read %(archive)s: %(error)s."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "Its installer, %(file)s, can't be read: %(error)s."
+msgstr ""
+
+#: mod_install.py
+msgid "It has no gamedata folder, so it isn't a mod this tool can install."
+msgstr ""
+
+#. the archive's top folder, in a list of the folders gamedata is in
+#: mod_install.py
+msgid "the top"
+msgstr ""
+
+#. "Install a new mod from archive" is an item of MO2's menu
+#: mod_install.py
+#, python-format
+msgid "It has gamedata folders in %(n)d places (%(places)s) and no installer to choose between them. Install it with MO2 - Install a new mod from archive - then add it here."
+msgid_plural "It has gamedata folders in %(n)d places (%(places)s) and no installer to choose between them. Install it with MO2 - Install a new mod from archive - then add it here."
+msgstr[0] ""
+msgstr[1] ""
+
+#: mod_install.py
+#, python-format
+msgid "%s isn't a place inside a mod's folder."
+msgstr ""
+
+#: mod_install.py
+msgid "Give the mod a name."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "There is no mods folder at %s."
+msgstr ""
+
+#: mod_install.py
+msgid "Nothing is chosen to install. Check at least one option."
+msgstr ""
+
+#: mod_install.py
+msgid "Nothing is chosen to install."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "%s isn't there any more."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "It needs %(need)s of room on the drive with the mods folder, which has %(free)s free. Make room, then try again."
+msgstr ""
+
+#. %s is why the archive couldn't be read, in a sentence or two
+#: mod_install.py
+#, python-format
+msgid "%s Nothing was installed."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "%(file)s came out of %(archive)s at %(got)d bytes, not %(want)d. Nothing was installed."
+msgid_plural "%(file)s came out of %(archive)s at %(got)d bytes, not %(want)d. Nothing was installed."
+msgstr[0] ""
+msgstr[1] ""
+
+#: mod_install.py
+#, python-format
+msgid "Couldn't rename the new mod's folder to %(mod)s: %(error)s. Nothing was installed."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "Couldn't write %(file)s: %(error)s. Nothing was installed."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "Couldn't read %(file)s: %(error)s. Nothing was installed."
+msgstr ""
+
+#: mod_install.py
+#, python-format
+msgid "Couldn't install %(mod)s: %(error)s. Nothing was installed."
+msgstr ""
+
+#. %s is Open-Meteo.com; GeoNames and CC BY 4.0 stay as they are
+#: fetch_weather.py
+#, python-format
+msgid "Places from %s, based on GeoNames (CC BY 4.0)"
+msgstr ""
+
+#: fetch_weather.py
+msgctxt "sky"
+msgid "clear"
+msgstr ""
+
+#. partly cloudy
+#: fetch_weather.py
+msgctxt "sky"
+msgid "partly"
+msgstr ""
+
+#: fetch_weather.py
+msgctxt "sky"
+msgid "cloudy"
+msgstr ""
+
+#: fetch_weather.py
+msgctxt "sky"
+msgid "foggy"
+msgstr ""
+
+#: fetch_weather.py
+msgctxt "sky"
+msgid "rain"
+msgstr ""
+
+#: fetch_weather.py
+msgctxt "sky"
+msgid "snow"
+msgstr ""
+
+#: fetch_weather.py
+msgctxt "sky"
+msgid "storm"
+msgstr ""
+
+#. %s is Open-Meteo.com; CC BY 4.0 is the data's license, as it is
+#: fetch_weather.py
+#, python-format
+msgid "Weather data by %s (CC BY 4.0)"
+msgstr ""
+
+#. %s is Open-Meteo.com; CC BY 4.0 is the data's license, as it is
+#: fetch_weather.py
+#, python-format
+msgid "Climate from %s (CC BY 4.0); contains modified Copernicus Climate Change Service information"
+msgstr ""
+
+#: fetch_weather.py
+msgid "seasons_config.py can't be read, so the weather is Chornobyl's"
+msgstr ""
+
+#: fetch_weather.py
+msgid "WEATHER_PLACE can't be used, so the weather is Chornobyl's"
+msgstr ""
+
+#: fetch_weather.py
+#, python-format
+msgid "no weather in season_weather.ltx - the game will use climate normals for %s"
+msgstr ""
+
+#: fetch_weather.py
+msgid "no weather in season_weather.ltx - the game will use climate normals"
+msgstr ""
+
+#. a day's weather: its place and date, high and low, sky, and a warning
+#: fetch_weather.py
+#, python-format
+msgid "%(place)s, %(date)s: high %(high)s low %(low)s, %(sky)s  FREEZING"
+msgstr ""
+
+#: fetch_weather.py
+#, python-format
+msgid "%(place)s, %(date)s: high %(high)s low %(low)s, %(sky)s"
+msgstr ""
+
+#: fetch_weather.py
+#, python-format
+msgid "fetched %s (fresh)"
+msgstr ""
+
+#: fetch_weather.py
+#, python-format
+msgid "fetched %s (stale)"
+msgstr ""
+
+#: fetch_weather.py
+msgid "Fetch the day's weather for the place set in configure.bat (Chornobyl by default); play.bat runs this."
+msgstr ""
+
+#: fetch_weather.py
+msgid "fetch even if the file is fresh"
+msgstr ""
+
+#: fetch_weather.py
+msgid "do nothing, for testing the fallback"
+msgstr ""
+
+#: fetch_weather.py
+msgid "print what the game would read"
+msgstr ""
+
+#: fetch_weather.py
+msgid "offline: leaving season_weather.ltx as it is"
+msgstr ""
+
+#: fetch_weather.py
+msgid "Seasons of the Zone is not in mods/ - no weather to write"
+msgstr ""
+
+#. %dh is a number of hours
+#: fetch_weather.py
+#, python-format
+msgid "weather is under %dh old, not refetching"
+msgid_plural "weather is under %dh old, not refetching"
+msgstr[0] ""
+msgstr[1] ""
+
+#. %(error)s is the kind of error, as Python names it
+#: fetch_weather.py
+#, python-format
+msgid "%(place)s's climate is unavailable (%(error)s) - days without a reading will use Chornobyl's"
+msgstr ""
+
+#: fetch_weather.py
+#, python-format
+msgid "weather unavailable (%s) - keeping what is there"
+msgstr ""
+
+#: fetch_weather.py
+#, python-format
+msgid "weather unavailable (%(error)s) - the game models %(place)s's day until a reading comes"
+msgstr ""
+
+#: fetch_weather.py
+#, python-format
+msgid "could not write season_weather.ltx (%s) - carrying on"
+msgstr ""
+
+#. a day's weather: its place and date, high and low, sky, and a warning
+#: fetch_weather.py
+#, python-format
+msgid "%(place)s %(date)s: high %(high).1f low %(low).1f, %(sky)s  FREEZING"
+msgstr ""
+
+#: fetch_weather.py
+#, python-format
+msgid "%(place)s %(date)s: high %(high).1f low %(low).1f, %(sky)s"
+msgstr ""
+
+#: fetch_weather.py
+#, python-format
+msgid "Also looked up %s's climate, for days without a reading."
 msgstr ""
