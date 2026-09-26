@@ -3039,7 +3039,12 @@ def main():
         dial = dial_state(a.mapping)
         note = pillow_note() if dial == "none" else None
     if dial != "default":
-        _row(pgettext("report", "dial"), dial_text(dial))
+        said = dial_text(dial)
+        if dial == "stale" and a.mapping == "met" and not CALENDAR:
+            # play.bat stages by Polesia's dates: this dial is drawn by the run that asks
+            said = _("to be drawn for these dates by %s") % command("season.py",
+                                                                    "apply --mapping met")
+        _row(pgettext("report", "dial"), said)
     if note:
         print("  - " + note)
     flags = weather_flags()

@@ -37,8 +37,8 @@ enabled until you check it.
 
 ## Seasons of the Zone itself
 
-The mod ships 44 files under `gamedata/`. No other mod, enabled or disabled, ships any of
-those paths, so there is nothing for it to win or lose at any line.
+No other mod, enabled or disabled, ships any of the paths the mod has under `gamedata/`,
+so there is nothing for it to win or lose at any line.
 
 Script order is not MO2's either. MO2 merges every enabled mod's `gamedata/scripts` into
 one directory; the engine lists that directory and calls each script's `on_game_start()`

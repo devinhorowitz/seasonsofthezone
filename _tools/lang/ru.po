@@ -1435,6 +1435,11 @@ msgid "MCM pins %s, which your calendar has off, so the date decides."
 msgstr ""
 
 #: season.py
+#, python-format
+msgid "to be drawn for these dates by %s"
+msgstr ""
+
+#: season.py
 msgctxt "report"
 msgid "weather from"
 msgstr ""
@@ -2797,6 +2802,14 @@ msgid "Polesia's dates, the default:"
 msgstr ""
 
 #: configure.py
+msgid "Not saved: these spells bring a season that would be off:"
+msgstr ""
+
+#: configure.py
+msgid "Change what each brings first, or take it off, like:"
+msgstr ""
+
+#: configure.py
 #, python-format
 msgid "%s is on only in seasons that are off, so it never switches on. Give it other seasons, or turn one of them back on."
 msgstr ""
@@ -2938,6 +2951,11 @@ msgstr ""
 #: configure.py
 #, python-format
 msgid "\"%(name)s\" holds none of those parts; it holds %(parts)s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Nothing was changed: with %s loaded, play.bat would refuse the setup:"
 msgstr ""
 
 #: configure.py
@@ -4461,7 +4479,7 @@ msgid "a line saying what the preset is"
 msgstr ""
 
 #: configure.py
-msgid "which parts to save or load; all of them by default"
+msgid "which parts to save or load: by default, a save keeps the parts that have something in them, and a load takes every part the preset holds"
 msgstr ""
 
 #: configure.py

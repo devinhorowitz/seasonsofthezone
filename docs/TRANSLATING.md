@@ -140,7 +140,8 @@ What stays English for now:
   `text\eng\`.
 - The words other mods read from the API, like the emission warning's bands.
 
-`_tools\test_strings.py` checks that every id the scripts use is in the English tables,
+`_tools\test_strings.py`, in the source on GitHub (it needs `py -m pip install lupa`),
+checks that every id the scripts use is in the English tables,
 that no script puts English on the screen itself, and, for each language folder beside
 `eng`, that its ids are English ones, its `$placeholders` are ones the game fills, and,
 under the Russian rule, that every count has its `_few` form.

@@ -648,6 +648,37 @@ print("AFTER", g.cal._bad_own, [t for t in texts(g.own_box_list) if t.strip()])
     return "each listed with why, Change and Remove; the editor's reason sees the event"
 
 
+@case
+def t_a_refusal_says_the_way_out():
+    """The calendar command refused a season a spell brings with the rule it broke and no
+    way out; preset load offered --force for a load it then refused whole; and status
+    --mapping met said the next play.bat would draw a dial it never draws."""
+    config = ('SPELLS = {"Summer frost": {"in": ("summer",), "chance": 3, "days": (1, 2), '
+              '"as": "winter"}}\n'
+              'EVENTS = {"christmas": ((12, 24), (12, 26))}\n'
+              'TOGGLE_MODS = {"Lonely Mod": {"when": ("christmas",), "above": "Base Grass"}}\n')
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=config)
+        tc.with_mod(d)
+        rc, out = tc.run(d, "calendar", "--only", "summer=5-20", "deep winter=12-1")
+        assert rc == 1 and "these spells bring a season that would be off:" in out \
+            and "Summer frost  (winter)" in out and '--as none' in out, out
+        os.makedirs(os.path.join(d, "_tools", "presets"))
+        io.open(os.path.join(d, "_tools", "presets", "Halloween.json"), "w",
+                encoding="utf-8").write('{"seasons_of_the_zone_preset": 1, "events": '
+                                        '{"halloween": [[10, 31], [10, 31]]}}')
+        for force in ((), ("--force",)):
+            rc, out = tc.run(d, "preset", "load", "Halloween", *force)
+            assert rc == 1 and "play.bat would refuse the setup" in out \
+                and "--force" not in out and "christmas" in out, out
+        tc.accepted(d)
+        rc, out = tc.run(d, "status", "--mapping", "met", tool="season.py")
+        dial = [l for l in out.splitlines() if l.startswith("  dial")]
+        assert rc == 0 and dial and "next play.bat" not in dial[0] and (
+            "apply --mapping met" in dial[0] or "hidden" in dial[0]), out
+    return "the spell and the commands to change it; no --force for a refused load; met's dial"
+
+
 if __name__ == "__main__":
     failed = 0
     for fn in CASES:

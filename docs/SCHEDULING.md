@@ -34,7 +34,8 @@ days. A spell starts by chance on a day of the seasons it names, runs 1 to 6 day
 it brings a season, that season is the base period while it lasts. See
 [Seasons of your own and spells](#seasons-of-your-own-and-spells).
 
-**Weather** overlays too. `play.bat` fetches the real Chornobyl forecast at each launch, and
+**Weather** overlays too. `play.bat` fetches the real forecast at each launch, for the
+place set in `configure.bat` - Chornobyl unless you pick another - and
 three kinds of day are added to the list when they happen: `freezing` (the low is 0°C or
 below), `thaw` (it freezes overnight and climbs above 0°C by afternoon) and `heat` (the
 high reaches 28°C). Without `play.bat`, or without an internet connection, none of them is

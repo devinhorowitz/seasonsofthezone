@@ -9,8 +9,8 @@ game starts; `play.bat` runs it for you. It also sets where the real weather com
 
 Most setups need no editing by hand. `configure.bat` writes `_tools\seasons_config.py`
 for you, and the file stays yours to edit if you would rather; this page is its
-reference. `_tools\seasons_config.example.py` is the setup these tools were made on, each
-table filled in.
+reference. `_tools\seasons_config.example.py` is the setup these tools were made on - its
+seasonal mods, texture sets and sound - with every table described.
 
 Making a mod seasonal is the common case, but the calendar is open: you can add your own
 base periods and overlapping events, and make mods seasonal on those instead. That is

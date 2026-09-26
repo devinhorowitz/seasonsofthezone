@@ -71,7 +71,8 @@ SPELLS_HEAD = [
 TEMPLATE = '''"""Which mods this install stages, and when.
 
 Written by configure.py (configure.bat), and still yours to edit by hand: the tool only
-rewrites the entries it changes. The full reference is docs/CONFIGURING.md.
+rewrites the entries it changes. The full reference is docs/CONFIGURING.md in the mod's
+folder: in MO2, right-click Seasons of the Zone and choose Open in Explorer.
 """
 
 LAYOUT = {}
@@ -1635,14 +1636,29 @@ def few(names, most=4):
     return commas(names)
 
 
-def preset_effect(cal, inst, preset, parts):
-    """What loading `parts` of `preset` would do to the setup `cal` holds: (lines, losses).
-    `losses` names what of the player's own it would take off or change, empty when it
-    only adds. Worked out on a copy: `cal` is left as it is."""
+def _trial(cal):
+    """A copy of `cal` a preset can be loaded into, leaving `cal` as it is."""
     trial = copy.copy(cal)
     for k in ("toggle", "events", "periods", "layout", "dates", "names", "_bad_events",
               "own", "_bad_own", "spells", "_bad_spells"):
         setattr(trial, k, copy.deepcopy(getattr(cal, k)))
+    return trial
+
+
+def preset_refusals(cal, inst, preset, parts):
+    """What play.bat would refuse in the setup `cal` holds with `parts` of `preset` loaded,
+    as season.py says it; worked out on a copy."""
+    trial = _trial(cal)
+    apply_preset(trial, inst, preset, [p for p in parts if p in preset_parts(preset)])
+    text, _kept = trial.render()
+    return trial.check(text)
+
+
+def preset_effect(cal, inst, preset, parts):
+    """What loading `parts` of `preset` would do to the setup `cal` holds: (lines, losses).
+    `losses` names what of the player's own it would take off or change, empty when it
+    only adds. Worked out on a copy: `cal` is left as it is."""
+    trial = _trial(cal)
     parts = [p for p in parts if p in preset_parts(preset)]
     apply_preset(trial, inst, preset, parts)
     out, losses = [], []

@@ -14,9 +14,9 @@
   leaves the season be and switches on only the mods you put on during it. The date
   decides, so every launch that day agrees, and the setup says how often each comes on
   average. An MCM pin still wins over a spell.
-- **Ready for translation.** Every word the tools show - the setup, the advanced editor, the
+- **Ready for translation.** The tools' words - the setup, the advanced editor, the
   commands, `play.bat`'s lines - and the game's own text on the PDA, the Forecast page and
-  MCM now comes from translation files, so a translation needs no code. None is included
+  MCM now come from translation files, so a translation needs no code. None is included
   yet; docs/TRANSLATING.md says how to make one, starting from the Russian file, which has
   every string ready to fill in. The setup shows a language switch once a translation has
   text in it, and starts in the game's language when there is one for it.

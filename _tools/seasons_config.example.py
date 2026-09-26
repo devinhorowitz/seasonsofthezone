@@ -1,4 +1,4 @@
-"""A worked example: the setup these tools were made on, each table filled in.
+"""A worked example: the setup these tools were made on, every table described.
 
 Your own settings go in seasons_config.py, next to this file. configure.bat makes that
 file and edits it for you - its window, its commands and its presets - and you can edit
@@ -8,7 +8,8 @@ changes. This file is only here to read. The same setup loads into configure.bat
 
 With every table empty, the seasonal atmosphere still runs; the tables add what play.bat
 changes at launch, using mods you install yourself. The full reference is
-docs/CONFIGURING.md.
+docs/CONFIGURING.md in the mod's folder: in MO2, right-click Seasons of the Zone and
+choose Open in Explorer.
 
   TOGGLE_MODS    seasonal mods: each is enabled in the seasons it lists and disabled the
                  rest of the year. Nothing is copied. `above` is the mod it wins over,

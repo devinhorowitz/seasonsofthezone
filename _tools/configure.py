@@ -708,6 +708,17 @@ def cmd_calendar(a):
     problems = season.calendar_problems(dates)
     if problems:
         fail(*([_("Not saved:")] + problems))
+    # a spell can't bring a season that is off: said with the way out, rather than as the
+    # rule it breaks
+    brought = sorted(n for n, s in cal.spells.items() if s.get("as") and s["as"] not in dates)
+    if brought:
+        fail(*([_("Not saved: these spells bring a season that would be off:")]
+               + ["  %s  (%s)" % (n, label(cal.spells[n]["as"], cal)) for n in brought]
+               + [_("Change what each brings first, or take it off, like:"),
+                  "  " + season.command("configure.py", "spell \"%s\" --as none"
+                                        % brought[0]),
+                  "  " + season.command("configure.py", "spell \"%s\" --remove"
+                                        % brought[0])]))
     cal.set_dates(dates)
     if not save(cal, calendar_lines(dates, cal)):
         return
@@ -897,6 +908,11 @@ def cmd_preset(a):
     cal = loaded()
     inst = ce.Install()
     lines, losses = ce.preset_effect(cal, inst, p, parts)
+    # a load play.bat would refuse is refused as it is, --force or not
+    refused = ce.preset_refusals(cal, inst, p, parts)
+    if refused:
+        fail(*([_("Nothing was changed: with %s loaded, play.bat would refuse the setup:")
+                % name] + ["  " + l for l in refused]))
     if losses and not a.force:
         fail(*([_("Nothing was changed. Loading %s would do this:") % name]
                + ["  " + l for l in lines]
@@ -3315,7 +3331,9 @@ def main():
     p.add_argument("name", nargs="?", help=_("the preset's name, in quotes if it has spaces"))
     p.add_argument("--about", default="", help=_("a line saying what the preset is"))
     p.add_argument("--parts", nargs="+", choices=list(ce.PARTS),
-                   help=_("which parts to save or load; all of them by default"))
+                   help=_("which parts to save or load: by default, a save keeps the "
+                          "parts that have something in them, and a load takes every part "
+                          "the preset holds"))
     p.add_argument("--force", action="store_true",
                    help=_("save over a preset of that name, or load over your own setup"))
     a = ap.parse_args()

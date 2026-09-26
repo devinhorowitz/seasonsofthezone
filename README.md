@@ -174,8 +174,10 @@ of the mod that writes to your save.
 - **Mod App Creator**, for the PDA app. MCM's Main page shows in red if it's missing.
 - **Python 3**, for `play.bat` and `configure.bat` only. The python.org installer is
   enough.
-- For the optional `LAYOUT` texture sets only: `py -m pip install py7zr` (and `rarfile`
-  plus WinRAR or 7-Zip for `.rar` archives)
+- For some things only: `py -m pip install py7zr` to open a `.7z` - an optional `LAYOUT`
+  texture set's, or a mod's installed from the setup - and `rarfile` plus WinRAR or 7-Zip
+  for a `.rar`; `py -m pip install pillow` to draw the year dial for a calendar of your
+  own.
 
 ### Outside GAMMA
 
@@ -419,8 +421,9 @@ Some mods ship one folder per season inside a single archive (Aydin's Grass Twea
 `LAYOUT` restages the mod's contents from the archive when the season changes. Gigabytes
 move, so use `TOGGLE_MODS` wherever a mod can be switched off instead.
 
-`_tools\seasons_config.example.py` is the setup these tools were made on, each table
-filled in; [docs/CONFIGURING.md](docs/CONFIGURING.md) is the field reference.
+`_tools\seasons_config.example.py` is the setup these tools were made on - its seasonal
+mods, texture sets and sound - with every table described;
+[docs/CONFIGURING.md](docs/CONFIGURING.md) is the field reference.
 
 ---
 
