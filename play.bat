@@ -50,12 +50,15 @@ REM  exe copied over the stock one in bin\ needs no change here; one added to MO
 REM  its own entry does.
 set "SHORTCUT=Anomaly (DX11-AVX)"
 
-findstr /C:"title=%SHORTCUT%" ModOrganizer.ini >nul 2>&1
-if errorlevel 1 (
+REM  The entry by its whole name: a line of ModOrganizer.ini like 2\title=Anomaly (DX11),
+REM  which "Anomaly (DX11) custom" doesn't match.
+set "FOUND="
+for /f "usebackq tokens=1,* delims==" %%A in ("ModOrganizer.ini") do if "%%B"=="%SHORTCUT%" for /f "tokens=2 delims=\" %%K in ("%%A") do if /i "%%K"=="title" set "FOUND=1"
+if not defined FOUND (
     echo.
-    echo  ** MO2 has no shortcut named "%SHORTCUT%".
-    echo     Open play.bat in Notepad and set SHORTCUT to one of these names, the part
-    echo     after title=, exactly:
+    echo  ** MO2 has no shortcut named "%SHORTCUT%". Pick the one you play with in
+    echo     configure.bat, beside "play.bat starts", or open play.bat in Notepad and set
+    echo     SHORTCUT to one of these names, the part after title=, exactly:
     findstr /R "title=" ModOrganizer.ini
     echo.
     pause
@@ -66,6 +69,17 @@ REM  Prefer the py launcher: the python.org installer puts it on PATH even when
 REM  `python` is not, and a bare `python` on a fresh Windows can open the Store.
 set "PY=python"
 where py >nul 2>&1 && set "PY=py -3"
+%PY% --version >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo  ** The tools that stage the season need Python 3, and this PC doesn't have it.
+    echo     Get it from python.org, and check "Add python.exe to PATH" as it installs.
+    echo     Press a key to start the game anyway, on what was staged last.
+    echo.
+    pause
+    start "" "%~dp0ModOrganizer.exe" "moshortcut://:%SHORTCUT%"
+    exit /b 0
+)
 
 REM  The lines shown on every launch come from season.py, in the player's language: a
 REM  batch file can't read a translation. The English after || is for when Python can't.
@@ -78,18 +92,25 @@ REM  about this machine. It is allowed to fail: without it the game models the
 REM  temperature from the place's climate instead, so the error is never fatal.
 %PY% "_tools\fetch_weather.py"
 
-%PY% "_tools\season.py" apply
-if errorlevel 1 (
-    echo.
-    %PY% "_tools\season.py" say stopped 2>nul || (
-        echo  season.py stopped with an error - the lines above say why, and what it did
-        echo  before it stopped. Light and weather still follow the season. Press a key to
-        echo  start the game anyway, or close this window to fix it first.
+REM  From here on one block, which cmd reads whole before it runs any of it: the setup can
+REM  rewrite this file while the window waits at the pause. An exit below zero is a crash.
+set "FAILED="
+(
+    %PY% "_tools\season.py" apply
+    if errorlevel 1 set "FAILED=1"
+    if not errorlevel 0 set "FAILED=1"
+    if defined FAILED (
+        echo.
+        %PY% "_tools\season.py" say stopped 2>nul || (
+            echo  season.py stopped with an error - the lines above say why, and what it did
+            echo  before it stopped. Light and weather still follow the season. Press a key to
+            echo  start the game anyway, or close this window to fix it first.
+        )
+        echo.
+        pause
     )
     echo.
-    pause
+    %PY% "_tools\season.py" say starting 2>nul || echo  Starting Anomaly...
+    start "" "%~dp0ModOrganizer.exe" "moshortcut://:%SHORTCUT%"
+    exit /b 0
 )
-
-echo.
-%PY% "_tools\season.py" say starting 2>nul || echo  Starting Anomaly...
-start "" "%~dp0ModOrganizer.exe" "moshortcut://:%SHORTCUT%"

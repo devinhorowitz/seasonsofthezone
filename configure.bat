@@ -14,6 +14,16 @@ REM  Prefer the py launcher: the python.org installer puts it on PATH even when
 REM  `python` is not, and a bare `python` on a fresh Windows can open the Store.
 set "PY=python"
 where py >nul 2>&1 && set "PY=py -3"
+%PY% --version >nul 2>&1
+if errorlevel 1 (
+    echo.
+    echo  ** configure.bat needs Python 3, and this PC doesn't have it. Get it from
+    echo     python.org, check "Add python.exe to PATH" as it installs, then run
+    echo     configure.bat again.
+    echo.
+    pause
+    exit /b 1
+)
 
 if exist "ModOrganizer.ini" goto gamma
 REM  The mod's folder sits two levels below the GAMMA folder, in its mods folder.
@@ -28,6 +38,14 @@ pause
 exit /b 1
 
 :install
+if not exist "_tools\configure.py" (
+    echo.
+    echo  ** The _tools folder is missing from this folder. In MO2, reinstall Seasons of the
+    echo     Zone from its zip, then run configure.bat here again.
+    echo.
+    pause
+    exit /b 1
+)
 %PY% "_tools\configure.py" install %*
 if errorlevel 1 (
     pause

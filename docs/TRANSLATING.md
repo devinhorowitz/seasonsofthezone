@@ -85,9 +85,10 @@ shows) and `Plural-Forms` (the
 has them), then clear the translations. The codes that follow the game's languages are in
 `GAME_CODES` in `_tools\lang.py`.
 
-A few things stay English: the lines `play.bat` and `configure.bat` print before Python
-runs, for when the tools are missing or in the wrong folder, and what is written into files
-- `seasons_config.py`'s comments, logs.
+A few things stay English: the lines `play.bat` and `configure.bat` print without Python -
+when Python or the tools are missing, the folder is the wrong one, or MO2 has no entry by
+the name `play.bat` starts - and what is written into files: `seasons_config.py`'s
+comments, logs.
 
 ---
 

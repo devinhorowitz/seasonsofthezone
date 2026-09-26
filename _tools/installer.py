@@ -276,7 +276,9 @@ def hand_off(gamma):
     process."""
     bat = os.path.join(gamma, "configure.bat")
     if os.name == "nt" and os.path.isfile(bat):
-        return subprocess.Popen(["cmd", "/c", bat], cwd=gamma)
+        # named from the folder it runs in: cmd reads a & ^ ; , = or %...% in a full path
+        # as more than a file name
+        return subprocess.Popen(["cmd", "/d", "/c", ".\\configure.bat"], cwd=gamma)
     return subprocess.Popen([sys.executable, os.path.join(gamma, "_tools", "configure.py")],
                             cwd=gamma)
 

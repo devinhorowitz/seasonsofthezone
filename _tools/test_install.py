@@ -562,6 +562,51 @@ def t_play_bat_in_the_mod_s_folder_says_what_to_do():
 
 
 @case
+def t_play_bat_stops_on_a_crash_and_checks_its_entry_whole():
+    """An apply that crashes exits below zero, which play.bat let through without a word;
+    an entry was checked by the start of its name, so "Anomaly (DX11-AVX) custom" passed for
+    "Anomaly (DX11-AVX)"; and with no Python, cmd's own error was all it said."""
+    with tempfile.TemporaryDirectory() as d:
+        root, mod = gamma(d)
+        rc, out = install(mod, "--yes")
+        assert rc == 0, out
+        bat = read(root, "play.bat").replace(
+            b'start "" "%~dp0ModOrganizer.exe" "moshortcut://:%SHORTCUT%"',
+            b'echo STARTED "%SHORTCUT%"')
+        put(root, "play.bat", bat)
+        put(root, os.path.join("_tools", "fetch_weather.py"), b"")
+        put(root, SEASON, b"import os, sys\n"
+                          b"if sys.argv[1:2] == ['apply']:\n"
+                          b"    print('  (apply stopped part way)', flush=True)\n"
+                          b"    os._exit(-1073740791)\n"
+                          b"sys.exit(2)\n")
+        rc, out = batch(root, "play.bat")
+        assert "(apply stopped part way)" in out and "season.py stopped with an error" in out \
+            and 'STARTED "Anomaly (DX11-AVX)"' in out, out
+        # the entry by its whole name
+        ini = os.path.join(root, "ModOrganizer.ini")
+        text = io.open(ini, encoding="utf-8").read()
+        io.open(ini, "w", encoding="utf-8", newline="").write(
+            text.replace("title=Anomaly (DX11-AVX)", "title=Anomaly (DX11-AVX) custom"))
+        rc, out = batch(root, "play.bat")
+        assert rc == 1 and "MO2 has no shortcut named \"Anomaly (DX11-AVX)\"" in out \
+            and "STARTED" not in out, out
+        put(root, "play.bat", with_entry(bat, "Anomaly (DX11)"))
+        rc, out = batch(root, "play.bat")
+        assert 'STARTED "Anomaly (DX11)"' in out, out
+        # no Python: said, and the game starts on what was staged last
+        system = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32")
+        r = subprocess.run(["cmd", "/c", ".\\play.bat"], cwd=root, stdin=subprocess.DEVNULL,
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=120,
+                           env=dict(ENV, PATH=system, PATHEXT=".COM;.EXE;.BAT;.CMD"))
+        out = r.stdout + r.stderr
+        assert "need Python 3, and this PC doesn't have it" in out \
+            and 'STARTED "Anomaly (DX11)"' in out, out
+    return "a crash below zero said and paused; a longer name refused; no Python said"
+
+
+@case
 def t_the_window_installs_then_goes_on_to_the_setup():
     with tempfile.TemporaryDirectory() as d:
         root, mod = gamma(d)
@@ -644,27 +689,29 @@ def t_the_window_says_what_stopped_an_install():
 @case
 def t_the_setup_opens_from_the_gamma_folder_s_copy():
     """hand_off itself: the GAMMA folder's configure.py, run by this Python, in the GAMMA
-    folder."""
-    with tempfile.TemporaryDirectory() as d:
-        root = os.path.join(d, "GAMMA")
-        seen = os.path.join(d, "seen.txt")
-        put(root, os.path.join("_tools", "configure.py"), (
-            "import os, sys\nopen(%r, 'w').write(repr([sys.executable] + sys.argv + "
-            "[os.getcwd()]))\n" % seen).encode("utf-8"))
-        installer.hand_off(root).wait(60)
-        got = [os.path.normcase(x) for x in eval(open(seen).read())]
-        want = [os.path.normcase(x) for x in (sys.executable, os.path.join(
-            root, "_tools", "configure.py"), root)]
-        assert got == want, (got, want)
-        # with the GAMMA folder's configure.bat there, through it: an error pauses there
-        ran = os.path.join(d, "ran.txt")
-        put(root, "configure.bat", ('@echo off\r\n> "%s" echo %%CD%%\r\n' % ran).encode(
-            "ascii"))
-        installer.hand_off(root).wait(60)
-        assert os.path.normcase(open(ran).read().strip()) == os.path.normcase(root), \
-            open(ran).read()
+    folder - also where the folder's path has characters cmd reads as more than a name."""
+    for place in ("plain", "R&D ^a;b,c=d x%OS%y"):
+        with tempfile.TemporaryDirectory() as d:
+            root = os.path.join(d, place, "GAMMA")
+            seen = os.path.join(d, "seen.txt")
+            put(root, os.path.join("_tools", "configure.py"), (
+                "import os, sys\nopen(%r, 'w').write(repr([sys.executable] + sys.argv + "
+                "[os.getcwd()]))\n" % seen).encode("utf-8"))
+            installer.hand_off(root).wait(60)
+            got = [os.path.normcase(x) for x in eval(open(seen).read())]
+            want = [os.path.normcase(x) for x in (sys.executable, os.path.join(
+                root, "_tools", "configure.py"), root)]
+            assert got == want, (got, want)
+            # with the GAMMA folder's configure.bat there, through it: an error pauses there
+            ran = os.path.join(d, "ran.txt")
+            put(root, "configure.bat", ('@echo off\r\n> "%s" echo "%%CD%%"\r\n' % ran).encode(
+                "ascii"))
+            installer.hand_off(root).wait(60)
+            assert os.path.isfile(ran), place
+            assert os.path.normcase(open(ran).read().strip().strip('"')) == \
+                os.path.normcase(root), open(ran).read()
     return ("configure.bat there when it is there, else configure.py by this Python, in the "
-            "GAMMA folder")
+            "GAMMA folder, whatever its path holds")
 
 
 @case
