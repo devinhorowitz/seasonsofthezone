@@ -137,7 +137,7 @@ end
 -- own has the one form, so its first letter is raised.
 local function cap(s)
     local v = NAMES[s]
-    if v then return v:sub(1, 1):upper() .. v:sub(2) end
+    if v then return sotz_text.cap_first(v) end
     return sotz_text.text("st_sotz_season_" .. tostring(s))
 end
 
@@ -377,12 +377,18 @@ local function read_spell()
     local kv = calendar_file("spell")
     if not kv or not kv.season then return nil end
     local s, first, last = kv.season:lower(), kv.first or "", kv.last or ""
-    local day = "^%d%d%d%d%-%d%d%-%d%d$"
-    if not is_on(s) or not first:match(day) or not last:match(day) or last < first then
+    -- a real day, "YYYY-MM-DD": the message and MCM put its month and day on screen
+    local function day(v)
+        local y, m, d = v:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
+        m, d = tonumber(m), tonumber(d)
+        return y and MONTH_LEN[m] and d >= 1 and d <= MONTH_LEN[m] + (m == 2 and 1 or 0)
+    end
+    if not is_on(s) or not day(first) or not day(last) or last < first
+            or (kv.name or "") == "" then
         say("!season_calendar.ltx: the spell in it can't be used - the calendar decides")
         return nil
     end
-    return {season = s, name = kv.name or "", first = first, last = last}
+    return {season = s, name = kv.name, first = first, last = last}
 end
 
 local ok_spell, SPELL = pcall(read_spell)

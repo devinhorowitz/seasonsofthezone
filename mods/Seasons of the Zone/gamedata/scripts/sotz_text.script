@@ -76,3 +76,21 @@ end
 function month_short(m)
     return text("st_sotz_month_" .. m .. "_short")
 end
+
+-- windows-1251's small letters above 0x7F that the byte-for-byte rule below misses
+local UPPER_1251 = {[0x83] = 0x81, [0x90] = 0x80, [0x9A] = 0x8A, [0x9C] = 0x8C,
+                    [0x9D] = 0x8D, [0x9E] = 0x8E, [0x9F] = 0x8F, [0xA2] = 0xA1,
+                    [0xB3] = 0xB2, [0xB4] = 0xA5, [0xB8] = 0xA8, [0xBA] = 0xAA,
+                    [0xBC] = 0xA3, [0xBE] = 0xBD, [0xBF] = 0xAF}
+
+--- `v` with its first letter raised, as it starts a sentence. string.upper raises only
+-- a to z, and a name of the player's own can be Cyrillic, which the game's files hold in
+-- windows-1251: there a small letter from 0xE0 up is its capital plus 0x20.
+function cap_first(v)
+    v = tostring(v or "")
+    local b = v:byte(1)
+    if not b then return v end
+    local up = (b >= 0xE0) and (b - 0x20) or UPPER_1251[b]
+    if up then return string.char(up) .. v:sub(2) end
+    return v:sub(1, 1):upper() .. v:sub(2)
+end

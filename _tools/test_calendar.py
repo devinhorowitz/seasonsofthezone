@@ -731,12 +731,15 @@ def t_a_spell_brings_its_season_while_its_days_last():
 
     for bad in (SPELL_FILE % ("winterr", "2026-07-14", "2026-07-15"),
                 SPELL_FILE % ("winter", "2026-07-15", "2026-07-14"),
-                SPELL_FILE % ("winter", "July 14", "2026-07-15")):
+                SPELL_FILE % ("winter", "July 14", "2026-07-15"),
+                SPELL_FILE % ("winter", "2026-07-14", "2026-13-45"),
+                (SPELL_FILE % ("winter", "2026-07-14", "2026-07-15")).replace(
+                    "name = Summer frost\r\n", "")):
         _, g = build(2026, 7, 15, calendar=bad)
         mix = g.zzz_seasons_of_the_zone.season_mix()
         assert mix["summer"] == 1.0, "a broken spell was followed: %s" % dict(mix)
         assert any("spell in it can't be used" in l for l in LOG), LOG
-    return "winter on its days, summer the day after, a pin over it; 3 broken spells left out"
+    return "winter on its days, summer the day after, a pin over it; 5 broken spells left out"
 
 
 @case
@@ -1087,6 +1090,27 @@ def t_a_name_too_long_for_the_dial_is_not_used():
     assert g.zzz_seasons_of_the_zone.calendar_page()["label"] == "deep winter"
     assert any("longer than 20 letters" in l for l in LOG), LOG
     return "the usual name, and a line in the log"
+
+
+@case
+def t_a_cyrillic_name_starts_a_sentence_with_a_capital():
+    """string.upper raises only a to z, so "лето" headed the page and the greeting as it
+    was typed; the game's files hold it in windows-1251, where each small letter has its
+    capital, ё and і among them."""
+    lua, g = build(2026, 7, 1, calendar=dict(OWN, name_summer="лето"))
+    title = lua.eval("function(p) local t = {} for i = 1, #p.title do t[i] = p.title:byte(i)"
+                     " end return t end")(g.zzz_seasons_of_the_zone.calendar_page())
+    got = bytes(title[i] for i in range(1, len(title) + 1)).decode("cp1251")
+    assert got == "Лето", got
+    # bytes in and out: a windows-1251 string can't cross into Python as text
+    raise_first = lua.eval("function(b) local v = sotz_text.cap_first(string.char(unpack(b)))"
+                           " local t = {} for i = 1, #v do t[i] = v:byte(i) end return t end")
+    for small, capital in (("ёж", "Ёж"), ("ів", "Ів"),
+                           ("summer", "Summer"), ("", "")):
+        t = raise_first(lua.table_from(list(small.encode("cp1251"))))
+        out = bytes(t[i] for i in range(1, len(t) + 1)).decode("cp1251")
+        assert out == capital, (small, out)
+    return "Лето heads the page; ё, і and a Latin name raised too"
 
 
 @case
