@@ -147,7 +147,7 @@ msgctxt "the last two in a list of choices"
 msgid "%(rest)s or %(last)s"
 msgstr ""
 
-#: lang.py
+#: lang.py guide.py
 msgctxt "between words in a list"
 msgid ", "
 msgstr ""
@@ -186,4 +186,872 @@ msgstr ""
 #: season.py
 msgctxt "season"
 msgid "late winter"
+msgstr ""
+
+#: guide.py
+msgid "Start"
+msgstr ""
+
+#: guide.py
+msgid "Seasonal mods"
+msgstr ""
+
+#: guide.py
+msgid "Seasons"
+msgstr ""
+
+#: guide.py
+msgid "Weather"
+msgstr ""
+
+#: guide.py
+msgid "Review"
+msgstr ""
+
+#: guide.py
+msgid "How to play"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgctxt "a season and the day it starts: spring Apr 15"
+msgid "%(season)s %(day)s"
+msgstr ""
+
+#. a season's usual name, then the name the player gave it
+#: guide.py
+#, python-format
+msgid "%(season)s is \"%(name)s\""
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "Polesia's dates; %s"
+msgstr ""
+
+#: guide.py
+msgid "Polesia's dates"
+msgstr ""
+
+#. %(calendar)s is the name of a calendar that comes with the tool
+#: guide.py
+#, python-format
+msgid "the %(calendar)s calendar; %(names)s"
+msgstr ""
+
+#. %s is the name of a calendar that comes with the tool
+#: guide.py
+#, python-format
+msgid "the %s calendar"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "your own dates; %s"
+msgstr ""
+
+#: guide.py
+msgid "your own dates"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "%(seasons)s and %(n)d more"
+msgid_plural "%(seasons)s and %(n)d more"
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+#, python-format
+msgid "%(n)d seasonal mod, %(seasons)s, weather from %(place)s."
+msgid_plural "%(n)d seasonal mods, %(seasons)s, weather from %(place)s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+#, python-format
+msgid "Holds its %s."
+msgstr ""
+
+#: guide.py
+#, python-format
+msgctxt "a step's number and name: 1. Start"
+msgid "%(n)d. %(step)s"
+msgstr ""
+
+#: guide.py
+msgid "Advanced editor..."
+msgstr ""
+
+#: guide.py
+msgid "Save"
+msgstr ""
+
+#: guide.py
+msgid "Cancel"
+msgstr ""
+
+#: guide.py
+msgid "Close"
+msgstr ""
+
+#: guide.py
+msgid "Go to the summary"
+msgstr ""
+
+#: guide.py
+msgid "Next >"
+msgstr ""
+
+#: guide.py
+msgid "< Back"
+msgstr ""
+
+#: guide.py
+msgid "Fix the seasons first:"
+msgstr ""
+
+#: guide.py
+msgid "Pick a place from the search, or choose Chornobyl."
+msgstr ""
+
+#: guide.py
+msgid "What you have set up now"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "Your preset \"%s\""
+msgstr ""
+
+#: guide.py
+msgid "The GAMMA example"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "The seasonal mods these tools were made with - INVERNO's snow, C Consciousness' grass and trees, and more - set up for the %(have)d of %(all)d you have installed."
+msgid_plural "The seasonal mods these tools were made with - INVERNO's snow, C Consciousness' grass and trees, and more - set up for the %(have)d of %(all)d you have installed."
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+msgid "The seasonal mods these tools were made with. None of them is installed here."
+msgstr ""
+
+#: guide.py
+msgid "A clean start"
+msgstr ""
+
+#: guide.py
+msgid "No seasonal mods yet: you pick them in the next step. The seasons and the weather stay as they are."
+msgstr ""
+
+#: guide.py
+msgid "Set up Seasons of the Zone"
+msgstr ""
+
+#: guide.py
+msgid "Light, color, fog, wind and wetness already follow the real calendar in game; that needs no setup. This sets up the rest: the mods that switch with the seasons, when the seasons turn, and where the real weather comes from. It takes a couple of minutes, and you can change any of it later."
+msgstr ""
+
+#: guide.py
+msgid "Start from"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "%s  (recommended)"
+msgstr ""
+
+#. Review is the name of the fifth step
+#: guide.py
+msgid "Nothing is saved until the Review step, and every step shows what this fills in, for you to change."
+msgstr ""
+
+#: guide.py
+msgid "Which mods should change with the seasons?"
+msgstr ""
+
+#: guide.py
+msgid "play.bat switches each checked mod on in its seasons and off the rest of the year, before the game starts. Nothing is copied: MO2 just doesn't load a mod while it's off."
+msgstr ""
+
+#: guide.py
+msgid "None yet. Add the mods that should follow the seasons."
+msgstr ""
+
+#: guide.py
+msgid "Also installed, and in the GAMMA example:"
+msgstr ""
+
+#: guide.py
+msgid "Change..."
+msgstr ""
+
+#: guide.py
+msgid "new: play.bat adds it to MO2's mod list"
+msgstr ""
+
+#: guide.py
+msgid "not in MO2's mod list"
+msgstr ""
+
+#: guide.py
+msgid "Add another mod..."
+msgstr ""
+
+#: guide.py
+msgid "Install one from an archive..."
+msgstr ""
+
+#: guide.py
+msgid "Found in your GAMMA folder, not installed yet"
+msgstr ""
+
+#: guide.py
+msgid "Install..."
+msgstr ""
+
+#. %s is a file in the tools' folder, _tools
+#: guide.py
+#, python-format
+msgid "%s is missing. Copy _tools from the mod's folder again."
+msgstr ""
+
+#: guide.py
+msgid "Install a mod from its archive"
+msgstr ""
+
+#: guide.py
+msgid "Mod archives"
+msgstr ""
+
+#: guide.py
+msgid "All files"
+msgstr ""
+
+#: guide.py
+msgid "Texture sets and ambient sound"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "%s: its seasonal sets, swapped from its archive"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "Its archive, %s, isn't in MO2's downloads folder, so it can't be swapped."
+msgstr ""
+
+#. %s is the command that installs it
+#: guide.py
+#, python-format
+msgid "Swapping it needs py7zr, a Python package: %s"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "Ambient sound follows the season, from %s"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "%d seasonal mod checked."
+msgid_plural "%d seasonal mods checked."
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+msgid "When do the seasons turn?"
+msgstr ""
+
+#: guide.py
+msgid "Polesia's dates follow the land around Chornobyl: the days it changes, not the equinoxes. You can pick another calendar, set your own dates - a season turned off gives its days to the one before it - or rename the seasons."
+msgstr ""
+
+#: guide.py
+msgid "My own dates"
+msgstr ""
+
+#: guide.py
+msgid "Give the seasons names of my own"
+msgstr ""
+
+#: guide.py
+msgid "Seasons of your own"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "A stretch of the year with a name of your own, a week or longer, that runs on top of the season it falls in: the mods you put on in it come on for those days, and the season's own mods stay on. You can have up to %d."
+msgid_plural "A stretch of the year with a name of your own, a week or longer, that runs on top of the season it falls in: the mods you put on in it come on for those days, and the season's own mods stay on. You can have up to %d."
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+msgid "Add a season of your own..."
+msgstr ""
+
+#: guide.py
+msgid "Spells"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "A short stretch, 1 to %d day, that starts by chance: on each day of the seasons you pick there is a chance of it. It can bring another season with it - winter for a day or two in summer - or switch on only the mods you put on during it."
+msgid_plural "A short stretch, 1 to %d days, that starts by chance: on each day of the seasons you pick there is a chance of it. It can bring another season with it - winter for a day or two in summer - or switch on only the mods you put on during it."
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+msgid "Add a spell..."
+msgstr ""
+
+#: guide.py
+msgid "None yet."
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "on for %d mod"
+msgid_plural "on for %d mods"
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+msgid "no mods on in it yet"
+msgstr ""
+
+#. %(mods)s is "on for 2 mods" or "no mods on in it yet"
+#: guide.py
+#, python-format
+msgid "%(dates)s, %(days)d day; %(mods)s"
+msgid_plural "%(dates)s, %(days)d days; %(mods)s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+msgid "Remove"
+msgstr ""
+
+#: guide.py
+msgctxt "a season, turned off"
+msgid "off"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "Give %s a start day."
+msgstr ""
+
+#: guide.py
+msgid "Check at least one season."
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "Up to %d letter. Leave one empty for its usual name."
+msgid_plural "Up to %d letters. Leave one empty for its usual name."
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+msgid "Where should the real weather come from?"
+msgstr ""
+
+#: guide.py
+msgid "The PDA's temperature, its Forecast page and the freezing, thaw and heat days follow the real weather at one place. play.bat asks Open-Meteo for that place's day at each launch, sending its coordinates and nothing else."
+msgstr ""
+
+#: guide.py
+msgid "Chornobyl, the real Zone  (recommended)"
+msgstr ""
+
+#: guide.py
+msgid "Somewhere else"
+msgstr ""
+
+#: guide.py
+msgid "Search"
+msgstr ""
+
+#: guide.py
+msgid "a town or city, like Kyiv or New York"
+msgstr ""
+
+#: guide.py
+msgid "Use this place"
+msgstr ""
+
+#: guide.py
+msgid "Or its coordinates:"
+msgstr ""
+
+#: guide.py
+msgid "latitude"
+msgstr ""
+
+#: guide.py
+msgid "longitude"
+msgstr ""
+
+#: guide.py
+msgctxt "a place's name"
+msgid "name"
+msgstr ""
+
+#: guide.py
+msgid "Use these"
+msgstr ""
+
+#: guide.py
+msgid "Today's weather there"
+msgstr ""
+
+#: guide.py
+msgid "For a place other than Chornobyl, saving also looks up its climate once - its last ten years of highs and lows - so the game can model a day there without a connection."
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "Weather from: %s"
+msgstr ""
+
+#: guide.py
+msgid "Weather from: pick a place above"
+msgstr ""
+
+#: guide.py
+msgid "Type a place to look for."
+msgstr ""
+
+#: guide.py
+msgid "Looking it up..."
+msgstr ""
+
+#. %s is the kind of error, as Python names it
+#: guide.py
+#, python-format
+msgid "Couldn't reach open-meteo.com (%s)."
+msgstr ""
+
+#. Use this place is the button's name
+#: guide.py
+#, python-format
+msgid "%d found. Pick one and press Use this place."
+msgid_plural "%d found. Pick one and press Use this place."
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+msgid "Nothing by that name. Try another spelling."
+msgstr ""
+
+#: guide.py
+msgid "Pick a place in the list first."
+msgstr ""
+
+#: guide.py
+msgid "Give the latitude and longitude as numbers, like 50.45 and 30.52."
+msgstr ""
+
+#: guide.py
+msgid "Asking open-meteo.com..."
+msgstr ""
+
+#. %(sky)s is the sky that day, like "partly cloudy"
+#: guide.py
+#, python-format
+msgid "Today in %(place)s: high %(high).0f°C (%(high_f).0f°F), low %(low).0f°C (%(low_f).0f°F), %(sky)s."
+msgstr ""
+
+#: guide.py
+msgid "Check it, then save"
+msgstr ""
+
+#: guide.py
+msgid "With no seasonal mods, play.bat has nothing to switch. The seasonal atmosphere runs all the same."
+msgstr ""
+
+#. %(on)s is a list of the mods on today
+#: guide.py
+#, python-format
+msgid "Today is %(season)s. With this setup, play.bat has %(on)s on, and the other %(off)d off until their seasons."
+msgid_plural "Today is %(season)s. With this setup, play.bat has %(on)s on, and the other %(off)d off until their seasons."
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+#, python-format
+msgid "Today is %(season)s. With this setup, play.bat has none of them on, and the other %(off)d off until their seasons."
+msgid_plural "Today is %(season)s. With this setup, play.bat has none of them on, and the other %(off)d off until their seasons."
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+msgid "Fix these first; play.bat would refuse the setup as it is:"
+msgstr ""
+
+#: guide.py
+msgid "Preview what play.bat would do..."
+msgstr ""
+
+#. Save is the button's name; %s is the file it writes
+#: guide.py
+#, python-format
+msgid "Save writes %s; the file it replaces is kept beside it as seasons_config.py.bak."
+msgstr ""
+
+#: guide.py
+msgid "none"
+msgstr ""
+
+#: guide.py
+msgid "Texture sets"
+msgstr ""
+
+#: guide.py
+msgid "Ambient sound"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "follows the season, from %s"
+msgstr ""
+
+#: guide.py
+msgid "Weather from"
+msgstr ""
+
+#: guide.py
+msgid "Events"
+msgstr ""
+
+#: guide.py
+msgid "Fix"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "and %d more"
+msgid_plural "and %d more"
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+msgid "All set"
+msgstr ""
+
+#: guide.py
+msgid "From now on, start the game with play.bat in your GAMMA folder, not from MO2. Each time, it switches the seasonal mods for the day, then opens MO2 and starts the game. Most days it has nothing to switch."
+msgstr ""
+
+#: guide.py
+msgid "To change any of this later, open configure.bat again: it opens to a summary of your setup."
+msgstr ""
+
+#: guide.py
+msgid "Save this setup as a preset..."
+msgstr ""
+
+#. followed by a list of the programs MO2 can start, like Anomaly (DX11)
+#: guide.py
+msgid "play.bat starts"
+msgstr ""
+
+#: guide.py
+msgid "play.bat isn't in your GAMMA folder. Open configure.bat from the mod's folder to put it there."
+msgstr ""
+
+#: guide.py
+msgid "✓ MO2 has this entry"
+msgstr ""
+
+#: guide.py
+msgid "MO2 has no entry by that name. Pick one."
+msgstr ""
+
+#: guide.py
+msgctxt "dialog title"
+msgid "Save"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "The weather now comes from %s:"
+msgstr ""
+
+#: guide.py
+msgid "Seasons of the Zone"
+msgstr ""
+
+#: guide.py
+msgid "seasons_config.py can't be read now:"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "Fix it in Notepad and open configure.bat again. It is %s."
+msgstr ""
+
+#: guide.py
+msgid "Your setup, as saved. Change any part; each change is saved on its own."
+msgstr ""
+
+#: guide.py
+msgid "none yet"
+msgstr ""
+
+#. %(sets)s is a list of the mods whose texture sets are swapped
+#: guide.py
+#, python-format
+msgid "%(sets)s; ambient sound from %(mod)s"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "ambient sound from %s"
+msgstr ""
+
+#: guide.py
+msgid "Texture sets and sound"
+msgstr ""
+
+#. %s is a list of the player's events
+#: guide.py
+#, python-format
+msgid "%s (changed in the advanced editor)"
+msgstr ""
+
+#: guide.py
+msgid "none (made in the advanced editor)"
+msgstr ""
+
+#: guide.py
+msgid "play.bat refuses the setup as it is, until these are fixed:"
+msgstr ""
+
+#: guide.py
+msgid "Run the setup again"
+msgstr ""
+
+#: guide.py
+msgid "Save as a preset..."
+msgstr ""
+
+#: guide.py
+msgid "Preview the next launch..."
+msgstr ""
+
+#: guide.py
+msgid "play.bat would refuse this:"
+msgstr ""
+
+#: guide.py
+msgid "Saved"
+msgstr ""
+
+#: guide.py
+msgid "Advanced editor"
+msgstr ""
+
+#: guide.py
+msgid "Save what you've set here first? If not, the advanced editor opens on the setup as it was saved."
+msgstr ""
+
+#: guide.py
+msgctxt "dialog title"
+msgid "Close"
+msgstr ""
+
+#: guide.py
+msgid "Leave without saving? Nothing you set here is kept."
+msgstr ""
+
+#: guide.py
+msgid "Showing the dial here needs Pillow, a Python package. Save offers to install it."
+msgstr ""
+
+#: guide.py
+msgid "The mod's configs folder is missing, so the dial can't be drawn here."
+msgstr ""
+
+#: guide.py
+msgid "The dial comes back when the lines in red are fixed."
+msgstr ""
+
+#: guide.py
+msgid "The dial in MCM and on the PDA, today."
+msgstr ""
+
+#: guide.py
+msgid "Add a seasonal mod"
+msgstr ""
+
+#: guide.py
+msgid "Which mod?"
+msgstr ""
+
+#: guide.py
+msgid "On in these seasons"
+msgstr ""
+
+#: guide.py
+msgid "More options"
+msgstr ""
+
+#: guide.py
+msgid "Also on for these events"
+msgstr ""
+
+#. %s is the name of a period, a kind of event
+#: guide.py
+#, python-format
+msgid "%s  (a period)"
+msgstr ""
+
+#: guide.py
+msgid "New events are made in the advanced editor."
+msgstr ""
+
+#: guide.py
+msgid "Also on during these spells"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "And on these kinds of weather at %s"
+msgstr ""
+
+#: guide.py
+msgid "picked for you, from the files they share"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "%(mod)s  (%(n)d shared file)"
+msgid_plural "%(mod)s  (%(n)d shared files)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+msgid "Wins over"
+msgstr ""
+
+#: guide.py
+msgid "Where two mods have the same file, MO2 uses the one that wins. play.bat keeps this one just below the mod it wins over in MO2's list."
+msgstr ""
+
+#: guide.py
+msgid "OK"
+msgstr ""
+
+#: guide.py
+msgid "Pick the mod in the list."
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "%s already wins over this mod, so this one can't win over it as well."
+msgstr ""
+
+#: guide.py
+msgid "off in your calendar"
+msgstr ""
+
+#: guide.py
+msgid "Which one wins?"
+msgstr ""
+
+#. %(seasons)s is the seasons both mods are on in, like "winter, deep winter"
+#: guide.py
+#, python-format
+msgid "%(mod)s and %(other)s are both on in %(seasons)s, and ship %(n)d of the same file. Whose should the game use while both are on?"
+msgid_plural "%(mod)s and %(other)s are both on in %(seasons)s, and ship %(n)d of the same files. Whose should the game use while both are on?"
+msgstr[0] ""
+msgstr[1] ""
+
+#. whose files the game uses, by the mod's name: Winter Pack's
+#: guide.py
+#, python-format
+msgid "%s's"
+msgstr ""
+
+#: guide.py
+msgid "Right for a recolor, a fix or an add-on made for the other one."
+msgstr ""
+
+#. %(error)s is what went wrong, as the system says it
+#: guide.py
+#, python-format
+msgid "%(archive)s can't be read: %(error)s"
+msgstr ""
+
+#: guide.py
+msgctxt "dialog title"
+msgid "Install"
+msgstr ""
+
+#. %s is the archive's file name
+#: guide.py
+#, python-format
+msgid "Install %s"
+msgstr ""
+
+#. followed by a box with the name of the mod's folder
+#: guide.py
+msgid "Install it as"
+msgstr ""
+
+#: guide.py
+msgid "Fix files from the author"
+msgstr ""
+
+#: guide.py
+msgid "Add a file..."
+msgstr ""
+
+#: guide.py
+msgid "a file the author says to drop into the mod; it goes where the mod has a file of that name"
+msgstr ""
+
+#: guide.py
+msgid "Install"
+msgstr ""
+
+#. %(size)s is like "12 MB"; %(folder)s is the folder it goes in
+#: guide.py
+#, python-format
+msgid "About %(size)s, into %(folder)s."
+msgstr ""
+
+#: guide.py
+msgid "A fix file from the author"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "This install has no file called %s, or more than one, so there's no telling where it goes. Check the options above, or put it in the mod by hand after."
+msgstr ""
+
+#. a fix file's name, and where in the mod it goes
+#: guide.py
+#, python-format
+msgid "%(file)s  goes to  %(dest)s"
+msgstr ""
+
+#: guide.py
+msgid "Installing..."
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "%.1f GB"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "%d MB"
 msgstr ""

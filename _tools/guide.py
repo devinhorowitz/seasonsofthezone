@@ -25,10 +25,29 @@ import configure as cf
 import installer
 import lang
 import season
+from lang import _, ngettext, pgettext
 
-STEPS = (("start", "Start"), ("mods", "Seasonal mods"), ("seasons", "Seasons"),
-         ("weather", "Weather"), ("review", "Review"), ("done", "How to play"))
+STEPS = ("start", "mods", "seasons", "weather", "review", "done")
 GREEN = "#2e7d32"
+
+
+def step_title(key):
+    """A step's name, as the row of steps at the top shows it. Made when it is shown, so it
+    follows a change of language."""
+    return {"start": _("Start"), "mods": _("Seasonal mods"), "seasons": _("Seasons"),
+            "weather": _("Weather"), "review": _("Review"), "done": _("How to play")}[key]
+
+
+def comma_list(words):
+    """Words one after another, the way a list runs them rather than a sentence: "a, b, c"."""
+    return pgettext("between words in a list", ", ").join(words)
+
+
+def usual_title(s):
+    """A season's usual name in the player's language, for the start of a line: "Deep
+    winter"."""
+    v = season.usual_name(s)
+    return v[:1].upper() + v[1:]
 
 
 def is_set_up(cal):
@@ -113,39 +132,52 @@ def on_today(cal):
 
 def dates_words(dates):
     """A calendar as the seasons it has on and the day each starts, in season order."""
-    return ", ".join("%s %s" % (season.default_label(s), ce.day_text(dates[s]))
-                     for s in season.SEASONS if s in dates)
+    return comma_list(
+        pgettext("a season and the day it starts: spring Apr 15", "%(season)s %(day)s")
+        % {"season": season.usual_name(s), "day": ce.day_text(dates[s])}
+        for s in season.SEASONS if s in dates)
 
 
 def seasons_words(cal):
     """The calendar and names `cal` holds, in a few words."""
-    match = [n for n, _, d in calendar_presets() if d == cal.dates]
-    text = ("Polesia's dates" if not cal.custom() else
-            "the %s calendar" % match[0] if match else "your own dates")
-    if cal.names:
-        text += "; %s" % ", ".join(
-            "%s is \"%s\"" % (season.default_label(s), n)
-            for s, n in sorted(cal.names.items(), key=lambda x: season.SEASONS.index(x[0])))
-    return text
+    match = [n for n, __, d in calendar_presets() if d == cal.dates]
+    names = comma_list(
+        # translators: a season's usual name, then the name the player gave it
+        _("%(season)s is \"%(name)s\"") % {"season": season.usual_name(s), "name": n}
+        for s, n in sorted(cal.names.items(), key=lambda x: season.SEASONS.index(x[0])))
+    if not cal.custom():
+        return _("Polesia's dates; %s") % names if names else _("Polesia's dates")
+    if match and names:
+        # translators: %(calendar)s is the name of a calendar that comes with the tool
+        return _("the %(calendar)s calendar; %(names)s") % {"calendar": match[0],
+                                                            "names": names}
+    if match:
+        # translators: %s is the name of a calendar that comes with the tool
+        return _("the %s calendar") % match[0]
+    return _("your own dates; %s") % names if names else _("your own dates")
 
 
 def own_words(cal, most=3):
     """The player's own seasons in a few words, in the order they come."""
     names = cal.own_order()
-    text = ", ".join("%s (%s)" % (n, ce.window_text(cal.own[n])) for n in names[:most])
-    return text + (" and %d more" % (len(names) - most) if len(names) > most else "")
+    text = comma_list("%s (%s)" % (n, ce.window_text(cal.own[n])) for n in names[:most])
+    if len(names) > most:
+        return ngettext("%(seasons)s and %(n)d more", "%(seasons)s and %(n)d more",
+                        len(names) - most) % {"seasons": text, "n": len(names) - most}
+    return text
 
 
 def setup_words(cal):
     """A setup in one line: its mods, calendar and weather."""
     n = len(cal.toggle)
-    return "%d seasonal mod%s, %s, weather from %s" % (
-        n, "" if n == 1 else "s", seasons_words(cal),
-        (cal.place or ce.DEFAULT_PLACE)["name"])
+    return ngettext("%(n)d seasonal mod, %(seasons)s, weather from %(place)s.",
+                    "%(n)d seasonal mods, %(seasons)s, weather from %(place)s.", n) % {
+        "n": n, "seasons": seasons_words(cal),
+        "place": (cal.place or ce.DEFAULT_PLACE)["name"]}
 
 
 def parts_words(preset):
-    return "Holds its " + ", ".join(ce.PART_TEXT[p] for p in ce.preset_parts(preset)) + "."
+    return _("Holds its %s.") % comma_list(ce.PART_TEXT[p] for p in ce.preset_parts(preset))
 
 
 def raw_problems(cal):
@@ -291,44 +323,46 @@ class Guide(object):
     def steps(self, at="start"):
         """The guided setup, from `at`."""
         self.mode, self.editing = "steps", None
-        self.step = [k for k, _ in STEPS].index(at)
+        self.step = STEPS.index(at)
         if self.start_choice is None:
             self.start_choice = self.default_start()
         self.render()
 
     def current(self):
-        return STEPS[self.step][0] if self.mode == "steps" else self.editing
+        return STEPS[self.step] if self.mode == "steps" else self.editing
 
     def render(self):
         self.clear()
         key = self.current()
         if self.mode == "steps":
-            for i, (k, name) in enumerate(STEPS):
+            for i, k in enumerate(STEPS):
                 if i:
                     self.ttk.Label(self.top, text="  >  ", style="Step.TLabel").pack(
                         side="left")
-                self.ttk.Label(self.top, text="%d. %s" % (i + 1, name),
+                text = pgettext("a step's number and name: 1. Start",
+                                "%(n)d. %(step)s") % {"n": i + 1, "step": step_title(k)}
+                self.ttk.Label(self.top, text=text,
                                style="Now.TLabel" if i == self.step else "Step.TLabel").pack(
                     side="left")
         getattr(self, "step_" + key)()
         left, right = self.ttk.Frame(self.bar), self.ttk.Frame(self.bar)
         left.pack(side="left")
         right.pack(side="right")
-        self.button(left, "Advanced editor...", self.advanced, pad=0)
+        self.button(left, _("Advanced editor..."), self.advanced, pad=0)
         self.language_box(left)
         if self.mode == "edit":
-            self.button(right, "Save", self.save_edit, default=True, side="right", pad=0)
-            self.button(right, "Cancel", self.summary, side="right")
+            self.button(right, _("Save"), self.save_edit, default=True, side="right", pad=0)
+            self.button(right, _("Cancel"), self.summary, side="right")
         elif key == "done":
-            self.button(right, "Close", self.close, default=True, side="right", pad=0)
-            self.button(right, "Go to the summary", self.summary, side="right")
+            self.button(right, _("Close"), self.close, default=True, side="right", pad=0)
+            self.button(right, _("Go to the summary"), self.summary, side="right")
         else:
-            nxt = self.button(right, "Save" if key == "review" else "Next >", self.next,
+            nxt = self.button(right, _("Save") if key == "review" else _("Next >"), self.next,
                               default=True, side="right", pad=0)
             if key == "review" and raw_problems(self.cal):
                 nxt.configure(state="disabled")
             if self.step:
-                self.button(right, "< Back", self.back, side="right")
+                self.button(right, _("< Back"), self.back, side="right")
         self.root.update_idletasks()
 
     def next(self):
@@ -352,14 +386,14 @@ class Guide(object):
         if key == "start":
             self.apply_start()
         elif key == "seasons" and (self.seasons_bad or self.names_bad) and not going_back:
-            messagebox.showerror(cf.TITLE, "\n".join(["Fix the seasons first:"]
+            messagebox.showerror(cf.TITLE, "\n".join([_("Fix the seasons first:")]
                                                      + self.seasons_bad + self.names_bad),
                                  parent=self.root)
             return False
         elif key == "weather" and self.where.get() == "elsewhere" and not self.cal.place \
                 and not going_back:
-            messagebox.showerror(cf.TITLE, "Pick a place from the search, or choose "
-                                 "Chornobyl.", parent=self.root)
+            messagebox.showerror(cf.TITLE, _("Pick a place from the search, or choose "
+                                             "Chornobyl."), parent=self.root)
             return False
         return True
 
@@ -377,44 +411,50 @@ class Guide(object):
         out = []
         now = ce.Calendar()
         if is_set_up(now):
-            out.append(("now", "What you have set up now", setup_words(now) + "."))
+            out.append(("now", _("What you have set up now"), setup_words(now)))
         for name, path in ce.preset_files().items():
             p, problems = ce.read_preset(path)
             if p and not problems and not p["shipped"]:
-                out.append(("preset:" + name, "Your preset \"%s\"" % name,
+                out.append(("preset:" + name, _("Your preset \"%s\"") % name,
                             p["about"] or parts_words(p)))
         if self.default:
             mods = self.default.get("mods", {})
             have = [m for m in mods if m in self.inst.names]
-            out.append(("default", "The GAMMA example", (
-                "The seasonal mods these tools were made with - INVERNO's snow, C "
-                "Consciousness' grass and trees, and more - set up for the %d of %d you "
-                "have installed." % (len(have), len(mods)) if have else
-                "The seasonal mods these tools were made with. None of them is installed "
-                "here.")))
-        out.append(("clean", "A clean start", "No seasonal mods yet: you pick them in the "
-                    "next step. The seasons and the weather stay as they are."))
+            out.append(("default", _("The GAMMA example"), (
+                ngettext("The seasonal mods these tools were made with - INVERNO's snow, C "
+                         "Consciousness' grass and trees, and more - set up for the %(have)d "
+                         "of %(all)d you have installed.",
+                         "The seasonal mods these tools were made with - INVERNO's snow, C "
+                         "Consciousness' grass and trees, and more - set up for the %(have)d "
+                         "of %(all)d you have installed.", len(have))
+                % {"have": len(have), "all": len(mods)} if have else
+                _("The seasonal mods these tools were made with. None of them is installed "
+                  "here."))))
+        out.append(("clean", _("A clean start"), _("No seasonal mods yet: you pick them in the "
+                                                   "next step. The seasons and the weather "
+                                                   "stay as they are.")))
         return out
 
     def step_start(self):
         tk, ttk = self.tk, self.ttk
-        self.heading("Set up Seasons of the Zone")
-        self.para("Light, color, fog, wind and wetness already follow the real calendar in "
-                  "game; that needs no setup. This sets up the rest: the mods that switch with "
-                  "the seasons, when the seasons turn, and where the real weather comes from. "
-                  "It takes a couple of minutes, and you can change any of it later.")
-        self.subhead("Start from")
+        self.heading(_("Set up Seasons of the Zone"))
+        self.para(_("Light, color, fog, wind and wetness already follow the real calendar in "
+                    "game; that needs no setup. This sets up the rest: the mods that switch "
+                    "with the seasons, when the seasons turn, and where the real weather comes "
+                    "from. It takes a couple of minutes, and you can change any of it later."))
+        self.subhead(_("Start from"))
         self.start_var = tk.StringVar(value=self.start_choice)
         best = self.default_start()
         for key, name, about in self.start_options():
-            ttk.Radiobutton(self.page, text=name + ("  (recommended)" if key == best else ""),
-                            value=key, variable=self.start_var,
+            ttk.Radiobutton(self.page, text=_("%s  (recommended)") % name if key == best
+                            else name, value=key, variable=self.start_var,
                             command=lambda: setattr(self, "start_choice",
                                                     self.start_var.get())).pack(
                 anchor="w", pady=(8, 0))
             self.para(about, color=cf.GREY, pad=(0, 0), indent=24)
-        self.para("Nothing is saved until the Review step, and every step shows what this "
-                  "fills in, for you to change.", color=cf.GREY, pad=(18, 0))
+        # translators: Review is the name of the fifth step
+        self.para(_("Nothing is saved until the Review step, and every step shows what this "
+                    "fills in, for you to change."), color=cf.GREY, pad=(18, 0))
 
     def apply_start(self):
         """Fill the setup in from where it starts. Only a new choice does anything, so going
@@ -447,10 +487,10 @@ class Guide(object):
 
     def step_mods(self):
         tk, ttk = self.tk, self.ttk
-        self.heading("Which mods should change with the seasons?")
-        self.para("play.bat switches each checked mod on in its seasons and off the rest of "
-                  "the year, before the game starts. Nothing is copied: MO2 just doesn't load a "
-                  "mod while it's off.")
+        self.heading(_("Which mods should change with the seasons?"))
+        self.para(_("play.bat switches each checked mod on in its seasons and off the rest of "
+                    "the year, before the game starts. Nothing is copied: MO2 just doesn't "
+                    "load a mod while it's off."))
         box = self.page
         chosen = sorted(set(self.cal.toggle) | set(self.kept), key=str.casefold)
         known = (self.default or {}).get("mods", {})
@@ -460,10 +500,10 @@ class Guide(object):
         grid.pack(fill="x", pady=(8, 0))
         row = 0
         if not chosen and not suggest:
-            ttk.Label(grid, text="None yet. Add the mods that should follow the seasons.",
+            ttk.Label(grid, text=_("None yet. Add the mods that should follow the seasons."),
                       foreground=cf.GREY).grid(row=0, column=0, sticky="w")
             row = 1
-        for group, names in (("", chosen), ("Also installed, and in the GAMMA example:",
+        for group, names in (("", chosen), (_("Also installed, and in the GAMMA example:"),
                                              suggest)):
             if not names:
                 continue
@@ -481,20 +521,20 @@ class Guide(object):
                 ttk.Label(grid, text=cf.when_text(entry["when"], self.cal) if entry else "",
                           foreground=cf.GREY).grid(row=row, column=1, sticky="w",
                                                    padx=(14, 0))
-                ttk.Button(grid, text="Change...", command=lambda n=name:
+                ttk.Button(grid, text=_("Change..."), command=lambda n=name:
                            ModDialog(self, n)).grid(row=row, column=2, padx=(14, 0))
                 if name not in self.inst.names:
                     new = os.path.isdir(os.path.join(season.MODS, name))
-                    ttk.Label(grid, text="new: play.bat adds it to MO2's mod list" if new
-                              else "not in MO2's mod list",
+                    ttk.Label(grid, text=_("new: play.bat adds it to MO2's mod list") if new
+                              else _("not in MO2's mod list"),
                               foreground=cf.GREY if new else cf.RED).grid(
                         row=row, column=3, sticky="w", padx=(10, 0))
                 row += 1
         grid.columnconfigure(1, weight=1)
         row = ttk.Frame(box)
         row.pack(anchor="w", pady=(10, 0))
-        self.button(row, "Add another mod...", lambda: ModDialog(self), pad=0)
-        self.button(row, "Install one from an archive...", self.pick_archive)
+        self.button(row, _("Add another mod..."), lambda: ModDialog(self), pad=0)
+        self.button(row, _("Install one from an archive..."), self.pick_archive)
         self.found_archives(box)
         self.mods_extras(box)
         self.mods_count = ttk.Label(box, text="", foreground=cf.GREY)
@@ -513,26 +553,28 @@ class Guide(object):
             return
         if not found:
             return
-        self.subhead("Found in your GAMMA folder, not installed yet", parent=box)
+        self.subhead(_("Found in your GAMMA folder, not installed yet"), parent=box)
         for f in found:
             line = self.ttk.Frame(box)
             line.pack(anchor="w", fill="x", pady=1)
             self.ttk.Label(line, text=os.path.basename(f["path"])).pack(side="left")
             self.ttk.Label(line, text="  %s" % cf.when_text(f["seasons"], self.cal),
                            foreground=cf.GREY).pack(side="left")
-            self.button(line, "Install...", lambda a=f["path"]: InstallDialog(self, a),
+            self.button(line, _("Install..."), lambda a=f["path"]: InstallDialog(self, a),
                         pad=12)
 
     def pick_archive(self):
         from tkinter import filedialog, messagebox
         if archives() is None:
-            messagebox.showerror(cf.TITLE, "_tools\\mod_install.py is missing. Copy _tools "
-                                 "from the mod's folder again.", parent=self.root)
+            # translators: %s is a file in the tools' folder, _tools
+            messagebox.showerror(cf.TITLE, _("%s is missing. Copy _tools from the mod's "
+                                             "folder again.") % "_tools\\mod_install.py",
+                                 parent=self.root)
             return
         path = filedialog.askopenfilename(
-            parent=self.root, title="Install a mod from its archive",
-            initialdir=self.gamma, filetypes=[("Mod archives", "*.7z *.zip *.rar"),
-                                              ("All files", "*.*")])
+            parent=self.root, title=_("Install a mod from its archive"),
+            initialdir=self.gamma, filetypes=[(_("Mod archives"), "*.7z *.zip *.rar"),
+                                              (_("All files"), "*.*")])
         if path:
             InstallDialog(self, path)
 
@@ -549,23 +591,25 @@ class Guide(object):
             src = None
         if not layouts and not src:
             return
-        self.subhead("Texture sets and ambient sound", parent=box)
+        self.subhead(_("Texture sets and ambient sound"), parent=box)
         for name in sorted(layouts, key=str.casefold):
             var = tk.BooleanVar(value=name in self.cal.layout)
-            ttk.Checkbutton(box, text="%s: its seasonal sets, swapped from its archive" % name,
-                            variable=var, command=lambda n=name, v=var, c=layouts[name]:
+            ttk.Checkbutton(box, text=_("%s: its seasonal sets, swapped from its archive")
+                            % name, variable=var, command=lambda n=name, v=var, c=layouts[name]:
                             self.check_layout(n, c, v.get())).pack(anchor="w", pady=1)
             archive = layouts[name]["archive"]
             if not os.path.isfile(os.path.join(season.DOWNLOADS, archive)):
-                self.para("Its archive, %s, isn't in MO2's downloads folder, so it can't be "
-                          "swapped." % archive, parent=box, color=cf.RED, pad=(0, 0),
+                self.para(_("Its archive, %s, isn't in MO2's downloads folder, so it can't be "
+                            "swapped.") % archive, parent=box, color=cf.RED, pad=(0, 0),
                           indent=24)
             elif archive.lower().endswith(".7z") and not importlib.util.find_spec("py7zr"):
-                self.para("Swapping it needs py7zr, a Python package: py -m pip install "
-                          "py7zr", parent=box, color=cf.AMBER, pad=(0, 0), indent=24)
+                # translators: %s is the command that installs it
+                self.para(_("Swapping it needs py7zr, a Python package: %s")
+                          % "py -m pip install py7zr", parent=box, color=cf.AMBER, pad=(0, 0),
+                          indent=24)
         if src:
             var = tk.BooleanVar(value=bool(self.cal.sound_src))
-            ttk.Checkbutton(box, text="Ambient sound follows the season, from %s" % src,
+            ttk.Checkbutton(box, text=_("Ambient sound follows the season, from %s") % src,
                             variable=var, command=lambda v=var, s=src:
                             setattr(self.cal, "sound_src", s if v.get() else None)).pack(
                 anchor="w", pady=(6, 1))
@@ -591,17 +635,18 @@ class Guide(object):
     def count_mods(self):
         n = len(self.cal.toggle)
         if getattr(self, "mods_count", None) and self.mods_count.winfo_exists():
-            self.mods_count.configure(text="%d seasonal mod%s checked." % (
-                n, "" if n == 1 else "s"))
+            self.mods_count.configure(text=ngettext("%d seasonal mod checked.",
+                                                    "%d seasonal mods checked.", n) % n)
 
     # 3. the seasons
 
     def step_seasons(self):
         tk, ttk = self.tk, self.ttk
-        self.heading("When do the seasons turn?")
-        self.para("Polesia's dates follow the land around Chornobyl: the days it changes, not "
-                  "the equinoxes. You can pick another calendar, set your own dates - a season "
-                  "turned off gives its days to the one before it - or rename the seasons.")
+        self.heading(_("When do the seasons turn?"))
+        self.para(_("Polesia's dates follow the land around Chornobyl: the days it changes, "
+                    "not the equinoxes. You can pick another calendar, set your own dates - a "
+                    "season turned off gives its days to the one before it - or rename the "
+                    "seasons."))
         cols = ttk.Frame(self.page)
         cols.pack(fill="both", expand=True, pady=(10, 0))
         right = ttk.Frame(cols)
@@ -610,21 +655,21 @@ class Guide(object):
         left.pack(side="left", fill="both", expand=True)
         self.dial = DialView(right, tk, ttk)
         presets = calendar_presets()
-        match = [n for n, _, d in presets if d == self.cal.dates]
+        match = [n for n, __, d in presets if d == self.cal.dates]
         self.cal_var = tk.StringVar(value=match[0] if match else "own")
-        self.cal_dates = {n: d for n, _, d in presets}
+        self.cal_dates = {n: d for n, __, d in presets}
         for name, about, dates in presets:
-            ttk.Radiobutton(left, text=name + ("  (recommended)" if dates == ce.polesia()
-                                               else ""), value=name, variable=self.cal_var,
+            ttk.Radiobutton(left, text=_("%s  (recommended)") % name if dates == ce.polesia()
+                            else name, value=name, variable=self.cal_var,
                             command=self.pick_calendar).pack(anchor="w", pady=(6, 0))
             self.para(dates_words(dates), parent=left, color=cf.GREY, pad=(0, 0), indent=24,
                       wrap=560)
-        ttk.Radiobutton(left, text="My own dates", value="own", variable=self.cal_var,
+        ttk.Radiobutton(left, text=_("My own dates"), value="own", variable=self.cal_var,
                         command=self.pick_calendar).pack(anchor="w", pady=(6, 0))
         self.own_box = ttk.Frame(left)
         self.own_grid(self.own_box)
         self.names_on = tk.BooleanVar(value=bool(self.cal.names))
-        self.names_check = ttk.Checkbutton(left, text="Give the seasons names of my own",
+        self.names_check = ttk.Checkbutton(left, text=_("Give the seasons names of my own"),
                                            variable=self.names_on, command=self.show_names)
         self.names_check.pack(anchor="w", pady=(14, 0))
         self.names_box = ttk.Frame(left)
@@ -632,27 +677,37 @@ class Guide(object):
         self.season_msg = ttk.Label(left, text="", foreground=cf.RED, wraplength=560,
                                     justify="left")
         self.season_msg.pack(anchor="w", pady=(8, 0))
-        self.subhead("Seasons of your own", parent=left)
-        self.para("A stretch of the year with a name of your own, a week or longer, that runs "
-                  "on top of the season it falls in: the mods you put on in it come on for "
-                  "those days, and the season's own mods stay on. You can have up to %d."
-                  % season.OWN_MOST, parent=left, color=cf.GREY, pad=(0, 0), wrap=560)
+        self.subhead(_("Seasons of your own"), parent=left)
+        self.para(ngettext("A stretch of the year with a name of your own, a week or longer, "
+                           "that runs on top of the season it falls in: the mods you put on in "
+                           "it come on for those days, and the season's own mods stay on. You "
+                           "can have up to %d.",
+                           "A stretch of the year with a name of your own, a week or longer, "
+                           "that runs on top of the season it falls in: the mods you put on in "
+                           "it come on for those days, and the season's own mods stay on. You "
+                           "can have up to %d.", season.OWN_MOST) % season.OWN_MOST,
+                  parent=left, color=cf.GREY, pad=(0, 0), wrap=560)
         self.own_box_list = ttk.Frame(left)
         self.own_box_list.pack(anchor="w", fill="x", pady=(6, 0))
         row = ttk.Frame(left)
         row.pack(anchor="w", pady=(6, 0))
-        self.button(row, "Add a season of your own...", self.add_own, pad=0)
-        self.subhead("Spells", parent=left)
-        self.para("A short stretch, 1 to %d days, that starts by chance: on each day of the "
-                  "seasons you pick there is a chance of it. It can bring another season with "
-                  "it - winter for a day or two in summer - or switch on only the mods you put "
-                  "on during it." % season.SPELL_MOST_DAYS, parent=left, color=cf.GREY,
-                  pad=(0, 0), wrap=560)
+        self.button(row, _("Add a season of your own..."), self.add_own, pad=0)
+        self.subhead(_("Spells"), parent=left)
+        self.para(ngettext("A short stretch, 1 to %d day, that starts by chance: on each day of "
+                           "the seasons you pick there is a chance of it. It can bring another "
+                           "season with it - winter for a day or two in summer - or switch on "
+                           "only the mods you put on during it.",
+                           "A short stretch, 1 to %d days, that starts by chance: on each day "
+                           "of the seasons you pick there is a chance of it. It can bring "
+                           "another season with it - winter for a day or two in summer - or "
+                           "switch on only the mods you put on during it.",
+                           season.SPELL_MOST_DAYS) % season.SPELL_MOST_DAYS,
+                  parent=left, color=cf.GREY, pad=(0, 0), wrap=560)
         self.spell_box_list = ttk.Frame(left)
         self.spell_box_list.pack(anchor="w", fill="x", pady=(6, 0))
         row = ttk.Frame(left)
         row.pack(anchor="w", pady=(6, 0))
-        self.button(row, "Add a spell...", self.add_spell, pad=0)
+        self.button(row, _("Add a spell..."), self.add_spell, pad=0)
         self.show_own()
         self.seasons_bad, self.names_bad = [], []
         self.pick_calendar(keep=True)
@@ -665,45 +720,51 @@ class Guide(object):
             w.destroy()
         cal = self.cal
         if not cal.own:
-            ttk.Label(self.own_box_list, text="None yet.", foreground=cf.GREY).pack(anchor="w")
+            ttk.Label(self.own_box_list, text=_("None yet."), foreground=cf.GREY).pack(
+                anchor="w")
         for n in cal.own_order():
             line = ttk.Frame(self.own_box_list)
             line.pack(anchor="w", fill="x", pady=1)
             ttk.Label(line, text=n, style="Head.TLabel", width=26).pack(side="left")
-            users = len(cal.users_of(n))
-            ttk.Label(line, text="%s, %d days; %s" % (
-                ce.window_text(cal.own[n]), season.own_days(cal.own[n]),
-                "on for %d mod%s" % (users, "" if users == 1 else "s") if users
-                else "no mods on in it yet"), foreground=cf.GREY).pack(side="left")
-            self.button(line, "Remove", lambda n=n: self.remove_own(n), side="right", pad=0)
-            self.button(line, "Change...", lambda n=n: cf.own_season_dialog(
-                self.root, self.cal, editing=n, done=lambda _: self.show_own()),
+            users, days = len(cal.users_of(n)), season.own_days(cal.own[n])
+            mods = (ngettext("on for %d mod", "on for %d mods", users) % users if users
+                    else _("no mods on in it yet"))
+            # translators: %(mods)s is "on for 2 mods" or "no mods on in it yet"
+            text = ngettext("%(dates)s, %(days)d day; %(mods)s",
+                            "%(dates)s, %(days)d days; %(mods)s", days) % {
+                "dates": ce.window_text(cal.own[n]), "days": days, "mods": mods}
+            ttk.Label(line, text=text, foreground=cf.GREY).pack(side="left")
+            self.button(line, _("Remove"), lambda n=n: self.remove_own(n), side="right",
+                        pad=0)
+            self.button(line, _("Change..."), lambda n=n: cf.own_season_dialog(
+                self.root, self.cal, editing=n, done=lambda name: self.show_own()),
                 side="right")
         for w in self.spell_box_list.winfo_children():
             w.destroy()
         if not cal.spells:
-            ttk.Label(self.spell_box_list, text="None yet.", foreground=cf.GREY).pack(
+            ttk.Label(self.spell_box_list, text=_("None yet."), foreground=cf.GREY).pack(
                 anchor="w")
         for n in sorted(cal.spells, key=str.casefold):
             line = ttk.Frame(self.spell_box_list)
             line.pack(anchor="w", fill="x", pady=1)
             ttk.Label(line, text=n, style="Head.TLabel", width=26).pack(side="left")
-            self.button(line, "Remove", lambda n=n: self.remove_spell(n), side="right", pad=0)
-            self.button(line, "Change...", lambda n=n: cf.spell_dialog(
-                self.root, self.cal, editing=n, done=lambda _: self.show_own()),
+            self.button(line, _("Remove"), lambda n=n: self.remove_spell(n), side="right",
+                        pad=0)
+            self.button(line, _("Change..."), lambda n=n: cf.spell_dialog(
+                self.root, self.cal, editing=n, done=lambda name: self.show_own()),
                 side="right")
             ttk.Label(line, text=cf.spell_words(cal, cal.spells[n]), foreground=cf.GREY,
                       wraplength=340, justify="left").pack(side="left")
 
     def add_own(self):
-        cf.own_season_dialog(self.root, self.cal, done=lambda _: self.show_own())
+        cf.own_season_dialog(self.root, self.cal, done=lambda name: self.show_own())
 
     def remove_own(self, name):
         if cf.remove_own_season(self.root, self.cal, name):
             self.show_own()
 
     def add_spell(self):
-        cf.spell_dialog(self.root, self.cal, done=lambda _: self.show_own())
+        cf.spell_dialog(self.root, self.cal, done=lambda name: self.show_own())
 
     def remove_spell(self, name):
         if cf.remove_spell(self.root, self.cal, name):
@@ -729,11 +790,11 @@ class Guide(object):
         for i, s in enumerate(season.SEASONS):
             m, d = self.cal.dates.get(s, ce.polesia()[s])
             on = tk.BooleanVar(value=s in self.cal.dates)
-            mon, day = tk.StringVar(value=ce.MONTHS[m - 1]), tk.StringVar(value=str(d))
-            ttk.Checkbutton(parent, text=season.default_label(s).capitalize(), variable=on,
+            mon, day = tk.StringVar(value=lang.month(m)), tk.StringVar(value=str(d))
+            ttk.Checkbutton(parent, text=usual_title(s), variable=on,
                             width=13, command=self.own_edited).grid(row=i, column=0,
                                                                     sticky="w", pady=2)
-            cb = ttk.Combobox(parent, textvariable=mon, values=ce.MONTHS, state="readonly",
+            cb = ttk.Combobox(parent, textvariable=mon, values=lang.months(), state="readonly",
                               width=5)
             cb.grid(row=i, column=1, sticky="w")
             cb.bind("<<ComboboxSelected>>", lambda e: self.own_edited())
@@ -748,38 +809,40 @@ class Guide(object):
 
     def fill_own(self, dates):
         wins = ce.season_windows(dates) if not season.calendar_problems(dates) else {}
+        off = pgettext("a season, turned off", "off")
         for s, (on, mon, day, runs) in self.own_rows.items():
             if s in dates:
                 on.set(True)
-                mon.set(ce.MONTHS[dates[s][0] - 1])
+                mon.set(lang.month(dates[s][0]))
                 day.set(str(dates[s][1]))
             else:
                 on.set(False)
-            runs.configure(text=wins.get(s, "off") if s in dates else "off")
+            runs.configure(text=wins.get(s, off) if s in dates else off)
 
     def own_edited(self):
         dates, bad = {}, []
         for s, (on, mon, day, runs) in self.own_rows.items():
             if not on.get():
                 continue
-            m = ce.MONTHS.index(mon.get()) + 1
+            m = lang.months().index(mon.get()) + 1
             d = int(day.get()) if cf.DAY_BOX.match(day.get()) else 0
             last = 28 if m == 2 else ce.DAYS[m - 1]
             if d > last:
                 d = last
                 day.set(str(d))
             if d < 1:
-                bad.append(season.default_label(s))
+                bad.append(season.usual_name(s))
             else:
                 dates[s] = (m, d)
-        problems = (["Give %s a start day." % " and ".join(bad)] if bad else
-                    ["Check at least one season."] if not dates else
+        problems = ([_("Give %s a start day.") % lang.and_list(bad)] if bad else
+                    [_("Check at least one season.")] if not dates else
                     [cf.plain(p) for p in season.calendar_problems(dates)])
         if not problems:
             self.cal.set_dates(dates)
         wins = ce.season_windows(dates) if not problems else {}
+        off = pgettext("a season, turned off", "off")
         for s, (on, mon, day, runs) in self.own_rows.items():
-            runs.configure(text=wins.get(s, "") if on.get() else "off")
+            runs.configure(text=wins.get(s, "") if on.get() else off)
         self.seasons_bad = problems
         self.show_msgs()
         self.redraw()
@@ -789,7 +852,7 @@ class Guide(object):
         fits = self.root.register(lambda text: len(text) <= season.NAME_CHARS)
         self.name_vars = {}
         for i, s in enumerate(season.SEASONS):
-            ttk.Label(parent, text=season.default_label(s).capitalize(), width=13).grid(
+            ttk.Label(parent, text=usual_title(s), width=13).grid(
                 row=i, column=0, sticky="w", pady=2)
             v = tk.StringVar(value=self.cal.names.get(s, ""))
             e = ttk.Entry(parent, textvariable=v, width=24, validate="key",
@@ -797,10 +860,11 @@ class Guide(object):
             e.grid(row=i, column=1, sticky="w")
             e.bind("<KeyRelease>", lambda ev: self.names_edited())
             self.name_vars[s] = v
-        ttk.Label(parent, text="Up to %d letters. Leave one empty for its usual name."
-                  % season.NAME_CHARS, foreground=cf.GREY).grid(row=6, column=0,
-                                                                columnspan=2, sticky="w",
-                                                                pady=(4, 0))
+        ttk.Label(parent, text=ngettext("Up to %d letter. Leave one empty for its usual name.",
+                                        "Up to %d letters. Leave one empty for its usual name.",
+                                        season.NAME_CHARS) % season.NAME_CHARS,
+                  foreground=cf.GREY).grid(row=6, column=0, columnspan=2, sticky="w",
+                                           pady=(4, 0))
 
     def show_names(self):
         if self.names_on.get():
@@ -831,15 +895,16 @@ class Guide(object):
 
     def step_weather(self):
         tk, ttk = self.tk, self.ttk
-        self.heading("Where should the real weather come from?")
-        self.para("The PDA's temperature, its Forecast page and the freezing, thaw and heat "
-                  "days follow the real weather at one place. play.bat asks Open-Meteo for "
-                  "that place's day at each launch, sending its coordinates and nothing else.")
+        self.heading(_("Where should the real weather come from?"))
+        self.para(_("The PDA's temperature, its Forecast page and the freezing, thaw and heat "
+                    "days follow the real weather at one place. play.bat asks Open-Meteo for "
+                    "that place's day at each launch, sending its coordinates and nothing "
+                    "else."))
         self.where = tk.StringVar(value="elsewhere" if self.cal.place else "chornobyl")
-        ttk.Radiobutton(self.page, text="Chornobyl, the real Zone  (recommended)",
+        ttk.Radiobutton(self.page, text=_("Chornobyl, the real Zone  (recommended)"),
                         value="chornobyl", variable=self.where,
                         command=self.pick_where).pack(anchor="w", pady=(12, 0))
-        ttk.Radiobutton(self.page, text="Somewhere else", value="elsewhere",
+        ttk.Radiobutton(self.page, text=_("Somewhere else"), value="elsewhere",
                         variable=self.where, command=self.pick_where).pack(anchor="w",
                                                                            pady=(6, 0))
         self.where_box = ttk.Frame(self.page)
@@ -849,40 +914,40 @@ class Guide(object):
         entry = ttk.Entry(row, textvariable=self.query, width=34)
         entry.pack(side="left")
         entry.bind("<Return>", lambda e: self.find_place())
-        self.button(row, "Search", self.find_place)
-        ttk.Label(row, text="a town or city, like Kyiv or New York", foreground=cf.GREY).pack(
-            side="left", padx=(10, 0))
+        self.button(row, _("Search"), self.find_place)
+        ttk.Label(row, text=_("a town or city, like Kyiv or New York"),
+                  foreground=cf.GREY).pack(side="left", padx=(10, 0))
         self.found = tk.Listbox(self.where_box, height=5, width=80, exportselection=False,
                                 activestyle="dotbox")
         self.found.pack(anchor="w", pady=(6, 0))
         self.found.bind("<Double-Button-1>", lambda e: self.use_found())
         row = ttk.Frame(self.where_box)
         row.pack(fill="x", pady=(6, 0))
-        self.button(row, "Use this place", self.use_found, pad=0)
+        self.button(row, _("Use this place"), self.use_found, pad=0)
         self.found_msg = ttk.Label(row, text="", foreground=cf.GREY)
         self.found_msg.pack(side="left", padx=(10, 0))
         cf.credit(self.where_box, cf.PLACES_CREDIT).pack(anchor="w", pady=(4, 0))
         row = ttk.Frame(self.where_box)
         row.pack(fill="x", pady=(10, 0))
-        ttk.Label(row, text="Or its coordinates:").pack(side="left")
+        ttk.Label(row, text=_("Or its coordinates:")).pack(side="left")
         self.lat, self.lon, self.named = tk.StringVar(), tk.StringVar(), tk.StringVar()
-        for text, var, width in (("latitude", self.lat, 8), ("longitude", self.lon, 8),
-                                 ("name", self.named, 20)):
+        for text, var, width in ((_("latitude"), self.lat, 8), (_("longitude"), self.lon, 8),
+                                 (pgettext("a place's name", "name"), self.named, 20)):
             ttk.Label(row, text=text, foreground=cf.GREY).pack(side="left", padx=(10, 4))
             ttk.Entry(row, textvariable=var, width=width).pack(side="left")
-        self.button(row, "Use these", self.use_coords, pad=10)
+        self.button(row, _("Use these"), self.use_coords, pad=10)
         self.place_label = ttk.Label(self.page, text="", style="Head.TLabel")
         self.place_label.pack(anchor="w", pady=(16, 0))
         row = ttk.Frame(self.page)
         row.pack(fill="x", pady=(6, 0))
-        self.button(row, "Today's weather there", self.check_place, pad=0)
+        self.button(row, _("Today's weather there"), self.check_place, pad=0)
         self.check_label = ttk.Label(self.page, text="", justify="left")
         self.check_label.pack(anchor="w", pady=(6, 0))
         self.check_credit = cf.credit(self.page, cf.WEATHER_CREDIT)
         self.climate = ttk.Frame(self.page)
-        self.para("For a place other than Chornobyl, saving also looks up its climate once - "
-                  "its last ten years of highs and lows - so the game can model a day there "
-                  "without a connection.", parent=self.climate, color=cf.GREY)
+        self.para(_("For a place other than Chornobyl, saving also looks up its climate once "
+                    "- its last ten years of highs and lows - so the game can model a day "
+                    "there without a connection."), parent=self.climate, color=cf.GREY)
         cf.credit(self.climate, cf.CLIMATE_CREDIT).pack(anchor="w", pady=(2, 0))
         self.pick_where()
 
@@ -898,9 +963,11 @@ class Guide(object):
         self.show_place()
 
     def show_place(self):
-        self.place_label.configure(text="Weather from: %s" % (
-            ce.place_text(self.cal.place) if self.cal.place or self.where.get() == "chornobyl"
-            else "pick a place above"))
+        if self.cal.place or self.where.get() == "chornobyl":
+            text = _("Weather from: %s") % ce.place_text(self.cal.place)
+        else:
+            text = _("Weather from: pick a place above")
+        self.place_label.configure(text=text)
         self.check_label.configure(text="")
         self.check_credit.pack_forget()
 
@@ -910,8 +977,10 @@ class Guide(object):
                 import fetch_weather
                 self._fw = fetch_weather
             except ImportError:
-                label.configure(text="_tools\\fetch_weather.py is missing. Copy _tools from "
-                                "the mod's folder again.", foreground=cf.RED)
+                # translators: %s is a file in the tools' folder, _tools
+                label.configure(text=_("%s is missing. Copy _tools from the mod's folder "
+                                       "again.") % "_tools\\fetch_weather.py",
+                                foreground=cf.RED)
         return self._fw
 
     def find_place(self):
@@ -920,9 +989,9 @@ class Guide(object):
         if not fw:
             return
         if not text:
-            self.found_msg.configure(text="Type a place to look for.", foreground=cf.RED)
+            self.found_msg.configure(text=_("Type a place to look for."), foreground=cf.RED)
             return
-        self.found_msg.configure(text="Looking it up...", foreground=cf.GREY)
+        self.found_msg.configure(text=_("Looking it up..."), foreground=cf.GREY)
         self.found.delete(0, "end")
         self._found = []
 
@@ -930,7 +999,8 @@ class Guide(object):
             if not self.found.winfo_exists():
                 return
             if error is not None:
-                self.found_msg.configure(text="Couldn't reach open-meteo.com (%s)."
+                # translators: %s is the kind of error, as Python names it
+                self.found_msg.configure(text=_("Couldn't reach open-meteo.com (%s).")
                                          % type(error).__name__, foreground=cf.RED)
                 return
             self._found = found
@@ -938,17 +1008,19 @@ class Guide(object):
                 self.found.insert("end", cf.found_text(p))
             if found:
                 self.found.selection_set(0)
-            self.found_msg.configure(
-                text=("%d found. Pick one and press Use this place." % len(found)) if found
-                else "Nothing by that name. Try another spelling.",
-                foreground=cf.GREY if found else cf.RED)
+            # translators: Use this place is the button's name
+            msg = (ngettext("%d found. Pick one and press Use this place.",
+                            "%d found. Pick one and press Use this place.", len(found))
+                   % len(found) if found else _("Nothing by that name. Try another spelling."))
+            self.found_msg.configure(text=msg, foreground=cf.GREY if found else cf.RED)
 
         self.in_background(lambda: fw.search(text), done)
 
     def use_found(self):
         sel = self.found.curselection()
         if not sel or sel[0] >= len(self._found):
-            self.found_msg.configure(text="Pick a place in the list first.", foreground=cf.RED)
+            self.found_msg.configure(text=_("Pick a place in the list first."),
+                                     foreground=cf.RED)
             return
         f = self._found[sel[0]]
         self.cal.set_place({"name": f["name"][:season.PLACE_CHARS].strip(), "lat": f["lat"],
@@ -967,8 +1039,8 @@ class Guide(object):
 
         lat, lon = number(self.lat.get()), number(self.lon.get())
         if lat is None or lon is None:
-            self.found_msg.configure(text="Give the latitude and longitude as numbers, like "
-                                     "50.45 and 30.52.", foreground=cf.RED)
+            self.found_msg.configure(text=_("Give the latitude and longitude as numbers, like "
+                                            "50.45 and 30.52."), foreground=cf.RED)
             return
         place = {"name": self.named.get().strip() or "%.2f, %.2f" % (lat, lon),
                  "lat": lat, "lon": lon}
@@ -986,21 +1058,25 @@ class Guide(object):
         if not fw:
             return
         place = self.cal.place or ce.DEFAULT_PLACE
-        self.check_label.configure(text="Asking open-meteo.com...", foreground=cf.GREY)
+        self.check_label.configure(text=_("Asking open-meteo.com..."), foreground=cf.GREY)
         self.check_credit.pack_forget()
 
         def done(rows, error):
             if not self.check_label.winfo_exists():
                 return
             if error is not None or not rows:
-                self.check_label.configure(text="Couldn't reach open-meteo.com (%s)."
+                # translators: %s is the kind of error, as Python names it
+                self.check_label.configure(text=_("Couldn't reach open-meteo.com (%s).")
                                            % type(error).__name__, foreground=cf.RED)
                 return
             t = rows[0]
-            self.check_label.configure(foreground="#000000", text=(
-                "Today in %s: high %.0f°C (%.0f°F), low %.0f°C (%.0f°F), "
-                "%s." % (place["name"], t["high"], t["high"] * 9 / 5 + 32, t["low"],
-                         t["low"] * 9 / 5 + 32, cf.SKY.get(t["cycle"], t["cycle"]))))
+            # translators: %(sky)s is the sky that day, like "partly cloudy"
+            self.check_label.configure(foreground="#000000", text=_(
+                "Today in %(place)s: high %(high).0f°C (%(high_f).0f°F), low %(low).0f°C "
+                "(%(low_f).0f°F), %(sky)s.") % {
+                    "place": place["name"], "high": t["high"], "high_f": t["high"] * 9 / 5 + 32,
+                    "low": t["low"], "low_f": t["low"] * 9 / 5 + 32,
+                    "sky": cf.SKY.get(t["cycle"], t["cycle"])})
             self.check_credit.pack(anchor="w", after=self.check_label)
 
         self.in_background(lambda: fw.to_rows(fw.fetch(place)), done)
@@ -1009,7 +1085,7 @@ class Guide(object):
 
     def step_review(self):
         ttk = self.ttk
-        self.heading("Check it, then save")
+        self.heading(_("Check it, then save"))
         grid = ttk.Frame(self.page)
         grid.pack(anchor="w", pady=(12, 0))
         for i, (what, text) in enumerate(self.review_rows()):
@@ -1019,39 +1095,52 @@ class Guide(object):
                 row=i, column=1, sticky="w", padx=(18, 0), pady=3)
         now, on = on_today(self.cal)
         n = len(self.cal.toggle)
-        self.para(("Today is %s. With this setup, play.bat has %s on, and the other %d off "
-                   "until their seasons." % (cf.label(now, self.cal),
-                                             ce.few(on, 3) if on else "none of them",
-                                             n - len(on))) if n else
-                  "With no seasonal mods, play.bat has nothing to switch. The seasonal "
-                  "atmosphere runs all the same.", pad=(16, 0))
+        if not n:
+            text = _("With no seasonal mods, play.bat has nothing to switch. The seasonal "
+                     "atmosphere runs all the same.")
+        elif on:
+            # translators: %(on)s is a list of the mods on today
+            text = ngettext("Today is %(season)s. With this setup, play.bat has %(on)s on, and "
+                            "the other %(off)d off until their seasons.",
+                            "Today is %(season)s. With this setup, play.bat has %(on)s on, and "
+                            "the other %(off)d off until their seasons.", n - len(on)) % {
+                "season": cf.label(now, self.cal), "on": ce.few(on, 3), "off": n - len(on)}
+        else:
+            text = ngettext("Today is %(season)s. With this setup, play.bat has none of them "
+                            "on, and the other %(off)d off until their seasons.",
+                            "Today is %(season)s. With this setup, play.bat has none of them "
+                            "on, and the other %(off)d off until their seasons.", n) % {
+                "season": cf.label(now, self.cal), "off": n}
+        self.para(text, pad=(16, 0))
         problems = raw_problems(self.cal)
         if problems:
-            self.subhead("Fix these first; play.bat would refuse the setup as it is:")
+            self.subhead(_("Fix these first; play.bat would refuse the setup as it is:"))
             self.problem_rows(self.page, problems)
         row = ttk.Frame(self.page)
         row.pack(anchor="w", pady=(16, 0))
-        self.button(row, "Preview what play.bat would do...",
+        self.button(row, _("Preview what play.bat would do..."),
                     lambda: cf.show_preview(self.root, self.cal), pad=0)
-        self.para("Save writes _tools\\seasons_config.py; the file it replaces is kept beside "
-                  "it as seasons_config.py.bak.", color=cf.GREY, pad=(14, 0))
+        # translators: Save is the button's name; %s is the file it writes
+        self.para(_("Save writes %s; the file it replaces is kept beside it as "
+                    "seasons_config.py.bak.") % "_tools\\seasons_config.py", color=cf.GREY,
+                  pad=(14, 0))
 
     def review_rows(self):
         cal = self.cal
-        rows = [("Seasonal mods", "%d: %s" % (len(cal.toggle), ce.few(cal.toggle, 3))
-                 if cal.toggle else "none")]
+        rows = [(_("Seasonal mods"), "%d: %s" % (len(cal.toggle), ce.few(cal.toggle, 3))
+                 if cal.toggle else _("none"))]
         if cal.layout:
-            rows.append(("Texture sets", ce.few(cal.layout, 3)))
+            rows.append((_("Texture sets"), ce.few(cal.layout, 3)))
         if cal.sound_src:
-            rows.append(("Ambient sound", "follows the season, from %s" % cal.sound_src))
-        rows.append(("Seasons", seasons_words(cal)))
+            rows.append((_("Ambient sound"), _("follows the season, from %s") % cal.sound_src))
+        rows.append((_("Seasons"), seasons_words(cal)))
         if cal.own:
-            rows.append(("Seasons of your own", own_words(cal)))
+            rows.append((_("Seasons of your own"), own_words(cal)))
         if cal.spells:
-            rows.append(("Spells", ce.few(cal.spells, 4)))
-        rows.append(("Weather from", ce.place_text(cal.place)))
+            rows.append((_("Spells"), ce.few(cal.spells, 4)))
+        rows.append((_("Weather from"), ce.place_text(cal.place)))
         if cal.events:
-            rows.append(("Events", ce.few(cal.events, 4)))
+            rows.append((_("Events"), ce.few(cal.events, 4)))
         return rows
 
     def problem_rows(self, parent, problems):
@@ -1060,18 +1149,18 @@ class Guide(object):
             line = ttk.Frame(parent)
             line.pack(fill="x", pady=1)
             key = step_for(p)
-            self.button(line, "Fix", (lambda k=key: self.fix(k)), side="right", pad=0)
+            self.button(line, _("Fix"), (lambda k=key: self.fix(k)), side="right", pad=0)
             ttk.Label(line, text="- " + cf.plain(p), foreground=cf.RED, wraplength=760,
                       justify="left").pack(side="left", anchor="w")
         if len(problems) > 5:
-            ttk.Label(parent, text="and %d more" % (len(problems) - 5),
-                      foreground=cf.RED).pack(anchor="w")
+            ttk.Label(parent, text=ngettext("and %d more", "and %d more", len(problems) - 5)
+                      % (len(problems) - 5), foreground=cf.RED).pack(anchor="w")
 
     def fix(self, key):
         if key is None:
             self.advanced()
         elif self.mode == "steps":
-            self.step = [k for k, _ in STEPS].index(key)
+            self.step = STEPS.index(key)
             self.render()
         else:
             self.edit(key)
@@ -1079,19 +1168,19 @@ class Guide(object):
     # 6. how to play
 
     def step_done(self):
-        self.heading("All set")
+        self.heading(_("All set"))
         if self.saved_lines:
             self.para("\n".join(l for l in self.saved_lines if l), color=cf.GREY)
-        self.subhead("How to play")
-        self.para("From now on, start the game with play.bat in your GAMMA folder, not from "
-                  "MO2. Each time, it switches the seasonal mods for the day, then opens MO2 "
-                  "and starts the game. Most days it has nothing to switch.")
+        self.subhead(_("How to play"))
+        self.para(_("From now on, start the game with play.bat in your GAMMA folder, not from "
+                    "MO2. Each time, it switches the seasonal mods for the day, then opens MO2 "
+                    "and starts the game. Most days it has nothing to switch."))
         self.shortcut_row(self.page).pack(anchor="w", pady=(12, 0))
-        self.para("To change any of this later, open configure.bat again: it opens to a "
-                  "summary of your setup.", color=cf.GREY, pad=(16, 0))
+        self.para(_("To change any of this later, open configure.bat again: it opens to a "
+                    "summary of your setup."), color=cf.GREY, pad=(16, 0))
         row = self.ttk.Frame(self.page)
         row.pack(anchor="w", pady=(10, 0))
-        self.button(row, "Save this setup as a preset...",
+        self.button(row, _("Save this setup as a preset..."),
                     lambda: cf.save_preset_dialog(self.root, self.cal), pad=0)
 
     def shortcut_row(self, parent):
@@ -1102,7 +1191,8 @@ class Guide(object):
         entries = installer.mo2_entries(self.gamma)
         now = installer.read_shortcut(play)
         line = ttk.Frame(parent)
-        ttk.Label(line, text="play.bat starts").pack(side="left")
+        # translators: followed by a list of the programs MO2 can start, like Anomaly (DX11)
+        ttk.Label(line, text=_("play.bat starts")).pack(side="left")
         var = tk.StringVar(value=now or "")
         combo = ttk.Combobox(line, textvariable=var, state="readonly", width=34,
                              values=entries + ([now] if now and now not in entries else []))
@@ -1113,13 +1203,13 @@ class Guide(object):
         def show():
             if not os.path.isfile(play):
                 combo.configure(state="disabled")
-                status.configure(text="play.bat isn't in your GAMMA folder. Open "
-                                 "configure.bat from the mod's folder to put it there.",
+                status.configure(text=_("play.bat isn't in your GAMMA folder. Open "
+                                        "configure.bat from the mod's folder to put it there."),
                                  foreground=cf.RED)
             elif var.get() in entries:
-                status.configure(text="✓ MO2 has this entry", foreground=GREEN)
+                status.configure(text=_("✓ MO2 has this entry"), foreground=GREEN)
             else:
-                status.configure(text="MO2 has no entry by that name. Pick one.",
+                status.configure(text=_("MO2 has no entry by that name. Pick one."),
                                  foreground=cf.RED)
 
         def pick(e=None):
@@ -1144,8 +1234,8 @@ class Guide(object):
         moved, placed = cf.calendar_moved(self.cal), self.cal.place_changed()
         saved, lines = self.cal.save()
         if not saved:
-            messagebox.showerror("Save", "\n".join(cf.plain(l) for l in lines),
-                                 parent=self.root)
+            messagebox.showerror(pgettext("dialog title", "Save"),
+                                 "\n".join(cf.plain(l) for l in lines), parent=self.root)
             return False
         extra = []
         if self.cal.wrote:
@@ -1155,7 +1245,8 @@ class Guide(object):
                 ok, out = cf.draw_dial()
                 extra += [""] + (cf.dial_sentence(self.cal) if ok else out)
             if placed:
-                extra += ["", "The weather now comes from %s:" % ce.place_text(self.cal.place)]
+                extra += ["", _("The weather now comes from %s:")
+                          % ce.place_text(self.cal.place)]
                 extra += cf.fetch_now()
             self.root.configure(cursor="")
         self.saved_lines = lines + extra
@@ -1180,56 +1271,63 @@ class Guide(object):
         self.cal = ce.Calendar()
         self.kept, self.kept_layout = {}, {}
         self.clear()
-        self.heading("Seasons of the Zone")
+        self.heading(_("Seasons of the Zone"))
         if self.cal.error:
             # changed on disk while the window was open, into something it can't read
-            self.para("seasons_config.py can't be read now:\n" + "\n".join(self.cal.error),
+            self.para("\n".join([_("seasons_config.py can't be read now:")] + self.cal.error),
                       color=cf.RED)
-            self.para("Fix it in Notepad and open configure.bat again. It is %s."
+            self.para(_("Fix it in Notepad and open configure.bat again. It is %s.")
                       % self.cal.path)
-            self.button(self.bar, "Close", self.close, default=True, side="right", pad=0)
+            self.button(self.bar, _("Close"), self.close, default=True, side="right", pad=0)
             return
-        self.para("Your setup, as saved. Change any part; each change is saved on its own.")
+        self.para(_("Your setup, as saved. Change any part; each change is saved on its own."))
         grid = ttk.Frame(self.page)
         grid.pack(anchor="w", fill="x", pady=(14, 0))
         cal = self.cal
-        rows = [("Seasonal mods", "%d: %s" % (len(cal.toggle), ce.few(cal.toggle, 3))
-                 if cal.toggle else "none yet", lambda: self.edit("mods"))]
+        rows = [(_("Seasonal mods"), "%d: %s" % (len(cal.toggle), ce.few(cal.toggle, 3))
+                 if cal.toggle else _("none yet"), lambda: self.edit("mods"))]
         if cal.layout or cal.sound_src:
-            rows.append(("Texture sets and sound", "; ".join(
-                ([ce.few(cal.layout, 2)] if cal.layout else [])
-                + (["ambient sound from %s" % cal.sound_src] if cal.sound_src else [])),
-                lambda: self.edit("mods")))
-        rows += [("Seasons", seasons_words(cal), lambda: self.edit("seasons")),
-                 ("Seasons of your own", own_words(cal) if cal.own else "none yet",
+            if cal.layout and cal.sound_src:
+                # translators: %(sets)s is a list of the mods whose texture sets are swapped
+                text = _("%(sets)s; ambient sound from %(mod)s") % {
+                    "sets": ce.few(cal.layout, 2), "mod": cal.sound_src}
+            elif cal.layout:
+                text = ce.few(cal.layout, 2)
+            else:
+                text = _("ambient sound from %s") % cal.sound_src
+            rows.append((_("Texture sets and sound"), text, lambda: self.edit("mods")))
+        rows += [(_("Seasons"), seasons_words(cal), lambda: self.edit("seasons")),
+                 (_("Seasons of your own"), own_words(cal) if cal.own else _("none yet"),
                   lambda: self.edit("seasons")),
-                 ("Spells", ce.few(cal.spells, 3) if cal.spells else "none yet",
+                 (_("Spells"), ce.few(cal.spells, 3) if cal.spells else _("none yet"),
                   lambda: self.edit("seasons")),
-                 ("Weather from", ce.place_text(cal.place), lambda: self.edit("weather")),
-                 ("Events", (ce.few(cal.events, 3) + " (changed in the advanced editor)")
-                  if cal.events else "none (made in the advanced editor)", self.advanced)]
+                 (_("Weather from"), ce.place_text(cal.place), lambda: self.edit("weather")),
+                 (_("Events"),
+                  # translators: %s is a list of the player's events
+                  _("%s (changed in the advanced editor)") % ce.few(cal.events, 3)
+                  if cal.events else _("none (made in the advanced editor)"), self.advanced)]
         for i, (what, text, change) in enumerate(rows):
             ttk.Label(grid, text=what, style="Head.TLabel").grid(row=i, column=0, sticky="nw",
                                                                  pady=5)
             ttk.Label(grid, text=text, wraplength=560, justify="left").grid(
                 row=i, column=1, sticky="w", padx=(18, 0), pady=5)
-            ttk.Button(grid, text="Change...", command=change).grid(row=i, column=2,
-                                                                     sticky="e", padx=(18, 0))
+            ttk.Button(grid, text=_("Change..."), command=change).grid(
+                row=i, column=2, sticky="e", padx=(18, 0))
         grid.columnconfigure(1, weight=1)
         self.shortcut_row(self.page).pack(anchor="w", pady=(16, 0))
         if cal.problems:
-            self.subhead("play.bat refuses the setup as it is, until these are fixed:")
+            self.subhead(_("play.bat refuses the setup as it is, until these are fixed:"))
             self.problem_rows(self.page, cal.problems)
         left, right = ttk.Frame(self.bar), ttk.Frame(self.bar)
         left.pack(side="left")
         right.pack(side="right")
-        self.button(left, "Advanced editor...", self.advanced, pad=0)
-        self.button(left, "Run the setup again", lambda: self.steps())
-        self.button(left, "Save as a preset...",
+        self.button(left, _("Advanced editor..."), self.advanced, pad=0)
+        self.button(left, _("Run the setup again"), lambda: self.steps())
+        self.button(left, _("Save as a preset..."),
                     lambda: cf.save_preset_dialog(self.root, self.cal))
         self.language_box(left)
-        self.button(right, "Close", self.close, default=True, side="right", pad=0)
-        self.button(right, "Preview the next launch...",
+        self.button(right, _("Close"), self.close, default=True, side="right", pad=0)
+        self.button(right, _("Preview the next launch..."),
                     lambda: cf.show_preview(self.root, self.cal), side="right")
 
     def edit(self, key):
@@ -1243,13 +1341,13 @@ class Guide(object):
             return
         problems = raw_problems(self.cal)
         if problems:
-            messagebox.showerror("Save", "\n".join(
-                ["play.bat would refuse this:"] + [cf.plain(p) for p in problems]),
+            messagebox.showerror(pgettext("dialog title", "Save"), "\n".join(
+                [_("play.bat would refuse this:")] + [cf.plain(p) for p in problems]),
                 parent=self.root)
             return
         if not self.save_now():
             return
-        messagebox.showinfo("Saved", "\n".join(self.saved_lines), parent=self.root)
+        messagebox.showinfo(_("Saved"), "\n".join(self.saved_lines), parent=self.root)
         self.summary()
 
     # --- leaving --------------------------------------------------------------------------
@@ -1264,8 +1362,9 @@ class Guide(object):
         from tkinter import messagebox
         if self.unsaved():
             ans = messagebox.askyesnocancel(
-                "Advanced editor", "Save what you've set here first? If not, the advanced "
-                "editor opens on the setup as it was saved.", parent=self.root)
+                _("Advanced editor"), _("Save what you've set here first? If not, the "
+                                        "advanced editor opens on the setup as it was saved."),
+                parent=self.root)
             if ans is None or (ans and (raw_problems(self.cal) or not self.save_now())):
                 return
         top = self.tk.Toplevel(self.root)
@@ -1282,7 +1381,8 @@ class Guide(object):
         from tkinter import messagebox
         if self.unsaved():
             if not messagebox.askyesno(
-                    "Close", "Leave without saving? Nothing you set here is kept.",
+                    pgettext("dialog title", "Close"),
+                    _("Leave without saving? Nothing you set here is kept."),
                     parent=self.root, default="no"):
                 return
         self.root.destroy()
@@ -1309,30 +1409,30 @@ class DialView(object):
                 season.MODS, season.SOTZ, "gamedata", "configs", "seasons_of_the_zone.ltx"))
             self.bsd, self.Image, self.ImageTk = build_season_dial, Image, ImageTk
         except ImportError:
-            self.text.configure(text="Showing the dial here needs Pillow, a Python package. "
-                                "Save offers to install it.")
+            self.text.configure(text=_("Showing the dial here needs Pillow, a Python package. "
+                                       "Save offers to install it."))
         except OSError:
-            self.text.configure(text="The mod's configs folder is missing, so the dial "
-                                "can't be drawn here.")
+            self.text.configure(text=_("The mod's configs folder is missing, so the dial "
+                                       "can't be drawn here."))
 
     def draw(self, dates, names, bad=False):
         if self.bsd is None:
             return
         if bad or not dates or season.calendar_problems(dates):
             self.view.configure(image=self.blank)
-            self.text.configure(text="The dial comes back when the lines in red are fixed.")
+            self.text.configure(text=_("The dial comes back when the lines in red are fixed."))
             return
         today = datetime.date.today()
         day = datetime.date(2026, today.month, min(today.day, 28) if today.month == 2
                             else today.day)
         bounds = sorted((m, d, s) for s, (m, d) in dates.items())
-        _, at = self.bsd.shown(day, bounds)
+        __, at = self.bsd.shown(day, bounds)
         im = self.bsd.render(at, self.cols, bounds, dict(names))
         im = self.Image.alpha_composite(self.Image.new("RGBA", im.size, self.PANEL), im)
         self.photo = self.ImageTk.PhotoImage(im.resize((self.PX, self.PX),
                                                        self.Image.LANCZOS))
         self.view.configure(image=self.photo)
-        self.text.configure(text="The dial in MCM and on the PDA, today.")
+        self.text.configure(text=_("The dial in MCM and on the PDA, today."))
 
 
 class ModDialog(object):
@@ -1343,14 +1443,14 @@ class ModDialog(object):
         tk, ttk = guide.tk, guide.ttk
         self.g, self.name = guide, name
         cal = guide.cal
-        win, f = cf.dialog(guide.root, name or "Add a seasonal mod")
+        win, f = cf.dialog(guide.root, name or _("Add a seasonal mod"))
         self.win = win
         entry = ((cal.toggle.get(name) or guide.kept.get(name) or guide.default_entry(name))
                  if name else None)
         when = set(entry["when"]) if entry else set()
         focus = None
         if name is None:
-            ttk.Label(f, text="Which mod?", style="Head.TLabel").pack(anchor="w")
+            ttk.Label(f, text=_("Which mod?"), style="Head.TLabel").pack(anchor="w")
             self.query = tk.StringVar()
             e = ttk.Entry(f, textvariable=self.query, width=50)
             e.pack(anchor="w", pady=(4, 0))
@@ -1362,14 +1462,14 @@ class ModDialog(object):
                           if n not in cal.toggle and n not in own]
             self.fill()
             focus = e
-        ttk.Label(f, text="On in these seasons", style="Head.TLabel").pack(anchor="w",
-                                                                           pady=(12, 4))
+        ttk.Label(f, text=_("On in these seasons"), style="Head.TLabel").pack(anchor="w",
+                                                                              pady=(12, 4))
         grid = ttk.Frame(f)
         grid.pack(anchor="w")
         self.vars = {}
         season_grid(tk, ttk, grid, cal, when, self.vars)
         self.more = tk.BooleanVar(value=bool(when - set(season.SEASONS) - set(cal.own)))
-        ttk.Checkbutton(f, text="More options", variable=self.more,
+        ttk.Checkbutton(f, text=_("More options"), variable=self.more,
                         command=self.show_more).pack(anchor="w", pady=(12, 0))
         # a place held for the options, so they open above the buttons, not under them
         slot = ttk.Frame(f)
@@ -1377,25 +1477,28 @@ class ModDialog(object):
         self.more_box = ttk.Frame(slot)
         extra = sorted(cal.periods) + sorted(cal.events)
         if extra:
-            ttk.Label(self.more_box, text="Also on for these events",
+            ttk.Label(self.more_box, text=_("Also on for these events"),
                       style="Head.TLabel").pack(anchor="w", pady=(6, 2))
             for p in extra:
                 v = tk.BooleanVar(value=p in when)
                 self.vars[p] = v
-                ttk.Checkbutton(self.more_box, text="%s  (%s)" % (p, ce.window_text(
-                    cal.events[p]) if p in cal.events else "a period"), variable=v).pack(
-                    anchor="w")
-        ttk.Label(self.more_box, text="New events are made in the advanced editor.",
+                if p in cal.events:
+                    text = "%s  (%s)" % (p, ce.window_text(cal.events[p]))
+                else:
+                    # translators: %s is the name of a period, a kind of event
+                    text = _("%s  (a period)") % p
+                ttk.Checkbutton(self.more_box, text=text, variable=v).pack(anchor="w")
+        ttk.Label(self.more_box, text=_("New events are made in the advanced editor."),
                   foreground=cf.GREY).pack(anchor="w", pady=(2, 0))
         if cal.spells:
-            ttk.Label(self.more_box, text="Also on during these spells",
+            ttk.Label(self.more_box, text=_("Also on during these spells"),
                       style="Head.TLabel").pack(anchor="w", pady=(10, 2))
             for p in sorted(cal.spells, key=str.casefold):
                 v = tk.BooleanVar(value=p in when)
                 self.vars[p] = v
                 ttk.Checkbutton(self.more_box, text="%s  (%s)" % (
                     p, cf.spell_words(cal, cal.spells[p])), variable=v).pack(anchor="w")
-        ttk.Label(self.more_box, text="And on these kinds of weather at %s"
+        ttk.Label(self.more_box, text=_("And on these kinds of weather at %s")
                   % (cal.place or ce.DEFAULT_PLACE)["name"],
                   style="Head.TLabel").pack(anchor="w", pady=(10, 2))
         for p in season.WEATHER_NAMES:
@@ -1403,27 +1506,28 @@ class ModDialog(object):
             self.vars[p] = v
             ttk.Checkbutton(self.more_box, text="%s: %s" % (p, cf.WEATHER_TEXT[p]),
                             variable=v).pack(anchor="w")
-        self.above_choices = [(None, "picked for you, from the files they share")]
+        self.above_choices = [(None, _("picked for you, from the files they share"))]
         if name:
             for other, n in ce.overlaps(guide.inst, name):
-                self.above_choices.append((other, "%s  (%d shared file%s)" % (
-                    other, n, "" if n == 1 else "s")))
+                self.above_choices.append((other, ngettext(
+                    "%(mod)s  (%(n)d shared file)", "%(mod)s  (%(n)d shared files)", n)
+                    % {"mod": other, "n": n}))
         now = entry["above"] if entry else None
         if now and now not in [c[0] for c in self.above_choices]:
             self.above_choices.append((now, now))
-        ttk.Label(self.more_box, text="Wins over", style="Head.TLabel").pack(anchor="w",
-                                                                           pady=(10, 2))
+        ttk.Label(self.more_box, text=_("Wins over"), style="Head.TLabel").pack(anchor="w",
+                                                                              pady=(10, 2))
         self.above = ttk.Combobox(self.more_box, state="readonly", width=60,
                                   values=[c[1] for c in self.above_choices])
         pick = [i for i, c in enumerate(self.above_choices) if c[0] == now]
         self.above.current(pick[0] if pick and name in cal.toggle else 0)
         self.above.pack(anchor="w")
-        ttk.Label(self.more_box, text="Where two mods have the same file, MO2 uses the one "
-                  "that wins. play.bat keeps this one just below the mod it wins over in MO2's "
-                  "list.", foreground=cf.GREY, wraplength=520, justify="left").pack(
-            anchor="w", pady=(2, 0))
+        ttk.Label(self.more_box, text=_("Where two mods have the same file, MO2 uses the one "
+                                        "that wins. play.bat keeps this one just below the mod "
+                                        "it wins over in MO2's list."), foreground=cf.GREY,
+                  wraplength=520, justify="left").pack(anchor="w", pady=(2, 0))
         self.show_more()
-        cf.button_row(f, ("OK", self.ok), ("Cancel", win.destroy))
+        cf.button_row(f, (_("OK"), self.ok), (_("Cancel"), win.destroy))
         win.bind("<Return>", lambda e: self.ok())
         cf.present(win, guide.root, focus)
 
@@ -1447,13 +1551,13 @@ class ModDialog(object):
         if name is None:
             sel = self.list.curselection()
             if not sel:
-                messagebox.showerror(self.win.title(), "Pick the mod in the list.",
+                messagebox.showerror(self.win.title(), _("Pick the mod in the list."),
                                      parent=self.win)
                 return
             name = self.shown[sel[0]]
         when = [p for p, v in self.vars.items() if v.get()]
         if not when:
-            messagebox.showerror(self.win.title(), "Check at least one season.",
+            messagebox.showerror(self.win.title(), _("Check at least one season."),
                                  parent=self.win)
             return
         above = self.above_choices[self.above.current()][0]
@@ -1462,8 +1566,9 @@ class ModDialog(object):
             if above is None:
                 return
         if ce.loops(cal.toggle, name, above):
-            messagebox.showerror(self.win.title(), "%s already wins over this mod, so this "
-                                 "one can't win over it as well." % above, parent=self.win)
+            messagebox.showerror(self.win.title(), _("%s already wins over this mod, so this "
+                                                     "one can't win over it as well.") % above,
+                                 parent=self.win)
             return
         cal.put(name, when, above)
         g.kept.pop(name, None)
@@ -1475,8 +1580,8 @@ def season_grid(tk, ttk, grid, cal, when, into):
     """A checkbox for each season, two to a row with its dates beside it, then one for each
     of the player's own seasons; their variables go in `into`, by name."""
     wins = ce.season_windows(cal.dates)
-    rows = ([(s, cf.title(s, cal), wins.get(s, "off in your calendar"))
-             for s in season.SEASONS]
+    off = _("off in your calendar")
+    rows = ([(s, cf.title(s, cal), wins.get(s, off)) for s in season.SEASONS]
             + [(o, o, ce.window_text(cal.own[o])) for o in cal.own_order()])
     for i, (key, text, dates) in enumerate(rows):
         v = tk.BooleanVar(value=key in when)
@@ -1500,17 +1605,21 @@ def ask_winner(guide, name, other, n, seasons, parent=None):
     """Two seasonal mods on at once share files: whose should the game use? True for
     `name`'s, False for `other`'s, None when the player backs out."""
     tk, ttk = guide.tk, guide.ttk
-    win, f = cf.dialog(parent or guide.root, "Which one wins?")
-    guide.para(("%s and %s are both on in %s, and ship %d of the same file%s. Whose should "
-                "the game use while both are on?") % (name, other, seasons, n,
-                                                      "" if n == 1 else "s"),
+    win, f = cf.dialog(parent or guide.root, _("Which one wins?"))
+    # translators: %(seasons)s is the seasons both mods are on in, like "winter, deep winter"
+    guide.para(ngettext("%(mod)s and %(other)s are both on in %(seasons)s, and ship %(n)d of "
+                        "the same file. Whose should the game use while both are on?",
+                        "%(mod)s and %(other)s are both on in %(seasons)s, and ship %(n)d of "
+                        "the same files. Whose should the game use while both are on?", n)
+               % {"mod": name, "other": other, "seasons": seasons, "n": n},
                parent=f, wrap=520)
     pick = tk.StringVar(value="mine")
-    ttk.Radiobutton(f, text="%s's" % name, value="mine", variable=pick).pack(anchor="w",
-                                                                            pady=(10, 0))
-    guide.para("Right for a recolor, a fix or an add-on made for the other one.", parent=f,
+    # translators: whose files the game uses, by the mod's name: Winter Pack's
+    ttk.Radiobutton(f, text=_("%s's") % name, value="mine", variable=pick).pack(
+        anchor="w", pady=(10, 0))
+    guide.para(_("Right for a recolor, a fix or an add-on made for the other one."), parent=f,
                color=cf.GREY, pad=(0, 0), indent=24, wrap=520)
-    ttk.Radiobutton(f, text="%s's" % other, value="theirs", variable=pick).pack(
+    ttk.Radiobutton(f, text=_("%s's") % other, value="theirs", variable=pick).pack(
         anchor="w", pady=(6, 0))
     said = {}
 
@@ -1518,7 +1627,7 @@ def ask_winner(guide, name, other, n, seasons, parent=None):
         said["pick"] = pick.get()
         win.destroy()
 
-    cf.button_row(f, ("OK", ok), ("Cancel", win.destroy))
+    cf.button_row(f, (_("OK"), ok), (_("Cancel"), win.destroy))
     win.bind("<Return>", lambda e: ok())
     cf.present(win, parent or guide.root)
     (parent or guide.root).wait_window(win)
@@ -1575,13 +1684,17 @@ class InstallDialog(object):
         g = self.g
         g.root.configure(cursor="")
         if error is not None:
-            messagebox.showerror("Install", str(error) if isinstance(
-                error, self.mi.ArchiveError) else "%s can't be read: %s" % (
-                os.path.basename(self.archive), error), parent=g.root)
+            if isinstance(error, self.mi.ArchiveError):
+                text = str(error)
+            else:
+                # translators: %(error)s is what went wrong, as the system says it
+                text = _("%(archive)s can't be read: %(error)s") % {
+                    "archive": os.path.basename(self.archive), "error": error}
+            messagebox.showerror(pgettext("dialog title", "Install"), text, parent=g.root)
             return
         if pkg.problem:
-            messagebox.showinfo("Install", "%s\n\n%s" % (os.path.basename(self.archive),
-                                                          pkg.problem), parent=g.root)
+            messagebox.showinfo(pgettext("dialog title", "Install"), "%s\n\n%s" % (
+                os.path.basename(self.archive), pkg.problem), parent=g.root)
             return
         self.pkg = pkg
         self.build()
@@ -1589,11 +1702,13 @@ class InstallDialog(object):
     def build(self):
         g, pkg = self.g, self.pkg
         tk, ttk = g.tk, g.ttk
-        win, f = cf.dialog(g.root, "Install %s" % os.path.basename(self.archive))
+        # translators: %s is the archive's file name
+        win, f = cf.dialog(g.root, _("Install %s") % os.path.basename(self.archive))
         self.win = win
         row = ttk.Frame(f)
         row.pack(fill="x")
-        ttk.Label(row, text="Install it as").pack(side="left")
+        # translators: followed by a box with the name of the mod's folder
+        ttk.Label(row, text=_("Install it as")).pack(side="left")
         self.name = tk.StringVar(value=pkg.name)
         ttk.Entry(row, textvariable=self.name, width=72).pack(side="left", padx=(8, 0))
         if pkg.about:
@@ -1625,19 +1740,19 @@ class InstallDialog(object):
                         if p["description"]:
                             g.para(p["description"], parent=f, color=cf.GREY, pad=(0, 0),
                                    indent=24, wrap=620)
-        ttk.Label(f, text="Fix files from the author", style="Head.TLabel").pack(
+        ttk.Label(f, text=_("Fix files from the author"), style="Head.TLabel").pack(
             anchor="w", pady=(12, 2))
         self.extra = []
         self.extra_box = ttk.Frame(f)
         self.extra_box.pack(anchor="w", fill="x")
         row = ttk.Frame(f)
         row.pack(anchor="w", pady=(2, 0))
-        g.button(row, "Add a file...", self.add_extra, pad=0)
-        ttk.Label(row, text="a file the author says to drop into the mod; it goes where the "
-                  "mod has a file of that name", foreground=cf.GREY).pack(side="left",
-                                                                          padx=(10, 0))
-        ttk.Label(f, text="On in these seasons", style="Head.TLabel").pack(anchor="w",
-                                                                           pady=(12, 2))
+        g.button(row, _("Add a file..."), self.add_extra, pad=0)
+        ttk.Label(row, text=_("a file the author says to drop into the mod; it goes where the "
+                              "mod has a file of that name"), foreground=cf.GREY).pack(
+            side="left", padx=(10, 0))
+        ttk.Label(f, text=_("On in these seasons"), style="Head.TLabel").pack(anchor="w",
+                                                                              pady=(12, 2))
         guess = set(self.mi.seasons_in(pkg.name) or self.mi.seasons_in(
             os.path.basename(self.archive)))
         grid = ttk.Frame(f)
@@ -1647,7 +1762,7 @@ class InstallDialog(object):
         self.bar = ttk.Progressbar(f, mode="determinate", length=560)
         self.msg = ttk.Label(f, text="", foreground=cf.GREY, wraplength=620, justify="left")
         self.msg.pack(anchor="w", pady=(12, 0))
-        self.buttons = cf.button_row(f, ("Install", self.go), ("Cancel", win.destroy))
+        self.buttons = cf.button_row(f, (_("Install"), self.go), (_("Cancel"), win.destroy))
         self.show_size()
         win.bind("<Return>", lambda e: self.go())
         cf.present(win, g.root)
@@ -1664,29 +1779,32 @@ class InstallDialog(object):
 
     def show_size(self):
         size = self.pkg.size(self.choice())
-        self.msg.configure(text="About %s, into mods\\%s." % (
-            megabytes(size), self.name.get().strip() or "?"), foreground=cf.GREY)
+        # translators: %(size)s is like "12 MB"; %(folder)s is the folder it goes in
+        self.msg.configure(text=_("About %(size)s, into %(folder)s.") % {
+            "size": megabytes(size), "folder": "mods\\" + (self.name.get().strip() or "?")},
+            foreground=cf.GREY)
 
     def add_extra(self):
         from tkinter import filedialog, messagebox
-        path = filedialog.askopenfilename(parent=self.win, title="A fix file from the "
-                                          "author", initialdir=os.path.dirname(self.archive))
+        path = filedialog.askopenfilename(parent=self.win, title=_("A fix file from the author"),
+                                          initialdir=os.path.dirname(self.archive))
         if not path:
             return
-        dests = [d for _, d in self.pkg.files(self.choice())]
+        dests = [d for __, d in self.pkg.files(self.choice())]
         dest = self.mi.place(path, dests)
         if not dest:
-            messagebox.showerror("Install", "This install has no file called %s, or more "
-                                 "than one, so there's no telling where it goes. Check "
-                                 "the options above, or put it in the mod by hand after."
-                                 % os.path.basename(path), parent=self.win)
+            messagebox.showerror(pgettext("dialog title", "Install"), _(
+                "This install has no file called %s, or more than one, so there's no telling "
+                "where it goes. Check the options above, or put it in the mod by hand after.")
+                % os.path.basename(path), parent=self.win)
             return
         self.extra = [(p, d) for p, d in self.extra if d != dest] + [(path, dest)]
         for w in self.extra_box.winfo_children():
             w.destroy()
         for p, d in self.extra:
-            self.g.ttk.Label(self.extra_box, text="%s  goes to  %s" % (
-                os.path.basename(p), d.replace("/", "\\"))).pack(anchor="w")
+            # translators: a fix file's name, and where in the mod it goes
+            self.g.ttk.Label(self.extra_box, text=_("%(file)s  goes to  %(dest)s") % {
+                "file": os.path.basename(p), "dest": d.replace("/", "\\")}).pack(anchor="w")
 
     def go(self):
         from tkinter import messagebox
@@ -1695,14 +1813,15 @@ class InstallDialog(object):
         when = [s for s, v in self.seasons.items() if v.get()]
         problems = self.pkg.fomod.problems(self.choice()) if self.pkg.fomod else []
         if not when:
-            problems.append("Check at least one season.")
+            problems.append(_("Check at least one season."))
         if problems:
-            messagebox.showerror("Install", "\n".join(problems), parent=self.win)
+            messagebox.showerror(pgettext("dialog title", "Install"), "\n".join(problems),
+                                 parent=self.win)
             return
         for b in self.buttons:
             b.configure(state="disabled")
         self.bar.pack(anchor="w", pady=(10, 0), before=self.msg)
-        self.msg.configure(text="Installing...", foreground=cf.GREY)
+        self.msg.configure(text=_("Installing..."), foreground=cf.GREY)
         state = {"done": 0, "total": self.pkg.size(self.choice()) or 1}
 
         def progress(done, total):
@@ -1744,4 +1863,4 @@ class InstallDialog(object):
 
 
 def megabytes(n):
-    return "%.1f GB" % (n / 1e9) if n >= 1e9 else "%d MB" % max(1, round(n / 1e6))
+    return _("%.1f GB") % (n / 1e9) if n >= 1e9 else _("%d MB") % max(1, round(n / 1e6))
