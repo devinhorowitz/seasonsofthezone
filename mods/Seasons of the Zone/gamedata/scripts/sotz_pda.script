@@ -28,11 +28,11 @@
 --
 -- The router below, and the switch between the two faces, work unchanged either way.
 
--- The two faces, by the PDA section each lives in. `title` is what the PDA prints top left
--- for that section, and what the switch on each page says.
+-- The two faces, by the PDA section each lives in. `title` is the string id of what the
+-- PDA prints top left for that section, and of what the switch on each page says.
 VIEWS = {
-    year     = {tab = "eptSeasons",  title = "The Year"},
-    forecast = {tab = "eptForecast", title = "Forecast"},
+    year     = {tab = "eptSeasons",  title = "pda_btn_seasons"},
+    forecast = {tab = "eptForecast", title = "pda_btn_forecast"},
 }
 
 local function say(msg)

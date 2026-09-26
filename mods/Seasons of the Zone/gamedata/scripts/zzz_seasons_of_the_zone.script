@@ -118,13 +118,13 @@ local function say(msg)
     printf("%s", "[seasons] " .. msg)
 end
 
--- config keys are not for the player
-local DISPLAY = {winter_snow = "deep winter", late_winter = "late winter"}
 -- names of the player's own, from configure.bat; filled from season_calendar.ltx below
 local NAMES = {}
 
+-- A season's name inside a sentence, "deep winter": the player's own, or the string
+-- table's. Config keys are not for the player.
 local function name_of(s)
-    return NAMES[s] or DISPLAY[s] or tostring(s)
+    return NAMES[s] or sotz_text.text("st_sotz_season_" .. tostring(s) .. "_mid")
 end
 
 -- The player's own name for a season, or nil: MCM titles a page with it, and falls back
@@ -133,20 +133,20 @@ function season_name(s)
     return NAMES[s]
 end
 
+-- The same name as it starts a sentence or a line, "Deep winter". A name of the player's
+-- own has the one form, so its first letter is raised.
 local function cap(s)
-    local v = name_of(s)
-    return v:sub(1, 1):upper() .. v:sub(2)
+    local v = NAMES[s]
+    if v then return v:sub(1, 1):upper() .. v:sub(2) end
+    return sotz_text.text("st_sotz_season_" .. tostring(s))
 end
 
--- os.date("%B") depends on the Windows locale and renders as garbage in the game's font
--- outside English and Cyrillic locales.
-local MONTHS = {"January", "February", "March", "April", "May", "June", "July",
-                "August", "September", "October", "November", "December"}
-
--- "September 25, 2026": month first, as the page's own dates ("Sep 15") are
+-- "September 25, 2026". os.date("%B") depends on the Windows locale and renders as
+-- garbage in the game's font outside English and Cyrillic locales, so the month's name
+-- and where it goes are the string table's.
 local function today_text()
     local t = os.date("*t")
-    return string.format("%s %d, %d", MONTHS[t.month] or tostring(t.month), t.day, t.year)
+    return sotz_text.date(t.month, t.day, t.year)
 end
 
 -- Options live on three MCM pages; the stored path is seasons_zone/<page>/<id>.
@@ -394,17 +394,20 @@ local PRESET_SEASONS = {"spring", "summer", "autumn", "winter", "winter_snow",
 local SHIPPED = {"Seasons_Spring", "Seasons_Summer", "Seasons_Autumn", "Seasons_Winter",
                  "Seasons_DeepWinter", "Seasons_LateWinter", "Seasons_Neutral"}
 -- The engine's file table is lowercase, so names come back as "atmos_cold". Shown as
--- "Atmos Cold"; the mod's own by season.
+-- "Atmos Cold"; the mod's own by season, from the string table.
 local SHIPPED_LABEL = {
-    seasons_spring = "Seasons: Spring", seasons_summer = "Seasons: Summer",
-    seasons_autumn = "Seasons: Autumn", seasons_winter = "Seasons: Winter",
-    seasons_deepwinter = "Seasons: Deep winter", seasons_latewinter = "Seasons: Late winter",
-    seasons_neutral = "Seasons: Neutral",
+    seasons_spring     = "seasons_zone_preset_lst_seasons_spring",
+    seasons_summer     = "seasons_zone_preset_lst_seasons_summer",
+    seasons_autumn     = "seasons_zone_preset_lst_seasons_autumn",
+    seasons_winter     = "seasons_zone_preset_lst_seasons_winter",
+    seasons_deepwinter = "seasons_zone_preset_lst_seasons_deepwinter",
+    seasons_latewinter = "seasons_zone_preset_lst_seasons_latewinter",
+    seasons_neutral    = "seasons_zone_preset_lst_seasons_neutral",
 }
 
 local function pretty(stem)
     local s = SHIPPED_LABEL[stem]
-    if s then return s end
+    if s then return sotz_text.text(s) end
     local words = {}
     for w in stem:gmatch("[^_]+") do
         words[#words + 1] = w:sub(1, 1):upper() .. w:sub(2)
@@ -472,7 +475,7 @@ end
 -- order, then everything else alphabetically.
 function preset_choices()
     local paths = preset_paths()
-    local out, seen = {{"builtin", "Built-in"}}, {}
+    local out, seen = {{"builtin", sotz_text.text("seasons_zone_preset_lst_builtin")}}, {}
     for _, name in ipairs(SHIPPED) do
         local stem = name:lower()
         if paths[stem] then
@@ -502,7 +505,7 @@ function season_readout(s)
         for _, k in ipairs(u.keys or {}) do g[k] = ini:r_float_ex(s, k) end
     end
     -- named as the dropdown names it, not by the file's stem
-    local src = "built-in values"
+    local src = sotz_text.text("ui_mcm_seasons_zone_ro_builtin")
     local sel = (s == "neutral") and cfg_raw(PREFIX .. "main/preset_neutral", "builtin")
                                   or  cfg_raw(PREFIX .. s .. "/preset", "builtin")
     if sel and tostring(sel):lower() ~= "builtin" then
@@ -515,18 +518,29 @@ function season_readout(s)
         end
     end
     local function f(x) return x and string.format("%.4g", x) or "-" end
+    -- The labels are the string table's and the spacing between the columns is this
+    -- page's, since a string table does not keep a run of spaces.
+    local t = sotz_text.text
     return {
-        "color grade   " .. f(g.grade_r) .. "  " .. f(g.grade_g) .. "  " .. f(g.grade_b)
-            .. "      (from " .. src .. ")",
-        "saturation " .. f(g.saturation) .. "    gamma " .. f(g.gamma)
-            .. "    exposure " .. f(g.exposure),
-        "sun " .. f(g.sun_lumscale) .. "    sky " .. f(g.sun_lumscale_hemi) .. " / "
-            .. f(g.sun_lumscale_amb) .. "    sunshafts " .. f(g.sunshafts_value),
-        "tonemap " .. f(g.tonemap_adaptation) .. " / " .. f(g.tonemap_lowlum) .. " / "
-            .. f(g.tonemap_middlegray) .. "    hud " .. f(g.hud_hemi),
-        "fog " .. f(g.fog_height) .. " / " .. f(g.fog_density) .. " / " .. f(g.fog_suncolor)
-            .. "      wetness " .. f(g.wet_buildup) .. " / " .. f(g.wet_dry),
-        "wind grass " .. f(g.wind_grass_speed) .. "    trees " .. f(g.wind_trees_speed),
+        t("ui_mcm_seasons_zone_ro_grade") .. "   " .. f(g.grade_r) .. "  " .. f(g.grade_g)
+            .. "  " .. f(g.grade_b) .. "      "
+            .. t("ui_mcm_seasons_zone_ro_from", {preset = src}),
+        t("ui_mcm_seasons_zone_ro_saturation") .. " " .. f(g.saturation)
+            .. "    " .. t("ui_mcm_seasons_zone_ro_gamma") .. " " .. f(g.gamma)
+            .. "    " .. t("ui_mcm_seasons_zone_ro_exposure") .. " " .. f(g.exposure),
+        t("ui_mcm_seasons_zone_ro_sun") .. " " .. f(g.sun_lumscale)
+            .. "    " .. t("ui_mcm_seasons_zone_ro_sky") .. " " .. f(g.sun_lumscale_hemi)
+            .. " / " .. f(g.sun_lumscale_amb)
+            .. "    " .. t("ui_mcm_seasons_zone_ro_sunshafts") .. " " .. f(g.sunshafts_value),
+        t("ui_mcm_seasons_zone_ro_tonemap") .. " " .. f(g.tonemap_adaptation)
+            .. " / " .. f(g.tonemap_lowlum) .. " / " .. f(g.tonemap_middlegray)
+            .. "    " .. t("ui_mcm_seasons_zone_ro_hud") .. " " .. f(g.hud_hemi),
+        t("ui_mcm_seasons_zone_ro_fog") .. " " .. f(g.fog_height)
+            .. " / " .. f(g.fog_density) .. " / " .. f(g.fog_suncolor)
+            .. "      " .. t("ui_mcm_seasons_zone_ro_wetness") .. " " .. f(g.wet_buildup)
+            .. " / " .. f(g.wet_dry),
+        t("ui_mcm_seasons_zone_ro_wind_grass") .. " " .. f(g.wind_grass_speed)
+            .. "    " .. t("ui_mcm_seasons_zone_ro_trees") .. " " .. f(g.wind_trees_speed),
     }
 end
 
@@ -730,12 +744,14 @@ function calendar_rows()
 
     -- `live` is what apply() last pushed, so this cannot disagree with the world. It is
     -- nil until the mod has run once.
-    rows[#rows + 1] = {text = "Today is " .. today .. ".", current = false}
+    rows[#rows + 1] = {text = sotz_text.text("ui_mcm_seasons_zone_today", {date = today}),
+                       current = false}
 
     if live and live.mode ~= "auto" and live.season ~= cur then
         rows[#rows + 1] = {
-            text = "Pinned to " .. name_of(live.season) .. " - the calendar reads "
-                   .. name_of(cur) .. ".",
+            text = sotz_text.text("ui_mcm_seasons_zone_pinned", {
+                pinned = name_of(live.season), Pinned = cap(live.season),
+                season = name_of(cur), Season = cap(cur)}),
             current = true,
         }
     end
@@ -892,9 +908,12 @@ local function apply(announce)
             -- `label` is the log string, built from config keys; not for the player
             local said
             if from == to then
-                said = cap(to) .. " has settled over the Zone."
+                said = sotz_text.text("st_sotz_msg_settled",
+                                      {season = name_of(to), Season = cap(to)})
             else
-                said = string.format("%s giving way to %s.", cap(from), name_of(to))
+                said = sotz_text.text("st_sotz_msg_giving_way",
+                                      {from = name_of(from), From = cap(from),
+                                       to = name_of(to), To = cap(to)})
             end
             actor_menu.set_msg(1, said, 5)
         end
@@ -928,35 +947,39 @@ local function pda_announce()
     end
     local date = today_text()
 
+    -- one whole sentence for each thing the report can say, so a translation can put the
+    -- season, the date and the count wherever its language wants them
     local mode = pinned()
     local msg
     if mode ~= "auto" then
         -- pinned: no date, which would only contradict the season
-        msg = string.format("%s in the Zone.", cap(mode))
+        msg = sotz_text.text("st_sotz_news_pinned",
+                             {season = name_of(mode), Season = cap(mode)})
     else
         local from, to, k = resolve(mcm("blend_days", 14))
         if from == to then
             local d, nxt = days_to_next()
+            local v = {season = name_of(to), Season = cap(to), date = date,
+                       next = name_of(nxt), Next = cap(nxt)}
             if nxt == to then
                 -- a calendar with one season on: it never gives way
-                msg = string.format("%s in the Zone. %s.", cap(to), date)
+                msg = sotz_text.text("st_sotz_news_one_season", v)
             elseif d == 1 then
-                msg = string.format("%s in the Zone. %s. %s begins tomorrow.",
-                                    cap(to), date, cap(nxt))
+                msg = sotz_text.text("st_sotz_news_next_tomorrow", v)
             else
-                msg = string.format("%s in the Zone. %s. %s begins in %s days.",
-                                    cap(to), date, cap(nxt), tostring(d))
+                msg = sotz_text.plural("st_sotz_news_next_in_days", d, v)
             end
         else
-            local phase
+            local v = {season = name_of(to), Season = cap(to), date = date,
+                       from = name_of(from), From = cap(from),
+                       to = name_of(to), To = cap(to)}
             if k < 0.35 then
-                phase = string.format("%s is beginning to show.", cap(to))
+                msg = sotz_text.text("st_sotz_news_beginning", v)
             elseif k < 0.65 then
-                phase = string.format("%s giving way to %s.", cap(from), name_of(to))
+                msg = sotz_text.text("st_sotz_news_giving_way", v)
             else
-                phase = string.format("%s has taken hold.", cap(to))
+                msg = sotz_text.text("st_sotz_news_taken_hold", v)
             end
-            msg = phase .. " " .. date .. "."
         end
     end
     news_manager.send_tip(db.actor, msg, nil, nil, 14000)
@@ -997,154 +1020,52 @@ local rem_said = false        -- the opening is once per session, not once per t
 -- `since` is the year the game's story is set in, not its release year: the count is
 -- in-game years (game_year below), so it stays correct instead of going stale.
 -- `opens` is a pool for the opening line, sent shortly after you load in. `lines` is a pool drawn from at random
--- intervals after that, shuffled so nothing repeats until the pool is exhausted. Any
--- line containing %d is formatted with the years elapsed since `since`, so the count is
--- computed rather than written down and cannot go stale.
+-- intervals after that, shuffled so nothing repeats until the pool is exhausted.
+--
+-- A pool names who says each of its lines. The words are the string table's, as
+-- st_sotz_rem_<key>_<pool>_<n>, and go out as "Owl: ..." through st_sotz_rem_says. A line
+-- named in `years` counts the years elapsed since `since`, a form for each count, so the
+-- count is computed rather than written down and cannot go stale.
 local REMEMBRANCE = {
     -- memorial
     [426]  = {kind = "memorial", key = "chernobyl",
-              opens = {
-                  "Owl: No traffic on any channel. Nobody is working today.",
-                  "Owl: Channel has been open since dawn. Nobody has used it.",
-                  "Sidorovich: Quiet on every band. You will not find work today.",
-              },
-              lines = {
-                  "Owl: Someone is reading names on the long wave. Has been for an hour.",
-                  "Sidorovich: The old hands are not going out. Not today.",
-                  "Nimble: Barman poured one and left it on the counter. Did not say who for.",
-                  "Forester: There is a candle at the fire nobody will admit to lighting.",
-                  "Beard: Two stalkers at the fire, neither of them talking.",
-                  "Barman: One of the traders shut up shop at noon. No reason given.",
-                  "Forester: Flowers at the foot of a rusted sign. They will not last the night.",
-                  "Owl: The reading on the long wave has not stopped. Different voice now.",
-                  "Guide: Nobody has fired a shot near the checkpoint all day. Unusual.",
-                  "Barman: Old man at the bar has been nursing the same drink since morning.",
-                  "Nimble: Some rookie asked what day it was. Nobody answered him.",
-                  "Sidorovich: Squad went out at first light and came straight back. Did not say why.",
-                  "Sakharov: The dosimeters read the same as any other day. Feels wrong that they do.",
-                  "Beard: A date scratched into the table. No year with it.",
-                  "Forester: The dogs have not started up once.",
-              }},
+              opens = {"owl", "owl", "sidorovich"},
+              lines = {"owl", "sidorovich", "nimble", "forester", "beard", "barman",
+                       "forester", "owl", "guide", "barman", "nimble", "sidorovich",
+                       "sakharov", "beard", "forester"}},
     -- memorial
     [1214] = {kind = "memorial", key = "liquidators",
-              opens = {
-                  "Sakharov: Clear over the reactor. First time in weeks.",
-                  "Forester: Sky is open all the way north. You can see the sarcophagus from the ridge.",
-                  "Owl: No cloud, no wind. They say it always clears on this date.",
-              },
-              lines = {
-                  "Sakharov: They went in knowing. That is the part nobody says out loud.",
-                  "Barman: Sky is wrong today. Too clean.",
-                  "Beard: Old man at the fire keeps looking north.",
-                  "Owl: Someone read a list this morning. Short list. All the same year.",
-                  "Forester: No wind. The Zone is holding its breath.",
-                  "Nimble: Trader at the bar is giving vodka away. Will not take payment.",
-                  "Owl: Long wave has a man in a lead apron on it. A recording, not a live one.",
-                  "Guide: You can see a long way today. Not sure that is a mercy.",
-                  "Beard: Three of them at the fire, all facing the reactor.",
-                  "Forester: A shovel standing upright in the dirt. Nobody has moved it.",
-                  "Barman: Man at the bar says his grandfather came here in eighty-six. Did not say more.",
-                  "Sakharov: The air is still enough to hear the plant from the ridge.",
-                  "Nimble: An old respirator on the bar, polished, hours of it.",
-                  "Sidorovich: Squad passed through without a word. All of them clean-shaven.",
-                  "Sidorovich: Nobody is selling today. A few are buying drinks.",
-              }},
+              opens = {"sakharov", "forester", "owl"},
+              lines = {"sakharov", "barman", "beard", "owl", "forester", "nimble", "owl",
+                       "guide", "beard", "forester", "barman", "sakharov", "nimble",
+                       "sidorovich", "sidorovich"}},
     -- anniversary
     [320]  = {kind = "anniversary", key = "soc", since = 2012,
-              opens = {
-                  "Sidorovich: %d years since a man with no memory woke up in a death truck.",
-                  "Barman: Bar is loud tonight. Somebody started the old arguments again.",
-                  "Forester: Storm building. Same as it did %d years back, they say.",
-              },
-              lines = {
-                  "Sidorovich: Trader's truck came through with bodies in the back, they say. Old story. Comes around every year.",
-                  "Barman: Old hands get strange this week. Something about a man who walked into the Sarcophagus and did not come out.",
-                  "Nimble: Sidorovich has had his bunker door shut since morning.",
-                  "Barman: Two rookies arguing about who really did it. Neither of them was here.",
-                  "Sakharov: Anomalies are busy tonight. Good hunting, if you are mad enough.",
-                  "Beard: Bar is full and loud. Nobody is going out.",
-                  "Nimble: Man in the corner bet his whole artefact case that the wish granter is real.",
-                  "Sakharov: Electros lit up across the whole field. Never seen so many at once.",
-                  "Sidorovich: A man came in asking directions to the reactor. Got laughed out.",
-                  "Nimble: There is a tattered jacket for sale and a long story attached to it.",
-                  "Forester: The wire hums tonight. Older stalkers say that is normal for the date.",
-                  "Guide: Squad heading out at this hour. Someone talked them into it.",
-                  "Owl: Traders raised their prices and blamed the weather.",
-                  "Owl: Repeater went down for ten minutes. Came back with nobody on it.",
-                  "Barman: Every rookie in the bar has a theory. None of them were there.",
-              }},
+              years = {opens_1 = true, opens_3 = true},
+              opens = {"sidorovich", "barman", "forester"},
+              lines = {"sidorovich", "barman", "nimble", "barman", "sakharov", "beard",
+                       "nimble", "sakharov", "sidorovich", "nimble", "forester", "guide",
+                       "owl", "owl", "barman"}},
     -- anniversary
     [822]  = {kind = "anniversary", key = "cs", since = 2011,
-              opens = {
-                  "Sakharov: %d years since Clear Sky went into the swamps. Not many came out.",
-                  "Guide: The marshes took a whole faction. %d years, and nobody has taken the ground back.",
-                  "Sakharov: Emission season. The swamp crews knew this one better than anybody.",
-              },
-              lines = {
-                  "Sakharov: Emission readings up over the marshes. Nothing on the surface yet.",
-                  "Barman: A merc in the bar claims he served in the swamps back then. Nobody believes him.",
-                  "Barman: Faction war talk again. Someone always brings it up this time of year.",
-                  "Guide: Swamp is restless. The ones who used to work it are long gone.",
-                  "Sakharov: Barometer dropped through the floor an hour ago. The marshes always did know first.",
-                  "Nimble: Waterlogged rifle came out of the reeds. Old pattern, nobody makes it now.",
-                  "Barman: Two factions nearly went at it in the bar over something long buried.",
-                  "Owl: The old radio masts in the marsh are picking something up again.",
-                  "Sidorovich: Swamp-salvaged gear on sale and no answer about where from.",
-                  "Beard: A guide refuses to take anyone south today. Will not say why.",
-                  "Sakharov: Anomaly field shifted overnight. The whole marsh edge has moved.",
-                  "Beard: Man in the corner keeps checking a detector that is not switched on.",
-                  "Forester: Rain coming. The kind that does not stop.",
-                  "Owl: Voices on a dead channel out by the reeds, if you believe him.",
-                  "Guide: Nobody has walked the far side of the marsh in a week.",
-              }},
+              years = {opens_1 = true, opens_2 = true},
+              opens = {"sakharov", "guide", "sakharov"},
+              lines = {"sakharov", "barman", "barman", "guide", "sakharov", "nimble",
+                       "barman", "owl", "sidorovich", "beard", "sakharov", "beard",
+                       "forester", "owl", "guide"}},
     -- anniversary
     [1002] = {kind = "anniversary", key = "cop", since = 2012,
-              opens = {
-                  "Owl: %d years since Operation Fairway went down over Pripyat.",
-                  "Beard: Five helicopters. %d years and they still argue about the fifth.",
-                  "Owl: Military band has been busy all morning. Old frequencies.",
-              },
-              lines = {
-                  "Beard: Five helicopters. They still argue about the fifth.",
-                  "Owl: The Fairway transmission is playing again. Static and a man counting.",
-                  "Forester: Military flying low over Zaton. Looking for something old.",
-                  "Owl: Scrappers still pull pieces out of Stingray Five. Still worth carrying.",
-                  "Guide: Anyone heading north today is going for the wrong reasons.",
-                  "Beard: A man at Skadovsk is buying anything with military markings. Paying over the odds.",
-                  "Nimble: Flight recorder, allegedly. He will not show it to anyone.",
-                  "Guide: The old evac route is busy tonight. Nobody is evacuating.",
-                  "Beard: Two ex-military drinking together. Neither has said a word in an hour.",
-                  "Owl: There is a map going around with five crosses on it. Four crossed out.",
-                  "Sakharov: Pripyat is quiet on the scanners. Too quiet for the date.",
-                  "Sidorovich: Trader says a pilot's watch came through here once. Sold it fast.",
-                  "Barman: Someone is asking about Yanov like they expect it to be different.",
-                  "Beard: A squad went north at dusk without hiring a guide.",
-                  "Owl: Static on the military band. Just static. Someone is listening to it anyway.",
-              }},
+              years = {opens_1 = true, opens_2 = true},
+              opens = {"owl", "beard", "owl"},
+              lines = {"beard", "owl", "forester", "owl", "guide", "beard", "nimble",
+                       "guide", "beard", "owl", "sakharov", "sidorovich", "barman",
+                       "beard", "owl"}},
     -- anniversary
     [1120] = {kind = "anniversary", key = "hoc",
-              opens = {
-                  "Forester: Wire has moved again. Further out than the last time.",
-                  "Guide: Maps in the bar are wrong and nobody has drawn new ones.",
-                  "Sidorovich: Something is coming up from the south. Nobody can say what.",
-              },
-              lines = {
-                  "Guide: Zone is bigger than the maps say. Has been a while now.",
-                  "Sidorovich: Newcomers with gear nobody recognizes, coming up from the south.",
-                  "Sakharov: Scanner picked up something it had no name for.",
-                  "Forester: A sphere out past the ridge. Looked again and there was nothing.",
-                  "Barman: New faction colors at the checkpoint. Nobody asked whose.",
-                  "Nimble: Traders are stocking things that were not made here.",
-                  "Sidorovich: Hiring notice on the board with no destination written on it.",
-                  "Barman: Old hands do not like how many people are coming in.",
-                  "Forester: Something went through the treeline at speed. Left no prints.",
-                  "Beard: A guide walked a route he has known for years and did not recognize it.",
-                  "Sakharov: Anomaly two clicks east that nobody has a name for. One of them will name it.",
-                  "Nimble: Detector at the bar reads something the others do not. Owner will not sell it.",
-                  "Owl: Three expeditions went out this week. One has reported back.",
-                  "Barman: The newcomers talk about the Zone like it is a job.",
-                  "Beard: Two guides gave different answers for the same route today.",
-              }},
+              opens = {"forester", "guide", "sidorovich"},
+              lines = {"guide", "sidorovich", "sakharov", "forester", "barman", "nimble",
+                       "sidorovich", "barman", "forester", "beard", "sakharov", "nimble",
+                       "owl", "barman", "beard"}},
 }
 
 local function remembrance_today()
@@ -1266,36 +1187,43 @@ local function game_year()
     return nil
 end
 
-local function rem_format(day, s)
-    if not s:find("%%d") then return s end
-    if not day.since then return nil end          -- a count with nothing to count from
-    local y = game_year()
-    if not y then return nil end                  -- caller picks a line without a count
-    local ok, out = pcall(string.format, s, y - day.since)
-    return ok and out or nil
+-- One transmission as the PDA shows it, "Owl: ...", and who says it. nil for a line that
+-- counts years when there is nothing to count from.
+local function rem_line(day, pool, i)
+    local who = day[pool] and day[pool][i]
+    if not who then return nil end
+    local id = "st_sotz_rem_" .. day.key .. "_" .. pool .. "_" .. i
+    local line
+    if day.years and day.years[pool .. "_" .. i] then
+        if not day.since then return nil end      -- a count with nothing to count from
+        local y = game_year()
+        if not y then return nil end              -- caller picks a line without a count
+        line = sotz_text.plural(id, y - day.since)
+    else
+        line = sotz_text.text(id)
+    end
+    return sotz_text.text("st_sotz_rem_says",
+                          {who = sotz_text.text("st_sotz_speaker_" .. who), line = line}), who
 end
 
--- Speaker -> the key added by mod_news_tips_icons_sotz.ltx. Lines are written as
--- "Owl: ..." so the name is already in the text; this puts the face beside it.
+-- Speaker -> the key added by mod_news_tips_icons_sotz.ltx, which puts the face beside
+-- the name each transmission starts with.
 local SPEAKER_ICON = {
-    Barman     = "sotz_barman",
-    Sidorovich = "sotz_sidorovich",
-    Owl        = "sotz_owl",
-    Beard      = "sotz_beard",
-    Sakharov   = "sotz_sakharov",
-    Forester   = "sotz_forester",
-    Nimble     = "sotz_nimble",
-    Guide      = "sotz_guide",
+    barman     = "sotz_barman",
+    sidorovich = "sotz_sidorovich",
+    owl        = "sotz_owl",
+    beard      = "sotz_beard",
+    sakharov   = "sotz_sakharov",
+    forester   = "sotz_forester",
+    nimble     = "sotz_nimble",
+    guide      = "sotz_guide",
 }
 
-local function rem_send(day, s)
+local function rem_send(day, pool, i)
     if not (db.actor and news_manager and news_manager.send_tip) then return end
-    local msg = rem_format(day, s)
+    local msg, who = rem_line(day, pool, i)
     if not msg then return false end              -- unusable; the caller tries another
-    -- the speaker is the word before the first colon
-    local who = msg:match("^([%a]+):")
-    local icon = who and SPEAKER_ICON[who] or nil
-    news_manager.send_tip(db.actor, msg, nil, icon, 14000)
+    news_manager.send_tip(db.actor, msg, nil, SPEAKER_ICON[who], 14000)
     say("remembrance PDA: " .. msg)
     return true
 end
@@ -1324,18 +1252,18 @@ local function remembrance_announce(day)
 
     if rem_bag == nil then           -- first fire after the opening delay: send `open`
         -- If the in-game year is unavailable, every opening carrying a count is
-        -- unusable; fall back to one that does not need it rather than printing "%d".
+        -- unusable; fall back to one that does not need it rather than printing "$n".
         local ops = day.opens or {}
         local start = math.random(#ops)
         for k = 0, #ops - 1 do
-            if rem_send(day, ops[(start + k - 1) % #ops + 1]) then break end
+            if rem_send(day, "opens", (start + k - 1) % #ops + 1) then break end
         end
         rem_refill(day)
     else
         if #rem_bag == 0 then rem_refill(day) end
         local idx = table.remove(rem_bag)
         local pool = day.lines or {}
-        if idx and pool[idx] then rem_send(day, pool[idx]) end
+        if idx and pool[idx] then rem_send(day, "lines", idx) end
     end
     rem_next = tg + math.random(REM_GAP_MIN, REM_GAP_MAX)
 end
@@ -1394,10 +1322,7 @@ function eco_access_tick()
     eco_told = true
     pcall(function()
         -- the LIMITED tier: a bracket like "2 to 8 hours" on the Forecast page
-        news_manager.send_tip(db.actor,
-            "Your standing has been noted. From now on the bunker relays will send emission "
-            .. "warnings to your PDA's forecast - a rough window, never the hour. Do not "
-            .. "mistake that for safety.",
+        news_manager.send_tip(db.actor, sotz_text.text("st_sotz_news_eco_access"),
             nil, "sotz_sakharov", 16000)
     end)
     say("ecologist access granted at standing " .. tostring(st))
@@ -1534,11 +1459,9 @@ end
 -- pieces apart - date, length, days away - so it can lay them out and mark today's. This
 -- is that, and nothing else reads it.
 
-local MONTH = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
-
+-- "Sep 15", in the order and the month's form the string table gives
 local function md(m, d)
-    return string.format("%s %d", MONTH[m] or "?", d)
+    return sotz_text.date_short(m, d)
 end
 
 -- Days from today to (m, d), looking forward and wrapping the year end.
@@ -1564,7 +1487,9 @@ function calendar_page()
         -- cheap here and awkward on the page, which has no calendar of its own.
         doy      = doy,
         year_len = doy_of(12, 31, year),
+        -- a season's name inside a sentence, and as it starts one or heads a line
         label   = name_of(cur),
+        title   = cap(cur),
         dial    = dial_texture(),
         seasons = {},
         days    = {},
@@ -1583,6 +1508,7 @@ function calendar_page()
             span     = len,
             key     = b.season,
             label   = name_of(b.season),
+            title   = cap(b.season),
             from    = md(b.m, b.d),
             to      = md(nxt.m, nxt.d),
             days    = len,
@@ -1620,7 +1546,8 @@ function calendar_page()
     for _, s in ipairs(out.seasons) do
         if not s.current and s.starts_in > 0 then
             if not out.next or s.starts_in < out.next.days then
-                out.next = {label = s.label, days = s.starts_in, key = s.key}
+                out.next = {label = s.label, title = s.title, days = s.starts_in,
+                            key = s.key}
             end
         end
     end
@@ -1922,13 +1849,17 @@ function forecast_page()
     -- Fixed hours rather than a fraction of the period: "two to eight hours" means the
     -- same thing whatever the frequency slider says, whereas a fraction silently became
     -- a different warning when someone moved it.
+    --
+    -- The words are the API's, which sotz_api and the devices that read it key on, so
+    -- they stay English whatever the language. The string id beside each is what the
+    -- page shows.
     local function bracket(left)
         if not left then return nil end
         local h = left / 3600.0
-        if h <= 2  then return "WITHIN 2 HOURS" end
-        if h <= 8  then return "2 to 8 hours"   end
-        if h <= 16 then return "8 to 16 hours"  end
-        return "ALL CLEAR"
+        if h <= 2  then return "WITHIN 2 HOURS", "st_sotz_fc_band_within_2" end
+        if h <= 8  then return "2 to 8 hours",   "st_sotz_fc_band_2_to_8"   end
+        if h <= 16 then return "8 to 16 hours",  "st_sotz_fc_band_8_to_16"  end
+        return "ALL CLEAR", "st_sotz_fc_band_all_clear"
     end
 
     -- Under two hours is the point where this stops being a forecast and becomes a
@@ -2006,8 +1937,8 @@ function forecast_page()
         if tier == "exact" then
             out.surge, out.psi = s, p
         elseif tier == "coarse" then
-            out.surge_band = bracket(s)
-            out.psi_band   = bracket(p)
+            out.surge_band, out.surge_band_id = bracket(s)
+            out.psi_band,   out.psi_band_id   = bracket(p)
         end
 
         -- The flag only exists for a tier that is allowed to know. At locked it stays

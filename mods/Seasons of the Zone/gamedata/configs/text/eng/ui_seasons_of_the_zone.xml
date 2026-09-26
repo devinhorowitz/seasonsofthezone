@@ -232,4 +232,53 @@
 	<string id="ui_mcm_seasons_zone_wx_exact_desc">
 		<text>Off: the weather reads like a forecast. Times are rounded and can be off by an hour or two, about one call in ten is wrong (fewer as the change gets close), and each call shows how likely it is. On: the page shows Atmospherics' day plan exactly. The base game's weather, which GAMMA uses, has no plan, and its odds for the next sky are exact either way.</text>
 	</string>
+
+	<!-- The rows the pages build as they open. $name is a value the game fills in, as in
+	     st_seasons_of_the_zone.xml, which says how they work. -->
+
+	<!-- Main page: whether what the PDA app needs is here -->
+	<string id="ui_mcm_seasons_zone_status_mac"><text>PDA: the Seasons app opens from the Mod App Creator launcher.</text></string>
+	<string id="ui_mcm_seasons_zone_status_no_mac"><text>Mod App Creator not found. The Seasons PDA app opens from its launcher, so install Mod App Creator to use it.</text></string>
+	<string id="ui_mcm_seasons_zone_status_plan"><text>Weather: Atmospherics' day planner. The forecast covers every change ahead.</text></string>
+	<string id="ui_mcm_seasons_zone_status_stock"><text>Weather: the base game's scheduler, which GAMMA uses. The forecast shows the sky now, when it turns, and the odds for the next sky, which the scheduler draws at random when the time comes. Atmospherics 2.69 plans the whole day ahead.</text></string>
+	<string id="ui_mcm_seasons_zone_status_none"><text>No weather manager was found, so the Forecast page can't show the sky. The rest of the mod works.</text></string>
+
+	<!-- Main page: the calendar -->
+	<string id="ui_mcm_seasons_zone_today"><text>Today is $date.</text></string>
+	<string id="ui_mcm_seasons_zone_pinned"><text>Pinned to $pinned - the calendar reads $season.</text></string>
+
+	<!-- The preset lists: the built-in grade, and the mod's own presets. The rest are
+	     files in appdata and go by their names. -->
+	<string id="seasons_zone_preset_lst_builtin"><text>Built-in</text></string>
+	<string id="seasons_zone_preset_lst_seasons_spring"><text>Seasons: Spring</text></string>
+	<string id="seasons_zone_preset_lst_seasons_summer"><text>Seasons: Summer</text></string>
+	<string id="seasons_zone_preset_lst_seasons_autumn"><text>Seasons: Autumn</text></string>
+	<string id="seasons_zone_preset_lst_seasons_winter"><text>Seasons: Winter</text></string>
+	<string id="seasons_zone_preset_lst_seasons_deepwinter"><text>Seasons: Deep winter</text></string>
+	<string id="seasons_zone_preset_lst_seasons_latewinter"><text>Seasons: Late winter</text></string>
+	<string id="seasons_zone_preset_lst_seasons_neutral"><text>Seasons: Neutral</text></string>
+
+	<!-- A season page's read-out of the values it resolves to. The labels sit in columns
+	     the game spaces out, so each is a word or two on its own. -->
+	<string id="ui_mcm_seasons_zone_ro_grade"><text>color grade</text></string>
+	<string id="ui_mcm_seasons_zone_ro_from"><text>(from $preset)</text></string>
+	<string id="ui_mcm_seasons_zone_ro_builtin"><text>built-in values</text></string>
+	<string id="ui_mcm_seasons_zone_ro_saturation"><text>saturation</text></string>
+	<string id="ui_mcm_seasons_zone_ro_gamma"><text>gamma</text></string>
+	<string id="ui_mcm_seasons_zone_ro_exposure"><text>exposure</text></string>
+	<string id="ui_mcm_seasons_zone_ro_sun"><text>sun</text></string>
+	<string id="ui_mcm_seasons_zone_ro_sky"><text>sky</text></string>
+	<string id="ui_mcm_seasons_zone_ro_sunshafts"><text>sunshafts</text></string>
+	<string id="ui_mcm_seasons_zone_ro_tonemap"><text>tonemap</text></string>
+	<string id="ui_mcm_seasons_zone_ro_hud"><text>hud</text></string>
+	<string id="ui_mcm_seasons_zone_ro_fog"><text>fog</text></string>
+	<string id="ui_mcm_seasons_zone_ro_wetness"><text>wetness</text></string>
+	<string id="ui_mcm_seasons_zone_ro_wind_grass"><text>wind grass</text></string>
+	<string id="ui_mcm_seasons_zone_ro_trees"><text>trees</text></string>
+
+	<!-- A season page's seasonal mods. Each mod's own label and hover text are written
+	     into ui_mcm_seasons_mods.xml by _tools/season.py at every launch. -->
+	<string id="ui_mcm_seasons_zone_mods_unstaged"><text>Start the game once with play.bat to list the seasonal mods here.</text></string>
+	<string id="ui_mcm_seasons_zone_mods_none"><text>No seasonal mods are set for this season.</text></string>
+	<string id="ui_mcm_seasons_zone_mods_listed"><text>Seasonal mods for this season - uncheck one to leave it out:</text></string>
 </string_table>

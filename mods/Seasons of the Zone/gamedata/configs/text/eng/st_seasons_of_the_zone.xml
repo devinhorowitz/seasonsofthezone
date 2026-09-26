@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="windows-1251"?>
+
+<string_table>
+
+	<!-- Seasons of the Zone - everything the mod says in game: the PDA app's two pages,
+	     its PDA messages, and the transmissions on the days the Zone marks. The MCM pages
+	     are in ui_seasons_of_the_zone.xml.
+
+	     A translation copies this file and ui_seasons_of_the_zone.xml to
+	     configs/text/<language>/ and translates each <text>, keeping every id; a text not
+	     translated yet can stay English. The encoding stays windows-1251.
+
+	     $name is a value the game fills in: a place, a count, a date, a season. Put it
+	     wherever the sentence needs it, and keep its name as it is.
+
+	     $Season and $season are the same season: $Season as it starts a line or a
+	     sentence ("Deep winter"), $season inside one ("deep winter"). $From and $from,
+	     $To and $to, $Next and $next, $Pinned and $pinned work the same way. A season
+	     the player named in configure.bat has one form, which fills both.
+
+	     An id written as <id>_one and <id>_many takes a count, $n, and the game picks the
+	     form by the rule st_sotz_plural_rule names. "en": _one for 1, _many for the rest.
+	     "ru": _one for 1, 21, 31..., _few for 2-4, 22-24..., _many for the rest, so a
+	     Russian table adds an <id>_few beside each pair. A missing form falls back to
+	     _many.
+
+	     Keep each text on one line, with no run of spaces and none at either end: X-Ray
+	     reads these files with TinyXML, which by default collapses them. -->
+
+	<string id="st_sotz_plural_rule"><text>en</text></string>
+
+	<!-- Dates. A month has a form of its own ("September", "Sep") and the form it takes
+	     inside a date, which a language that declines month names needs. -->
+	<string id="st_sotz_date"><text>$month $day, $year</text></string>
+	<string id="st_sotz_date_short"><text>$month $day</text></string>
+	<string id="st_sotz_month_1"><text>January</text></string>
+	<string id="st_sotz_month_2"><text>February</text></string>
+	<string id="st_sotz_month_3"><text>March</text></string>
+	<string id="st_sotz_month_4"><text>April</text></string>
+	<string id="st_sotz_month_5"><text>May</text></string>
+	<string id="st_sotz_month_6"><text>June</text></string>
+	<string id="st_sotz_month_7"><text>July</text></string>
+	<string id="st_sotz_month_8"><text>August</text></string>
+	<string id="st_sotz_month_9"><text>September</text></string>
+	<string id="st_sotz_month_10"><text>October</text></string>
+	<string id="st_sotz_month_11"><text>November</text></string>
+	<string id="st_sotz_month_12"><text>December</text></string>
+	<string id="st_sotz_month_1_date"><text>January</text></string>
+	<string id="st_sotz_month_2_date"><text>February</text></string>
+	<string id="st_sotz_month_3_date"><text>March</text></string>
+	<string id="st_sotz_month_4_date"><text>April</text></string>
+	<string id="st_sotz_month_5_date"><text>May</text></string>
+	<string id="st_sotz_month_6_date"><text>June</text></string>
+	<string id="st_sotz_month_7_date"><text>July</text></string>
+	<string id="st_sotz_month_8_date"><text>August</text></string>
+	<string id="st_sotz_month_9_date"><text>September</text></string>
+	<string id="st_sotz_month_10_date"><text>October</text></string>
+	<string id="st_sotz_month_11_date"><text>November</text></string>
+	<string id="st_sotz_month_12_date"><text>December</text></string>
+	<string id="st_sotz_month_1_short"><text>Jan</text></string>
+	<string id="st_sotz_month_2_short"><text>Feb</text></string>
+	<string id="st_sotz_month_3_short"><text>Mar</text></string>
+	<string id="st_sotz_month_4_short"><text>Apr</text></string>
+	<string id="st_sotz_month_5_short"><text>May</text></string>
+	<string id="st_sotz_month_6_short"><text>Jun</text></string>
+	<string id="st_sotz_month_7_short"><text>Jul</text></string>
+	<string id="st_sotz_month_8_short"><text>Aug</text></string>
+	<string id="st_sotz_month_9_short"><text>Sep</text></string>
+	<string id="st_sotz_month_10_short"><text>Oct</text></string>
+	<string id="st_sotz_month_11_short"><text>Nov</text></string>
+	<string id="st_sotz_month_12_short"><text>Dec</text></string>
+	<string id="st_sotz_month_1_short_date"><text>Jan</text></string>
+	<string id="st_sotz_month_2_short_date"><text>Feb</text></string>
+	<string id="st_sotz_month_3_short_date"><text>Mar</text></string>
+	<string id="st_sotz_month_4_short_date"><text>Apr</text></string>
+	<string id="st_sotz_month_5_short_date"><text>May</text></string>
+	<string id="st_sotz_month_6_short_date"><text>Jun</text></string>
+	<string id="st_sotz_month_7_short_date"><text>Jul</text></string>
+	<string id="st_sotz_month_8_short_date"><text>Aug</text></string>
+	<string id="st_sotz_month_9_short_date"><text>Sep</text></string>
+	<string id="st_sotz_month_10_short_date"><text>Oct</text></string>
+	<string id="st_sotz_month_11_short_date"><text>Nov</text></string>
+	<string id="st_sotz_month_12_short_date"><text>Dec</text></string>
+
+	<!-- The seasons, as a heading or the start of a sentence, and inside one -->
+	<string id="st_sotz_season_spring"><text>Spring</text></string>
+	<string id="st_sotz_season_spring_mid"><text>spring</text></string>
+	<string id="st_sotz_season_summer"><text>Summer</text></string>
+	<string id="st_sotz_season_summer_mid"><text>summer</text></string>
+	<string id="st_sotz_season_autumn"><text>Autumn</text></string>
+	<string id="st_sotz_season_autumn_mid"><text>autumn</text></string>
+	<string id="st_sotz_season_winter"><text>Winter</text></string>
+	<string id="st_sotz_season_winter_mid"><text>winter</text></string>
+	<string id="st_sotz_season_winter_snow"><text>Deep winter</text></string>
+	<string id="st_sotz_season_winter_snow_mid"><text>deep winter</text></string>
+	<string id="st_sotz_season_late_winter"><text>Late winter</text></string>
+	<string id="st_sotz_season_late_winter_mid"><text>late winter</text></string>
+
+	<!-- The Forecast page. The sky's names are Atmospherics' cycles, as a stalker would
+	     say them; snow comes only from the real weather, for tomorrow. -->
+	<string id="st_sotz_fc_title"><text>Forecast</text></string>
+	<string id="st_sotz_fc_no_readings"><text>No readings right now.</text></string>
+	<string id="st_sotz_sky_clear"><text>Clear</text></string>
+	<string id="st_sotz_sky_partly"><text>Partly cloudy</text></string>
+	<string id="st_sotz_sky_cloudy"><text>Overcast</text></string>
+	<string id="st_sotz_sky_foggy"><text>Fog</text></string>
+	<string id="st_sotz_sky_rain"><text>Rain</text></string>
+	<string id="st_sotz_sky_storm"><text>Storm</text></string>
+	<string id="st_sotz_sky_snow"><text>Snow</text></string>
+	<!-- the odds for the next sky, in three groups -->
+	<string id="st_sotz_sky_wet"><text>Rain or storm</text></string>
+	<string id="st_sotz_sky_gray"><text>Overcast or fog</text></string>
+	<string id="st_sotz_sky_fair"><text>Clear or partly cloudy</text></string>
+	<!-- the degree sign comes from the game: "12" and the unit read as 12 degrees C -->
+	<string id="st_sotz_unit_c"><text>C</text></string>
+	<string id="st_sotz_unit_f"><text>F</text></string>
+	<string id="st_sotz_fc_percent"><text>$n%</text></string>
+	<!-- the line beside the temperature: "mild, getting warmer" -->
+	<string id="st_sotz_band_freezing"><text>freezing</text></string>
+	<string id="st_sotz_band_cold"><text>cold</text></string>
+	<string id="st_sotz_band_mild"><text>mild</text></string>
+	<string id="st_sotz_band_warm"><text>warm</text></string>
+	<string id="st_sotz_band_hot"><text>hot</text></string>
+	<string id="st_sotz_fc_warming"><text>$band, getting warmer</text></string>
+	<string id="st_sotz_fc_cooling"><text>$band, getting colder</text></string>
+	<string id="st_sotz_fc_no_reading"><text>no reading</text></string>
+	<string id="st_sotz_fc_live"><text>Live from $place - weather data by Open-Meteo.com</text></string>
+	<string id="st_sotz_fc_chornobyl"><text>Chornobyl</text></string>
+	<string id="st_sotz_fc_modeled_on"><text>No station data - modeled on $place's climate (Open-Meteo.com)</text></string>
+	<string id="st_sotz_fc_modeled"><text>No station data - temperature modeled</text></string>
+	<!-- under the sky glyphs: "Rain, in 2 hours" -->
+	<string id="st_sotz_fc_next"><text>$sky, $when</text></string>
+	<string id="st_sotz_fc_settled"><text>settled</text></string>
+	<string id="st_sotz_fc_any_moment"><text>any moment</text></string>
+	<string id="st_sotz_fc_in_an_hour"><text>in an hour</text></string>
+	<string id="st_sotz_fc_in_hours_one"><text>in $n hour</text></string>
+	<string id="st_sotz_fc_in_hours_many"><text>in $n hours</text></string>
+	<string id="st_sotz_fc_in_minutes_one"><text>in $n minute</text></string>
+	<string id="st_sotz_fc_in_minutes_many"><text>in $n minutes</text></string>
+	<string id="st_sotz_fc_in_min_one"><text>in $n min</text></string>
+	<string id="st_sotz_fc_in_min_many"><text>in $n min</text></string>
+	<!-- base Anomaly's weather knows when the sky turns, not what it turns into. In the
+	     last pair the form follows $to. -->
+	<string id="st_sotz_fc_turning_now"><text>turning any moment</text></string>
+	<string id="st_sotz_fc_turns_within_hour"><text>turns within the hour</text></string>
+	<string id="st_sotz_fc_turns_within_one"><text>turns within $n hour</text></string>
+	<string id="st_sotz_fc_turns_within_many"><text>turns within $n hours</text></string>
+	<string id="st_sotz_fc_turns_about_hour"><text>turns in about an hour</text></string>
+	<string id="st_sotz_fc_turns_about_one"><text>turns in about $n hour</text></string>
+	<string id="st_sotz_fc_turns_about_many"><text>turns in about $n hours</text></string>
+	<string id="st_sotz_fc_turns_between_one"><text>turns in $from to $to hour</text></string>
+	<string id="st_sotz_fc_turns_between_many"><text>turns in $from to $to hours</text></string>
+	<string id="st_sotz_fc_next_sky"><text>Next sky</text></string>
+	<string id="st_sotz_fc_next_24h"><text>Next 24 hours</text></string>
+	<string id="st_sotz_fc_anyones_guess"><text>What comes after that is anyone's guess.</text></string>
+	<string id="st_sotz_fc_nothing_planned"><text>Nothing further planned.</text></string>
+	<string id="st_sotz_fc_nothing_forecast"><text>Nothing further forecast.</text></string>
+	<string id="st_sotz_fc_settled_planned"><text>Settled - no change planned.</text></string>
+	<string id="st_sotz_fc_settled_forecast"><text>Settled - no change forecast.</text></string>
+	<string id="st_sotz_fc_no_weather"><text>No weather reading.</text></string>
+	<string id="st_sotz_fc_tomorrow"><text>Tomorrow</text></string>
+	<string id="st_sotz_fc_low_to_high"><text>$low to $high</text></string>
+	<string id="st_sotz_fc_frost"><text>frost overnight</text></string>
+	<!-- the ecologists' panel: how much of their network the player may read -->
+	<string id="st_sotz_fc_classified"><text>CLASSIFIED</text></string>
+	<string id="st_sotz_fc_limited"><text>LIMITED</text></string>
+	<string id="st_sotz_fc_cleared"><text>CLEARED</text></string>
+	<string id="st_sotz_fc_emission"><text>Emission: $when</text></string>
+	<string id="st_sotz_fc_psi"><text>Psi storm: $when</text></string>
+	<string id="st_sotz_fc_band_within_2"><text>WITHIN 2 HOURS</text></string>
+	<string id="st_sotz_fc_band_2_to_8"><text>2 to 8 hours</text></string>
+	<string id="st_sotz_fc_band_8_to_16"><text>8 to 16 hours</text></string>
+	<string id="st_sotz_fc_band_all_clear"><text>ALL CLEAR</text></string>
+	<string id="st_sotz_fc_rough"><text>Rough warnings, never the hour</text></string>
+
+	<!-- The Year page -->
+	<string id="st_sotz_year_title"><text>The Year</text></string>
+	<string id="st_sotz_year_unreadable"><text>The calendar can't be read right now.</text></string>
+	<string id="st_sotz_year_header"><text>$Season in the Zone</text></string>
+	<string id="st_sotz_year_next_today"><text>$Season today.</text></string>
+	<string id="st_sotz_year_next_tomorrow"><text>$Season tomorrow.</text></string>
+	<string id="st_sotz_year_next_in_days_one"><text>$Season in $n day.</text></string>
+	<string id="st_sotz_year_next_in_days_many"><text>$Season in $n days.</text></string>
+	<string id="st_sotz_year_quiet"><text>The Zone is quiet.</text></string>
+	<string id="st_sotz_year_loud"><text>The Zone is loud.</text></string>
+	<string id="st_sotz_year_all_year"><text>All year</text></string>
+	<string id="st_sotz_year_span"><text>$from - $to</text></string>
+	<string id="st_sotz_year_day_of"><text>Day $day of $days</text></string>
+	<string id="st_sotz_year_key"><text>today lit, marked days underlined</text></string>
+	<string id="st_sotz_year_marked_days"><text>Days the Zone marks</text></string>
+	<string id="st_sotz_year_season_starts"><text>Season starts</text></string>
+	<string id="st_sotz_year_from"><text>from $date</text></string>
+	<string id="st_sotz_year_today"><text>today</text></string>
+	<string id="st_sotz_year_tomorrow"><text>tomorrow</text></string>
+	<string id="st_sotz_year_in_days_one"><text>in $n day</text></string>
+	<string id="st_sotz_year_in_days_many"><text>in $n days</text></string>
+	<string id="st_sotz_day_memorial"><text>Clear sky. The Zone goes quiet.</text></string>
+	<string id="st_sotz_day_anniversary"><text>Storm. Artefacts surface.</text></string>
+
+	<!-- On screen when the season shifts during play -->
+	<string id="st_sotz_msg_settled"><text>$Season has settled over the Zone.</text></string>
+	<string id="st_sotz_msg_giving_way"><text>$From giving way to $to.</text></string>
+
+	<!-- The PDA report on loading in; $date is today's -->
+	<string id="st_sotz_news_pinned"><text>$Season in the Zone.</text></string>
+	<string id="st_sotz_news_one_season"><text>$Season in the Zone. $date.</text></string>
+	<string id="st_sotz_news_next_tomorrow"><text>$Season in the Zone. $date. $Next begins tomorrow.</text></string>
+	<string id="st_sotz_news_next_in_days_one"><text>$Season in the Zone. $date. $Next begins in $n day.</text></string>
+	<string id="st_sotz_news_next_in_days_many"><text>$Season in the Zone. $date. $Next begins in $n days.</text></string>
+	<string id="st_sotz_news_beginning"><text>$Season is beginning to show. $date.</text></string>
+	<string id="st_sotz_news_giving_way"><text>$From giving way to $to. $date.</text></string>
+	<string id="st_sotz_news_taken_hold"><text>$Season has taken hold. $date.</text></string>
+	<string id="st_sotz_news_eco_access"><text>Your standing has been noted. From now on the bunker relays will send emission warnings to your PDA's forecast - a rough window, never the hour. Do not mistake that for safety.</text></string>
+
+	<!-- The days the Zone marks: April 26 and December 14, and the four mainline release
+	     dates. Each transmission is "$who: $line". A pool's opens are sent first, one of
+	     them soon after the player loads in; its lines follow, shuffled. A line with _one
+	     and _many forms counts $n in-game years since the game's story. -->
+	<string id="st_sotz_rem_says"><text>$who: $line</text></string>
+	<string id="st_sotz_speaker_barman"><text>Barman</text></string>
+	<string id="st_sotz_speaker_beard"><text>Beard</text></string>
+	<string id="st_sotz_speaker_forester"><text>Forester</text></string>
+	<string id="st_sotz_speaker_guide"><text>Guide</text></string>
+	<string id="st_sotz_speaker_nimble"><text>Nimble</text></string>
+	<string id="st_sotz_speaker_owl"><text>Owl</text></string>
+	<string id="st_sotz_speaker_sakharov"><text>Sakharov</text></string>
+	<string id="st_sotz_speaker_sidorovich"><text>Sidorovich</text></string>
+
+	<!-- April 26, International Chernobyl Disaster Remembrance Day -->
+	<string id="st_sotz_rem_chernobyl_opens_1"><text>No traffic on any channel. Nobody is working today.</text></string>
+	<string id="st_sotz_rem_chernobyl_opens_2"><text>Channel has been open since dawn. Nobody has used it.</text></string>
+	<string id="st_sotz_rem_chernobyl_opens_3"><text>Quiet on every band. You will not find work today.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_1"><text>Someone is reading names on the long wave. Has been for an hour.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_2"><text>The old hands are not going out. Not today.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_3"><text>Barman poured one and left it on the counter. Did not say who for.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_4"><text>There is a candle at the fire nobody will admit to lighting.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_5"><text>Two stalkers at the fire, neither of them talking.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_6"><text>One of the traders shut up shop at noon. No reason given.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_7"><text>Flowers at the foot of a rusted sign. They will not last the night.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_8"><text>The reading on the long wave has not stopped. Different voice now.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_9"><text>Nobody has fired a shot near the checkpoint all day. Unusual.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_10"><text>Old man at the bar has been nursing the same drink since morning.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_11"><text>Some rookie asked what day it was. Nobody answered him.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_12"><text>Squad went out at first light and came straight back. Did not say why.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_13"><text>The dosimeters read the same as any other day. Feels wrong that they do.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_14"><text>A date scratched into the table. No year with it.</text></string>
+	<string id="st_sotz_rem_chernobyl_lines_15"><text>The dogs have not started up once.</text></string>
+
+	<!-- December 14, Liquidators' Day -->
+	<string id="st_sotz_rem_liquidators_opens_1"><text>Clear over the reactor. First time in weeks.</text></string>
+	<string id="st_sotz_rem_liquidators_opens_2"><text>Sky is open all the way north. You can see the sarcophagus from the ridge.</text></string>
+	<string id="st_sotz_rem_liquidators_opens_3"><text>No cloud, no wind. They say it always clears on this date.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_1"><text>They went in knowing. That is the part nobody says out loud.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_2"><text>Sky is wrong today. Too clean.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_3"><text>Old man at the fire keeps looking north.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_4"><text>Someone read a list this morning. Short list. All the same year.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_5"><text>No wind. The Zone is holding its breath.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_6"><text>Trader at the bar is giving vodka away. Will not take payment.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_7"><text>Long wave has a man in a lead apron on it. A recording, not a live one.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_8"><text>You can see a long way today. Not sure that is a mercy.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_9"><text>Three of them at the fire, all facing the reactor.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_10"><text>A shovel standing upright in the dirt. Nobody has moved it.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_11"><text>Man at the bar says his grandfather came here in eighty-six. Did not say more.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_12"><text>The air is still enough to hear the plant from the ridge.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_13"><text>An old respirator on the bar, polished, hours of it.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_14"><text>Squad passed through without a word. All of them clean-shaven.</text></string>
+	<string id="st_sotz_rem_liquidators_lines_15"><text>Nobody is selling today. A few are buying drinks.</text></string>
+
+	<!-- March 20, the day Shadow of Chernobyl came out -->
+	<string id="st_sotz_rem_soc_opens_1_one"><text>$n year since a man with no memory woke up in a death truck.</text></string>
+	<string id="st_sotz_rem_soc_opens_1_many"><text>$n years since a man with no memory woke up in a death truck.</text></string>
+	<string id="st_sotz_rem_soc_opens_2"><text>Bar is loud tonight. Somebody started the old arguments again.</text></string>
+	<string id="st_sotz_rem_soc_opens_3_one"><text>Storm building. Same as it did $n year back, they say.</text></string>
+	<string id="st_sotz_rem_soc_opens_3_many"><text>Storm building. Same as it did $n years back, they say.</text></string>
+	<string id="st_sotz_rem_soc_lines_1"><text>Trader's truck came through with bodies in the back, they say. Old story. Comes around every year.</text></string>
+	<string id="st_sotz_rem_soc_lines_2"><text>Old hands get strange this week. Something about a man who walked into the Sarcophagus and did not come out.</text></string>
+	<string id="st_sotz_rem_soc_lines_3"><text>Sidorovich has had his bunker door shut since morning.</text></string>
+	<string id="st_sotz_rem_soc_lines_4"><text>Two rookies arguing about who really did it. Neither of them was here.</text></string>
+	<string id="st_sotz_rem_soc_lines_5"><text>Anomalies are busy tonight. Good hunting, if you are mad enough.</text></string>
+	<string id="st_sotz_rem_soc_lines_6"><text>Bar is full and loud. Nobody is going out.</text></string>
+	<string id="st_sotz_rem_soc_lines_7"><text>Man in the corner bet his whole artefact case that the wish granter is real.</text></string>
+	<string id="st_sotz_rem_soc_lines_8"><text>Electros lit up across the whole field. Never seen so many at once.</text></string>
+	<string id="st_sotz_rem_soc_lines_9"><text>A man came in asking directions to the reactor. Got laughed out.</text></string>
+	<string id="st_sotz_rem_soc_lines_10"><text>There is a tattered jacket for sale and a long story attached to it.</text></string>
+	<string id="st_sotz_rem_soc_lines_11"><text>The wire hums tonight. Older stalkers say that is normal for the date.</text></string>
+	<string id="st_sotz_rem_soc_lines_12"><text>Squad heading out at this hour. Someone talked them into it.</text></string>
+	<string id="st_sotz_rem_soc_lines_13"><text>Traders raised their prices and blamed the weather.</text></string>
+	<string id="st_sotz_rem_soc_lines_14"><text>Repeater went down for ten minutes. Came back with nobody on it.</text></string>
+	<string id="st_sotz_rem_soc_lines_15"><text>Every rookie in the bar has a theory. None of them were there.</text></string>
+
+	<!-- August 22, the day Clear Sky came out -->
+	<string id="st_sotz_rem_cs_opens_1_one"><text>$n year since Clear Sky went into the swamps. Not many came out.</text></string>
+	<string id="st_sotz_rem_cs_opens_1_many"><text>$n years since Clear Sky went into the swamps. Not many came out.</text></string>
+	<string id="st_sotz_rem_cs_opens_2_one"><text>The marshes took a whole faction. $n year, and nobody has taken the ground back.</text></string>
+	<string id="st_sotz_rem_cs_opens_2_many"><text>The marshes took a whole faction. $n years, and nobody has taken the ground back.</text></string>
+	<string id="st_sotz_rem_cs_opens_3"><text>Emission season. The swamp crews knew this one better than anybody.</text></string>
+	<string id="st_sotz_rem_cs_lines_1"><text>Emission readings up over the marshes. Nothing on the surface yet.</text></string>
+	<string id="st_sotz_rem_cs_lines_2"><text>A merc in the bar claims he served in the swamps back then. Nobody believes him.</text></string>
+	<string id="st_sotz_rem_cs_lines_3"><text>Faction war talk again. Someone always brings it up this time of year.</text></string>
+	<string id="st_sotz_rem_cs_lines_4"><text>Swamp is restless. The ones who used to work it are long gone.</text></string>
+	<string id="st_sotz_rem_cs_lines_5"><text>Barometer dropped through the floor an hour ago. The marshes always did know first.</text></string>
+	<string id="st_sotz_rem_cs_lines_6"><text>Waterlogged rifle came out of the reeds. Old pattern, nobody makes it now.</text></string>
+	<string id="st_sotz_rem_cs_lines_7"><text>Two factions nearly went at it in the bar over something long buried.</text></string>
+	<string id="st_sotz_rem_cs_lines_8"><text>The old radio masts in the marsh are picking something up again.</text></string>
+	<string id="st_sotz_rem_cs_lines_9"><text>Swamp-salvaged gear on sale and no answer about where from.</text></string>
+	<string id="st_sotz_rem_cs_lines_10"><text>A guide refuses to take anyone south today. Will not say why.</text></string>
+	<string id="st_sotz_rem_cs_lines_11"><text>Anomaly field shifted overnight. The whole marsh edge has moved.</text></string>
+	<string id="st_sotz_rem_cs_lines_12"><text>Man in the corner keeps checking a detector that is not switched on.</text></string>
+	<string id="st_sotz_rem_cs_lines_13"><text>Rain coming. The kind that does not stop.</text></string>
+	<string id="st_sotz_rem_cs_lines_14"><text>Voices on a dead channel out by the reeds, if you believe him.</text></string>
+	<string id="st_sotz_rem_cs_lines_15"><text>Nobody has walked the far side of the marsh in a week.</text></string>
+
+	<!-- October 2, the day Call of Pripyat came out -->
+	<string id="st_sotz_rem_cop_opens_1_one"><text>$n year since Operation Fairway went down over Pripyat.</text></string>
+	<string id="st_sotz_rem_cop_opens_1_many"><text>$n years since Operation Fairway went down over Pripyat.</text></string>
+	<string id="st_sotz_rem_cop_opens_2_one"><text>Five helicopters. $n year and they still argue about the fifth.</text></string>
+	<string id="st_sotz_rem_cop_opens_2_many"><text>Five helicopters. $n years and they still argue about the fifth.</text></string>
+	<string id="st_sotz_rem_cop_opens_3"><text>Military band has been busy all morning. Old frequencies.</text></string>
+	<string id="st_sotz_rem_cop_lines_1"><text>Five helicopters. They still argue about the fifth.</text></string>
+	<string id="st_sotz_rem_cop_lines_2"><text>The Fairway transmission is playing again. Static and a man counting.</text></string>
+	<string id="st_sotz_rem_cop_lines_3"><text>Military flying low over Zaton. Looking for something old.</text></string>
+	<string id="st_sotz_rem_cop_lines_4"><text>Scrappers still pull pieces out of Stingray Five. Still worth carrying.</text></string>
+	<string id="st_sotz_rem_cop_lines_5"><text>Anyone heading north today is going for the wrong reasons.</text></string>
+	<string id="st_sotz_rem_cop_lines_6"><text>A man at Skadovsk is buying anything with military markings. Paying over the odds.</text></string>
+	<string id="st_sotz_rem_cop_lines_7"><text>Flight recorder, allegedly. He will not show it to anyone.</text></string>
+	<string id="st_sotz_rem_cop_lines_8"><text>The old evac route is busy tonight. Nobody is evacuating.</text></string>
+	<string id="st_sotz_rem_cop_lines_9"><text>Two ex-military drinking together. Neither has said a word in an hour.</text></string>
+	<string id="st_sotz_rem_cop_lines_10"><text>There is a map going around with five crosses on it. Four crossed out.</text></string>
+	<string id="st_sotz_rem_cop_lines_11"><text>Pripyat is quiet on the scanners. Too quiet for the date.</text></string>
+	<string id="st_sotz_rem_cop_lines_12"><text>Trader says a pilot's watch came through here once. Sold it fast.</text></string>
+	<string id="st_sotz_rem_cop_lines_13"><text>Someone is asking about Yanov like they expect it to be different.</text></string>
+	<string id="st_sotz_rem_cop_lines_14"><text>A squad went north at dusk without hiring a guide.</text></string>
+	<string id="st_sotz_rem_cop_lines_15"><text>Static on the military band. Just static. Someone is listening to it anyway.</text></string>
+
+	<!-- November 20, the day Heart of Chornobyl came out -->
+	<string id="st_sotz_rem_hoc_opens_1"><text>Wire has moved again. Further out than the last time.</text></string>
+	<string id="st_sotz_rem_hoc_opens_2"><text>Maps in the bar are wrong and nobody has drawn new ones.</text></string>
+	<string id="st_sotz_rem_hoc_opens_3"><text>Something is coming up from the south. Nobody can say what.</text></string>
+	<string id="st_sotz_rem_hoc_lines_1"><text>Zone is bigger than the maps say. Has been a while now.</text></string>
+	<string id="st_sotz_rem_hoc_lines_2"><text>Newcomers with gear nobody recognizes, coming up from the south.</text></string>
+	<string id="st_sotz_rem_hoc_lines_3"><text>Scanner picked up something it had no name for.</text></string>
+	<string id="st_sotz_rem_hoc_lines_4"><text>A sphere out past the ridge. Looked again and there was nothing.</text></string>
+	<string id="st_sotz_rem_hoc_lines_5"><text>New faction colors at the checkpoint. Nobody asked whose.</text></string>
+	<string id="st_sotz_rem_hoc_lines_6"><text>Traders are stocking things that were not made here.</text></string>
+	<string id="st_sotz_rem_hoc_lines_7"><text>Hiring notice on the board with no destination written on it.</text></string>
+	<string id="st_sotz_rem_hoc_lines_8"><text>Old hands do not like how many people are coming in.</text></string>
+	<string id="st_sotz_rem_hoc_lines_9"><text>Something went through the treeline at speed. Left no prints.</text></string>
+	<string id="st_sotz_rem_hoc_lines_10"><text>A guide walked a route he has known for years and did not recognize it.</text></string>
+	<string id="st_sotz_rem_hoc_lines_11"><text>Anomaly two clicks east that nobody has a name for. One of them will name it.</text></string>
+	<string id="st_sotz_rem_hoc_lines_12"><text>Detector at the bar reads something the others do not. Owner will not sell it.</text></string>
+	<string id="st_sotz_rem_hoc_lines_13"><text>Three expeditions went out this week. One has reported back.</text></string>
+	<string id="st_sotz_rem_hoc_lines_14"><text>The newcomers talk about the Zone like it is a job.</text></string>
+	<string id="st_sotz_rem_hoc_lines_15"><text>Two guides gave different answers for the same route today.</text></string>
+</string_table>

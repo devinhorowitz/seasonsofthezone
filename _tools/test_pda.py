@@ -18,6 +18,7 @@ import re
 import sys
 
 from lua_runtime import LuaRuntime, NAME as LUA_NAME
+from test_strings import install as install_strings
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(ROOT, "mods", "Seasons of the Zone", "gamedata", "scripts")
@@ -86,6 +87,8 @@ def build(forecast_fails=False):
     g.printf = lambda *a: None
     g.GetARGB = lambda a, r, gg, b: lua.table_from({"a": a, "r": r, "g": gg, "b": b})
     g.ui_events = lua.table_from({"BUTTON_CLICKED": 17})
+    # the switch labels are string ids, read through sotz_text
+    install_strings(lua, g)
 
     # the base game's router: records what reached it, with every argument
     seen = []
@@ -279,7 +282,7 @@ def t_the_switch_on_each_page():
         del opened[:]
         cb.fn(cb.obj)
         assert list(opened) == [goes_to], "%s: switch opened %s" % (cls, list(opened))
-        # both halves say what they are, the same words on both pages
+        # both halves say what they are, the same words on both pages, from the table
         assert p["toggle_year_label"].text == "The Year"
         assert p["toggle_fc_label"].text == "Forecast"
     return "each page lights its own half and sends the other to the other face"

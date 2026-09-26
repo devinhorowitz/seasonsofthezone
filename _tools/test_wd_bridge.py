@@ -16,6 +16,7 @@ import re
 import sys
 
 from lua_runtime import LuaRuntime, NAME as LUA_NAME
+from test_strings import install
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOC = os.path.join(ROOT, "docs", "WEARABLE-DEVICES.md")
@@ -52,6 +53,7 @@ def build(standing=900, surge_left=4 * HOUR, with_sotz=True):
     g.game = lua.table_from({"get_game_time": lambda: lua.table_from({
         "diffSec": lambda self, other: other["elapsed"] if other is not None else 0,
         "get": lambda self, *a: 2026})})
+    install(lua, g)
     surge = lua.table_from({
         "_delta": 24 * HOUR,
         "last_surge_time": lua.table_from({"elapsed": 24 * HOUR - surge_left})})

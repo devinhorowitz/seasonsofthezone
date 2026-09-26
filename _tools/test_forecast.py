@@ -12,6 +12,7 @@ import atexit
 import shutil
 import tempfile
 from lua_runtime import LuaRuntime, NAME as LUA_NAME
+from test_strings import install, translator
 
 import os
 SRC = (os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -67,6 +68,7 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
             "get": lambda self, *a: 2026,
         }),
     })
+    install(lua, g)
     # No actor is the main menu, which is where MCM is usually opened from.
     g.db = lua.table_from({"actor": lua.table_from({"id": lambda self: 0})}) if in_level \
         else lua.table_from({})
@@ -483,6 +485,7 @@ def expose(fname, names, setup=None):
     """)
     g.CUIScriptWnd = lua.table_from({})
     g.printf = lambda *a: None
+    install(lua, g)
     if setup:
         setup(lua, g)
     src = io.open(os.path.join(SCRIPTS, fname), encoding="utf-8").read()
@@ -599,6 +602,9 @@ def t_stock_page_text():
 
 
 def t_mcm_status():
+    # a row carries its string id, and MCM shows translate_string of it
+    shown = translator()
+
     def run(has_mac, source, raises=False):
         def setup(lua, g):
             g.mac_mcm = lua.table_from({"add_app": lambda *a: None}) if has_mac else None
@@ -614,7 +620,7 @@ def t_mcm_status():
         rows = {}
         for i in range(1, len(out) + 1):
             r = out[i]
-            rows[r.id] = (r.text, tuple(r.clr[j] for j in range(1, 5)))
+            rows[r.id] = (shown(r.text), tuple(r.clr[j] for j in range(1, 5)))
         return rows
 
     red, gray = (255, 238, 96, 72), (255, 165, 165, 165)

@@ -14,6 +14,7 @@ import os
 import sys
 
 from lua_runtime import LuaRuntime, NAME as LUA_NAME
+from test_strings import install
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(ROOT, "mods", "Seasons of the Zone", "gamedata", "scripts")
@@ -44,6 +45,7 @@ def build(hour=12.0, cycle="clear", month=None, day=15, standing=900,
         "diffSec": lambda self, other: other["elapsed"] if other is not None else 0,
         "get": lambda self, *a: 2026,
     })})
+    install(lua, g)
     g.surge_manager = lua.table_from({"SurgeManager": lua.table_from({
         "_delta": 24 * HOUR,
         "last_surge_time": lua.table_from({"elapsed": 24 * HOUR - surge_left})})})

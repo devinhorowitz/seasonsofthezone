@@ -1,0 +1,78 @@
+-- Seasons of the Zone - the words on screen.
+--
+-- Every word this mod shows the player is a string id in configs/text/<language>/, so a
+-- translation is a copy of those files and nothing else. No script hands English to a
+-- widget, a PDA message or an MCM row; each asks here, and gets the player's language.
+--
+-- A value inside a sentence is a named placeholder, $name, filled by text(). The string
+-- table cannot reorder printf's %s, and a translation has to be free to move the words
+-- around a value: "Live from $place" may become one that ends with $place. A name runs to
+-- the first character that is not a letter, a digit or an underscore. A name the caller
+-- did not fill is left as written, so a typo in a translation shows rather than vanishes.
+--
+-- A count takes one of three forms, <id>_one, <id>_few and <id>_many, picked by the plural
+-- rule the string table itself names in st_sotz_plural_rule: "en" for English, "ru" for
+-- Russian, as CLDR defines them. English has no _few; a form a table does not have falls
+-- back to _many.
+--
+-- A date is built here as well, because where the day goes is the language's to decide.
+-- The month comes in the form it takes inside a date, which Russian declines and English
+-- does not, and the grid's month labels take the form a month has on its own.
+
+-- CLDR's cardinal rules, for the three forms the string tables carry
+local RULES = {
+    en = function(n)
+        return (n == 1) and "one" or "many"
+    end,
+    ru = function(n)
+        local d, h = n % 10, n % 100
+        if d == 1 and h ~= 11 then return "one" end
+        if d >= 2 and d <= 4 and (h < 12 or h > 14) then return "few" end
+        return "many"
+    end,
+}
+
+local function fill(s, vals)
+    s = tostring(s or "")
+    if not vals then return s end
+    -- a function, not a replacement string: a value may itself contain a %
+    return (s:gsub("%$([%a_][%w_]*)", function(name)
+        local v = vals[name]
+        if v ~= nil then return tostring(v) end
+    end))
+end
+
+--- The string for `id`, with each $name in it replaced by vals[name].
+-- An id the table does not have comes back as itself, as game.translate_string does.
+function text(id, vals)
+    return fill(game.translate_string(id), vals)
+end
+
+--- The form of `id` that goes with the count n, filled like text(). $n is the count
+-- unless vals says otherwise.
+function plural(id, n, vals)
+    local rule = RULES[game.translate_string("st_sotz_plural_rule")] or RULES.en
+    local form = id .. "_" .. rule(math.abs(tonumber(n) or 0))
+    local s = game.translate_string(form)
+    if s == form then s = game.translate_string(id .. "_many") end
+    local v = {n = n}
+    for k, x in pairs(vals or {}) do v[k] = x end
+    return fill(s, v)
+end
+
+--- "September 25, 2026"
+function date(m, d, y)
+    return text("st_sotz_date", {month = text("st_sotz_month_" .. m .. "_date"),
+                                 day = d, year = y})
+end
+
+--- "Sep 15"
+function date_short(m, d)
+    return text("st_sotz_date_short", {month = text("st_sotz_month_" .. m .. "_short_date"),
+                                       day = d})
+end
+
+--- "Sep", as a month stands on its own
+function month_short(m)
+    return text("st_sotz_month_" .. m .. "_short")
+end

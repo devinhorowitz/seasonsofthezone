@@ -21,6 +21,10 @@
 -- House style: the page should read like a device, not a readout. Terse lines, the
 -- Zone's own amber, no ornament. The one image is this mod's own - the year dial - so
 -- nothing here can reference a texture that does not exist.
+--
+-- Every word on the page is a string id, st_sotz_* in st_seasons_of_the_zone.xml, read
+-- through sotz_text; the dates and season names arrive from the data layer already in the
+-- player's language.
 
 local SINGLETON = nil
 
@@ -50,17 +54,11 @@ local function tex(name)
     return (name:gsub("%.dds$", ""))
 end
 
--- name_of() returns lowercase; headings want it capitalized.
-local function cap_first(s)
-    s = tostring(s or "")
-    return s:sub(1, 1):upper() .. s:sub(2)
-end
-
 -- "in 40 days" / "tomorrow" / "today". Nobody says "in 1 days".
 local function when_text(days)
-    if days == 0 then return "today" end
-    if days == 1 then return "tomorrow" end
-    return string.format("in %d days", days)
+    if days == 0 then return sotz_text.text("st_sotz_year_today") end
+    if days == 1 then return sotz_text.text("st_sotz_year_tomorrow") end
+    return sotz_text.plural("st_sotz_year_in_days", days)
 end
 
 -- What each kind of marked day actually does, said the way the Zone would say it. Both
@@ -68,8 +66,8 @@ end
 -- every channel, an anniversary holds a storm and seeds an extra crop of artefacts on
 -- each level visited that day.
 local DAY_TEXT = {
-    memorial    = "Clear sky. The Zone goes quiet.",
-    anniversary = "Storm. Artefacts surface.",
+    memorial    = "st_sotz_day_memorial",
+    anniversary = "st_sotz_day_anniversary",
 }
 
 -- CScriptXmlInit:ParseFile does NOT raise when the xml cannot be used - it returns, and
@@ -154,8 +152,8 @@ function SeasonsPDA:InitToggle()
     self.toggle_fc_label   = xml:InitTextWnd("toggle_fc_label", self)
 
     local V = sotz_pda.VIEWS
-    put(self.toggle_year_label, V.year.title)
-    put(self.toggle_fc_label, V.forecast.title)
+    put(self.toggle_year_label, sotz_text.text(V.year.title))
+    put(self.toggle_fc_label, sotz_text.text(V.forecast.title))
 
     local here_btn, here_lbl = self.toggle_year, self.toggle_year_label
     local away_btn = self.toggle_fc
@@ -406,8 +404,6 @@ local MARK_H     = 5                -- the underline; 4 read as an artefact of t
 local MARK_COOL  = {150, 60, 50}
 
 local MONTH_LEN  = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
-local MONTH_ABBR = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
 -- five day marks, like the forecast's five hours: more than this and they collide
 local DAY_AT     = {1, 8, 15, 22, 29}
 
@@ -539,7 +535,7 @@ function SeasonsPDA:DrawGrid(d)
 
         local w = self.months and self.months[m]
         if w then
-            w:SetText(MONTH_ABBR[m])
+            w:SetText(sotz_text.month_short(m))
             w:SetWndPos(vector2():set(GRID_X, GRID_Y + y))
             w:Show(true)
         end
@@ -605,8 +601,8 @@ function SeasonsPDA:Fill()
 
     local d = page()
     if not d then
-        put(self.header, "The Year")
-        put(self.subheader, "The calendar can't be read right now.")
+        put(self.header, sotz_text.text("st_sotz_year_title"))
+        put(self.subheader, sotz_text.text("st_sotz_year_unreadable"))
         put(self.turning, "")
         put(self.marked, "")
         put(self.grid_cap_l, "")
@@ -617,7 +613,9 @@ function SeasonsPDA:Fill()
         return
     end
 
-    put(self.header, cap_first(d.label) .. " in the Zone")
+    -- a season's name in both its forms: `title` starts a line, `label` sits inside one
+    put(self.header, sotz_text.text("st_sotz_year_header",
+                                    {season = d.label, Season = d.title}))
     put(self.subheader, d.today)
 
     -- the season's own accent strip; ours, so it cannot be missing
@@ -626,10 +624,17 @@ function SeasonsPDA:Fill()
         if not okb then say("accent bar failed: " .. tostring(d.bar)) end
     end
 
-    -- what the year does next
-    if d.next then
-        put(self.turning, string.format("%s %s.",
-                          cap_first(d.next.label), when_text(d.next.days)))
+    -- what the year does next, as one sentence each way it can be said
+    local nx = d.next
+    if nx then
+        local v = {season = nx.label, Season = nx.title}
+        if nx.days == 0 then
+            put(self.turning, sotz_text.text("st_sotz_year_next_today", v))
+        elseif nx.days == 1 then
+            put(self.turning, sotz_text.text("st_sotz_year_next_tomorrow", v))
+        else
+            put(self.turning, sotz_text.plural("st_sotz_year_next_in_days", nx.days, v))
+        end
     else
         put(self.turning, "")
     end
@@ -638,9 +643,9 @@ function SeasonsPDA:Fill()
     -- is ever the interesting one, and a line of its own for a thing that is blank 359
     -- days a year is a hole in the header
     if d.marked then
-        put(self.marked, (d.marked.kind == "memorial")
-                         and "The Zone is quiet."
-                         or  "The Zone is loud.")
+        put(self.marked, sotz_text.text((d.marked.kind == "memorial")
+                                        and "st_sotz_year_quiet"
+                                        or  "st_sotz_year_loud"))
     else
         put(self.marked, "")
     end
@@ -659,8 +664,9 @@ function SeasonsPDA:Fill()
     for _, s in ipairs(d.seasons or {}) do
         if s.current then
             -- one season on is the whole year, which runs from its start back to it
-            put(self.dial_caption, (s.from == s.to) and "All year"
-                                   or string.format("%s - %s", s.from, s.to))
+            local span = (s.from == s.to) and sotz_text.text("st_sotz_year_all_year")
+                         or sotz_text.text("st_sotz_year_span", {from = s.from, to = s.to})
+            put(self.dial_caption, span)
         end
     end
 
@@ -672,19 +678,21 @@ function SeasonsPDA:Fill()
     self:DrawGrid(d)
     -- The month names and the day scale carry the axes, so the captions only say what
     -- they cannot: where today falls as a number, and what the underlines are.
-    put(self.grid_cap_l, string.format("Day %d of %d",
-                                       tonumber(d.doy) or 0, tonumber(d.year_len) or 0))
-    put(self.grid_cap_r, "today lit, marked days underlined")
+    put(self.grid_cap_l, sotz_text.text("st_sotz_year_day_of",
+                                        {day = tonumber(d.doy) or 0,
+                                         days = tonumber(d.year_len) or 0}))
+    put(self.grid_cap_r, sotz_text.text("st_sotz_year_key"))
 
     -- --- the marked days, soonest first -----------------------------------------------
     -- The wide column, so each day can say what it actually does rather than leaving it
     -- to a color the player has to learn.
-    self:Section(1, "Days the Zone marks")
+    self:Section(1, sotz_text.text("st_sotz_year_marked_days"))
     for _, day in ipairs(d.days or {}) do
         -- White said "this is the one you are on" and nothing more. On the six days that
         -- actually do something, the row wears the alarm color the grid cell does.
+        local does = DAY_TEXT[tostring(day.kind)]
         self:Put(1, {{0, day.date}, {110, when_text(day.away)},
-                     {210, DAY_TEXT[tostring(day.kind)] or ""}},
+                     {210, does and sotz_text.text(does) or ""}},
                  day.today and MARK_RGB or LINE_RGB)
     end
 
@@ -693,10 +701,10 @@ function SeasonsPDA:Fill()
     -- already - illegibly, at 236px, but it prints them - and the grid on the left shows
     -- each span at its true width. What neither can state exactly is the date a season
     -- turns, which is the thing a stalker would actually want off this page.
-    self:Section(2, "Season starts")
+    self:Section(2, sotz_text.text("st_sotz_year_season_starts"))
     for _, s in ipairs(d.seasons or {}) do
-        self:Put(2, {{0, cap_first(s.label)}, {118, "from " .. tostring(s.from)}},
-                 s.current and NOW_RGB or LINE_RGB)
+        local since = sotz_text.text("st_sotz_year_from", {date = s.from})
+        self:Put(2, {{0, s.title}, {118, since}}, s.current and NOW_RGB or LINE_RGB)
     end
 
     -- One line per open, naming what the page actually resolved. This page has the same

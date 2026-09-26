@@ -27,6 +27,7 @@ import tempfile
 from lua_runtime import LuaRuntime, NAME as LUA_NAME
 
 from check_layout import CALENDAR, read as read_layout
+from test_strings import install, translator
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(ROOT, "mods", "Seasons of the Zone", "gamedata", "scripts")
@@ -168,6 +169,7 @@ def build(year=2026, month=9, day=22, calendar=None, mcm=None, staged=None, draw
     g.psi_storm_manager = lua.table_from({})
     g.game = lua.table_from({"get_game_time": lambda: lua.table_from({
         "diffSec": lambda self, other: 0, "get": lambda self, *a: year})})
+    install(lua, g)
     files = {}
     if calendar is not None:
         path = os.path.join(TMP, "calendar_%d.ltx" % next(SERIAL))
@@ -1058,14 +1060,16 @@ def t_the_date_reads_month_day_year():
 
 def season_page(season, mods=None):
     """One MCM season page as the shipped MCM script builds it from season_mods.ltx:
-    the text of its note about the mods, and the checkboxes under it."""
+    the text of its note about the mods, as MCM shows it, and the checkboxes under it."""
     lua, g = build(2026, 7, 1, mods=mods)
     src = io.open(os.path.join(SCRIPTS, "zzz_seasons_of_the_zone_mcm.script"),
                   encoding="utf-8").read()
     op = g.load_in(src, "zzz_seasons_of_the_zone_mcm", g).on_mcm_load()
     pages = {op.gr[i].id: op.gr[i] for i in range(1, len(op.gr) + 1)}
     items = [pages[season].gr[i] for i in range(1, len(pages[season].gr) + 1)]
-    notes = [o.text for o in items if o.id in ("desc_nomods", "desc_mods")]
+    # the note is a string id; MCM runs a desc row through translate_string
+    shown = translator()
+    notes = [shown(o.text) for o in items if o.id in ("desc_nomods", "desc_mods")]
     assert len(notes) == 1, notes
     return notes[0], [o.id for o in items if o.type == "check"]
 

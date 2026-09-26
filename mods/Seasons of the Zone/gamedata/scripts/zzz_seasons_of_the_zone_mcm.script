@@ -12,6 +12,8 @@
 --     list item     seasons_zone_<page>_<id>_lst_<value>, or a literal with no_str
 -- A wrong key renders as itself on screen. A desc row renders game.translate_string(text),
 -- which returns its input when nothing matches, so a computed sentence renders verbatim.
+-- So a fixed row passes its string id, and a row with a value in it arrives from the main
+-- script already filled in, through sotz_text; neither is ever English here.
 
 -- Register_Image does not apply width_factor: a square request renders as an ellipse.
 -- Widths are corrected by (4:3) / screen aspect, 0.75 at 16:9.
@@ -52,12 +54,9 @@ local STATUS_OK  = {255, 165, 165, 165}
 local STATUS_BAD = {255, 238, 96, 72}
 
 local WEATHER_TEXT = {
-    plan  = "Weather: Atmospherics' day planner. The forecast covers every change ahead.",
-    stock = "Weather: the base game's scheduler, which GAMMA uses. The forecast shows the "
-         .. "sky now, when it turns, and the odds for the next sky, which the scheduler draws "
-         .. "at random when the time comes. Atmospherics 2.69 plans the whole day ahead.",
-    none  = "No weather manager was found, so the Forecast page can't show the sky. The "
-         .. "rest of the mod works.",
+    plan  = "ui_mcm_seasons_zone_status_plan",
+    stock = "ui_mcm_seasons_zone_status_stock",
+    none  = "ui_mcm_seasons_zone_status_none",
 }
 
 local function dependency_rows(out)
@@ -70,11 +69,9 @@ local function dependency_rows(out)
     -- disagree about whether MAC is here.
     local has_mac = (mac_mcm and mac_mcm.add_app) and true or false
     if has_mac then
-        row("status_mac", "PDA: the Seasons app opens from the Mod App Creator launcher.",
-            false)
+        row("status_mac", "ui_mcm_seasons_zone_status_mac", false)
     else
-        row("status_mac", "Mod App Creator not found. The Seasons PDA app opens from its "
-            .. "launcher, so install Mod App Creator to use it.", true)
+        row("status_mac", "ui_mcm_seasons_zone_status_no_mac", true)
     end
 
     -- weather_source() never builds a manager from the main menu, which is where MCM is
@@ -119,7 +116,7 @@ end
 -- The dropdown of presets, shared by every season page and the neutral picker.
 local function preset_choices()
     local okp, c = pcall(function() return zzz_seasons_of_the_zone.preset_choices() end)
-    return (okp and c) or {{"builtin", "Built-in"}}
+    return (okp and c) or {{"builtin", "seasons_zone_preset_lst_builtin"}}
 end
 
 -- Main page: the calendar, the global settings, the launch-time master switches.
@@ -241,14 +238,12 @@ local function page_season(s, choices, info)
     if #mine == 0 then
         -- no file at all is as unknown as the stub
         if not info or info.staged_for == "none" then
-            desc(gr, "desc_nomods", "Start the game once with play.bat to list the seasonal "
-                 .. "mods here.", false)
+            desc(gr, "desc_nomods", "ui_mcm_seasons_zone_mods_unstaged", false)
         else
-            desc(gr, "desc_nomods", "No seasonal mods are set for this season.", false)
+            desc(gr, "desc_nomods", "ui_mcm_seasons_zone_mods_none", false)
         end
     else
-        desc(gr, "desc_mods", "Seasonal mods for this season - uncheck one to leave it out:",
-             false)
+        desc(gr, "desc_mods", "ui_mcm_seasons_zone_mods_listed", false)
         for _, m in ipairs(mine) do
             add({id = "mod_" .. m.key, type = "check", val = 1, def = true,
                  hint = "seasons_zone_mod_" .. m.key})

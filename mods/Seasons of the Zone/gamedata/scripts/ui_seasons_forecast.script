@@ -10,6 +10,9 @@
 --
 -- Mod App Creator calls get_ui() and expects a CUIScriptWnd back. Registration lives in
 -- z_seasons_pda_mac.script, so this file does not care whether MAC is installed.
+--
+-- Every word on the page is a string id, st_sotz_* in st_seasons_of_the_zone.xml, read
+-- through sotz_text. The only English left in this file is what goes to the log.
 
 local SINGLETON = nil
 
@@ -36,19 +39,22 @@ local function tex(name)
     return (name:gsub("%.dds$", ""))
 end
 
--- Atmospherics' internal cycle names, as a stalker would say them.
+-- Atmospherics' internal cycle names, as a stalker would say them. Snow is the real
+-- weather's, which tomorrow's row can carry; a cycle not listed shows under its own name.
 local CYCLE = {
-    clear   = "Clear",
-    partly  = "Partly cloudy",
-    cloudy  = "Overcast",
-    foggy   = "Fog",
-    rain    = "Rain",
-    storm   = "Storm",
+    clear   = "st_sotz_sky_clear",
+    partly  = "st_sotz_sky_partly",
+    cloudy  = "st_sotz_sky_cloudy",
+    foggy   = "st_sotz_sky_foggy",
+    rain    = "st_sotz_sky_rain",
+    storm   = "st_sotz_sky_storm",
+    snow    = "st_sotz_sky_snow",
 }
 
 local function cycle_name(c)
     c = tostring(c or "")
-    return CYCLE[c] or (c:sub(1, 1):upper() .. c:sub(2))
+    if CYCLE[c] then return sotz_text.text(CYCLE[c]) end
+    return c:sub(1, 1):upper() .. c:sub(2)
 end
 
 -- The glyph for each Atmospherics cycle. Anything the engine hands back that is not in
@@ -91,22 +97,31 @@ local GAUGE_BAND = {
 -- and credited wherever it is shown; the built-in Chornobyl normals are the mod's own.
 local function source_line(temp)
     if temp and temp.source == "observed" then
-        return string.format("Live from %s - weather data by Open-Meteo.com",
-                             temp.place or "Chornobyl")
+        local place = temp.place or sotz_text.text("st_sotz_fc_chornobyl")
+        return sotz_text.text("st_sotz_fc_live", {place = place})
     elseif temp and temp.place then
-        return string.format("No station data - modeled on %s's climate (Open-Meteo.com)",
-                             temp.place)
+        return sotz_text.text("st_sotz_fc_modeled_on", {place = temp.place})
     elseif temp then
-        return "No station data - temperature modeled"
+        return sotz_text.text("st_sotz_fc_modeled")
     end
     return ""
 end
 
 local function countdown(sec)
-    if sec >= 7200 then return string.format("in %d hours", math.floor(sec / 3600 + 0.5)) end
-    if sec >= 3600 then return "in an hour" end
-    if sec >=  120 then return string.format("in %d minutes", math.floor(sec / 60)) end
-    return "any moment"
+    if sec >= 7200 then
+        return sotz_text.plural("st_sotz_fc_in_hours", math.floor(sec / 3600 + 0.5))
+    end
+    if sec >= 3600 then return sotz_text.text("st_sotz_fc_in_an_hour") end
+    if sec >=  120 then
+        return sotz_text.plural("st_sotz_fc_in_minutes", math.floor(sec / 60))
+    end
+    return sotz_text.text("st_sotz_fc_any_moment")
+end
+
+-- The coarse tier's bracket. forecast_page() keeps the API's own words for it in
+-- surge_band and psi_band, and puts the string id to show beside them.
+local function bracket_text(id)
+    return id and sotz_text.text(id)
 end
 
 -- The weather plan's lead times arrive as game MINUTES.
@@ -115,15 +130,34 @@ end
 -- byte from Lua sidesteps the question of what encoding this file happens to be saved in.
 local DEG = "\176"
 
+-- sotz_api reports the unit as "C" or "F"; the letter the player reads is the table's
+local UNIT = {C = "st_sotz_unit_c", F = "st_sotz_unit_f"}
+
+local function unit_name(unit)
+    return sotz_text.text(UNIT[unit] or UNIT.C)
+end
+
 local function temp_str(v, unit)
     if v == nil then return "" end
-    return string.format("%d%s%s", v, DEG, unit or "C")
+    return string.format("%d%s%s", v, DEG, unit_name(unit))
 end
 
 local function lead(min)
-    if min >= 120 then return string.format("in %d hours", math.floor(min / 60 + 0.5)) end
-    if min >=  60 then return "in an hour" end
-    return string.format("in %d min", math.max(1, math.floor(min)))
+    if min >= 120 then
+        return sotz_text.plural("st_sotz_fc_in_hours", math.floor(min / 60 + 0.5))
+    end
+    if min >=  60 then return sotz_text.text("st_sotz_fc_in_an_hour") end
+    return sotz_text.plural("st_sotz_fc_in_min", math.max(1, math.floor(min)))
+end
+
+-- sotz_api reports the air's band as a key too
+local BAND = {
+    freezing = "st_sotz_band_freezing", cold = "st_sotz_band_cold",
+    mild = "st_sotz_band_mild", warm = "st_sotz_band_warm", hot = "st_sotz_band_hot",
+}
+
+local function percent(n)
+    return sotz_text.text("st_sotz_fc_percent", {n = string.format("%d", n)})
 end
 
 -- Stock weather knows roughly when it will turn, not what it turns into. The window is in
@@ -132,28 +166,29 @@ end
 local function window_text(win)
     if not win then return "" end
     local lo, hi = win.lo or 0, win.hi or 0
-    if hi <= 0 then return "turning any moment" end
+    if hi <= 0 then return sotz_text.text("st_sotz_fc_turning_now") end
     local H = math.max(1, math.floor(hi / 60 + 0.5))
     -- one hour is "the hour" / "an hour", never "1 hours"
     if lo < 60 then
-        if H <= 1 then return "turns within the hour" end
-        return string.format("turns within %d hours", H)
+        if H <= 1 then return sotz_text.text("st_sotz_fc_turns_within_hour") end
+        return sotz_text.plural("st_sotz_fc_turns_within", H)
     end
     local L = math.floor(lo / 60 + 0.5)
     if L >= H then
-        if H <= 1 then return "turns in about an hour" end
-        return string.format("turns in about %d hours", H)
+        if H <= 1 then return sotz_text.text("st_sotz_fc_turns_about_hour") end
+        return sotz_text.plural("st_sotz_fc_turns_about", H)
     end
-    return string.format("turns in %d to %d hours", L, H)
+    -- the form follows the far end, as the hours do in "3 to 5 hours"
+    return sotz_text.plural("st_sotz_fc_turns_between", H, {from = L, to = H})
 end
 
 -- The stock odds, summed the way a forecast states them: wet first, because "will it rain"
 -- is the question. Each group is named by the skies in it that can still come, so a group
 -- with one possible sky says just that one.
 local ODDS_GROUPS = {
-    {"Rain or storm",          {"rain", "storm"}},
-    {"Overcast or fog",        {"cloudy", "foggy"}},
-    {"Clear or partly cloudy", {"clear", "partly"}},
+    {"st_sotz_sky_wet",  {"rain", "storm"}},
+    {"st_sotz_sky_gray", {"cloudy", "foggy"}},
+    {"st_sotz_sky_fair", {"clear", "partly"}},
 }
 
 local function odds_rows(odds)
@@ -173,7 +208,8 @@ local function odds_rows(odds)
                 names[#names + 1] = cycle_name(c)
             end
         end
-        rows[i] = {label = (#names == 1) and names[1] or g[1], chance = sum}
+        rows[i] = {label = (#names == 1) and names[1] or sotz_text.text(g[1]),
+                   chance = sum}
     end
     -- a sky outside the three groups is still a chance of something; count it as gray
     for c, v in pairs(p) do
@@ -364,8 +400,8 @@ function SeasonsForecast:InitToggle()
     self.toggle_fc_label   = xml:InitTextWnd("toggle_fc_label", self)
 
     local V = sotz_pda.VIEWS
-    put(self.toggle_year_label, V.year.title)
-    put(self.toggle_fc_label, V.forecast.title)
+    put(self.toggle_year_label, sotz_text.text(V.year.title))
+    put(self.toggle_fc_label, sotz_text.text(V.forecast.title))
 
     local here_btn, here_lbl = self.toggle_fc, self.toggle_fc_label
     local away_btn = self.toggle_year
@@ -774,13 +810,13 @@ function SeasonsForecast:Fill()
 
     local d = page()
     if not d then
-        put(self.header, "Forecast")
-        put(self.subheader, "No readings right now.")
+        put(self.header, sotz_text.text("st_sotz_fc_title"))
+        put(self.subheader, sotz_text.text("st_sotz_fc_no_readings"))
         put(self.now, "")
         return
     end
 
-    put(self.header, "Forecast")
+    put(self.header, sotz_text.text("st_sotz_fc_title"))
     put(self.subheader, d.today or "")
 
     if d.bar and self.bar then
@@ -815,17 +851,19 @@ function SeasonsForecast:Fill()
     -- the only place "now" is printed; the chart captions used to repeat it
     local head = ""
     if temp and temp.now then
-        -- the band joins the headline now that the All day row is gone
-        head = string.format("%s  %s, %s", temp_str(temp.now, temp.unit),
-                             temp.band or "",
-                             temp.rising and "getting warmer" or "getting colder")
+        -- the band joins the headline now that the All day row is gone. The two spaces
+        -- after the number are the page's layout, not the sentence's.
+        local band = BAND[tostring(temp.band)]
+        head = temp_str(temp.now, temp.unit) .. "  " .. sotz_text.text(
+            temp.rising and "st_sotz_fc_warming" or "st_sotz_fc_cooling",
+            {band = band and sotz_text.text(band) or (temp.band or "")})
     end
-    put(self.units_label, DEG .. ((temp and temp.unit) or "C"))
+    put(self.units_label, DEG .. unit_name(temp and temp.unit))
     put(self.now, head)
     -- The face is labeled STORMY / RAIN / CHANGE / FAIR / DRY and the needle points at
     -- the word, so a caption underneath repeating it was a third way of saying storm -
     -- after the glyph and the needle.
-    put(self.gauge_caption, (w and w.now) and "" or "no reading")
+    put(self.gauge_caption, (w and w.now) and "" or sotz_text.text("st_sotz_fc_no_reading"))
 
     -- --- the sky, now and next --------------------------------------------------------
     -- The arrow and the second glyph only appear when there IS a next: on a settled day
@@ -848,16 +886,17 @@ function SeasonsForecast:Fill()
     end
     -- how sure the call is, beside its glyph the way a TV forecast shows it; the plan
     -- itself carries no percentage
-    put(self.wx_chance, (nxt and nxt.chance) and string.format("%d%%", nxt.chance) or "")
+    put(self.wx_chance, (nxt and nxt.chance) and percent(nxt.chance) or "")
     -- On stock there is no next glyph - it has not been picked yet - but there is a
     -- window, and saying "settled" would promise a sky that is certain to change.
     local next_text = ""
     if nxt then
-        next_text = string.format("%s, %s", cycle_name(nxt.cycle), lead(nxt.away))
+        next_text = sotz_text.text("st_sotz_fc_next", {sky = cycle_name(nxt.cycle),
+                                                       when = lead(nxt.away)})
     elseif w and w.source == "stock" then
         next_text = window_text(w.window)
     elseif w then
-        next_text = "settled"
+        next_text = sotz_text.text("st_sotz_fc_settled")
     end
     put(self.wx_next_label, next_text)
 
@@ -888,29 +927,32 @@ function SeasonsForecast:Fill()
     -- Stock weather draws the next sky at random when it turns, so its section is the
     -- odds of each, which are exact.
     local odds = (w and w.source == "stock") and odds_rows(w.odds) or nil
-    local said = (shown == (w and w.segments)) and "planned" or "forecast"
-    self:Head(1, odds and "Next sky" or "Next 24 hours")
+    -- the plan itself, or a forecaster's calls on it; each has its own sentences
+    local planned = (shown == (w and w.segments))
+    self:Head(1, sotz_text.text(odds and "st_sotz_fc_next_sky" or "st_sotz_fc_next_24h"))
     if shown and #shown > 1 then
         for i = 2, #shown do
             local seg = shown[i]
             self:Put(1, {{0, seg.at}, {76, cycle_name(seg.cycle)},
-                         {184, seg.chance and string.format("%d%%", seg.chance) or ""},
+                         {184, seg.chance and percent(seg.chance) or ""},
                          {232, lead(seg.away)}})
         end
     elseif odds then
         for _, r in ipairs(odds) do
-            self:Put(1, {{0, r.label}, {184, string.format("%d%%", r.pct)}},
+            self:Put(1, {{0, r.label}, {184, percent(r.pct)}},
                      r.pct > 0 and LINE_RGB or DIM_RGB)
         end
     elseif w and w.source == "stock" then
-        self:Put(1, {{0, "What comes after that is anyone's guess."}}, DIM_RGB)
+        self:Put(1, {{0, sotz_text.text("st_sotz_fc_anyones_guess")}}, DIM_RGB)
     elseif w and #(shown or {}) == 1 then
-        self:Put(1, {{0, "Nothing further " .. said .. "."}}, DIM_RGB)
+        self:Put(1, {{0, sotz_text.text(planned and "st_sotz_fc_nothing_planned"
+                                                or "st_sotz_fc_nothing_forecast")}}, DIM_RGB)
     elseif w then
-        self:Put(1, {{0, "Settled - no change " .. said .. "."}}, DIM_RGB)
+        self:Put(1, {{0, sotz_text.text(planned and "st_sotz_fc_settled_planned"
+                                                or "st_sotz_fc_settled_forecast")}}, DIM_RGB)
     else
         -- no weather manager at all; rare, and not the same as stock weather
-        self:Put(1, {{0, "No weather reading."}}, DIM_RGB)
+        self:Put(1, {{0, sotz_text.text("st_sotz_fc_no_weather")}}, DIM_RGB)
     end
 
     -- --- tomorrow --------------------------------------------------------------------
@@ -923,12 +965,13 @@ function SeasonsForecast:Fill()
     local okm, tv2 = pcall(function() return sotz_api.tomorrow() end)
     if okm then tm = tv2 end
     if tm then
+        local range = sotz_text.text("st_sotz_fc_low_to_high",
+                                     {low = temp_str(tm.low, tm.unit),
+                                      high = temp_str(tm.high, tm.unit)})
         self:Put(1, {{0, ""}})
-        self:Put(1, {{0, "Tomorrow"}}, HEAD_RGB)
-        self:Put(1, {{0, cycle_name(tm.cycle)},
-                     {76, string.format("%s to %s", temp_str(tm.low, tm.unit),
-                                        temp_str(tm.high, tm.unit))},
-                     {232, tm.frost and "frost overnight" or ""}}, NOW_RGB)
+        self:Put(1, {{0, sotz_text.text("st_sotz_fc_tomorrow")}}, HEAD_RGB)
+        self:Put(1, {{0, cycle_name(tm.cycle)}, {76, range},
+                     {232, tm.frost and sotz_text.text("st_sotz_fc_frost") or ""}}, NOW_RGB)
     end
 
     -- --- the ecologist forecast -------------------------------------------------------------
@@ -944,9 +987,9 @@ function SeasonsForecast:Fill()
     -- the right column is the panel alone now, so its head slot is free again
     self:Head(2, "")
     if fc then
-        local CLEARANCE = {locked = "CLASSIFIED", coarse = "LIMITED",
-                           exact = "CLEARED"}
-        put(self.eco_class, CLEARANCE[tostring(fc.tier)] or "CLASSIFIED")
+        local CLEARANCE = {locked = "st_sotz_fc_classified", coarse = "st_sotz_fc_limited",
+                           exact = "st_sotz_fc_cleared"}
+        put(self.eco_class, sotz_text.text(CLEARANCE[tostring(fc.tier)] or CLEARANCE.locked))
 
         self:SetEcoHeight(fc.tier == "locked" and ECO_H_LOCKED or ECO_H)
         if fc.tier == "locked" then
@@ -957,17 +1000,18 @@ function SeasonsForecast:Fill()
             put(self.eco_l2, "")
             put(self.eco_l3, "")
         else
-            -- at LIMITED the bracket arrives as finished text; at CLEARED it is the hour
+            -- at LIMITED the bracket arrives as a string id; at CLEARED it is the hour
             local e = fc.tier == "exact" and (d.surge and countdown(d.surge))
-                                         or  d.surge_band
+                                         or  bracket_text(d.surge_band_id)
             local p = fc.tier == "exact" and (d.psi   and countdown(d.psi))
-                                         or  d.psi_band
+                                         or  bracket_text(d.psi_band_id)
             -- a colon, not padding: letterica is proportional, so spaces line nothing up
-            put(self.eco_l1, string.format("Emission: %s", e or "no reading"))
-            put(self.eco_l2, string.format("Psi storm: %s", p or "no reading"))
+            local none = sotz_text.text("st_sotz_fc_no_reading")
+            put(self.eco_l1, sotz_text.text("st_sotz_fc_emission", {when = e or none}))
+            put(self.eco_l2, sotz_text.text("st_sotz_fc_psi", {when = p or none}))
             -- At LIMITED the relays give a window and never the hour, and the panel says
             -- as much rather than leaving the vagueness looking like a fault.
-            put(self.eco_l3, fc.tier == "coarse" and "Rough warnings, never the hour"
+            put(self.eco_l3, fc.tier == "coarse" and sotz_text.text("st_sotz_fc_rough")
                 or "")
         end
     else
