@@ -113,21 +113,30 @@ def season_on(day, dates):
     return now
 
 
-def on_today(cal):
-    """(the season today, the seasonal mods on today) for the setup `cal` holds, by its
-    own calendar and events. Weather days are left out: they come with play.bat's fetch."""
+def on_today(cal, prefs=None):
+    """(the season today, the seasonal mods on today, those unchecked in MCM for it, and
+    "pinned", "off" or None) for the setup `cal` holds, as play.bat would have them: by its
+    calendar, events, seasons of one's own and spells, and the MCM choices - a pinned
+    season, the texture switch ("off": every seasonal mod stays off) and the mods unchecked
+    for a season. Weather days are left out: they come with play.bat's fetch."""
+    prefs = season.read_prefs() if prefs is None else prefs
     today = datetime.date.today()
     now = season_on(today, cal.dates)
-    names = ({now} | {e for e, spec in cal.events.items() if season.event_on(today, spec)}
+    pinned = prefs["mode"] if prefs["mode"] in cal.dates else None
+    names = ({e for e, spec in cal.events.items() if season.event_on(today, spec)}
              | {o for o, win in cal.own.items() if season._in_window(today, *win)})
     spell = [(n, cal.spells[n]["as"]) for n, _, _ in cal.spells_on(today)]
     names |= {n for n, _ in spell}
-    brings = next((b for _, b in spell if b), None)
-    if brings:
-        names = (names - {now}) | {brings}
-        now = brings
-    return now, sorted((n for n, c in cal.toggle.items() if names & set(c["when"])),
-                       key=str.casefold)
+    # a pin fixes the season, over a spell's too; the spell's own mods come on all the same
+    now = pinned or next((b for _, b in spell if b), None) or now
+    names.add(now)
+    keys = season.mod_keys(cal.toggle)
+    due = sorted((n for n, c in cal.toggle.items() if names & set(c["when"])),
+                 key=str.casefold)
+    held = [n for n in due if keys[n] in prefs["off"].get(now, set())]
+    on = [n for n in due if n not in held] if prefs["stage_textures"] else []
+    why = "off" if not prefs["stage_textures"] else "pinned" if pinned else None
+    return now, on, held, why
 
 
 def dates_words(dates):
@@ -1096,24 +1105,45 @@ class Guide(object):
                                                                  pady=3)
             ttk.Label(grid, text=text, wraplength=680, justify="left").grid(
                 row=i, column=1, sticky="w", padx=(18, 0), pady=3)
-        now, on = on_today(self.cal)
+        now, on, held, why = on_today(self.cal)
         n = len(self.cal.toggle)
+        season_words = cf.label(now, self.cal)
+        rest = n - len(on) - len(held)          # off until their seasons
+        if why == "pinned":
+            season_words = _("%s, pinned in MCM") % season_words
         if not n:
             text = _("With no seasonal mods, play.bat has nothing to switch. The seasonal "
                      "atmosphere runs all the same.")
+        elif why == "off":
+            text = ngettext("Texture swapping is off in MCM, so play.bat keeps the seasonal mod "
+                            "off. The seasonal atmosphere runs all the same.",
+                            "Texture swapping is off in MCM, so play.bat keeps the %(n)d "
+                            "seasonal mods off. The seasonal atmosphere runs all the same.",
+                            n) % {"n": n}
+        elif on and not rest:
+            # translators: %(on)s is a list of the mods on today
+            text = _("Today is %(season)s. With this setup, play.bat has %(on)s on.") % {
+                "season": season_words, "on": ce.few(on, 3)}
         elif on:
             # translators: %(on)s is a list of the mods on today
             text = ngettext("Today is %(season)s. With this setup, play.bat has %(on)s on, and "
                             "the other %(off)d off until their seasons.",
                             "Today is %(season)s. With this setup, play.bat has %(on)s on, and "
-                            "the other %(off)d off until their seasons.", n - len(on)) % {
-                "season": cf.label(now, self.cal), "on": ce.few(on, 3), "off": n - len(on)}
+                            "the other %(off)d off until their seasons.", rest) % {
+                "season": season_words, "on": ce.few(on, 3), "off": rest}
+        elif rest:
+            text = ngettext("Today is %(season)s. With this setup, play.bat has the seasonal "
+                            "mod off until its season.",
+                            "Today is %(season)s. With this setup, play.bat has the %(off)d "
+                            "seasonal mods off until their seasons.", rest) % {
+                "season": season_words, "off": rest}
         else:
-            text = ngettext("Today is %(season)s. With this setup, play.bat has none of them "
-                            "on, and the other %(off)d off until their seasons.",
-                            "Today is %(season)s. With this setup, play.bat has none of them "
-                            "on, and the other %(off)d off until their seasons.", n) % {
-                "season": cf.label(now, self.cal), "off": n}
+            text = _("Today is %s.") % season_words
+        if held and why != "off":
+            text += " " + (_("%s is unchecked in MCM for this season, so it stays off.")
+                           if len(held) == 1 else
+                           _("%s are unchecked in MCM for this season, so they stay off.")
+                           ) % ce.few(held, 3)
         self.para(text, pad=(16, 0))
         problems = raw_problems(self.cal)
         if problems:

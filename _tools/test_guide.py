@@ -158,6 +158,52 @@ print("PLAY", g.shortcut_status.cget("text"))
 
 
 @case
+def t_the_review_says_what_play_bat_does_with_mcm_s_choices():
+    """The Review step's line for today read the calendar alone: an MCM pin, the texture
+    switch off and a mod unchecked for the season were left out, and with every mod on it
+    said "the other 0 off"."""
+    import datetime
+    sys.path.insert(0, HERE)
+    import season
+    here = season.season_for(datetime.date.today())
+    other = "winter" if here != "winter" else "summer"
+    two = ('TOGGLE_MODS = {"Map Pack": {"when": (%r,), "above": "Lonely Mod"},\n'
+           '               "Winter Maps": {"when": (%r,), "above": "Map Pack"}}\n'
+           % (here, other))
+    one = 'TOGGLE_MODS = {"Map Pack": {"when": (%r,), "above": "Lonely Mod"}}\n' % here
+    said = {}
+    for label, config, mcm in (
+            ("plain", two, ""), ("all", one, ""),
+            ("pinned", two, "seasons_zone/main/mode = %s\n" % other),
+            ("off", two, "seasons_zone/main/stage_textures = false\n"),
+            ("held", two, "seasons_zone/%s/mod_map_pack = false\n" % here)):
+        with tempfile.TemporaryDirectory() as d:
+            sandbox(d, config=config)
+            if mcm:
+                ow = os.path.join(d, "overwrite", "gamedata", "configs")
+                os.makedirs(ow)
+                io.open(os.path.join(ow, "axr_options.ltx"), "w").write("[mcm]\n" + mcm)
+            rc, out = drive(d, 'g.edit("review")\nsettle()\nprint("SAYS", [t for t in '
+                               'texts(g.body) if t.startswith(("Today is", "Texture"))])\n')
+            assert rc == 0, out
+            said[label] = out.split("SAYS ", 1)[1].splitlines()[0]
+    h, o = season.default_label(here), season.default_label(other)
+    want = {
+        "plain": "Today is %s. With this setup, play.bat has Map Pack on, and the other 1 off "
+                 "until their seasons." % h,
+        "all": "Today is %s. With this setup, play.bat has Map Pack on." % h,
+        "pinned": "Today is %s, pinned in MCM. With this setup, play.bat has Winter Maps on, "
+                  "and the other 1 off until their seasons." % o,
+        "off": "Texture swapping is off in MCM, so play.bat keeps the 2 seasonal mods off. "
+               "The seasonal atmosphere runs all the same.",
+        "held": "Today is %s. With this setup, play.bat has the seasonal mod off until its "
+                "season. Map Pack is unchecked in MCM for this season, so it stays off." % h}
+    for k, text in want.items():
+        assert said[k] == repr([text]), (k, said[k])
+    return "a pin, the switch off, an uncheck and all on, each said as play.bat does it"
+
+
+@case
 def t_what_the_steps_change_survives_back_and_next():
     """Going back to Start and on again keeps what the later steps changed; a new choice
     there starts over from it."""
