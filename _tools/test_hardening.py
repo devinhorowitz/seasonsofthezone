@@ -461,11 +461,12 @@ def t_every_seasonal_mod_has_a_section_and_a_checkbox_of_its_own():
         sections = [l for l in ltx.splitlines() if l.startswith("[")]
         assert len(set(sections)) == len(sections) == len(names) + 1, sections
         assert not [s for s in sections if "?" in s], sections
-        # each of these ships one file, and its MCM hover says so in the singular
+        # a mod that ships one file says so in the singular in its MCM hover; Winter Pack
+        # has the files of the one by that name in the usual set too
         xml = io.open(os.path.join(d, "mods", "Seasons of the Zone", "gamedata", "configs",
                                    "text", "eng", "ui_mcm_seasons_mods.xml"),
                       encoding="cp1251").read()
-        assert xml.count(". 1 file, ") == len(names) and "1 files" not in xml, xml
+        assert xml.count(". 1 file, ") == len(names) - 1 and "1 files" not in xml, xml
         ow = os.path.join(d, "overwrite", "gamedata", "configs")
         os.makedirs(ow)
         io.open(os.path.join(ow, "axr_options.ltx"), "w", encoding="cp1251").write(
