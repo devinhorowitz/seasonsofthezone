@@ -1,76 +1,102 @@
-# Configuring the launch-time layers
+# Configuring seasonal mods
 
-Everything here is optional. With no configuration you get the whole in-engine layer:
-light, color, foliage, fog, wind, wetness, the dial, the MCM pages and the PDA message.
+Everything here is optional. With no configuration you get the seasonal atmosphere: light,
+color, foliage, fog, wind, wetness, the dial, the MCM pages and the PDA message.
 
-Configuration adds what cannot change at runtime: swapping texture mods, switching
-season-scoped mods, and gating ambient sound. `_tools/season.py` does that before the game
-starts; `play.bat` runs it for you.
+Configuration adds what can't change while the game runs: switching seasonal mods,
+swapping texture sets, and gating ambient sound. `_tools\season.py` does that before the
+game starts; `play.bat` runs it for you. It also sets where the real weather comes from.
 
-The quickest way in is `configure.bat` in your GAMMA folder. It lists your MO2 mods;
-tick the seasons each one belongs to, and it writes `_tools/seasons_config.py` for you,
-with the `above` for each mod worked out from the files the mods share. Its Seasons tab
-moves the season dates, turns seasons off and names them; see [`CALENDAR`](#calendar) and
-[`NAMES`](#names). Its presets keep a whole setup under a name, to load again here or on
-another install; the GAMMA example preset is a full working setup to start from. Between
-the window and the presets, the file needs no editing by hand.
+Most setups need no editing by hand. `configure.bat` writes `_tools\seasons_config.py`
+for you, and the file stays yours to edit if you would rather; this page is its
+reference. `_tools\seasons_config.example.py` is the setup these tools were made on, each
+table filled in.
 
-`seasons_config.py` is still the one file all of it lives in, and yours to edit by hand if
-you would rather. `_tools/seasons_config.example.py` is the GAMMA example as a file.
+Making a mod seasonal is the common case, but the calendar is open: you can add your own
+base periods and overlapping events, and make mods seasonal on those instead. That is
+**[docs/SCHEDULING.md](SCHEDULING.md)**.
 
-Scoping a mod to a season is the common case, but the calendar is open: you can add your
-own base periods and overlapping events, and scope mods to those instead. That is
-**[docs/SCHEDULING.md](SCHEDULING.md)**; this page is the field reference.
+---
+
+## configure.bat
+
+Double-click it in your GAMMA folder. It has three tabs, and nothing is written until you
+press **Save** (or Ctrl+S); closing with unsaved changes asks first.
+
+- **Mods** lists your mods as MO2's left pane does, separators and all. Pick one and check
+  the seasons, events or kinds of weather it belongs to. Its **Wins over** box names the
+  mod it has to win over - worked out from the files the two share - and says what else
+  would still win its files. **Stop switching this mod** takes it off; `play.bat` then
+  leaves it as it is in MO2.
+- **Seasons** moves the day each season starts, turns seasons off and names them, with the
+  year dial drawn as the game will draw it. See [`CALENDAR`](#calendar) and
+  [`NAMES`](#names).
+- **Weather** picks the place the real weather comes from. See
+  [`WEATHER_PLACE`](#weather_place).
+
+**Preview the next launch** shows what `play.bat` would switch, today or in any season,
+with your unsaved changes. Anything `play.bat` would refuse shows in red at the top of the
+window, with a button that takes you to it; Save is held back until it is fixed.
+
+**Load preset...** and **Save preset...** keep a setup under a name; see
+[Presets](#presets).
 
 ---
 
 ## Commands
 
+Run these in your GAMMA folder. Where they say `py`, use `python` if that is how your
+Python starts.
+
 ```bash
-python _tools/season.py status                 # today's season, what is staged, what is installed
-python _tools/season.py apply                  # stage it (what play.bat runs)
-python _tools/season.py apply --dry-run        # report what would change
-python _tools/season.py apply --season winter  # stage a period other than today's
-python _tools/season.py apply --no-textures    # in-engine only, this run
-python _tools/season.py whowins <gamedata path> --for "<your mod>"
-python _tools/season.py dial                   # hand CALENDAR to the game, draw its dial
+py _tools\season.py status                 # today's season, what is staged, what is installed
+py _tools\season.py apply                  # stage it (what play.bat runs)
+py _tools\season.py apply --dry-run        # report what would change
+py _tools\season.py apply --season winter  # stage a season other than today's
+py _tools\season.py apply --no-textures    # the seasonal atmosphere only, this run
+py _tools\season.py whowins <gamedata path> --for "<your mod>"
+py _tools\season.py dial                   # hand the calendar and names to the game
 ```
 
 `status` changes nothing. `apply` does nothing when the staged season already matches the
 date. `--mapping met` uses Ukraine's meteorological calendar (round month starts) for one
 run; `CALENDAR` is the lasting way to change the dates.
 
-The configure tool, as commands:
+`configure.bat`, as commands (`py _tools\configure.py --help` lists them all):
 
 ```bash
-python _tools/configure.py                    # the window (what configure.bat opens)
-python _tools/configure.py list               # what is on the calendar
-python _tools/configure.py add "<mod>" --when winter "deep winter" [--above "<mod>"]
-python _tools/configure.py remove "<mod>"
-python _tools/configure.py event christmas 12-24 12-26
-python _tools/configure.py event weekend --weekdays weekends     # a rule; see SCHEDULING.md
-python _tools/configure.py event christmas --remove
-python _tools/configure.py calendar           # when each season starts, and which are off
-python _tools/configure.py calendar summer=5-1 "deep winter=11-15" [--only]
-python _tools/configure.py calendar --off late_winter
-python _tools/configure.py calendar --on late_winter      # back on, at Polesia's date
-python _tools/configure.py calendar --preset met          # the meteorological dates
-python _tools/configure.py calendar --reset               # Polesia's again
-python _tools/configure.py name                           # what each season is called
-python _tools/configure.py name "deep winter" "The Long Cold"
-python _tools/configure.py name "deep winter" --reset
-python _tools/configure.py preset                         # the presets there are
-python _tools/configure.py preset show "Two seasons"
-python _tools/configure.py preset load "Two seasons" [--parts calendar]
-python _tools/configure.py preset save "Mine" [--about "..."] [--parts calendar mods]
+py _tools\configure.py list               # the seasonal mods, events and calendar
+py _tools\configure.py add "<mod>" --when winter "deep winter" [--above "<mod>"]
+py _tools\configure.py remove "<mod>"
+py _tools\configure.py event christmas 12-24 12-26
+py _tools\configure.py event weekend --weekdays weekends     # a rule; see SCHEDULING.md
+py _tools\configure.py event christmas --remove
+py _tools\configure.py calendar           # when each season starts, and which are off
+py _tools\configure.py calendar summer=5-1 "deep winter=11-15" [--only]
+py _tools\configure.py calendar --off "late winter"
+py _tools\configure.py calendar --on "late winter"    # back on, at Polesia's date
+py _tools\configure.py calendar --dates met           # the meteorological dates
+py _tools\configure.py calendar --reset               # Polesia's again
+py _tools\configure.py name                           # what each season is called
+py _tools\configure.py name "deep winter" "The Long Cold"
+py _tools\configure.py name "deep winter" --reset
+py _tools\configure.py place                          # where the weather comes from
+py _tools\configure.py place "Kyiv" [--pick 2]        # look a place up and use it
+py _tools\configure.py place --at 50.45 30.52 --name Kyiv
+py _tools\configure.py place --reset                  # Chornobyl again
+py _tools\configure.py preset                         # the presets there are
+py _tools\configure.py preset show "Two seasons"
+py _tools\configure.py preset load "Two seasons" [--parts calendar] [--force]
+py _tools\configure.py preset save "Mine" [--about "..."] [--parts calendar mods]
 ```
 
-`add` puts a mod on the calendar, or replaces its seasons if it is already there. The
-name is checked against MO2's list, with suggestions for a near miss. `--when` takes
-season names as MCM shows them or as the config spells them, and any event or period.
-Without `--above`, the anchor is the highest enabled mod that ships any of the same
-files; when another seasonal mod on in the same season shares files, `add` names it and
-leaves the choice to you.
+`add` makes a mod seasonal, or replaces when it is on if it already is. The name is
+checked against MO2's mod list, with suggestions for a near miss; a name with a space goes
+in quotes. `--when` takes seasons as MCM shows them, your own names for them, or as the
+config spells them, and any event, period or kind of weather. Without `--above`, the mod
+it wins over is the highest enabled mod that ships any of the same files; when another
+seasonal mod on in the same season shares files, `add` names it and leaves the choice to
+you.
 
 Every save checks the result with `season.py`'s own rules first, keeps the previous file
 as `seasons_config.py.bak`, and rewrites only the entries that changed, so comments and
@@ -81,17 +107,38 @@ would have to mangle, a table sharing its line with another statement, a table t
 below it change again, or a file that changed since it was opened is left as it is, with a
 message saying what to do.
 
+**Undoing a save:** `seasons_config.py.bak`, next to it in `_tools`, is the file as it was
+before the last save. Close `configure.bat`, delete `seasons_config.py` and rename the
+`.bak` to `seasons_config.py`.
+
+---
+
+## The seasons, as each place spells them
+
+| In MCM, the PDA and the window | In the config | In commands |
+|---|---|---|
+| Spring | `spring` | `spring` |
+| Summer | `summer` | `summer` |
+| Autumn | `autumn` | `autumn` or `fall` |
+| Winter | `winter` | `winter` |
+| Deep winter | `winter_snow` | `"deep winter"` or `winter_snow` |
+| Late winter | `late_winter` | `"late winter"` or `late_winter` |
+
+A name of your own for a season (see [`NAMES`](#names)) works in commands too. The config
+keeps the keys either way.
+
 ---
 
 ## `TOGGLE_MODS`
 
-Switches a whole mod on and off per season. Nothing is copied; MO2 stops mounting the
-folder. Prefer this.
+The seasonal mods. Each is enabled in the seasons, events and weather it lists, and
+disabled the rest of the year. Nothing is copied; MO2 stops mounting the folder. Prefer
+this to `LAYOUT`.
 
 ```python
 TOGGLE_MODS = {
     "INVERNO Winter Textures (seasonal)": {        # folder name, exactly as MO2 shows it
-        "seasons": ("winter", "winter_snow", "late_winter"),
+        "when": ("winter", "winter_snow", "late_winter"),
         "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
     },
 }
@@ -100,54 +147,68 @@ TOGGLE_MODS = {
 | Field | Meaning |
 |---|---|
 | *key* | The mod folder name under `mods/`. A folder that is not installed is skipped. |
-| `seasons` | Seasons in which the mod is enabled: `spring`, `summer`, `autumn`, `winter`, `winter_snow`, `late_winter`. Note the trailing comma in a one-element tuple: `("winter",)`. |
-| `above` | The mod this one must outrank. |
+| `when` | When the mod is enabled: any mix of seasons (`spring`, `summer`, `autumn`, `winter`, `winter_snow`, `late_winter`), your events and periods, and the kinds of weather `freezing`, `thaw` and `heat`. One name needs the trailing comma: `("winter",)`. `seasons` is the original spelling of this key and still works. |
+| `above` | The mod this one wins over. `play.bat` keeps it just above that mod in `modlist.txt` - just below it in MO2's left pane - so where both ship a file, this one's is used. `configure.bat` picks it for you. |
 
-Each mod listed here gets its own tick on the page of every season it serves, with its
-file count and size. Unticking it there means "never mount this in that season"; the
+The weather comes from the real forecast `play.bat` fetches at each launch, for the place
+set on the Weather tab: `freezing` is a day whose low is 0°C or below, `thaw` one that also
+climbs above 0°C by afternoon, and `heat` one whose high reaches 28°C. Like an event, a
+weather day is added to whatever season is running. Without `play.bat`, or without a
+connection, none of them is on.
+
+Each seasonal mod gets its own checkbox on the MCM page of every season it is on in, with
+its file count and size. Unchecking it there means "never mount this in that season"; the
 same mod can stay on for another season.
 
-### Choosing `above`
+### Which mod it wins over (`above`)
 
-MO2 gives a shared file to the highest enabled mod that ships it. If a mod above yours
-ships the same file, yours loses and nothing tells you. Pick a file your mod ships and ask,
-naming your mod with `--for`:
+MO2 gives a shared file to the enabled mod with the highest priority that ships it: the
+one lowest in its left pane. If a mod that wins over yours ships the same file, yours loses
+and nothing tells you. `configure.bat` works the right `above` out from the files the mods
+share. To check by hand, pick a file your mod ships and ask, naming your mod with `--for`:
 
 ```bash
-python _tools/season.py whowins textures/map/map_escape.dds --for "Winter PDA Maps (seasonal)"
+py _tools\season.py whowins textures/map/map_escape.dds --for "Winter PDA Maps (seasonal)"
 ```
 
 ```
   file: gamedata/textures/map/map_escape.dds
 
-    line   190  [-]  Winter PDA Maps (seasonal)                   2097280 B   <-- yours
-    line   539  [+]  358- Global Map Rework - DeadEnvoy           8388736 B   <-- to outrank
-    line   862  [+]  26- High Res PDA Maps - Bazingarrey          8388736 B
+    line   190  disabled  Winter PDA Maps (seasonal)             2097280 B   <-- yours
+    line   539  enabled   358- Global Map Rework - DeadEnvoy     8388736 B   <-- yours has to win over this one
+    line   862  enabled   26- High Res PDA Maps - Bazingarrey    8388736 B
 
-  Put Winter PDA Maps (seasonal) ABOVE:  358- Global Map Rework - DeadEnvoy
-  i.e.  "above": "358- Global Map Rework - DeadEnvoy"
+  Make Winter PDA Maps (seasonal) win over:  358- Global Map Rework - DeadEnvoy
+  In the config:  "above": "358- Global Map Rework - DeadEnvoy"   (in configure.bat: its Wins over box)
 ```
 
 `--for` keeps your mod out of the answer. Without it, the top enabled mod is named, and
 the one under it too, in case the top one is yours: MO2 puts a fresh install at the top.
+If no mod ships the file, any position works.
 
-Use that name. If no mod ships the file, any position works.
+Placement is checked on every run. If the mod it wins over is no longer in MO2's mod list
+(GAMMA renumbers folders between versions), that entry is skipped with a warning and the
+others still run.
 
-Placement is checked on every run. An anchor that no longer exists skips that entry with a
-warning; the others still run.
+`above` only keeps a mod just above that one mod. `season.py status` also checks every file
+of every seasonal mod against every other mod, in the order `apply` leaves them, and
+reports:
 
-`above` only puts the mod directly above that one anchor. `season.py status` also checks
-every file of every season-scoped mod against every mod above it and reports: `SHADOWED`
-when an enabled mod would win, how many disabled mods above would win if enabled, and a
-note when two season-scoped mods overlap in a shared season. `play.bat` runs the same
-check whenever the modlist has changed.
+- `! <mod> loses N files to "<other>"` — an enabled mod still wins some of its files. In
+  `configure.bat`, make it win over that mod, or disable that mod.
+- `- N disabled mods in MO2 would win some of <mod>'s files if enabled` — nothing wrong
+  yet; check again after enabling one.
+- `- "<other>" wins N of <mod>'s files in <seasons>` — two seasonal mods on in the same
+  season share files, and the one listed wins. Fine if that is the intent.
+
+`play.bat` runs the same check whenever MO2's mod list has changed.
 
 ---
 
 ## `LAYOUT`
 
-For mods that ship one folder per season inside one archive, such as Aydin's Grass
-Tweaks.
+Texture sets: for mods that ship one folder per season inside one archive, such as Aydin's
+Grass Tweaks.
 
 ```python
 LAYOUT = {
@@ -166,11 +227,13 @@ LAYOUT = {
 | Field | Meaning |
 |---|---|
 | *key* | The installed mod folder whose contents are replaced. |
-| `archive` | Filename in `downloads/`. `.7z` needs `python -m pip install py7zr`; `.rar` needs `rarfile` plus WinRAR or 7-Zip. |
+| `archive` | Filename in `downloads/`. `.7z` needs `py -m pip install py7zr`; `.rar` needs `rarfile` plus WinRAR or 7-Zip. |
 | `options` | Season → folder names inside the archive, applied in order (later ones win). |
 
-Gigabytes are copied on a season change, so use `TOGGLE_MODS` wherever a mod can simply
-be switched off. A season with no entry keeps whatever is already staged.
+Gigabytes are copied on a season change, so use `TOGGLE_MODS` wherever a mod can be
+switched off instead. A season with no entry keeps whatever is already staged. An archive
+that is missing from `downloads/` skips that texture set with a warning; the rest of the
+launch goes on.
 
 What is installed is identified by hashing the folder against the archive's options, so a
 correct season is never re-copied. The archive-side hashes are cached after the first run.
@@ -204,9 +267,9 @@ The thaw brings the marsh birds back before any insect stirs.
 The generated files record which channels they were cut with, so editing this table
 rebuilds them at the next launch rather than waiting for the season to turn.
 
-The generated mod is placed directly above `SOUND_SRC` and follows the MCM switch; you do
-not touch it in MO2. If you disable the source mod, the generated presets are removed at
-the next launch. Leave `SOUND_SRC = None` to skip the layer.
+The generated mod is placed just above `SOUND_SRC` and follows the MCM switch; you do not
+touch it in MO2. If you disable the source mod, the generated presets are removed at the
+next launch. Leave `SOUND_SRC = None` to skip the layer.
 
 ---
 
@@ -228,16 +291,16 @@ summer from May 1 and deep winter from November 15, and nothing else. `None`, or
 Every season needs at least 14 days, no two can start on the same day, and none can start
 on February 29, which three years in four do not have. At least one has to be on.
 
-A mod scoped only to seasons that are off is never switched on; `season.py status` names
-it. An MCM pin on a season that is off counts as automatic.
+A mod on only in seasons that are off is never switched on; `season.py status` names it. An
+MCM pin on a season that is off counts as automatic.
 
 `play.bat` hands the calendar to the game in `configs/season_calendar.ltx`, and saving from
-the tool does too, so the in-engine layer follows it from the next start even without
+the tool does too, so the seasonal atmosphere follows it from the next start even without
 `play.bat`. MCM shows a page and a pin for each season that is on.
 
 The year dial is redrawn for your dates, 32 images in the mod's `textures/` folder. That
-needs Pillow, a Python package: `python -m pip install pillow`, which the tool offers to
-run. Without Pillow the dial is hidden, since the shipped one shows Polesia's dates.
+needs Pillow, a Python package: `py -m pip install pillow`, which the tool offers to run.
+Without Pillow the dial is hidden, since the shipped one shows Polesia's dates.
 `season.py dial` draws it by hand, and a return to Polesia's calendar deletes it.
 
 ---
@@ -261,9 +324,45 @@ seasons can't share one. `None`, or a name left as the usual one, keeps the usua
 
 ---
 
+## `WEATHER_PLACE`
+
+```python
+WEATHER_PLACE = {"name": "Kyiv", "lat": 50.4547, "lon": 30.5238}
+```
+
+Where the real weather comes from: the PDA's temperature, its Forecast page, and the
+`freezing`, `thaw` and `heat` days. `None`, or no `WEATHER_PLACE` at all, is Chornobyl.
+`configure.bat`'s Weather tab writes it - search for a town, or give its coordinates -
+and `configure.py place` does from a command prompt. The seasons don't move with it: a
+place in the southern hemisphere wants the Southern hemisphere preset, or a calendar of its
+own.
+
+![The Weather tab: Kyiv found by name, today's weather there, and the credits for the data](images/configure-weather.png)
+
+| Field | Meaning |
+|---|---|
+| `name` | What the PDA calls it, up to 24 characters. Letters the game can't show lose their accents there: São Paulo reads Sao Paulo. |
+| `lat` | Latitude in degrees, -90 to 90, north positive. |
+| `lon` | Longitude in degrees, -180 to 180, east positive. |
+
+At each launch `play.bat` asks [Open-Meteo](https://open-meteo.com/) for the day's high and
+low there, sending the coordinates and nothing else. For a place other than Chornobyl, the
+first fetch also asks once for its last ten years of daily highs and lows, so the game can
+model a day there without a connection; Chornobyl's are built in. The search on the Weather
+tab sends what you type to Open-Meteo's place search. A preset never holds the place.
+
+The weather data is by Open-Meteo.com, under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); the place search is based on
+[GeoNames](https://www.geonames.org/) (CC BY 4.0), and the climate history contains
+modified Copernicus Climate Change Service information (ERA5). The PDA, `configure.bat` and
+`play.bat` credit it where they show it. The game moves the day's temperature with its own
+sky, so the numbers on the PDA are Open-Meteo's endpoints, changed.
+
+---
+
 ## Presets
 
-A preset keeps a setup under a name, in `_tools/presets/`, as a JSON file: plain data, so
+A preset keeps a setup under a name, in `_tools\presets\`, as a JSON file: plain data, so
 one posted by someone else can be loaded without running anything they wrote. It holds any
 of four parts:
 
@@ -275,17 +374,20 @@ of four parts:
 | textures | `LAYOUT` and `SOUND_SRC` |
 
 **Save preset...** in the window, or `configure.py preset save`, keeps the parts that have
-something in them, unless you pick others. **Load preset...** sets the parts you choose in
-place of yours, and like any change in the window it is written only when you save. A
-preset made on another install loads here: a mod you don't have is left out, a mod whose
-anchor you don't have is placed again for your list, a texture set whose archive is not in
-your `downloads/` is left out, and loading says which. Every part goes through the same
-rules as a save, and a preset that would break the config is refused whole.
+something in them, unless you pick others. **Load preset...** shows what each part would
+replace before you load it, then sets the parts you choose in place of yours; like any
+change in the window it is written only when you save. `configure.py preset load` saves
+at once, so it refuses to replace anything of yours unless you add `--force`. A preset made
+on another install loads here: a mod you don't have is left out, a mod whose `above` you
+don't have gets another for your list, a texture set whose archive is not in your
+`downloads/` is left out, and loading says which. Every part goes through the same rules
+as a save, and a preset that would break the config is refused whole.
 
 Four calendars come with the tool: Polesia, Meteorological, Two seasons and Southern
-hemisphere. The GAMMA example holds the mods, events, texture sets and sound source these
-tools were made on. A preset of the same name as one that comes with the tool can't be
-saved over it.
+hemisphere. The GAMMA example holds the seasonal mods, events, texture sets and sound
+source these tools were made on; its texture sets need `py7zr`, and a mod you have renamed
+is left out. A preset of the same name as one that comes with the tool can't be saved over
+it.
 
 ---
 
@@ -294,24 +396,25 @@ saved over it.
 The mod ships its season grades as `cfg_load` presets, `Seasons_*.ltx`, in
 `gamedata/configs/seasons_presets/`. `play.bat` copies them into the game's `appdata/`
 if they are not there, beside Atmospherics' `Atmos_*.ltx`; an existing copy is never
-overwritten, so you can tune them in place. Which preset a season uses is chosen on that
-season's MCM page, not here.
+overwritten, so you can tune them in place. Which color grade preset a season uses is
+chosen on that season's MCM page, not here.
 
 ---
 
 ## Troubleshooting
 
-**The mod toggled but nothing changed on screen.** Almost always `above`. Run `whowins`
-on a file the mod ships and re-anchor.
+**The mod switched but nothing changed on screen.** Almost always `above`. Run `whowins`
+on a file the mod ships, and make it win over the mod named there.
 
-**`anchor '...' is not in the modlist - SKIPPED`.** The `above` name has a typo, or that
-mod is not installed. It must match the folder name exactly.
+**`! <mod> skipped: the mod it wins over, "...", is not in MO2's mod list.`** That mod was
+renamed or removed. Pick another in the mod's **Wins over** box in `configure.bat`.
 
 **`seasons_config.py is not saved as UTF-8`.** Notepad saves as ANSI or UTF-16 when asked
-to; the tools read UTF-8. File, Save as, Encoding: UTF-8.
+to; the tools read UTF-8. In Notepad, File > Save as, set Encoding to UTF-8, then Save.
 
-**`seasons_config.py needs fixing`.** The message names the line, or the entry and the
-field. The usual mistakes:
+**`_tools\seasons_config.py needs fixing before play.bat can switch anything`.** The
+message names the line, or the entry and the field. `configure.bat` shows the same list at
+the top of its window. The usual mistakes:
 
 - `("winter")` is a string, not a tuple. One season needs the trailing comma:
   `("winter",)`.
@@ -324,13 +427,17 @@ field. The usual mistakes:
 
 `whowins` still runs while the file has a mistake in it.
 
-**The year dial is gone.** A calendar of your own needs a dial drawn for it, and drawing
-one needs Pillow: `python -m pip install pillow`, then `python _tools/season.py dial`.
+**The year dial is gone.** A calendar or names of your own need a dial drawn for them, and
+drawing one needs Pillow: `py -m pip install pillow`, then `py _tools\season.py dial`.
 
-**Textures are wrong for the season.** The mod says so on load: *"TEXTURES ARE STAGED FOR
-X but the season running is Y"*. Run `season.py apply` or `play.bat` and restart.
+**Textures are wrong for the season.** The mod says so in the log on load: *"TEXTURES ARE
+STAGED FOR X but the season running is Y"*. Exit, and start the game with `play.bat`.
 
-**MO2 undid my modlist edit.** MO2 rewrites `modlist.txt` when it closes. Close it before
+**The PDA says "No station data".** `play.bat` couldn't reach Open-Meteo on the last launch,
+or the game was started without it. The temperature is modeled from the place's climate
+until the next reading.
+
+**MO2 undid my mod list edit.** MO2 rewrites `modlist.txt` when it closes. Close it before
 running the tools, or use `play.bat`.
 
 **Nothing happens.** Check MCM → Seasons of the Zone → *Enable seasonal atmosphere*, and

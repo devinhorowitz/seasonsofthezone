@@ -2,43 +2,75 @@
 
 ## 1.9.0 — 2026-09-25
 
-- **`configure.bat` sets the mod up without editing Python.** A window lists your MO2
-  mods; tick the seasons each one belongs to, and save. It works out the mod each one has
-  to sit above from the files they share, names any other seasonal mod it overlaps with in
-  the same season, and makes and deletes events. Copy it into your GAMMA folder along with
-  `_tools/` and `play.bat`.
+- **`configure.bat` sets the mod up without editing Python.** A window lists your mods as
+  MO2 does, separators and all; check the seasons, events or kinds of weather each one
+  belongs to, and save. It works out the mod each one wins over from the files they share,
+  names any other seasonal mod that would still win its files, and makes and deletes
+  events. Anything `play.bat` would refuse shows at the top of the window, with a button
+  that takes you to it. **Preview the next launch** shows what `play.bat` would switch,
+  today or in any season, before you save. Copy it into your GAMMA folder along with
+  `_tools` and `play.bat`.
 - **Your own calendar.** The window's Seasons tab moves the day each season starts and
   turns seasons off, for a year of only summer and deep winter, or one on the
   meteorological dates. Polesia's stays the default. A season turned off gives its days to
   the one before it; the game follows from its next start, MCM shows pages and pins for the
-  seasons that are on, and the year dial is redrawn for your dates. Redrawing needs Pillow,
-  which the tool offers to install; without it the dial is hidden.
+  seasons that are on, and the year dial is redrawn for your dates. The tab draws the dial
+  as you type. Redrawing needs Pillow, which the tool offers to install; without it the
+  dial is hidden.
 - **Names of your own for the seasons.** Call deep winter "The Long Cold" and the PDA, the
   messages, MCM's pages and the dial all say so.
-- **Presets.** Save your setup under a name - the calendar and names, the events, the mods
-  on the calendar, texture sets and sound - and load it again, or load someone else's.
-  Loading leaves out mods you don't have and places the rest for your install. Four
-  calendars come with the tool, and a GAMMA example with the setup these tools were made
-  on. Between the window and the presets, the config needs no editing by hand.
+- **Weather from a place of your own.** The Weather tab looks a town up by name, or takes
+  its coordinates, and the PDA's temperature, the Forecast page and the freezing, thaw and
+  heat days follow the real weather there. Chornobyl stays the default. For a place of your
+  own the tools also fetch its climate once, so the game can model a day there without a
+  connection. `status` says where the weather comes from.
+- **Credit for the live data.** The weather comes from Open-Meteo.com, under CC BY 4.0, and
+  is now credited wherever it is shown: on the PDA's Forecast page, in `configure.bat` next
+  to everything it looks up, and in `play.bat`'s output. The place search is based on
+  GeoNames, and the climate history on Copernicus' ERA5.
+- **Presets.** Save your setup under a name - the calendar and names, the events, the
+  seasonal mods, texture sets and sound - and load it again, or load someone else's.
+  Loading shows what each part would replace first, leaves out mods you don't have, and
+  places the rest for your install. From a command prompt it asks for `--force` before it
+  replaces anything of yours. A preset never holds your weather place. Four calendars come
+  with the tool, and a GAMMA example with the setup these tools were made on.
 - **Events that repeat.** Besides a window of dates, an event can be days of the week, days
   of the month, the first or last of a weekday in the month, some months, or any mix of
   them: weekends, paydays, Friday the 13th.
 - **The same from a command prompt,** for when someone is helping you: `configure.py add`,
-  `remove`, `event`, `calendar`, `name`, `preset` and `list`. A mod name MO2 doesn't have
-  gets suggestions instead of a silent skip.
+  `remove`, `event`, `calendar`, `name`, `place`, `preset` and `list`, each with `--help`.
+  A mod name MO2 doesn't have gets suggestions instead of a silent skip, and a command says
+  what it changed only once the change is saved.
 - **Every save is checked with `season.py`'s own rules first,** keeps the previous file as
   `seasons_config.py.bak`, and rewrites only the entries that changed, so comments and
   anything written by hand stay. It repairs two common mistakes - an empty
   `TOGGLE_MODS = {}` left below the real table, and `("summer,spring")` - and refuses
   rather than guess: a file in another encoding, a table sharing its line with another
   statement, or a file changed since it was opened is left as it is, with a message.
+- **Plainer messages everywhere.** `season.py`, `configure.bat`, `play.bat`, MCM and the PDA
+  now say what happens in the same words: seasonal mods, the mod each one wins over,
+  seasons by name. `status` shows each seasonal mod's state and why ("today: off -
+  unchecked for this season in MCM"), and every hint to run a command gives it in full.
 - **`season.py` refuses more broken configs with a plain message** instead of a traceback
   or a wrong reading: dates written as text or decimals, periods and events on days that
-  don't exist, a mod anchored above itself or in a loop with another, this mod on its own
+  don't exist, a mod set to win over itself or in a loop with another, this mod on its own
   calendar, a file saved as UTF-16 or ANSI, and `exit()` in the config. It reads the
   config fresh on every run.
-- The weather a mod can be scoped to - `freezing`, `thaw` and `heat`, as docs/API.md
+- The weather a mod can be on for - `freezing`, `thaw` and `heat`, as docs/API.md
   describes - is accepted in `when`.
+- MCM says what its switches do: turning the mod off returns the color grade to neutral and
+  hands foliage, fog, wind and wetness back to Screen Space Shaders; the remembrance and
+  anniversary PDA messages repeat through the day; and the texture switch disables every
+  seasonal mod. Season pages ask for a first start with `play.bat` before they can list the
+  seasonal mods.
+- The PDA writes dates month first, "September 25, 2026", and so does `calendar().today` in
+  the API. Forecast countdowns read "in 2 hours", and "broken cloud" is "partly cloudy".
+- Fixed: a `LAYOUT` archive missing from `downloads/` stopped the whole run, so `play.bat`
+  launched with nothing switched. Now only that texture set is skipped.
+- Fixed: `status` could tell you to make a mod win over another right after you had; it
+  now judges the order `apply` leaves.
+- Fixed: with ambient sound gating off in MCM, `status` said the soundscape would change
+  with the season.
 - Fixed: a LAYOUT mod that isn't installed, or has no option for the season, stopped
   staging with a traceback. It is now left as it is.
 - Fixed: a TOGGLE_MODS name that differs from the mod's folder only in case wrote a line

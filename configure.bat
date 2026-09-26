@@ -1,24 +1,26 @@
 @echo off
-REM  Seasons of the Zone: put mods on the calendar without editing seasons_config.py.
+REM  Seasons of the Zone: set up seasonal mods without editing seasons_config.py.
 REM
-REM  Opens a window listing your MO2 mods. Tick the seasons each one belongs to, and
-REM  play.bat switches it on in those seasons and off the rest of the year. The window
-REM  also finds the mod each one has to sit above, and checks the file before saving.
+REM  Opens a window listing your MO2 mods. Check the seasons each one belongs to, and
+REM  play.bat enables it in those seasons and disables it the rest of the year. The
+REM  window also finds the mod each one wins over, and checks the file before saving.
 
 cd /d "%~dp0"
 
 if not exist "ModOrganizer.ini" (
     echo.
     echo  ** configure.bat has to be in your GAMMA folder, next to ModOrganizer.exe.
-    echo     Copy it, play.bat and the _tools folder there, and run it from there.
+    echo     Copy configure.bat, play.bat and the _tools folder there, then run
+    echo     configure.bat from that folder.
     echo.
     pause
     exit /b 1
 )
 if not exist "_tools\configure.py" (
     echo.
-    echo  ** _tools\configure.py is missing. Copy the _tools folder from the mod's folder
-    echo     into your GAMMA folder, next to configure.bat.
+    echo  ** _tools\configure.py is missing. In MO2, right-click Seasons of the Zone and
+    echo     choose Open in Explorer; copy _tools from there into your GAMMA folder,
+    echo     next to configure.bat.
     echo.
     pause
     exit /b 1

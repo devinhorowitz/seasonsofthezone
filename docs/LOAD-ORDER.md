@@ -15,8 +15,8 @@ examples only.
 - **Seasonal Soundscape** is generated at launch and placed directly above its source mod.
 - **INVERNO's snowfall addon: anywhere, once `level_weathers.script` is removed from it.**
 - **Never enable** the old Season Flora prototype alongside this mod.
-- A GAMMA launcher **Update** drops all of the above from the modlist. Recover from a
-  snapshot, not by re-ticking mods where MO2 put them.
+- A GAMMA launcher **Update** drops all of the above from MO2's mod list. Recover from a
+  snapshot, not by re-checking mods where MO2 put them.
 
 ---
 
@@ -31,7 +31,7 @@ file with anyone, and it does not order scripts at runtime.
 Two things catch people. The MO2 window shows the list upside down relative to the file:
 line 2 is the bottom of the window. And a folder dropped into `mods/` by hand is added
 disabled, at the top of the file (highest priority), so a newly installed mod is not
-enabled until you tick it.
+enabled until you check it.
 
 ---
 
@@ -64,44 +64,48 @@ What does matter:
 
 ---
 
-## The season-scoped mods
+## The seasonal mods
 
-Each entry in `TOGGLE_MODS` names an `above` anchor. On every run `season.py` inserts the
-mod above its anchor if it is missing, moves it up if it sits below, and sets the flag for
-the season. An anchor that no longer exists (GAMMA renumbers folders between versions)
-skips that entry with a warning.
+Each entry in `TOGGLE_MODS` names the mod it wins over, its `above`. On every run
+`season.py` puts the mod just above that one in `modlist.txt` - just below it in MO2's left
+pane - if it is missing or lower, and enables or disables it for the season. If the mod it
+wins over no longer exists (GAMMA renumbers folders between versions), that entry is
+skipped with a warning.
 
-The anchors on the reference install:
+What each wins over on the reference install:
 
-| Mod | Anchor | Why |
+| Mod | Wins over | Why |
 |---|---|---|
-| INVERNO Winter Textures | `388- Aydins Grass Tweaks SSS Terrain LOD Compatibility` | 14 shared `textures/terrain/*_lod_textures.dds`. INVERNO also carries `settings_screenspace_TERRAIN.h` / `_PUDDLES.h`, so it must beat SSS and Atmospherics too; 388 sits above both. |
+| INVERNO Winter Textures | `388- Aydins Grass Tweaks SSS Terrain LOD Compatibility` | 14 shared `textures/terrain/*_lod_textures.dds`. INVERNO also carries `settings_screenspace_TERRAIN.h` / `_PUDDLES.h`, so it must win over SSS and Atmospherics too, and 388 already does. |
 | INVERNO Partly Snowy | `INVERNO Winter Textures` | All 52 of its files are also in base INVERNO; it is an overlay. |
-| Winter PDA Maps | `INVERNO Partly Snowy` | Above both INVERNO mods: INVERNO ships its own `textures/ui/ui_global_map.dds` and is on in the same seasons. |
-| PanceRide Summer / Autumn | `388- Aydins …` | Shares no file with 388. It works because 388 sits above Atmospherics, SSS 24 and the Aydin base pack. |
+| Winter PDA Maps | `INVERNO Partly Snowy` | Wins over both INVERNO mods: INVERNO ships its own `textures/ui/ui_global_map.dds` and is on in the same seasons. |
+| PanceRide Summer / Autumn | `388- Aydins …` | Shares no file with 388. It works because 388 wins over Atmospherics, SSS 24 and the Aydin base pack. |
 | Winter Loading Screens | `282- GAMMA Loading Screens` | 132 `textures/intro` files. |
-| Winter Footsteps | `472- Dark Signal Amplified Footsteps Extended` | Beats all four footstep mods. |
-| Swamp Ground Fog | `Atmospherics 2.69 RC7.2 SSS24` | Shares nothing; the anchor is only for grouping. |
+| Winter Footsteps | `472- Dark Signal Amplified Footsteps Extended` | Wins over all four footstep mods. |
+| Swamp Ground Fog | `Atmospherics 2.69 RC7.2 SSS24` | Shares nothing; it is there only to keep it with the weather mods. |
 
-**Choosing an anchor.** Run `python _tools/season.py whowins <gamedata-relative path>
---for "<the mod>"` on a file the mod ships. It lists every mod shipping that file, enabled
-or not, in priority order, and names the highest enabled one other than the mod itself.
-Anchor on that. It cannot see inside `.db`
-archives, and it needs the full path: `configs/environment/ambients/presets/x.ltx`, not
-`x.ltx`.
+**Choosing the mod it wins over.** `configure.bat` picks it from the files the mods share.
+To check by hand, run `py _tools\season.py whowins <path inside gamedata> --for "<the mod>"`
+on a file the mod ships. It lists every mod shipping that file, enabled or not, in
+priority order, and names the highest enabled one other than the mod itself. That is the
+one. It can't see inside `.db` archives, and it needs the full path:
+`configs/environment/ambients/presets/x.ltx`, not `x.ltx`.
 
-**The check.** `above` only puts a mod directly above one anchor. A mod higher in the
-list that also ships one of the files wins. `season.py status` tests every file of every
-season-scoped mod against every mod above it and reports:
+**The check.** `above` only keeps a mod just above that one mod. A mod with a higher
+priority that also ships one of the files still wins. `season.py status` tests every file
+of every seasonal mod against every other mod, in the order `apply` leaves them, and
+reports:
 
-- `SHADOWED` — an enabled mod above ships the file. Re-anchor, or disable that mod.
-- dormant — disabled mods above share files (on the reference install, Lifestorock's Bleak
-  Fall Redux shares 162 files with INVERNO). Fine until one is enabled; run `status`
-  afterwards.
-- note — two season-scoped mods that are both on in some season overlap. Partly Snowy
-  above INVERNO is intended; the check cannot tell intent from mistake.
+- `! <mod> loses N files to "<other>"` — an enabled mod still wins some of its files. In
+  `configure.bat`, make it win over that mod, or disable that mod.
+- `- N disabled mods in MO2 would win some of <mod>'s files if enabled` — on the reference
+  install, Lifestorock's Bleak Fall Redux shares 162 files with INVERNO. Fine until one is
+  enabled; check with `status` afterwards.
+- `- "<other>" wins N of <mod>'s files in <seasons>` — two seasonal mods that are both on in
+  some season overlap. Partly Snowy over INVERNO is intended; the check can't tell intent
+  from mistake, so it stays quiet only when one is set to win over the other.
 
-`play.bat` runs the same check whenever the modlist has changed.
+`play.bat` runs the same check whenever MO2's mod list has changed.
 
 INVERNO shares 239 paths with PanceRide Autumn and 222 with PanceRide Summer. That is fine
 while their seasons stay disjoint. INVERNO's `textures/anamflares` also overrides seven
@@ -137,7 +141,7 @@ weather weights, the progression matrix and the MCM starting-weather option with
 anywhere. On stock GAMMA no mod ships the file, so there is nothing to place the addon
 below; removal is the only fix.
 
-Check with `python _tools/season.py whowins scripts/level_weathers.script`. Only your
+Check with `py _tools\season.py whowins scripts/level_weathers.script`. Only your
 weather-manager mod, or no mod at all, should appear.
 
 If you own the all-in-one FOMOD (v1.08.4) instead:
@@ -148,7 +152,7 @@ If you own the all-in-one FOMOD (v1.08.4) instead:
 - The addon's particle textures are in INVERNO's base-module archive
   `db/addons/inverno_textures.db`. That archive, and the `particles/graupel` and
   `particles/yawm` definitions, must be in a mod that is enabled all year, never in a
-  season-toggled INVERNO texture mod.
+  seasonal INVERNO texture mod.
 
 ---
 
@@ -177,7 +181,7 @@ copy of `user.ltx` if you want your exact pre-mod look back.
 The launcher's **Update** button overwrites the profile's `modlist.txt` with GAMMA's stock
 list and restores the stock `appdata/user.ltx`, even when nothing has changed upstream. It
 does not delete anything in `mods/`. Seasons of the Zone, the snowfall addon, Seasonal
-Soundscape and every season-scoped mod drop out of the load order — on the reference
+Soundscape and every seasonal mod drop out of the load order — on the reference
 install so do SSS 24, Atmospherics 2.69 and the Modded Exes gamedata mod — and MO2 re-adds
 the folders disabled.
 
@@ -191,10 +195,10 @@ stops for a keypress instead of launching.
 
 1. Close MO2. It rewrites `modlist.txt` from memory on exit.
 2. Restore `profiles/<profile>/modlist.txt` from a snapshot. `season.py` keeps one from
-   before every toggle in `_baseline/modfile-backups/`. Do not recover by re-ticking the
+   before every toggle in `_baseline/modfile-backups/`. Do not recover by re-checking the
    re-added mods where MO2 put them: at the top of the file, SSS and Atmospherics would
-   then outrank mods that are meant to beat them.
-3. Without a snapshot: tick Seasons of the Zone and the snowfall addon, re-enable SSS,
+   then win over mods that are meant to win over them.
+3. Without a snapshot: check Seasons of the Zone and the snowfall addon, re-enable SSS,
    Atmospherics and Modded Exes and drag them back to where they were, check every
    `above` name in `seasons_config.py` still exists, and run `season.py status`.
 4. Run `play.bat` and read its output.
@@ -211,7 +215,7 @@ Snapshot `modlist.txt` and `user.ltx` before any GAMMA update.
 - [ ] Screen Space Shaders is enabled and you launch the Modded Exes DX11 build.
 - [ ] `whowins scripts/level_weathers.script` shows your weather mod or nothing.
 - [ ] The snowfall addon is enabled all year and not in `TOGGLE_MODS`.
-- [ ] `season.py status` reports no `SHADOWED` line.
+- [ ] `season.py status` reports no `! ... loses N files` line.
 - [ ] Season Flora is disabled.
 - [ ] `play.bat`'s `SHORTCUT=` names the Anomaly entry you use.
 - [ ] You have a snapshot of `modlist.txt` and `user.ltx`.

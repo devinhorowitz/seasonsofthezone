@@ -13,7 +13,7 @@
 -- Parked off-screen on purpose: the app is reached from the MAC launcher, so the sections
 -- only have to exist, not show. A visible button added HERE, in the xml, would crowd the
 -- bar and clip once it is full; on modded exes CUITabControl:AddTab is the way to show a
--- real tab, sized like its neighbours and scrolling on overflow. See sotz_pda.script.
+-- real tab, sized like its neighbors and scrolling on overflow. See sotz_pda.script.
 
 local INJECTED = false
 

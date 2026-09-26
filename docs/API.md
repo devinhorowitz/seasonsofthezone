@@ -53,7 +53,9 @@ barometer, because the sky the player is standing in is the game's.
 
 *Temperature* starts outside. Anomaly has no ambient temperature at all, so there is
 nothing in game for an external reading to contradict, and `fetch_weather.py` supplies the
-real Zone's high and low. Then the in-game sky has its say: cloud squeezes the swing toward
+real day's high and low - Chornobyl's, or those of the place the player picked in
+`configure.bat` - from [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0; a mod that
+shows these numbers should credit it too). Then the in-game sky has its say: cloud squeezes the swing toward
 the mean, rain and storm drag the whole day down. A storm reading the same as clear sky
 would be a number that is real but inert.
 
@@ -63,6 +65,7 @@ would be a number that is real but inert.
 | `low` / `high` / `now` | after the in-game sky moved it |
 | `sky_shift` | the gap, in whole degrees — negative when the weather is costing you |
 | `source` | `observed` when a station reading was used, `model` when climate normals were |
+| `place` | where the reading is from; modeled, whose climate the model is. nil for the built-in Chornobyl normals. Since 1.9.0 it can be a place the player picked, not only Chornobyl. |
 
 Off a 14 / 4 station reading, clear sky reads 14 at mid-afternoon and a storm reads 8.
 
@@ -191,10 +194,12 @@ moves the frequency slider.
 ## `calendar()`
 
 ```lua
-{ season = "autumn", label = "autumn", today = "22 September 2026",
+{ season = "autumn", label = "autumn", today = "September 22, 2026",
   next = { label = "winter", days = 40 },
-  marked = { kind = "memorial", key = "chornobyl" } }
+  marked = { kind = "memorial", key = "chernobyl" } }
 ```
+
+`today` is text to show, not to parse; since 1.9.0 it reads month first, as above.
 
 `season` is one of `spring`, `summer`, `autumn`, `winter`, `winter_snow` and
 `late_winter` (new in 1.8.0); `label` is the name to show, such as "deep winter", or the

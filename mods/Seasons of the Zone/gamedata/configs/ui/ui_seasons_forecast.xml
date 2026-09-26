@@ -25,7 +25,7 @@
         <text font="letterica16" r="170" g="170" b="170" align="l" vert_align="c" complex_mode="1"/>
     </subheader>
 
-    <!-- Where the numbers came from. Observed and modelled are different claims.
+    <!-- Where the numbers came from. Observed and modeled are different claims.
          The dot to its left pulses only when the reading is a live one. -->
     <live_dot x="52" y="185" width="7" height="7" stretch="1">
         <texture>sotz_px</texture>
@@ -75,7 +75,10 @@
     <wx_now_label x="38" y="276" width="86" height="18">
         <text font="letterica16" r="255" g="255" b="255" align="c" vert_align="c" complex_mode="1"/>
     </wx_now_label>
-    <wx_next_label x="144" y="276" width="112" height="18">
+    <!-- Centered on x=200 like the 112px it replaced, and wide enough for the longest
+         line, "Partly cloudy, in 20 hours" at about 121px in letterica16. Nothing else
+         sits on this line past the sky-now label, which ends at x=124. -->
+    <wx_next_label x="128" y="276" width="144" height="18">
         <text font="letterica16" r="190" g="190" b="190" align="c" vert_align="c" complex_mode="1"/>
     </wx_next_label>
     <!-- how sure the forecast is of the next sky, beside its glyph -->
@@ -129,7 +132,7 @@
 
     <!-- No scroll view. Everything fits, and a page you have to scroll to read the
          weather off is a document rather than a device. Rows are allocated from
-         row_head / row_line once and repositioned; colour carries the emphasis, because
+         row_head / row_line once and repositioned; color carries the emphasis, because
          a widget cannot change its font after it is built. -->
 
     <!-- the back button; its texture is set from script, as MAC does for its tiles -->

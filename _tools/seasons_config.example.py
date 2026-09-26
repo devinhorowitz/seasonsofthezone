@@ -1,15 +1,31 @@
-"""Which mods this install stages per season. The only file to edit.
+"""A worked example: the setup these tools were made on, each table filled in.
 
-Empty is the default and is fine: the in-engine layer needs nothing here. These tables
-add the launch-time layers, which use mods you install yourself.
+Your own settings go in seasons_config.py, next to this file. configure.bat makes that
+file and edits it for you - its window, its commands and its presets - and you can edit
+it by hand as well: the tool keeps what you write and rewrites only the entries it
+changes. This file is only here to read. The same setup loads into configure.bat as the
+"GAMMA example" preset.
 
-  TOGGLE_MODS    mods switched on or off per season. Nothing is copied. `above` is the
-                 mod yours must outrank; find it with
+With every table empty, the seasonal atmosphere still runs; the tables add what play.bat
+changes at launch, using mods you install yourself. The full reference is
+docs/CONFIGURING.md.
+
+  TOGGLE_MODS    seasonal mods: each is enabled in the seasons it lists and disabled the
+                 rest of the year. Nothing is copied. `above` is the mod it wins over,
+                 which configure.bat finds from the files the two share; to check one,
                  `season.py whowins <file> --for "<your mod>"`.
-  LAYOUT         mods whose contents are restaged per season from their archive, for
-                 mods that ship one folder per season. Gigabytes move; prefer TOGGLE_MODS.
-  SOUND_SRC      the ambience mod whose presets are gated by season. Must be the mod
-                 that wins those files.
+  LAYOUT         texture sets: mods restaged from their archive each season, for mods
+                 that ship one folder per season. Gigabytes move; prefer TOGGLE_MODS.
+  SOUND_SRC      the ambience mod whose sound channels are cut back by season. It has to
+                 be the mod that wins those files.
+  PERIODS        base periods of your own, alongside the seasons: name: (month, day) it
+                 starts. Each runs until the next one begins.
+  EVENTS         windows laid over whatever period they land in, so an event keeps the
+                 season under it: name: ((m, d) start, (m, d) end), both inclusive, and a
+                 start after its end wraps the year. Or a rule, like
+                 {"weekdays": ("sat", "sun")}. See docs/SCHEDULING.md.
+  CALENDAR       the day each season starts, and which are on; None is Polesia's six.
+  NAMES          names of your own for the seasons; None keeps the usual ones.
 """
 
 # mod folder -> archive in downloads/, and per season the option folders to overlay

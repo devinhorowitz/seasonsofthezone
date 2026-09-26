@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""Stage the launch-time seasonal layers for today's date.
+r"""Stage the launch-time seasonal layers for today's date.
 
-  python _tools/season.py status                 today's season, what is staged
-  python _tools/season.py apply                  stage it (what play.bat runs)
-  python _tools/season.py apply --season winter
-  python _tools/season.py apply --dry-run
-  python _tools/season.py whowins <gamedata path> [--for "<your mod>"]
+  py _tools\season.py status                 what the next launch would do
+  py _tools\season.py apply                  do it (what play.bat runs)
+  py _tools\season.py apply --season winter
+  py _tools\season.py apply --dry-run
+  py _tools\season.py whowins <path inside gamedata> [--for "<your mod>"]
+  py _tools\season.py dial                   send the calendar and names to the game
 
-The in-engine layers (light, fog, wind, wetness) follow the calendar on their own.
+The seasonal atmosphere (light, fog, wind, wetness) follows the calendar on its own.
 Textures cannot: X-Ray loads them from MO2's virtual file system at level load and keeps
-them for the session. So texture mods are enabled, disabled or restaged here, before the
-game starts. Configuration is in seasons_config.py; with none, nothing is staged.
+them for the session. So seasonal mods are enabled or disabled here, and texture sets
+restaged, before the game starts. Configuration is in seasons_config.py; with none,
+nothing is staged.
 
 Seasons (phenological, for Polesia):
   spring       Apr 15 - May 19    35 d   green-up
@@ -95,7 +97,7 @@ def profile_name():
 APPDATA = os.path.join(game_dir(), "appdata")
 
 CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS", "CALENDAR",
-                "NAMES")
+                "NAMES", "WEATHER_PLACE")
 
 
 def _config_error(e):
@@ -116,11 +118,13 @@ def _config_error(e):
         line = frames[-1].lineno if frames else None
         text = frames[-1].line if frames else None
         col = None
-        what = "%s: %s" % (type(e).__name__, e)
+        said = "%s: %s" % (type(e).__name__, e) if str(e) else type(e).__name__
+        what = "Python can't run %s (%s)" % ("this line" if line else "seasons_config.py",
+                                             said)
         if isinstance(e, (SystemExit, KeyboardInterrupt)):
-            what = "it stops the program (%s) - take that out" % type(e).__name__
+            what = "this stops the program (%s). Take it out." % type(e).__name__
         if isinstance(e, NameError):
-            what = "%s. Names go in quotes: \"%s\"" % (
+            what = "%s. Names go in quotes: \"%s\"." % (
                 e, getattr(e, "name", None) or "winter")
     where = where or ("line %d" % line if line else None)
     out = ["%s: %s" % (where, what) if where else what]
@@ -135,8 +139,22 @@ def _config_error(e):
 # Install-specific configuration lives in seasons_config.py. Missing or empty is fine:
 # the in-engine layer runs with nothing staged. A file Python cannot run is held here and
 # reported by _validate_config(), so whowins still works while it is being fixed.
-CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seasons_config.py")
-SAVE_AS_UTF8 = "Save it as UTF-8: in Notepad, File, Save as, Encoding: UTF-8."
+# SEASONS_CONFIG points at another copy: configure.bat previews unsaved changes that way
+CONFIG_PATH = (os.environ.get("SEASONS_CONFIG")
+               or os.path.join(os.path.dirname(os.path.abspath(__file__)), "seasons_config.py"))
+UTF8_STEPS = "in Notepad, File > Save as, set Encoding to UTF-8, then Save."
+SAVE_AS_UTF8 = "Save it as UTF-8: " + UTF8_STEPS
+
+
+def _python():
+    """How this machine starts Python: the py launcher when there is one, as play.bat and
+    configure.bat prefer."""
+    return "py" if shutil.which("py") else "python"
+
+
+def command(tool, args=""):
+    """A command to type in the GAMMA folder, as this machine starts Python."""
+    return ("%s _tools\\%s %s" % (_python(), tool, args)).rstrip()
 
 
 def read_config_text(path=CONFIG_PATH):
@@ -178,8 +196,8 @@ def encoding_problem(e):
     """What to say when a config's bytes do not decode. Python's tokenizer raises a
     SyntaxError, not a decode error, for bytes that are not UTF-8 in the first two lines."""
     if isinstance(e, SyntaxError) and "unknown encoding" in str(e):
-        return ("seasons_config.py's coding line names an encoding Python does not know. "
-                "Take the line out and " + SAVE_AS_UTF8[0].lower() + SAVE_AS_UTF8[1:])
+        return ("The # coding line at the top of seasons_config.py names an encoding Python "
+                "does not know. Delete that line and save the file as UTF-8: " + UTF8_STEPS)
     where = (" (byte 0x%02X, %d bytes in)" % (e.object[e.start], e.start)
              if isinstance(e, UnicodeDecodeError) else "")
     return "seasons_config.py is not saved as UTF-8%s. %s" % (where, SAVE_AS_UTF8)
@@ -199,6 +217,15 @@ CALENDAR = getattr(_cfg, "CALENDAR", None)
 # Names of the player's own for the seasons, {season: name}, shown in game in place of
 # "Spring" or "Deep winter". The config keeps the season keys either way.
 NAMES = getattr(_cfg, "NAMES", None)
+# Where the real weather comes from, {"name": ..., "lat": ..., "lon": ...}; None is
+# Chornobyl. fetch_weather.py reads it; season.py checks it.
+WEATHER_PLACE = getattr(_cfg, "WEATHER_PLACE", None)
+
+
+def _q(v):
+    """A name or key as the config spells it: in double quotes, or as written if it is
+    not a string."""
+    return '"%s"' % v if isinstance(v, str) else repr(v)
 
 
 def _set_twice(text=None):
@@ -253,9 +280,9 @@ def _set_twice(text=None):
             for k in node.value.keys:
                 if isinstance(k, ast.Constant) and not isinstance(k.value, bool):
                     if k.value in seen:
-                        out.append("%s lists %r twice, on lines %d and %d; Python keeps the "
-                                   "second. Keep one." % (set_here[0], k.value, seen[k.value],
-                                                         k.lineno))
+                        out.append("%s lists %s twice, on lines %d and %d; only the second "
+                                   "counts. Keep one." % (set_here[0], _q(k.value),
+                                                          seen[k.value], k.lineno))
                     else:
                         seen[k.value] = k.lineno
     return out
@@ -266,16 +293,17 @@ def _validate_config():
 
     `"seasons": ("winter")` is a string, not a tuple, and `"winter" in "winter_snow"` is
     true, so without this check that mod would be enabled in deep winter."""
+    # the file as the player finds it from the GAMMA folder, unless it is another copy
+    here = CONFIG_PATH if os.environ.get("SEASONS_CONFIG") else r"_tools\seasons_config.py"
+    head = "  %s needs fixing before play.bat can switch anything:\n" % here
     if CONFIG_ERROR:
-        raise SystemExit("  seasons_config.py needs fixing before anything runs:\n"
-                         "    - " + CONFIG_ERROR[0]
+        raise SystemExit(head + "    - " + CONFIG_ERROR[0]
                          + "".join("\n        " + l for l in CONFIG_ERROR[1:])
                          + "\n  Nothing has been changed.")
     problems = _set_twice() + config_problems(TOGGLE_MODS, LAYOUT, SOUND_SRC, PERIODS, EVENTS,
-                                              CALENDAR, NAMES)
+                                              CALENDAR, NAMES, WEATHER_PLACE)
     if problems:
-        raise SystemExit("  seasons_config.py needs fixing before anything runs:\n"
-                         + "\n".join("    - " + p for p in problems)
+        raise SystemExit(head + "\n".join("    - " + p for p in problems)
                          + "\n  Nothing has been changed.")
 
 
@@ -296,13 +324,16 @@ def _is_day(md, leap=False):
 
 
 def _folder_problem(name):
-    """Why `name` cannot be a mod folder as MO2 lists it, or None."""
-    if not isinstance(name, str) or not name.strip():
-        return "is not a mod folder name"
+    """Why `name` cannot be a mod folder as MO2 lists it, as a sentence, or None."""
+    if not isinstance(name, str):
+        return "that is not a name in quotes. Put the mod's folder name in quotes."
+    if not name.strip():
+        return "the name is empty. Put the mod's folder name in the quotes."
     if name != name.strip():
-        return "has spaces at its start or end, which a mod folder name cannot"
+        return "the name has spaces at its start or end, which a folder name can't."
     if name in (".", "..") or name.endswith(".") or any(c in name for c in '/\\:*?"<>|'):
-        return "is not a folder name MO2 could have"
+        return ("that can't be a folder name: folder names can't end with a dot or hold "
+                "any of / \\ : * ? \" < > |.")
     return None
 
 
@@ -312,14 +343,14 @@ def _own_folders():
 
 
 def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=None,
-                    names=None):
+                    names=None, place=None):
     """What is wrong with a set of config tables, one sentence per entry at fault. The
     configure tool checks a file with this before it writes one."""
     problems = []
     for var, table, shape in (("PERIODS", periods, "{name: (month, day)}"),
                               ("EVENTS", events, "{name: ((month, day), (month, day))}")):
         if not isinstance(table, dict):
-            problems.append("%s must be a dict of %s, or {} for none" % (var, shape))
+            problems.append("%s must be a table, %s, or {} for none." % (var, shape))
     periods = periods if isinstance(periods, dict) else {}
     events = events if isinstance(events, dict) else {}
 
@@ -329,14 +360,14 @@ def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=No
             where = "%s[%r]" % (var, name)
             if not isinstance(name, str) or not re.match(r"^[A-Za-z0-9_]+$", name):
                 problems.append(where + ": a name is letters, digits and underscores, like "
-                                "high_summer")
+                                "high_summer.")
             elif name in SEASONS:
-                problems.append(where + ": %s is already a season" % name)
+                problems.append(where + ": that is already a season. Rename it.")
             elif name in WEATHER_NAMES:
-                problems.append(where + ": %s is already a kind of weather a mod can be "
-                                "scoped to" % name)
+                problems.append(where + ": that is already a kind of weather. Rename the %s."
+                                % ("event" if var == "EVENTS" else "period"))
     for name in sorted(set(periods) & set(events), key=str):
-        problems.append("%r is both a period and an event; rename one" % (name,))
+        problems.append("EVENTS: %s is both a period and an event. Rename one." % _q(name))
 
     # when periods start: never on a day a season or another period starts, or one of
     # the two would never run
@@ -347,13 +378,14 @@ def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=No
     for name, md in periods.items():
         where = "PERIODS[%r]" % (name,)
         if not _is_day(md, leap=True):
-            problems.append(where + " must be (month, day), like (7, 1)")
+            problems.append(where + ": the start must be (month, day), like (7, 1).")
         elif tuple(md) == (2, 29):
-            problems.append(where + " starts on February 29, which three years in four do "
-                            "not have. Use February 28 or March 1.")
+            problems.append(where + " can't start on February 29, which three years in four "
+                            "don't have. Use February 28 or March 1.")
         elif tuple(md) in starts:
             problems.append(where + " starts on %s, the same day as %s, so one of them would "
-                            "never run" % (_md(*md), season_label(starts[tuple(md)])))
+                            "never be on. Give it another day."
+                            % (_md(*md), season_label(starts[tuple(md)])))
         else:
             starts[tuple(md)] = name
     for name, spec in events.items():
@@ -365,62 +397,65 @@ def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=No
     own = _own_folders()
 
     if not isinstance(toggle_mods, dict):
-        problems.append("TOGGLE_MODS must be a dict of {mod folder: {...}}")
+        problems.append("TOGGLE_MODS must be a table, {mod folder: {...}}.")
     else:
         for name, cfg in toggle_mods.items():
             where = "TOGGLE_MODS[%r]" % (name,)
             bad = _folder_problem(name)
             if bad:
-                problems.append(where + ": the name " + bad)
+                problems.append(where + ": " + bad)
                 continue
             if name in own:
-                problems.append(where + ": that is %s itself, which has to stay on"
-                                % ("the soundscape season.py makes" if name == SOUND_MOD
-                                   else "Seasons of the Zone"))
+                problems.append(where + ": %s Take the entry out." % (
+                    "that is the soundscape season.py makes, which it switches itself."
+                    if name == SOUND_MOD else
+                    "that is this mod itself, which stays on all year."))
                 continue
             if not isinstance(cfg, dict):
-                problems.append(where + " must be a dict with 'when' and 'above'")
+                problems.append(where + " must be {\"when\": (...), \"above\": \"...\"}.")
                 continue
             if "when" in cfg and "seasons" in cfg:
-                problems.append(where + " has both 'when' and 'seasons', which are the same "
-                                "thing. Keep one.")
+                problems.append(where + " has both \"when\" and \"seasons\", which are the "
+                                "same thing. Keep one.")
             raw_when = cfg.get("when", cfg.get("seasons"))
             if raw_when is None:
                 other = [k for k in cfg if k != "above"]
-                problems.append(where + " has no 'when'%s. It names the seasons the mod is "
-                                "on in, like \"when\": (\"winter\",)"
-                                % ((" (it has %s)" % ", ".join(repr(k) for k in other))
+                problems.append(where + " has no \"when\"%s. It names the seasons, events or "
+                                "weather the mod is on in, like \"when\": (\"winter\",)."
+                                % ((" (it has %s)" % ", ".join(_q(k) for k in other))
                                    if other else ""))
             elif isinstance(raw_when, str) and "," in raw_when:
                 # ("summer,spring") is one name with a comma in it, not two
                 parts = [p.strip() for p in raw_when.split(",") if p.strip()]
-                problems.append(where + ": 'when' is the single name \"%s\". Give each "
-                                "season its own quotes: (%s)"
+                problems.append(where + ": \"when\" is the single name \"%s\". Give each "
+                                "season its own quotes: (%s)."
                                 % (raw_when, ", ".join('"%s"' % p for p in parts)))
             elif isinstance(raw_when, str):
-                problems.append(where + ": 'when' must be a tuple of period names - "
-                                "note the trailing comma in a one-element tuple, "
-                                "(\"winter\",) not (\"winter\")")
+                one = raw_when.strip() or "winter"
+                problems.append(where + ": a single name in \"when\" needs a trailing comma: "
+                                "(\"%s\",), not (\"%s\")." % (one, one))
             elif not isinstance(raw_when, (list, tuple)):
-                problems.append(where + ": 'when' must be a tuple of period names, like "
-                                "(\"winter\", \"winter_snow\")")
+                problems.append(where + ": \"when\" must list seasons, events or weather in "
+                                "brackets, like (\"winter\", \"winter_snow\").")
             elif not raw_when:
-                problems.append(where + ": 'when' names no period, so the mod would never "
-                                "be on")
+                problems.append(where + ": \"when\" is empty, so the mod would never be on.")
             else:
                 bad = [str(x) for x in raw_when if x not in known]
                 if bad:
-                    problems.append(where + ": unknown period(s) %s - valid: %s"
-                                    % (", ".join(bad), valid))
+                    problems.append(where + ": \"when\" names %s, which %s. Valid: %s."
+                                    % (", ".join(bad),
+                                       "is not a season, an event or weather" if len(bad) == 1
+                                       else "are not seasons, events or weather", valid))
             above = cfg.get("above")
             if not isinstance(above, str) or not above.strip():
-                problems.append(where + ": 'above' must name the mod this one has to "
-                                "outrank (find it with: season.py whowins <a file it "
-                                "ships> --for \"%s\")" % name)
+                problems.append(where + ": \"above\" must name the mod this one wins over. "
+                                "Pick it in configure.bat, or find it with: %s."
+                                % command("season.py", "whowins <a file it ships> --for "
+                                          "\"%s\"" % name))
             elif above == name:
-                problems.append(where + ": 'above' is the mod itself. Name the mod it has to "
-                                "outrank (season.py whowins <a file it ships> --for \"%s\")"
-                                % name)
+                problems.append(where + ": \"above\" is the mod itself. Name the mod it wins "
+                                "over (%s)." % command("season.py", "whowins <a file it "
+                                                       "ships> --for \"%s\"" % name))
         # A above B and B above A: each launch would move one above the other, for ever
         looped = set()
         for start in toggle_mods:
@@ -433,56 +468,60 @@ def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=No
                 loop = chain[chain.index(cur):]
                 if len(loop) > 1 and frozenset(loop) not in looped:
                     looped.add(frozenset(loop))
-                    problems.append("TOGGLE_MODS: %s are each set above the next, round in a "
-                                    "loop, so play.bat would move them at every launch. "
-                                    "Anchor one of them on another mod."
+                    problems.append("TOGGLE_MODS: %s each win over the next, in a circle, so "
+                                    "play.bat would move them at every launch. Make one of "
+                                    "them win over a different mod."
                                     % " -> ".join(loop + [loop[0]]))
 
     stageable = list(SEASONS) + [n for n in periods if isinstance(n, str)]
     if not isinstance(layout, dict):
-        problems.append("LAYOUT must be a dict of {mod folder: {...}}")
+        problems.append("LAYOUT must be a table, {mod folder: {...}}.")
     else:
         for name, cfg in layout.items():
             where = "LAYOUT[%r]" % (name,)
             bad = _folder_problem(name)
             if bad:
-                problems.append(where + ": the name " + bad)
+                problems.append(where + ": " + bad)
                 continue
             if not isinstance(cfg, dict):
-                problems.append(where + " must be a dict with 'archive' and 'options'")
+                problems.append(where + " must be {\"archive\": \"...\", \"options\": {...}}.")
                 continue
             archive = cfg.get("archive")
             if not isinstance(archive, str) or not archive:
-                problems.append(where + ": 'archive' must be a filename in downloads/")
+                problems.append(where + ": \"archive\" must be the name of a file in "
+                                "downloads.")
             elif not archive.lower().endswith((".7z", ".rar")):
-                problems.append(where + ": 'archive' must be a .7z or .rar - those are what "
-                                "season.py can open")
+                problems.append(where + ": \"archive\" must be a .7z or .rar, which is what "
+                                "season.py can open.")
             opts = cfg.get("options")
             if not isinstance(opts, dict) or not opts:
-                problems.append(where + ": 'options' must map each season to a list of "
-                                "folder names inside the archive")
+                problems.append(where + ": \"options\" must map each season to a list of "
+                                "folder names in the archive.")
             else:
                 for season, folders in opts.items():
                     if season not in stageable:
-                        problems.append(where + ": %r in 'options' is not a season or a "
-                                        "period - valid: %s"
-                                        % (season, ", ".join(stageable)))
+                        problems.append(where + ": %s in \"options\" is not a season or a "
+                                        "period. Valid: %s."
+                                        % (_q(season), ", ".join(stageable)))
                     if (isinstance(folders, str) or not isinstance(folders, (list, tuple))
                             or not folders or not all(isinstance(f, str) for f in folders)):
-                        problems.append(where + ": options[%r] must be a list of folder "
-                                        "names, e.g. [\"Spring\"]" % (season,))
+                        problems.append(where + ": \"options\" for %s must be a list of "
+                                        "folder names, like [\"Spring\"]." % _q(season))
 
     if sound_src is not None:
         bad = _folder_problem(sound_src)
         if bad:
-            problems.append("SOUND_SRC must be None or a mod folder name")
+            problems.append("SOUND_SRC must be None or a mod's folder name in quotes.")
         elif sound_src in own:
-            problems.append("SOUND_SRC names %s, which season.py writes itself; name the "
-                            "ambience mod it reads from" % sound_src)
+            problems.append("SOUND_SRC names %s, which %s. Name the ambient sound mod to read "
+                            "from." % (_q(sound_src), "season.py writes itself"
+                                       if sound_src == SOUND_MOD else "is this mod itself"))
     if calendar is not None:
         problems += calendar_problems(calendar)
     if names is not None:
         problems += names_problems(names)
+    if place is not None:
+        problems += place_problems(place)
     return problems
 
 
@@ -621,37 +660,89 @@ def custom_names(names=None):
             and v.strip() and v.strip() != default_label(s)}
 
 
+PLACE_CHARS = 24            # the longest place name the PDA's Forecast page has room for
+# where the weather comes from unless WEATHER_PLACE says otherwise
+DEFAULT_PLACE = {"name": "Chornobyl", "lat": 51.2763, "lon": 30.2219}
+
+
+def place_words(place=None):
+    """Where the weather comes from, in words: "Kyiv (50.45 N, 30.52 E)"."""
+    p = place or DEFAULT_PLACE
+    return "%s (%.2f %s, %.2f %s)" % (p["name"], abs(p["lat"]), "N" if p["lat"] >= 0 else "S",
+                                      abs(p["lon"]), "E" if p["lon"] >= 0 else "W")
+
+
+def weather_place():
+    """The place the config names, when season.py can use it; Chornobyl otherwise."""
+    if isinstance(WEATHER_PLACE, dict) and not place_problems(WEATHER_PLACE):
+        return WEATHER_PLACE
+    return DEFAULT_PLACE
+
+
+def place_problems(place):
+    """What is wrong with a WEATHER_PLACE, one sentence each: [] for one that can be used."""
+    if not isinstance(place, dict):
+        return ["WEATHER_PLACE must be a table like {\"name\": \"Kyiv\", \"lat\": 50.45, "
+                "\"lon\": 30.52}, or None for Chornobyl."]
+    out = []
+    extra = sorted((str(k) for k in place if k not in ("name", "lat", "lon")))
+    if extra:
+        out.append("WEATHER_PLACE: %s %s not one of its parts, which are name, lat and lon."
+                   % (", ".join(extra), "is" if len(extra) == 1 else "are"))
+    name = place.get("name")
+    if not isinstance(name, str) or not name.strip():
+        out.append("WEATHER_PLACE: give the place a name in quotes, like \"Kyiv\".")
+    elif len(name.strip()) > PLACE_CHARS:
+        out.append("WEATHER_PLACE: the name \"%s\" is %d characters; the PDA has room for %d."
+                   % (name.strip(), len(name.strip()), PLACE_CHARS))
+    elif any(ord(c) < 32 for c in name) or any(c in name for c in ";[]="):
+        out.append("WEATHER_PLACE: the name can't contain ; [ ] = or a line break.")
+    for key, most, what, like in (("lat", 90, "latitude", "50.45"),
+                                  ("lon", 180, "longitude", "30.52")):
+        v = place.get(key)
+        if (isinstance(v, bool) or not isinstance(v, (int, float)) or v != v
+                or not -most <= v <= most):
+            out.append("WEATHER_PLACE: %s must be the %s in degrees, -%d to %d, north and "
+                       "east positive, like %s." % (key, what, most, most, like))
+    return out
+
+
 def names_problems(names):
     """What is wrong with a NAMES table, one sentence each."""
     if not isinstance(names, dict):
-        return ["NAMES must be a dict of {season: \"its name\"}, or None for the usual "
-                "names"]
+        return ["NAMES must be a table, {season: \"its name\"}, or None for the usual "
+                "names."]
     out = []
     for s, name in names.items():
         where = "NAMES[%r]" % (s,)
         if s not in SEASONS:
-            out.append(where + ": not a season - they are: " + ", ".join(SEASONS))
+            out.append(where + ": not a season. The seasons are: %s." % ", ".join(SEASONS))
         elif not isinstance(name, str) or not name.strip():
-            out.append(where + " must be the name in quotes, like \"The long cold\"")
+            out.append(where + ": give the name in quotes, like \"The Long Cold\", or take "
+                       "the line out.")
         elif len(name.strip()) > NAME_CHARS:
-            out.append(where + ": %r is %d characters; the dial and the pages have room "
-                       "for %d" % (name.strip(), len(name.strip()), NAME_CHARS))
+            out.append(where + ": the name \"%s\" is %d characters; the dial and the PDA have "
+                       "room for %d." % (name.strip(), len(name.strip()), NAME_CHARS))
         elif any(ord(c) < 32 for c in name) or any(c in name for c in ";[]"):
-            out.append(where + ": a name can't hold ; [ ] or a line break")
+            out.append(where + ": the name can't contain ; [ ] or a line break.")
         else:
             try:
                 name.encode("cp1251")
             except UnicodeEncodeError:
-                out.append(where + ": %r has letters the game can't show. It takes English "
-                           "and Cyrillic letters." % name.strip())
+                out.append(where + ": the name \"%s\" has letters the game can't show. Use "
+                           "English or Cyrillic letters." % name.strip())
     if not out:
         seen = {}
         for s in SEASONS:
             shown = season_label(s, names)
             if shown.casefold() in seen:
-                out.append("NAMES: %s and %s would both be called \"%s\""
-                           % (seen[shown.casefold()], s, shown))
-            seen.setdefault(shown.casefold(), s)
+                first, first_shown = seen[shown.casefold()]
+                # the name as the player typed it, if either one is theirs
+                typed = first_shown if first_shown != default_label(first) else shown
+                out.append("NAMES: %s and %s would both be called \"%s\". Give one of them "
+                           "another name." % (default_label(first), default_label(s),
+                                              cap_first(typed)))
+            seen.setdefault(shown.casefold(), (s, shown))
     return out
 
 
@@ -694,14 +785,49 @@ def read_prefs():
     return out
 
 
-# the season-scoped mods apply_toggles() could not place, for the summary line
+# the seasonal mods apply_toggles() could not place, for the summary line
 SKIPPED = []
 
 
+def _find(body, name):
+    """The index of `name`'s line in modlist.txt's lines, or None."""
+    return next((i for i, l in enumerate(body) if l[:1] in ("+", "-") and l[1:] == name),
+                None)
+
+
+def _place(body, name, above, want):
+    """Put `name` just above `above` in modlist.txt's lines (a lower line has the higher
+    priority) and set it to `want`, "+" or "-", as apply does. Returns (was, now) for a
+    change, None for none, or False when `above` is not in the list."""
+    idx, ref = _find(body, name), _find(body, above)
+    if ref is None:
+        return False
+    if idx is None:
+        body.insert(ref, want + name)
+        return "absent", want
+    if idx > ref:
+        body.pop(idx)
+        body.insert(_find(body, above), want + name)
+        return "misplaced", want
+    if body[idx][:1] != want:
+        was = body[idx][:1]
+        body[idx] = want + name
+        return was, want
+    return None
+
+
+def change_text(was, now):
+    """A change apply_toggles() makes, in words: "disabled -> enabled", "added, enabled"."""
+    state = {"+": "enabled", "-": "disabled"}
+    if was in ("absent", "misplaced"):
+        return "%s, %s" % ("added" if was == "absent" else "moved", state[now])
+    return "%s -> %s" % (state[was], state[now])
+
+
 def apply_toggles(active, dry_run=False, prefs=None):
-    """Enable or disable the season-scoped mods and place each above its anchor.
+    """Enable or disable the seasonal mods and put each just above the mod it wins over.
     Returns [(name, from, to)] for what changed. With the texture layer off, every
-    season-scoped mod is disabled."""
+    seasonal mod is disabled."""
     prefs = prefs if prefs is not None else read_prefs()
     active = [active] if isinstance(active, str) else list(active)
     base, active_set = active[0], set(active)
@@ -710,37 +836,12 @@ def apply_toggles(active, dry_run=False, prefs=None):
     nl = _detect_nl(raw)
     lines = raw.split(nl)
     if not lines or not lines[0].startswith("#"):
-        raise SystemExit("  modlist.txt line 1 is not the MO2 header - refusing to touch it")
+        raise SystemExit("  MO2's mod list (profiles\\%s\\modlist.txt) does not start with "
+                         "MO2's header line, so no seasonal mod was switched."
+                         % profile_name())
 
     head, body = lines[0], lines[1:]
     changed = []
-
-    def find(n):
-        return next((i for i, l in enumerate(body)
-                     if l[:1] in ("+", "-") and l[1:] == n), None)
-
-    def place(name, above, want):
-        idx, ref = find(name), find(above)
-        if ref is None:
-            print("  ! %s: anchor %r is not in the modlist - SKIPPED. Fix 'above' in"
-                  " seasons_config.py (season.py whowins <a file it ships> --for"
-                  " \"%s\" names the right mod)." % (name[:40], above, name))
-            SKIPPED.append(name)
-            return
-        if idx is None:
-            body.insert(ref, want + name)
-            changed.append((name, "absent", want))
-            return
-        # lower line = higher priority; the mod must sit above its anchor
-        if idx > ref:
-            body.pop(idx)
-            body.insert(find(above), want + name)
-            changed.append((name, "misplaced", want))
-            return
-        if body[idx][:1] != want:
-            changed.append((name, body[idx][:1], want))
-            body[idx] = want + name
-
     folders = _mod_folders()
     del SKIPPED[:]
     for name, cfg in TOGGLE_MODS.items():
@@ -752,23 +853,31 @@ def apply_toggles(active, dry_run=False, prefs=None):
         on = (bool(set(_when(cfg)) & active_set)
               and prefs["stage_textures"]
               and _slug(name) not in prefs["off"].get(base, set()))
-        place(name, cfg["above"], "+" if on else "-")
+        got = _place(body, name, cfg["above"], "+" if on else "-")
+        if got is False:
+            print("  ! %s skipped: the mod it wins over, \"%s\", is not in MO2's mod list."
+                  % (name[:40], cfg["above"]))
+            print("    Pick another in its \"Wins over\" box in configure.bat.")
+            SKIPPED.append(name)
+        elif got:
+            changed.append((name,) + got)
 
     # The generated soundscape is placed too: a folder MO2 finds on its own is added
     # disabled, and it has to sit above its source.
-    if SOUND_SRC and find(SOUND_SRC) is not None:
+    if SOUND_SRC and _find(body, SOUND_SRC) is not None:
         have = os.path.isdir(os.path.join(MODS, SOUND_MOD))
-        if have or find(SOUND_MOD) is not None:
+        if have or _find(body, SOUND_MOD) is not None:
             on = have and prefs["stage_sound"] and _mod_enabled(SOUND_SRC)
-            place(SOUND_MOD, SOUND_SRC, "+" if on else "-")
+            got = _place(body, SOUND_MOD, SOUND_SRC, "+" if on else "-")
+            if got:
+                changed.append((SOUND_MOD,) + got)
 
     if changed and not dry_run:
         # MO2 rewrites modlist.txt from memory on exit, so an edit made while it is open
         # is lost.
         busy = running()
         if busy:
-            raise SystemExit("  ** %s running - close it first, modlist not touched **"
-                             % ", ".join(busy))
+            raise SystemExit(close_first(busy))
         bk = os.path.join(ROOT, "_baseline", "modfile-backups")
         os.makedirs(bk, exist_ok=True)
         shutil.copy2(p, os.path.join(bk, "modlist-%s-pre-toggle.txt"
@@ -795,8 +904,8 @@ def near_folder(name, folders=None):
 
 
 def toggle_status(active, prefs=None):
-    """[(name, installed, state, wanted, held)] for each season-scoped mod. `held` is why
-    a wanted mod stays off: "off" (texture layer off), "mod" (switched off in MCM), None."""
+    """[(name, installed, state, wanted, held)] for each seasonal mod. `held` is why a
+    wanted mod stays off: "off" (texture layer off), "mod" (unchecked in MCM), None."""
     prefs = prefs if prefs is not None else read_prefs()
     active = [active] if isinstance(active, str) else list(active)
     base, active_set = active[0], set(active)
@@ -1063,7 +1172,7 @@ def write_mod_panel(active, prefs=None):
     for r in rows:
         seas = seasons_text(r["seasons"])
         mb = ("{:,.1f}".format(r["mb"]) if r["mb"] < 10 else "{:,.0f}".format(r["mb"]))
-        desc = ("%s. %s files, %s MB. Untick to leave it out of this season."
+        desc = ("%s. %s files, %s MB. Uncheck to leave it out of this season."
                 % (cap_first(seas), "{:,}".format(r["files"]), mb))
         caption = r["caption"]
         x += ['\t<string id="ui_mcm_seasons_zone_mod_%s"><text>%s</text></string>'
@@ -1080,6 +1189,11 @@ def write_mod_panel(active, prefs=None):
 
 def cap_first(s):
     return s[:1].upper() + s[1:] if s else s
+
+
+def _count(n, one, many=None):
+    """"1 file", "2 files"."""
+    return "%d %s" % (n, one if n == 1 else many or one + "s")
 
 
 def staged_texture_season(installed):
@@ -1155,31 +1269,32 @@ def season_lengths(starts):
 def calendar_problems(calendar):
     """What is wrong with a CALENDAR table, one sentence each."""
     if not isinstance(calendar, dict):
-        return ["CALENDAR must be a dict of {season: (month, day)}, or None for Polesia's "
-                "dates"]
+        return ["CALENDAR must be a table, {season: (month, day)}, or None for Polesia's "
+                "dates."]
     if not calendar:
-        return ["CALENDAR turns every season off; at least one has to be on"]
+        return ["CALENDAR turns every season off. At least one has to stay on."]
     out, seen = [], {}
     for s, md in calendar.items():
         if s not in SEASONS:
-            out.append("CALENDAR names %r, which is not a season - they are: %s"
+            out.append("CALENDAR[%r]: not a season. The seasons are: %s."
                        % (s, ", ".join(SEASONS)))
             continue
         if not _is_day(md, leap=True):
-            out.append("CALENDAR[%r] must be (month, day), like (5, 20)" % s)
+            out.append("CALENDAR[%r]: the start must be (month, day), like (5, 20)." % s)
             continue
         m, d = md
         if (m, d) == (2, 29):
-            out.append("CALENDAR[%r] starts on February 29, which three years in four do not "
-                       "have. Use February 28 or March 1." % s)
+            out.append("CALENDAR[%r] can't start on February 29, which three years in four "
+                       "don't have. Use February 28 or March 1." % s)
         elif (m, d) in seen:
-            out.append("CALENDAR: %s and %s both start on %s" % (seen[(m, d)], s, _md(m, d)))
+            out.append("CALENDAR: %s and %s both start on %s. Give each season its own day."
+                       % (season_label(seen[(m, d)]), season_label(s), _md(m, d)))
         else:
             seen[(m, d)] = s
     if not out and len(seen) > 1:
         for s, days in season_lengths(calendar).items():
             if days < MIN_SEASON_DAYS:
-                out.append("CALENDAR: %s would last %d days; a season needs at least %d"
+                out.append("CALENDAR: %s would last %d days. A season needs at least %d."
                            % (season_label(s), days, MIN_SEASON_DAYS))
     return out
 
@@ -1248,11 +1363,11 @@ def _calendar_path():
 
 DIAL_TEXT = {
     "default": "the shipped one, for Polesia's dates",
-    "custom": "drawn for your calendar",
-    "stale": "to be drawn for your calendar at the next play.bat",
-    "none": "hidden - the game has no dial for your calendar",
+    "custom": "drawn for your dates and names",
+    "stale": "to be drawn for your dates and names at the next play.bat",
+    "none": "hidden - the game has no dial for your dates and names",
 }
-PILLOW_NOTE = "drawing one needs Pillow: python -m pip install pillow"
+PILLOW_NOTE = "drawing one needs Pillow: %s -m pip install pillow" % _python()
 
 
 def dial_state(mapping="pheno", calendar=None, names=None):
@@ -1415,41 +1530,42 @@ def event_on(d, spec):
 def event_problems(name, spec):
     """What is wrong with one EVENTS entry, one sentence each."""
     where = "EVENTS[%r]" % (name,)
+    shape = (where + ": give its first and last day, like ((12, 24), (12, 26)), or a rule, "
+             "like {\"weekdays\": (\"sat\", \"sun\")}.")
     if isinstance(spec, (tuple, list)):
         if len(spec) == 2 and all(_is_day(x, leap=True) for x in spec):
             return []
-        return [where + " must be ((month, day), (month, day)), its first day and its last, "
-                "like ((12, 24), (12, 26)), or a rule, like {\"weekdays\": (\"sat\", "
-                "\"sun\")}"]
+        return [shape]
     if not isinstance(spec, dict) or not spec:
-        return [where + " must be a window of dates, like ((12, 24), (12, 26)), or a rule, "
-                "like {\"weekdays\": (\"sat\", \"sun\")}"]
+        return [shape]
     out = []
     odd = [k for k in spec if k not in EVENT_KEYS]
     if odd:
-        out.append(where + ": %s is not part of a rule - the parts are %s"
-                   % (", ".join(repr(k) for k in odd), ", ".join(EVENT_KEYS)))
+        out.append(where + ": %s %s. The parts are %s."
+                   % (_and(_q(k) for k in odd), "is not a part of a rule" if len(odd) == 1
+                      else "are not parts of a rule", _and(EVENT_KEYS)))
     wd = spec.get("weekdays")
     if "weekdays" in spec and not (isinstance(wd, (tuple, list)) and wd
                                    and all(x in WEEKDAYS for x in wd)):
-        out.append(where + ": 'weekdays' must list days of the week as %s, like (\"sat\", "
-                   "\"sun\")" % ", ".join(WEEKDAYS))
+        out.append(where + ": \"weekdays\" must list days of the week as %s, like (\"sat\", "
+                   "\"sun\")." % _and(WEEKDAYS))
     if "days" in spec and not _ints(spec["days"], 1, 31, negative=True):
-        out.append(where + ": 'days' must list days of the month, 1 to 31, or -1 for the "
-                   "last, like (1, 15, -1)")
+        out.append(where + ": \"days\" must list days of the month, 1 to 31, or -1 for the "
+                   "last, like (1, 15, -1).")
     if "weeks" in spec:
         if not _ints(spec["weeks"], 1, 5, negative=True):
-            out.append(where + ": 'weeks' must list which of the weekdays in the month, 1 to "
-                       "5, or -1 for the last, like (1,)")
+            out.append(where + ": \"weeks\" must say which of those weekdays in the month "
+                       "count, 1 to 5 or -1 for the last, like (1,).")
         elif "weekdays" not in spec:
-            out.append(where + ": 'weeks' needs 'weekdays', to say which day it counts")
+            out.append(where + ": \"weeks\" needs \"weekdays\" too (--weekdays on the command "
+                       "line), to say which day of the week it counts.")
     if "months" in spec and not _ints(spec["months"], 1, 12):
-        out.append(where + ": 'months' must list months, 1 to 12, like (12, 1, 2)")
+        out.append(where + ": \"months\" must list months, 1 to 12, like (12, 1, 2).")
     win = spec.get("within")
     if "within" in spec and not (isinstance(win, (tuple, list)) and len(win) == 2
                                  and all(_is_day(x, leap=True) for x in win)):
-        out.append(where + ": 'within' must be ((month, day), (month, day)), like "
-                   "((12, 1), (2, 28))")
+        out.append(where + ": \"within\" must be a first and last day, like "
+                   "((12, 1), (2, 28)).")
     if not out:
         # a rule nothing can meet, like the 31st in February: 28 years is every weekday
         # on every date, leap years included
@@ -1457,7 +1573,7 @@ def event_problems(name, spec):
         while day < end and not event_on(day, spec):
             day += datetime.timedelta(days=1)
         if day >= end:
-            out.append(where + " never happens: no day is all of that at once")
+            out.append(where + ": never happens - no date matches every part of the rule.")
     return out
 
 
@@ -1510,6 +1626,18 @@ def event_text(spec):
     return ", ".join(parts)
 
 
+def wins_over(name):
+    """The seasonal mods `name` is set to win over: its `above`, that one's `above`, and so
+    on down the chain."""
+    out, cur = [], name
+    while isinstance(TOGGLE_MODS.get(cur), dict):
+        cur = TOGGLE_MODS[cur].get("above")
+        if not isinstance(cur, str) or cur == name or cur in out:
+            break
+        out.append(cur)
+    return out
+
+
 def weather_flags():
     """Period names the real Zone's weather is asserting today.
 
@@ -1526,15 +1654,20 @@ def weather_flags():
     if not os.path.exists(path):
         return []
     try:
-        section, low, high, when = None, None, None, None
-        for line in io.open(path, encoding="utf-8"):
+        section, low, high, when, there = None, None, None, None, {}
+        # cp1251, the game's own: a place's name can be Cyrillic
+        for line in io.open(path, encoding="cp1251", errors="replace"):
             line = line.split(";")[0].strip()
             if line.startswith("[") and line.endswith("]"):
                 section = line[1:-1].strip()
                 continue
-            if section != "weather" or "=" not in line:
+            if "=" not in line:
                 continue
             k, v = (x.strip() for x in line.split("=", 1))
+            if section == "place" and k in ("lat", "lon"):
+                there[k] = float(v)
+            if section != "weather":
+                continue
             if k == "low":
                 low = float(v)
             elif k == "high":
@@ -1545,6 +1678,12 @@ def weather_flags():
         return []
 
     if low is None:
+        return []
+    # A reading for another place - the config's changed since the last fetch - says
+    # nothing about this one. A file from before places has no [place], and is Chornobyl's.
+    here = weather_place()
+    if (abs(there.get("lat", DEFAULT_PLACE["lat"]) - here["lat"]) > 1e-3
+            or abs(there.get("lon", DEFAULT_PLACE["lon"]) - here["lon"]) > 1e-3):
         return []
     # A reading for another day is worse than none: it reads as authoritative and
     # describes weather that has been and gone.
@@ -1574,7 +1713,7 @@ def active_for(d, mapping="pheno", base=None):
 
     Events OVERLAY rather than replace. That is the whole point - a Christmas event
     does not displace winter, so December 25th keeps its snow and adds to it. Pass
-    `base` to honour an MCM pin or --season while events still resolve by date."""
+    `base` to honor an MCM pin or --season while events still resolve by date."""
     out = [base or season_for(d, mapping)]
     for name, spec in EVENTS.items():
         if event_on(d, spec) and name not in out:
@@ -1620,8 +1759,8 @@ def running():
     try:
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=60).stdout
     except Exception as e:
-        print("  ! could not list running processes (%s) - assuming MO2 and the game are"
-              " closed" % e.__class__.__name__)
+        print("  ! Could not list the running programs (%s), so MO2 and the game are taken"
+              " to be closed." % e.__class__.__name__)
         return []
     roots = [os.path.normcase(os.path.abspath(p)) + os.sep for p in (ROOT, game_dir())]
     mine = set()
@@ -1636,6 +1775,11 @@ def running():
         if any(p.startswith(r) for r in roots):
             mine.add(os.path.basename(line).lower())
     return sorted(mine)
+
+
+def close_first(busy):
+    """The refusal when running() finds MO2 or the game open and season.py has to write."""
+    return "  ** Close %s first. Nothing was changed. **" % _and(busy)
 
 
 def lp(p):
@@ -1663,6 +1807,16 @@ def hashes(base):
     return out
 
 
+def archive_missing(archive):
+    """What to say about a LAYOUT archive that is not in downloads/."""
+    return ("%s is not in downloads. Put it back, or take the mod that uses it out of "
+            "LAYOUT in seasons_config.py." % archive)
+
+
+NO_GAMEDATA = ("  The folder \"%s\" in the archive has no gamedata folder. Check the option "
+               "names in LAYOUT.")
+
+
 def extract(archive, wanted, dest):
     """Extract the named option folders and merge their gamedata trees, in order.
     Returns the merged gamedata directory."""
@@ -1672,7 +1826,7 @@ def extract(archive, wanted, dest):
     for w in wanted:
         gd = os.path.join(dest, w, "gamedata")
         if not os.path.isdir(gd):
-            raise SystemExit("  option has no gamedata/: %s" % w)
+            raise SystemExit(NO_GAMEDATA % w)
         for r, _, fs in os.walk(gd):
             for f in fs:
                 s = os.path.join(r, f)
@@ -1688,7 +1842,7 @@ def _extract_options(archive, wanted, dest):
     handle) is left alone and a sibling used instead."""
     src = os.path.join(DOWNLOADS, archive)
     if not os.path.isfile(src):
-        raise SystemExit("  missing archive: %s" % src)
+        raise SystemExit("  " + archive_missing(archive))
     if os.path.isdir(dest):
         for attempt in range(5):
             try:
@@ -1705,9 +1859,9 @@ def _extract_options(archive, wanted, dest):
         try:
             import py7zr
         except ImportError:
-            raise SystemExit("  the LAYOUT layer needs the py7zr package to read .7z archives:\n"
-                             "    python -m pip install py7zr\n"
-                             "  No texture has been changed.")
+            raise SystemExit("  Texture sets in a .7z archive need the py7zr package. Install "
+                             "it with:\n    %s -m pip install py7zr\n"
+                             "  No texture has been changed." % _python())
         try:
             with py7zr.SevenZipFile(src) as z:
                 names = [n for n in z.getnames()
@@ -1721,10 +1875,10 @@ def _extract_options(archive, wanted, dest):
         try:
             import rarfile
         except ImportError:
-            raise SystemExit("  the LAYOUT layer needs the rarfile package to read .rar archives:\n"
-                             "    python -m pip install rarfile\n"
-                             "  (and WinRAR or 7-Zip installed, for the unrar tool). "
-                             "No texture has been changed.")
+            raise SystemExit("  Texture sets in a .rar archive need the rarfile package, and "
+                             "WinRAR or 7-Zip installed. Install rarfile with:\n"
+                             "    %s -m pip install rarfile\n"
+                             "  No texture has been changed." % _python())
         rarfile.UNRAR_TOOL = _find_unrar()
         try:
             with rarfile.RarFile(src) as z:
@@ -1745,7 +1899,7 @@ def _archive_key(archive):
     """name|size|mtime - a replaced archive invalidates its cached hashes."""
     src = os.path.join(DOWNLOADS, archive)
     if not os.path.isfile(src):
-        raise SystemExit("  missing archive: %s" % src)
+        raise SystemExit("  " + archive_missing(archive))
     st = os.stat(src)
     return "%s|%d|%d" % (archive, st.st_size, int(st.st_mtime))
 
@@ -1768,7 +1922,7 @@ def _option_hashes(archive, options, tmp, mod):
         for o in missing:
             gd = os.path.join(dest, o, "gamedata")
             if not os.path.isdir(gd):
-                raise SystemExit("  option has no gamedata/: %s" % o)
+                raise SystemExit(NO_GAMEDATA % o)
             per[o] = hashes(gd)
         cache = {k: v for k, v in cache.items() if k.split("|")[0] != archive}
         cache[key] = per
@@ -1802,9 +1956,9 @@ def identify(mod, cfg, tmp, prefer=None):
 
 def who_wins(rel, mine=None):
     """Print every mod shipping `rel`, enabled or disabled, in priority order, and the mod
-    a seasonal mod has to sit above to win it.
+    a seasonal mod has to win over to win it.
 
-    `mine` is the mod being placed, and it is left out of the answer. Anchored above
+    `mine` is the mod being placed, and it is left out of the answer. Set to win over
     itself, a mod stays where it is, and the next mod to ship the file above it wins
     without a word. Without `mine` the top enabled mod may be the one being placed - MO2
     enables a new install at the top - so the next one down is named too."""
@@ -1815,11 +1969,11 @@ def who_wins(rel, mine=None):
 
     lines = _modlist_lines()
     if lines is None:
-        print("  cannot read the modlist")
+        print("  Can't read MO2's mod list (profiles\\%s\\modlist.txt)." % profile_name())
         return 1
     body = [l for l in lines if l[:1] in ("+", "-")]
     if mine is not None and not any(l[1:] == mine for l in body):
-        print("  no mod named %r in the modlist - use the name exactly as MO2 shows it"
+        print("  No mod named \"%s\" in MO2's mod list. Use the name exactly as MO2 shows it."
               % mine)
         return 1
 
@@ -1839,37 +1993,39 @@ def who_wins(rel, mine=None):
         elif line[:1] == "+":
             enabled.append(name)
             if len(enabled) == 1:
-                mark = "   <-- WINS" if mine is None else "   <-- to outrank"
-        print("    line %5d  [%s]  %-46s %9d B%s"
-              % (i + 2, line[:1], name[:46], os.path.getsize(p), mark))
+                mark = ("   <-- WINS" if mine is None
+                        else "   <-- yours has to win over this one")
+        print("    line %5d  %-8s  %-46s %9d B%s"
+              % (i + 2, "enabled" if line[:1] == "+" else "disabled", name[:46],
+                 os.path.getsize(p), mark))
 
+    config = "  In the config:  \"above\": \"%s\""
+    box = "   (in configure.bat: its Wins over box)"
     print()
     if mine is not None:
         if not ships:
             print("  %s does not ship this file. Pick a file it does ship." % mine)
             return 1
         if not enabled:
-            print("  No other enabled mod ships it, so any anchor keeps %s winning it."
-                  % mine)
+            print("  No other enabled mod ships it, so %s wins it wherever it sits." % mine)
         else:
-            print("  Put %s ABOVE:  %s" % (mine, enabled[0]))
-            print("  i.e.  \"above\": \"%s\"" % enabled[0])
+            print("  Make %s win over:  %s" % (mine, enabled[0]))
+            print(config % enabled[0] + box)
     elif not hits:
-        print("  No enabled or disabled mod ships it as a loose file - the base game .db")
-        print("  provides it (archives under db/ are not inspected). A mod of your own")
-        print("  shipping this file would win outright.")
+        print("  No mod ships this file. Either the base game has it in its .db archives, or")
+        print("  the path is misspelled. A mod that ships it wins it wherever it sits.")
     elif not enabled:
-        print("  Only disabled mods ship it; the base game .db is providing it.")
+        print("  Only disabled mods ship it, so the base game's copy, if it has one, is in "
+              "use.")
     else:
-        print("  Put your seasonal mod ABOVE:  %s" % enabled[0])
-        print("  i.e.  \"above\": \"%s\"" % enabled[0])
+        print("  Make your seasonal mod win over:  %s" % enabled[0])
+        print(config % enabled[0] + box)
         print()
         if len(enabled) > 1:
-            print("  If that is the mod you are placing, use the next one down:")
-            print("  i.e.  \"above\": \"%s\"" % enabled[1])
+            print("  If that is the mod you are placing, make it win over the next one down:")
+            print(config % enabled[1] + box)
         else:
-            print("  If that is the mod you are placing, no other enabled mod ships this")
-            print("  file, so any anchor keeps it winning.")
+            print("  If that is the mod you are placing, it wins this file wherever it sits.")
         print("  (--for \"<your mod>\" leaves your mod out and gives one answer.)")
     return 0
 
@@ -1880,7 +2036,7 @@ def _check_mod_state():
     gd = os.path.join(MODS, SOTZ, "gamedata")
     if not os.path.isdir(gd):
         print("  ! Seasons of the Zone is not in mods/. Install the zip with MO2's")
-        print("    'Install a new mod from archive', then enable it.")
+        print("    \"Install a new mod from archive\", then enable it.")
         return
     copies = sotz_copies()
     if len(copies) > 1:
@@ -1892,41 +2048,52 @@ def _check_mod_state():
         return
     state = next((l[:1] for l in lines if l[:1] in ("+", "-") and l[1:] == SOTZ), None)
     if state is None:
-        print("  ! '%s' is not in profile %r - MO2 will add it DISABLED at its next start."
+        print("  ! \"%s\" is not in MO2's mod list for profile \"%s\". MO2 adds it disabled"
               % (SOTZ, profile_name()))
-        print("    Enable it in MO2, or nothing in-game will happen.")
+        print("    at its next start. Enable it in MO2, or nothing happens in the game.")
     elif state == "-":
-        print("  ! '%s' is DISABLED in profile %r - enable it in MO2." % (SOTZ, profile_name()))
+        print("  ! \"%s\" is disabled in profile \"%s\". Enable it in MO2."
+              % (SOTZ, profile_name()))
     if state == "+" and _mod_enabled(FLORA_MOD):
-        print("  ! '%s' is enabled beside '%s'. Both drive the same flora and fog uniforms;"
-              % (FLORA_MOD, SOTZ))
-        print("    that is two writers on one console value. Disable %s." % FLORA_MOD)
+        print("  ! %s is enabled. It is this mod's old prototype and sets the same foliage"
+              % FLORA_MOD)
+        print("    and fog values, so the two fight. Disable %s in MO2." % FLORA_MOD)
 
 
 SHADOW_CACHE = os.path.join(ROOT, "_baseline", "season-shadow-check.json")
 
 
 def shadow_check(force=False):
-    """Test every file of every season-scoped mod against every mod above it.
+    """Lines about the files of each seasonal mod that a mod above it wins, judged on the
+    order apply leaves MO2's mod list in, not the order it is in now.
 
-    SHADOWED: an enabled mod above ships the file. dormant: a disabled mod above does, and
-    would win if enabled. note: two season-scoped mods overlap in a season they share
-    (judged on seasons, not on today's flags, so it shows out of season too).
+    "!": an enabled mod above ships the file. "-": disabled mods above do, and would win
+    it if enabled; or two seasonal mods overlap in a season they share (judged on seasons,
+    not on today's flags, so it shows out of season too), unless the one on top is set to
+    win over the other.
 
-    Costs a stat per (file, higher mod) pair, so `apply` runs it only when the modlist has
-    changed; `status` always does."""
+    Costs a stat per (file, higher mod) pair, so `apply` runs it only when the mod list or
+    the config has changed; `status` always does. No lines when it did not run."""
     lines = _modlist_lines()
     if lines is None:
-        return
+        return []
     body = [l for l in lines if l[:1] in ("+", "-")]
-    key = hashlib.md5(("|".join(body) + "|" + "|".join(sorted(TOGGLE_MODS)))
+    key = hashlib.md5(("|".join(body) + "|" + repr(sorted(
+        (n, _when(c), c.get("above")) for n, c in TOGGLE_MODS.items())))
                       .encode("utf-8", "replace")).hexdigest()
     if not force and os.path.isfile(SHADOW_CACHE):
         try:
             if json.loads(io.open(SHADOW_CACHE, encoding="utf-8").read()).get("key") == key:
-                return
+                return []
         except (OSError, ValueError):
             pass
+
+    # the moves apply makes: a mod it is about to put above another is not losing to it
+    folders = _mod_folders()
+    for name, cfg in TOGGLE_MODS.items():
+        if name in folders:
+            i = _find(body, name)
+            _place(body, name, cfg["above"], body[i][:1] if i is not None else "-")
 
     ours = set(TOGGLE_MODS) | {SOUND_MOD, SOTZ}
     index = {l[1:]: i for i, l in enumerate(body)}
@@ -1950,9 +2117,12 @@ def shadow_check(force=False):
             eg = hits[0].replace(os.sep, "/")
             if other in TOGGLE_MODS:
                 shared = set(_when(cfg)) & set(_when(TOGGLE_MODS[other]))
-                if shared:
-                    notes.append((name, other, len(hits), eg, ", ".join(
-                        s_ for s_ in SEASONS if s_ in shared)))
+                # set to win over this one, itself or through the mods it wins over:
+                # the overlap is the intent
+                if shared and name not in wins_over(other):
+                    notes.append((name, other, len(hits), eg, seasons_text(sorted(
+                        shared, key=lambda p: (p not in SEASONS, SEASONS.index(p)
+                                               if p in SEASONS else 0, p)))))
             elif other in ours:
                 continue
             elif on:
@@ -1962,20 +2132,24 @@ def shadow_check(force=False):
 
     os.makedirs(os.path.dirname(SHADOW_CACHE), exist_ok=True)
     io.open(SHADOW_CACHE, "w", encoding="utf-8").write(json.dumps({"key": key}))
+    out = []
     for name, other, n, eg in shadowed:
-        print("  ! %s is SHADOWED by '%s' on %d file(s), e.g. %s"
-              % (name[:36], other[:44], n, eg))
-        print("    It cannot win those files even when enabled. Anchor it above that mod,"
-              " or disable that mod.")
+        out.append("  ! %s loses %s to \"%s\", which is enabled and wins over it in MO2's "
+                   "mod list (like %s)." % (name[:36], _count(n, "file"), other[:44], eg))
+        out.append("    In configure.bat, make it win over that mod, or disable that mod.")
     for name, lst in dormant.items():
         other, n, eg = lst[0]
-        print("  - %d disabled mod(s) above %s share its files (e.g. '%s', %d file(s), %s)."
-              % (len(lst), name[:36], other[:40], n, eg))
-        print("    Enabling one of them will shadow it; run `season.py status` afterwards.")
+        out.append("  - %s in MO2 would win some of %s's files if enabled (like \"%s\": %s, "
+                   "%s)." % (_count(len(lst), "disabled mod"), name[:36], other[:40],
+                             _count(n, "file"), eg))
+    if dormant:
+        out.append("    After enabling one, check with %s." % command("season.py", "status"))
     for name, other, n, eg, seasons in notes:
-        print("  - note: '%s' sits above %s and overrides %d of its file(s) in %s (e.g. %s)"
-              % (other[:40], name[:36], n, seasons, eg))
-        print("    Fine if that is the intent; if not, swap their anchors.")
+        out.append("  - \"%s\" wins %d of %s's files in %s (like %s)."
+                   % (other[:40], n, name[:36], seasons, eg))
+        out.append("    Fine if that is the intent; if not, make %s win over \"%s\" in "
+                   "configure.bat." % (name[:36], other[:40]))
+    return out
 
 
 def _check_install():
@@ -1990,46 +2164,58 @@ def _check_install():
     print("    looked in : %s" % ROOT)
     print("    expected  : ModOrganizer.ini        %s"
           % ("found" if os.path.isfile(ini) else "MISSING"))
-    print("                profiles/%s/modlist.txt %s"
+    print("                profiles\\%s\\modlist.txt %s"
           % (profile_name(), "found" if os.path.isfile(modlist) else "MISSING"))
     print()
-    print("  Put _tools/ and play.bat in your GAMMA folder - the one containing")
-    print("  ModOrganizer.exe - and run it from there. Nothing has been changed.")
+    print("  Put _tools, play.bat and configure.bat in your GAMMA folder (the one with")
+    print("  ModOrganizer.exe) and run them from there. Nothing has been changed.")
     raise SystemExit(2)
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["status", "apply", "whowins", "dial"])
+    ap = argparse.ArgumentParser(
+        description="Stage today's season for Seasons of the Zone (play.bat runs apply).")
+    ap.add_argument("cmd", choices=["status", "apply", "whowins", "dial"],
+                    help="status: what the next launch would do; apply: do it; whowins: "
+                         "which mod wins a file; dial: send the calendar and names to the "
+                         "game")
     ap.add_argument("path", nargs="?",
-                    help="for `whowins`: a gamedata-relative file path, e.g. "
+                    help="for whowins: a file path inside gamedata, like "
                          "textures/terrain/terrain_escape.dds")
     ap.add_argument("--for", dest="mine", metavar="MOD",
-                    help="for `whowins`: the mod you are placing, left out of the answer")
-    ap.add_argument("--season", metavar="PERIOD",
-                    help="stage this season or period instead of today's")
-    ap.add_argument("--mapping", choices=["pheno", "met"], default="pheno")
-    ap.add_argument("--dry-run", action="store_true")
+                    help="for whowins: the mod you are placing, left out of the answer")
+    ap.add_argument("--season", metavar="SEASON",
+                    help="stage this season or event instead of today's")
+    ap.add_argument("--mapping", choices=["pheno", "met"], default="pheno",
+                    help="pheno: Polesia's dates (the default); met: meteorological. "
+                         "Ignored when seasons_config.py sets CALENDAR")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="show what apply would change, and change nothing")
     ap.add_argument("--no-textures", action="store_true",
-                    help="skip the texture layer for this run only; the MCM page has the "
-                         "persistent switch")
+                    help="turn texture swapping off for this run only: seasonal mods "
+                         "disabled, texture sets kept. MCM has the lasting switch")
     a = ap.parse_args()
 
     _check_install()
 
-    # before the config check: whowins is how the config gets its anchors, so a
+    # before the config check: whowins is how the config gets its `above`, so a
     # half-written seasons_config.py must not lock it out
     if a.cmd == "whowins":
         if not a.path:
-            raise SystemExit("  whowins needs a gamedata-relative path, e.g.\n"
-                             "    python _tools/season.py whowins "
-                             "textures/terrain/terrain_escape.dds")
+            raise SystemExit("  whowins needs a file path inside gamedata, like:\n    "
+                             + command("season.py", "whowins "
+                                       "textures/terrain/terrain_escape.dds"))
         raise SystemExit(who_wins(a.path, a.mine))
 
     _validate_config()
     if a.season and a.season not in period_names(a.mapping):
-        raise SystemExit("  --season %s: your calendar has no such season or period. These "
-                         "are: %s" % (a.season, ", ".join(period_names(a.mapping))))
+        # typed, so the keys: the seasons that are on in their usual order, then the rest
+        can = seasons_on(a.mapping) + [n for n in period_names(a.mapping)
+                                       if n not in SEASONS]
+        raise SystemExit("  --season %s: your calendar has %s. These are: %s"
+                         % (a.season, "%s off" % season_label(a.season)
+                            if a.season in SEASONS else "no such season or event",
+                            ", ".join(can)))
     if a.cmd == "dial":
         # What configure.bat runs after saving a calendar. The game reads the calendar
         # when it starts, whether or not that start goes through play.bat.
@@ -2040,12 +2226,11 @@ def main():
             print("  - " + note)
         raise SystemExit(0 if state else 1)
     _check_mod_state()
-    shadow_check(force=(a.cmd == "status"))
 
     today = datetime.date.today()
     prefs = read_prefs()
 
-    # MCM offers "automatic, or pin one" and the in-engine layers honour it, so the
+    # MCM offers "automatic, or pin one" and the in-engine layers honor it, so the
     # staged layers follow it too - otherwise pinning a season gives you its light
     # over another season's ground. An explicit --season still wins over the pin. A pin
     # left on a season the calendar has turned off counts as automatic, as in game.
@@ -2060,17 +2245,19 @@ def main():
     if a.no_textures:
         prefs["stage_textures"] = False
     stage_tex = prefs["stage_textures"]
+    tex_off = "for this run (--no-textures)" if a.no_textures else "in MCM"
     writing = (a.cmd == "apply") and not a.dry_run
+    title = cap_first(season_label(want))
 
     print("  date            %s" % today.isoformat())
     print("  calendar        %s" % calendar_text(a.mapping))
     why = ("   (forced with --season)" if a.season else
            "   (pinned in MCM)" if pinned else "")
-    print("  season          %s%s" % (want, why))
+    print("  season          %s%s" % (season_label(want), why))
     if pinned and not a.season:
-        print("  calendar says   %s" % season_for(today, a.mapping))
+        print("  calendar says   %s" % season_label(season_for(today, a.mapping)))
     if pin_off and not a.season:
-        print("  - MCM pins %s, which your calendar has off, so the date decides"
+        print("  - MCM pins %s, which your calendar has off, so the date decides."
               % season_label(prefs["mode"]))
     if writing:
         dial, note = write_calendar(a.mapping)
@@ -2081,86 +2268,117 @@ def main():
         print("  dial            %s" % DIAL_TEXT.get(dial, "not written"))
     if note:
         print("  - " + note)
+    flags = weather_flags()
+    print("  weather from    %s%s" % (place_words(weather_place()), (
+        "   (today: %s)" % ", ".join(flags)) if flags else ""))
     print("  texture layer   %s" % ("on" if stage_tex else
-                                    "OFF - textures left alone, in-engine seasons still run"))
+                                    "OFF %s - seasonal mods disabled, texture sets kept; the "
+                                    "seasonal atmosphere still runs" % tex_off))
     print()
 
     try:
         # `installed` holds the LAYOUT mods this launch can stage for `want`. One missing
         # from mods/ is left alone, and so is one with no option for `want`: that keeps
-        # whatever it has, as CONFIGURING.md says.
-        installed = {}
+        # whatever it has, as CONFIGURING.md says. So is one whose archive is gone: nothing
+        # can tell its sets apart or restage it, and the rest of the launch goes on.
+        installed, sets_skipped = {}, []
         for mod, cfg in LAYOUT.items():
             print("  %s" % mod[:70])
             if not os.path.isdir(os.path.join(MODS, mod)):
                 near = near_folder(mod)
                 print("     not in mods/ - left alone%s"
-                      % (" (MO2 has '%s')" % near if near else
-                         ". Check the name in LAYOUT, as MO2 shows it"))
+                      % (" (MO2 has \"%s\")" % near if near else
+                         ". Check the name in LAYOUT, as MO2 shows it."))
+                continue
+            if not os.path.isfile(os.path.join(DOWNLOADS, cfg["archive"])):
+                print("     ! " + archive_missing(cfg["archive"]))
+                if want not in cfg["options"]:
+                    print("     no option for %s in LAYOUT - what it has stays"
+                          % season_label(want))
+                elif stage_tex:
+                    print("       Its textures are left as they are.")
+                    sets_skipped.append(mod)
                 continue
             got, detail = identify(mod, cfg, tmp, want)
-            print("     installed: %s" % (got or "UNRECOGNIZED - not a clean copy of any season"))
+            print("     installed: %s" % (season_label(got) if got else
+                                          "unrecognized - not a clean copy of any season"))
             if got is None and isinstance(detail, list):
                 for s, n, shared, same in detail:
-                    print("        %-8s archive %3d | shared %3d | identical %3d" % (s, n, shared, same))
+                    print("        %-12s archive %3d | shared %3d | identical %3d"
+                          % (season_label(s), n, shared, same))
             elif got is None:
                 print("        (%s)" % detail)
             if want in cfg["options"]:
                 installed[mod] = got
             else:
-                print("     no option for %s in LAYOUT - what it has stays" % want)
+                print("     no option for %s in LAYOUT - what it has stays"
+                      % season_label(want))
         print()
 
         folders = _mod_folders()
         for name, inst, state, should, held in toggle_status(active, prefs):
             if not inst:
                 near = near_folder(name, folders)
-                print("  %-30s NOT INSTALLED%s" % (name[:30], "   (MO2 has '%s' - use that "
-                                                   "name exactly)" % near if near else ""))
+                print("  %-30s not installed   %s"
+                      % (name[:30], "(MO2 has \"%s\"; use that name exactly)" % near if near
+                         else "(no folder with that name in mods)"))
             else:
-                note = {"off": "held back - texture layer off",
-                        "mod": "held back - switched off in MCM"}.get(
-                            held, "ENABLED" if should else "disabled")
-                print("  %-30s %-9s (should be %s)"
-                      % (name[:30],
-                         {"+": "ENABLED", "-": "disabled", None: "absent"}[state], note))
-        # A mod scoped only to seasons that are off never comes on: worth saying, since
+                due = ("off" if not should else "on" if not held else
+                       "off - texture swapping is off %s" % tex_off if held == "off" else
+                       "off - unchecked for this season in MCM")
+                print("  %-30s %-10s (today: %s)" % (name[:30], {
+                    "+": "enabled", "-": "disabled", None: "not listed"}[state], due))
+        # A mod on only in seasons that are off never comes on: worth saying, since
         # nothing else would
         for name, cfg in TOGGLE_MODS.items():
             w = set(_when(cfg))
             if w and w <= (set(SEASONS) - set(on)):
-                print("  - %s is scoped only to %s, which your calendar has off"
-                      % (name[:40], seasons_text(sorted(w, key=SEASONS.index))))
-        # MCM keys a mod's per-season tick by its name with the punctuation dropped, so
-        # "Winter Pack" and "Winter-Pack" would share one tick
+                print("  - %s is on only in %s, which your calendar has off, so it never "
+                      "switches on." % (name[:40],
+                                        seasons_text(sorted(w, key=SEASONS.index))))
+        # MCM keys a mod's per-season checkbox by its name with the punctuation dropped, so
+        # "Winter Pack" and "Winter-Pack" would share one
         keys = {}
         for name in TOGGLE_MODS:
             keys.setdefault(_slug(name), []).append(name)
         for key, same in keys.items():
             if len(same) > 1:
-                print("  - %s share one tick in MCM, so unticking one holds back all of them"
-                      % " and ".join(same))
+                print("  - %s share one checkbox in MCM, so unchecking it keeps all of them "
+                      "disabled in that season." % " and ".join(same))
+        for line in shadow_check(force=(a.cmd == "status")):
+            print(line)
         sound_now = soundscape_installed()
-        listed = SOUND_SRC and any(l[1:] == SOUND_SRC for l in (_modlist_lines() or [])
-                                   if l[:1] in ("+", "-"))
-        print("  soundscape     installed: %s%s"
-              % (sound_now or "not present",
-                 ("   (SOUND_SRC '%s' is not in MO2's list - check the name)" % SOUND_SRC)
-                 if (SOUND_SRC and not listed) else
-                 "   (source mod disabled - overrides removed)"
-                 if (SOUND_SRC and not _mod_enabled(SOUND_SRC)) else
-                 "" if prefs["stage_sound"] else "   (gating switched off in MCM)"))
+        if not SOUND_SRC:
+            print("  soundscape      none set up")
+        else:
+            listed = any(l[1:] == SOUND_SRC for l in (_modlist_lines() or [])
+                         if l[:1] in ("+", "-"))
+            print("  soundscape      %s%s"
+                  % ("staged for " + season_label(sound_now) if sound_now else "none staged",
+                     ("   (SOUND_SRC \"%s\" is not in MO2's mod list; check the name)"
+                      % SOUND_SRC) if not listed else
+                     ("   (\"%s\" is disabled in MO2, so the soundscape is off)" % SOUND_SRC)
+                     if not _mod_enabled(SOUND_SRC) else
+                     "" if prefs["stage_sound"] else "   (gating is off in MCM)"))
         shipped, present, copied = install_presets(writing)
         if shipped:
-            print("  presets        %d shipped, %d in appdata%s"
+            print("  grade presets   %d shipped, %d in appdata%s"
                   % (len(shipped), len(present) + len(copied),
                      "   (copied: %s)" % ", ".join(copied) if copied else ""))
         print()
 
+        def say_skipped():
+            parts = (([_count(len(SKIPPED), "seasonal mod")] if SKIPPED else [])
+                     + ([_count(len(sets_skipped), "texture set")] if sets_skipped else []))
+            if parts:
+                print("  => %s: %s skipped; the ! lines above say why."
+                      % (title, " and ".join(parts)))
+
         # With the texture layer off, whatever is staged stays.
         tex_ok = True if not stage_tex else all(v == want for v in installed.values())
         _ssrc = _sound_src_dir()
-        if not _ssrc or not os.path.isdir(_ssrc):
+        src_live = bool(_ssrc) and os.path.isdir(_ssrc)
+        if not src_live:
             # no source, or the source mod is disabled: stale overrides come out
             sound_ok = (sound_now is None) if SOUND_SRC else True
         elif prefs["stage_sound"]:
@@ -2170,23 +2388,24 @@ def main():
             sound_ok = sound_now is None
         if tex_ok and sound_ok:
             # Toggles are checked even when nothing else moved: a newly installed
-            # season-scoped mod is absent from the modlist until something inserts it.
+            # seasonal mod is absent from the mod list until something inserts it.
             tg = apply_toggles(active, not writing, prefs)
             for name, was, now in tg:
-                print("  %-58s %s -> %s" % (name[:58], was, now))
+                print("  %-58s %s" % (name[:58], change_text(was, now)))
             if tg and writing:
-                print("  => %s: season-scoped mods corrected. Takes effect on next launch."
-                      % want)
+                print("  => %s: seasonal mods switched. The game picks this up when it "
+                      "starts." % title)
             elif tg:
-                print("  => %s: season-scoped mods need correcting - run `season.py apply`"
-                      " (or play.bat)." % want)
-            elif SKIPPED:
-                print("  => %s: %d season-scoped mod(s) skipped - fix their 'above' (see above)"
-                      % (want, len(SKIPPED)))
+                print("  => %s: seasonal mods need switching. Start the game with play.bat, "
+                      "or run %s" % (title, command("season.py", "apply")))
+            elif SKIPPED or sets_skipped:
+                pass                                        # said just below
             elif not stage_tex:
-                print("  => %s in-engine; texture layer off, nothing staged" % want)
+                print("  => %s: texture swapping is off %s, nothing staged; the seasonal "
+                      "atmosphere still runs" % (title, tex_off))
             else:
-                print("  => already on %s, nothing to do" % want)
+                print("  => already on %s, nothing to do" % season_label(want))
+            say_skipped()
             if writing:
                 write_staged(staged_texture_season(installed) if not stage_tex else want,
                              stage_tex)
@@ -2194,19 +2413,27 @@ def main():
             return
         if not tex_ok:
             print("  => textures: %s" % " and ".join(
-                "%s %s -> %s" % (m.split(" ")[0], installed[m] or "?", want)
+                "%s (%s) -> %s" % (m, season_label(installed[m]) if installed[m]
+                                   else "unrecognized", season_label(want))
                 for m in installed if installed[m] != want))
         if not sound_ok:
-            print("  => sound   : %s -> %s" % (sound_now or "?", want))
+            # where the source is live, only MCM's switch keeps the soundscape off
+            print("  => sound   : %s -> %s" % (
+                season_label(sound_now) if sound_now else "none",
+                season_label(want) if src_live and prefs["stage_sound"] else
+                "off (gating is off in MCM)" if src_live else
+                "off (\"%s\" is not enabled in MO2)" % SOUND_SRC
+                if not _mod_enabled(SOUND_SRC) else
+                "off (\"%s\" has no ambient sound files)" % SOUND_SRC))
 
-        if a.cmd == "status":
-            return
-        if a.dry_run:
-            print("  (dry run - nothing written)")
+        if a.cmd == "status" or a.dry_run:
+            say_skipped()
+            if a.dry_run:
+                print("  (dry run, so nothing was changed)")
             return
         busy = running()
         if busy:
-            raise SystemExit("  ** %s running - close it first, nothing written **" % ", ".join(busy))
+            raise SystemExit(close_first(busy))
 
         print()
         done = []
@@ -2220,17 +2447,20 @@ def main():
                                 "/NFL", "/NDL", "/NJH", "/NJS", "/NP"],
                                capture_output=True, text=True, env=env)
             if r.returncode > 7:
-                raise SystemExit("  ** robocopy failed (%d) for %s **" % (r.returncode, mod))
+                raise SystemExit("  ** Copying the textures into %s failed (robocopy code %d)."
+                                 " Run play.bat again. **" % (mod, r.returncode))
             src, dst = hashes(merged), hashes(target)
-            bad = [k for k in set(src) | set(dst) if src.get(k) != dst.get(k)]
-            print("  %-64s %3d files  %s" % (mod[:64], len(dst),
-                                             "VERIFIED" if not bad else "** %d MISMATCH **" % len(bad)))
+            bad = sorted(k for k in set(src) | set(dst) if src.get(k) != dst.get(k))
+            print("  %-64s %3d %-5s  %s" % (mod[:64], len(dst), "file" if len(dst) == 1
+                                            else "files", "VERIFIED" if not bad
+                                            else "** %d MISMATCH **" % len(bad)))
             if bad:
-                raise SystemExit("  aborted - %s" % bad[:3])
+                raise SystemExit("  Stopped: %s in %s did not match the archive after copying "
+                                 "(like %s). Run play.bat again."
+                                 % (_count(len(bad), "file"), mod, bad[0]))
             done.append("textures")
 
         if not sound_ok:
-            src_live = bool(_ssrc) and os.path.isdir(_ssrc)
             if not src_live:
                 if os.path.isdir(_sound_dst_dir()):
                     shutil.rmtree(_sound_dst_dir(), ignore_errors=True)
@@ -2238,32 +2468,37 @@ def main():
             else:
                 n, cuts = write_soundscape(want, prefs["stage_sound"])
             if n is None:
-                print("  %-64s %s" % ("soundscape", "SKIPPED - '" + SOUND_SRC + "' not installed"))
+                print("  %-64s skipped: \"%s\" is not installed" % ("soundscape", SOUND_SRC))
             else:
                 got = soundscape_installed()
                 # not `active`: that is the list of periods the toggles below still need
                 sound_on = prefs["stage_sound"] and src_live
                 exp = want if sound_on else None
-                label = ("soundscape -> " + want + " (%d channel cuts)" % cuts
-                         if sound_on else "soundscape OFF - overrides removed")
-                print("  %-64s %3d files  %s" % (label, n,
-                      "VERIFIED" if got == exp else "** reads as %s **" % got))
+                label = ("soundscape -> %s (%s)" % (season_label(want),
+                                                    _count(cuts, "channel cut"))
+                         if sound_on else "soundscape off, its files removed")
+                print("  %-64s %3d %-5s  %s" % (label, n, "file" if n == 1 else "files",
+                                                "VERIFIED" if got == exp else
+                                                "** reads as %s **"
+                                                % (season_label(got) if got else "none")))
                 if got != exp:
-                    raise SystemExit("  aborted - soundscape did not take")
+                    raise SystemExit("  Stopped: the soundscape files did not come out right. "
+                                     "Run play.bat again.")
                 done.append("soundscape")
 
         print()
         tg = apply_toggles(active, False, prefs)
         for name, was, now in tg:
-            print("  %-58s %s -> %s" % (name[:58], was, now))
+            print("  %-58s %s" % (name[:58], change_text(was, now)))
         if tg:
-            done.append("season-scoped mods")
-        # after the toggles, so the panel reports the modlist as it now stands
+            done.append("seasonal mods")
+        # after the toggles, so the panel reports the mod list as it now stands
         write_staged(staged_texture_season(installed) if not stage_tex else want, stage_tex)
         write_mod_panel(active, prefs)
-        # each restaged texture mod adds "textures"; say it once
-        print("  => %s staged (%s). Takes effect on next launch."
-              % (want, ", ".join(dict.fromkeys(done)) or "nothing to do"))
+        # each restaged texture set adds "textures"; say it once
+        print("  => %s staged (%s). The game picks this up when it starts."
+              % (title, ", ".join(dict.fromkeys(done)) or "nothing to do"))
+        say_skipped()
     finally:
         if os.path.isdir(tmp):
             shutil.rmtree(tmp, ignore_errors=True)

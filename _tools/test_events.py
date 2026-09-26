@@ -73,18 +73,18 @@ def t_a_rule_that_never_happens_is_refused():
 @case
 def t_a_rule_of_the_wrong_shape_is_named():
     for spec, says in (
-            ({"weekdays": ("Sat",)}, "'weekdays' must list"),
-            ({"weekdays": "sat"}, "'weekdays' must list"),
-            ({"days": (0,)}, "'days' must list"),
-            ({"days": (32,)}, "'days' must list"),
-            ({"days": (True,)}, "'days' must list"),
-            ({"weeks": (1,)}, "'weeks' needs 'weekdays'"),
-            ({"weekdays": ("mon",), "weeks": (6,)}, "'weeks' must list"),
-            ({"months": (13,)}, "'months' must list"),
-            ({"within": ((12, 1),)}, "'within' must be"),
-            ({"when": ("sat",)}, "'when' is not part of a rule"),
-            ({}, "must be a window of dates"),
-            ("weekends", "must be a window of dates")):
+            ({"weekdays": ("Sat",)}, '"weekdays" must list'),
+            ({"weekdays": "sat"}, '"weekdays" must list'),
+            ({"days": (0,)}, '"days" must list'),
+            ({"days": (32,)}, '"days" must list'),
+            ({"days": (True,)}, '"days" must list'),
+            ({"weeks": (1,)}, '"weeks" needs "weekdays"'),
+            ({"weekdays": ("mon",), "weeks": (6,)}, '"weeks" must say which'),
+            ({"months": (13,)}, '"months" must list'),
+            ({"within": ((12, 1),)}, '"within" must be'),
+            ({"when": ("sat",)}, '"when" is not a part of a rule'),
+            ({}, "give its first and last day"),
+            ("weekends", "give its first and last day")):
         got = season.event_problems("x", spec)
         assert got and says in got[0], (spec, got)
     return "12 shapes, each with its own message"

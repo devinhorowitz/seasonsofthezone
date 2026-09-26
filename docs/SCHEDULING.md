@@ -2,13 +2,13 @@
 
 Seasons of the Zone is two halves that share a name and nothing else.
 
-The **in-engine** half blends twenty console values — colour, fog, wind, wetness — across
-the date. It is about seasons, it needs no configuration, and it is not what this page is
-about.
+The **seasonal atmosphere** blends twenty console values — color, fog, wind, wetness —
+across the date, in game. It is about seasons, it needs no configuration, and it is not
+what this page is about.
 
-The **launch-time** half is a scheduler. It maps today's date to a set of names, and mods
-declare which names they belong to. Nothing in it is seasonal. The six seasons are the
-set it ships with, and you can add your own.
+The **seasonal mods** half is a scheduler, run by `play.bat` before the game starts. It maps
+today's date to a set of names, and mods declare which names they belong to. Nothing in it
+is seasonal. The six seasons are the set it ships with, and you can add your own.
 
 ---
 
@@ -20,13 +20,20 @@ Two kinds of name.
 its start until the next one begins, and the last of the year wraps around into January.
 The six seasons are base periods. Their starts can move and seasons can be turned off,
 with `configure.bat`'s Seasons tab or `CALENDAR` in the config (see
-[CONFIGURING.md](CONFIGURING.md#calendar)); a mod scoped to a season that is off is never
-staged.
+[CONFIGURING.md](CONFIGURING.md#calendar)); a mod on only in seasons that are off is never
+switched on.
 
-**Events** overlay. An event is a window with a start and an end, and it does not displace
-the period it lands in — it is added to it.
+**Events** overlay. An event is a window with a start and an end, or a rule like "every
+weekend", and it does not displace the period it lands in — it is added to it.
 
-A date therefore resolves to a **list**: the base period, then every event covering it.
+**Weather** overlays too. `play.bat` fetches the real Chornobyl forecast at each launch, and
+three kinds of day are added to the list when they happen: `freezing` (the low is 0°C or
+below), `thaw` (it freezes overnight and climbs above 0°C by afternoon) and `heat` (the
+high reaches 28°C). Without `play.bat`, or without an internet connection, none of them is
+on.
+
+A date therefore resolves to a **list**: the base period, then every event and kind of
+weather covering it.
 
 ```
 Dec 20  ->  ["winter_snow"]
@@ -34,8 +41,8 @@ Dec 25  ->  ["winter_snow", "christmas"]
 Dec 28  ->  ["winter_snow", "twelvetide"]
 ```
 
-A mod is staged if **any** name it is scoped to is in that list. That one rule is the whole
-scheduler, and the reason Christmas does not cost you your snow.
+A mod is switched on if **any** name in its `when` is in that list. That one rule is the
+whole scheduler, and the reason Christmas does not cost you your snow.
 
 ---
 
@@ -77,7 +84,7 @@ A rule takes any of five parts:
 A rule nothing can meet, such as the 31st of February, is refused rather than left to never
 fire.
 
-Then scope a mod to them exactly as you would a season:
+Then name them in a mod's `when` exactly as you would a season:
 
 ```python
 TOGGLE_MODS = {
@@ -86,30 +93,32 @@ TOGGLE_MODS = {
 }
 ```
 
-`when` accepts any mix of base periods and events. `seasons` is the original spelling of
-the same key and still works — configurations written for earlier versions need no edit.
+`when` accepts any mix of seasons, periods, events and weather. `seasons` is the original
+spelling of the same key and still works — configurations written for earlier versions
+need no edit.
 
 Names are checked at startup. A typo names itself and stops the run before anything is
 staged, rather than silently never firing.
 
 Events can also be made without editing the file: **New event...** in `configure.bat`,
-or from a command prompt in your GAMMA folder:
+or from a command prompt in your GAMMA folder (`python` in place of `py` if that is how
+your Python starts):
 
 ```
-python _tools\configure.py event christmas 12-24 12-26
-python _tools\configure.py event weekend --weekdays weekends
-python _tools\configure.py event payday --days 1 15 last
-python _tools\configure.py event first_monday --weekdays mon --weeks first
-python _tools\configure.py event winter_weekends --weekdays sat sun --between 12-01 02-28
-python _tools\configure.py add "Christmas Lights" --when christmas
+py _tools\configure.py event christmas 12-24 12-26
+py _tools\configure.py event weekend --weekdays weekends
+py _tools\configure.py event payday --days 1 15 last
+py _tools\configure.py event first_monday --weekdays mon --weeks first
+py _tools\configure.py event winter_weekends --weekdays sat sun --between 12-01 02-28
+py _tools\configure.py add "Christmas Lights" --when christmas
 ```
 
 ---
 
 ## Recipes
 
-**A Christmas ceasefire.** Build a mod that sets faction relations to neutral, scope it to
-a `christmas` event, and it is in force for those days and gone afterwards. The winter
+**A Christmas ceasefire.** Build a mod that sets faction relations to neutral, put it on
+for a `christmas` event, and it is in force for those days and gone afterwards. The winter
 textures stay mounted throughout.
 
 ```python
@@ -129,7 +138,7 @@ runs past midnight on Sunday keeps it until the next launch.
 loading screen set, an ambient track, or a spawn table.
 
 **Layering two events.** They stack. December 25th inside a `twelvetide` window that also
-covers it resolves to three names, and every mod scoped to any of them is staged.
+covers it resolves to three names, and every mod on for any of them is switched on.
 
 **Stretching a season.** If you want a longer autumn, do not fight the shipped table — add
 a base period. `PERIODS` entries sit in the same partition as the seasons and are sorted
@@ -139,12 +148,12 @@ with them by start date.
 
 ## What it does not do yet
 
-Worth stating plainly, because the model above invites all of these.
+The model above invites all of these.
 
 - **No moveable feasts.** Easter moves; a fixed window cannot follow it.
-- **No MCM page for events.** The per-mod ticks in MCM are grouped by base period, because
-  that is what has a page. An event-scoped mod is staged by the calendar and can be held
-  back with the global texture switch, but not individually.
+- **No MCM page for events.** The per-mod checkboxes in MCM are grouped by base period,
+  because that is what has a page. A mod on for an event is switched by the calendar and can
+  be held back with the global texture switch, but not on its own.
 - **Nothing reacts mid-session.** Everything here is decided before the game starts, for
   the reason in the README: X-Ray mounts the virtual file system once. A date that rolls
   over while you play takes effect at the next launch.
@@ -155,12 +164,13 @@ Worth stating plainly, because the model above invites all of these.
 
 ## Checking it
 
-`season.py status` prints the date, the resolved period, and every scoped mod with whether
-it is staged today. To see a different date's answer without waiting for it, pin the base
-period:
+**Preview the next launch** in `configure.bat` shows what `play.bat` would switch, today or
+in any season, before you save. From a command prompt, `season.py status` prints the date,
+the resolved period, and every seasonal mod with whether it is on today. To see a
+different date's answer without waiting for it, pin the base period:
 
 ```
-python _tools/season.py status --season winter
+py _tools\season.py status --season winter
 ```
 
 A pin fixes the **base** period only. Events still resolve against the real date, so

@@ -1,9 +1,9 @@
 @echo off
 REM  Seasons of the Zone launcher: stage today's season, then start the game.
 REM
-REM  The in-engine layers follow the calendar on their own. Textures cannot change
-REM  while the game runs, so the texture layer is decided here, before launch.
-REM  season.py does nothing on a day when nothing has changed.
+REM  The seasonal atmosphere follows the calendar on its own. Textures can't change
+REM  while the game runs, so the seasonal mods and texture sets are switched here,
+REM  before launch. season.py does nothing on a day when nothing has changed.
 REM
 REM  Use this instead of ModOrganizer.exe.
 
@@ -13,15 +13,17 @@ REM  play.bat runs from the GAMMA folder: MO2's settings and the tools sit besid
 if not exist "ModOrganizer.ini" (
     echo.
     echo  ** play.bat has to be in your GAMMA folder, next to ModOrganizer.exe.
-    echo     Copy play.bat and the _tools folder there, and run it from there.
+    echo     Copy play.bat, configure.bat and the _tools folder there, then run
+    echo     play.bat from that folder.
     echo.
     pause
     exit /b 1
 )
 if not exist "_tools\season.py" (
     echo.
-    echo  ** The _tools folder is missing. Copy it from the mod's folder into your GAMMA
-    echo     folder, next to play.bat.
+    echo  ** The _tools folder is missing. In MO2, right-click Seasons of the Zone and
+    echo     choose Open in Explorer; copy _tools from there into your GAMMA folder,
+    echo     next to play.bat.
     echo.
     pause
     exit /b 1
@@ -37,7 +39,8 @@ findstr /C:"title=%SHORTCUT%" ModOrganizer.ini >nul 2>&1
 if errorlevel 1 (
     echo.
     echo  ** MO2 has no shortcut named "%SHORTCUT%".
-    echo     Open play.bat and set SHORTCUT to one of these, exactly:
+    echo     Open play.bat in Notepad and set SHORTCUT to one of these names, the part
+    echo     after title=, exactly:
     findstr /R "title=" ModOrganizer.ini
     echo.
     pause
@@ -51,17 +54,20 @@ where py >nul 2>&1 && set "PY=py -3"
 
 echo.
 echo  Checking the season...
-REM  The real Zone's weather, for the forecast page and the "freezing" period. This
-REM  talks to open-meteo for Chornobyl's coordinates - no account, no key, and nothing
+REM  The real weather, for the forecast page and the freezing, thaw and heat days. This
+REM  asks Open-Meteo (open-meteo.com, CC BY 4.0) about the place set on configure.bat's
+REM  Weather tab, Chornobyl by default: its coordinates, no account, no key, and nothing
 REM  about this machine. It is allowed to fail: without it the game models the
-REM  temperature from regional normals instead, so the error is never fatal.
+REM  temperature from the place's climate instead, so the error is never fatal.
 %PY% "_tools\fetch_weather.py"
 
 %PY% "_tools\season.py" apply
 if errorlevel 1 (
     echo.
-    echo  season.py failed - read the lines above. The textures will be whatever was
-    echo  staged last; the in-game layer is unaffected. Press a key to launch anyway.
+    echo  season.py stopped with an error - read the lines above. Seasonal mods and
+    echo  textures stay as they were after the last launch; light and weather still
+    echo  follow the season. Press a key to start the game anyway, or close this
+    echo  window to fix it first.
     echo.
     pause
 )

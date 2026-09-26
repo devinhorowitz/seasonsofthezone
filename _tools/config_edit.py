@@ -17,6 +17,7 @@ below it change again, or a file that changed on disk since it was read.
 """
 import ast
 import codecs
+import copy
 import datetime
 import difflib
 import io
@@ -50,6 +51,10 @@ NAMES_HEAD = [
     "# Names of your own for the seasons, shown in game in place of the usual ones.",
     "# configure.bat's Seasons tab writes this; None keeps the usual names.",
 ]
+PLACE_HEAD = [
+    "# Where the real weather comes from: {\"name\": ..., \"lat\": ..., \"lon\": ...}.",
+    "# configure.bat's Weather tab writes this; None is Chornobyl.",
+]
 
 TEMPLATE = '''"""Which mods this install stages, and when.
 
@@ -68,7 +73,10 @@ CALENDAR = None
 
 %s
 NAMES = None
-''' % ("\n".join(CALENDAR_HEAD), "\n".join(NAMES_HEAD))
+
+%s
+WEATHER_PLACE = None
+''' % ("\n".join(CALENDAR_HEAD), "\n".join(NAMES_HEAD), "\n".join(PLACE_HEAD))
 
 
 # --- the install ----------------------------------------------------------------------
@@ -97,10 +105,17 @@ class Install(object):
                 seen.add(l[1:])
                 order.append((l[1:], l[:1] == "+"))
         self.separators = {n for n, _ in order if n.endswith("_separator")}
+        # modlist.txt's order, separators in place: highest priority first
+        self.lines = [(n, on, n in self.separators) for n, on in order]
         self.order = [(n, on) for n, on in order if n not in self.separators]
         self.names = [n for n, _ in self.order]
         self.enabled = {n for n, on in self.order if on}
         self._files = {}
+
+    def pane_order(self):
+        """(name, enabled, is a separator) as MO2's left pane lists them: lowest priority
+        at the top, each separator above its own mods - modlist.txt read backwards."""
+        return list(reversed(self.lines))
 
     def listed(self, name):
         """Is `name` a line in MO2's list, a mod or a separator?"""
@@ -121,6 +136,36 @@ class Install(object):
         return None, difflib.get_close_matches(name, self.names, n=5, cutoff=0.5)
 
 
+def separator_label(name):
+    return name[:-len("_separator")] if name.endswith("_separator") else name
+
+
+def placed(inst, toggle):
+    """MO2's list, highest priority first, as play.bat will leave it: each mod on the
+    calendar moved just above its anchor in modlist.txt, which in MO2's left pane is just
+    below it. The same moves season.py makes, so the window can say who wins a file."""
+    body = [n for n, _, _ in inst.lines]
+    for name, c in toggle.items():
+        above = c.get("above")
+        if name not in body or above not in body:
+            continue
+        i, ref = body.index(name), body.index(above)
+        if i > ref:
+            body.pop(i)
+            body.insert(body.index(above), name)
+    return {n: i for i, n in enumerate(body)}
+
+
+def loops(toggle, name, above):
+    """Would `name` above `above` close a loop of anchors? The chain of mods `above` is
+    itself placed above, back to `name`, when it would."""
+    chain, cur = [name], above
+    while cur in toggle and cur not in chain:
+        chain.append(cur)
+        cur = toggle[cur].get("above")
+    return chain + [cur] if cur == name else None
+
+
 def overlaps(inst, name):
     """[(mod, files shared)] for every other mod that ships any of the same files, in
     priority order."""
@@ -135,13 +180,14 @@ def overlaps(inst, name):
 
 
 def anchor_for(inst, name, when, toggle):
-    """(anchor, reason, rivals) for putting `name` on the calendar in `when`.
+    """(anchor, reason, rivals) for making `name` seasonal, on in `when`.
 
-    The anchor is the highest enabled mod that ships any of the same files: directly above
-    it, `name` is above every mod it has to beat. Other calendar mods are left out, because
-    which of two seasonal mods should win is the user's call; the ones on in a season
-    `name` is also on in come back as rivals, [(mod, files shared, seasons)]. With nothing
-    to beat, the anchor is the mod just under `name`, so it stays where it is."""
+    The anchor - the mod it wins over - is the highest enabled mod that ships any of the
+    same files: just above it in modlist.txt, `name` wins over every mod it shares files
+    with. Other seasonal mods are left out, because which of two seasonal mods should win
+    is the player's call; the ones on in a season `name` is also on in come back as rivals,
+    [(mod, files shared, seasons)]. With nothing to win over, the anchor is the mod just
+    under `name`, so it stays where it is."""
     mine = inst.files(name)
     others = set(toggle) - {name}
     skip = others | {name, season.SOUND_MOD}
@@ -164,7 +210,7 @@ def anchor_for(inst, name, when, toggle):
     above = [o for o, on in reversed(inst.order[:i]) if on and o not in skip]
     if above:
         return above[0], "nothing else ships its files", rivals
-    return None, "there is no other enabled mod to place it by", rivals
+    return None, "no other mod is enabled", rivals
 
 
 # --- periods and dates -----------------------------------------------------------------
@@ -185,17 +231,22 @@ def periods_of(cfg):
     return []
 
 
-def resolve(name, known):
-    """A period name as the config spells it, from what someone typed, or None. A name the
-    config has wins over a season's other name, and case does not count."""
+def resolve(name, known, names=None):
+    """A season, event or weather name as the config spells it, from what someone typed, or
+    None. A name the config has wins over a season's other name, and case does not count.
+    With `names`, a season can also be given by the player's own name for it."""
     n = name.strip()
     if n in known:
         return n
     low = {k.lower(): k for k in known}
     if n.lower() in low:
         return low[n.lower()]
-    n = ALIASES.get(n.lower(), n.lower().replace(" ", "_"))
-    return n if n in known else low.get(n)
+    alias = ALIASES.get(n.lower(), n.lower().replace(" ", "_"))
+    hit = alias if alias in known else low.get(alias)
+    if hit or not names:
+        return hit
+    return next((s for s, v in names.items() if s in known and v.casefold() == n.casefold()),
+                None)
 
 
 DAY = re.compile(r"^\s*(\d{1,2})\s*[-/.]\s*(\d{1,2})\s*$", re.ASCII)
@@ -315,6 +366,16 @@ def parse_months(words):
         else:
             return None
     return tuple(out) or None
+
+
+def norm_place(place):
+    """A WEATHER_PLACE as the tool writes it: the name trimmed, degrees to four places."""
+    return {"name": place["name"].strip(), "lat": round(float(place["lat"]), 4),
+            "lon": round(float(place["lon"]), 4)}
+
+
+place_text = season.place_words
+DEFAULT_PLACE = season.DEFAULT_PLACE
 
 
 def polesia():
@@ -579,7 +640,8 @@ class Calendar(object):
 
     `toggle` maps each mod on the calendar to {"when": [...], "above": "...", "extra": [...]},
     `events` each event to ((m, d), (m, d)), `dates` each season that is on to the (m, d)
-    it starts, and `names` each renamed season to its name. `periods`, `layout` and
+    it starts, `names` each renamed season to its name, and `place` is where the real
+    weather comes from, {"name", "lat", "lon"}, or None for Chornobyl. `periods`, `layout` and
     `sound_src` change only when a preset is loaded. `error` is set, as lines, when the
     file can't be read or edited safely; `problems` lists what season.py would refuse in
     it; `fixes` what saving from the tool repairs."""
@@ -598,6 +660,8 @@ class Calendar(object):
         self.calendar_bad, self._replace_calendar = [], False
         self.names, self._kept_names = {}, {}
         self.names_bad, self._replace_names = [], False
+        self.place, self._kept_place = None, None
+        self.place_bad, self._replace_place = [], False
         self.encoding, self.bom, self.nl = "utf-8", False, "\n"
         self.original, self.text = None, ""
         if self._read():
@@ -648,11 +712,13 @@ class Calendar(object):
                 after = _trailing(lines, n).strip()
                 if before.strip() or (after and not after.startswith("#")):
                     self.error = ["line %d holds %s and another statement. Give %s a line "
-                                  "of its own, and the tool can edit it." % (n.lineno, var, var)]
+                                  "of its own so configure.bat can edit it."
+                                  % (n.lineno, var, var)]
                     return
                 if isinstance(n, ast.Assign) and len(n.targets) > 1:
                     self.error = ["line %d sets %s and another name at once. Give %s a line "
-                                  "of its own, and the tool can edit it." % (n.lineno, var, var)]
+                                  "of its own so configure.bat can edit it."
+                                  % (n.lineno, var, var)]
                     return
         # An empty table set as well as a real one: the template's own TOGGLE_MODS = {}
         # under an entry typed above it throws the real one away. It is dropped on save.
@@ -663,9 +729,10 @@ class Calendar(object):
                 continue
             full = [n for n in nodes if not _is_empty_literal(n)]
             if len(full) > 1:
-                self.error = ["%s is set on lines %s, and more than one of them has entries."
-                              " Merge them into one by hand."
-                              % (var, ", ".join(str(n.lineno) for n in full))]
+                at = [str(n.lineno) for n in full]
+                self.error = ["%s is set on lines %s and %s, and more than one of them has "
+                              "entries. Merge them into one by hand."
+                              % (var, ", ".join(at[:-1]), at[-1])]
                 return
             keep = full[0] if full else nodes[-1]
             for n in nodes:
@@ -697,8 +764,8 @@ class Calendar(object):
             nodes = _assignments(tree, var)
             if not nodes:
                 if var in ns:
-                    self.error = ["%s is set in a way the tool can't edit (not a plain "
-                                  "`%s = ...` line of its own). Make it one." % (var, var)]
+                    self.error = ["%s is set in a way the tool can't edit. Write it as one "
+                                  "plain line of its own: %s = {...}" % (var, var)]
                     return
                 continue
             try:
@@ -716,9 +783,10 @@ class Calendar(object):
             toggle = {}
         if events is None:
             events = {}
-        if not isinstance(toggle, dict) or not isinstance(events, dict):
-            self.error = ["TOGGLE_MODS and EVENTS must each be a table, {...}."]
-            return
+        for var, v in (("TOGGLE_MODS", toggle), ("EVENTS", events)):
+            if not isinstance(v, dict):
+                self.error = ["%s must be a table, {...}." % var]
+                return
         odd = [k for k in list(toggle) + list(events) if not isinstance(k, str)]
         if odd:
             self.error = ["%r in TOGGLE_MODS or EVENTS is not a name in quotes. Put it in "
@@ -746,7 +814,11 @@ class Calendar(object):
             if (isinstance(raw, (list, tuple)) and list(raw) == when and isinstance(above, str)
                     and not both):
                 self._kept_toggle[name] = (frozenset(when), above)
-            else:
+            elif not season.config_problems(
+                    {name: {"when": tuple(when), "above": self.toggle[name]["above"]}}, {},
+                    None, self.periods,
+                    {n: s for n, s in events.items() if not season.event_problems(n, s)}):
+                # only a repair saving really makes; one it would refuse stays a problem
                 self.fixes.append("%s: saving rewrites this entry in the right shape" % name)
         for name, spec in events.items():
             if not season.event_problems(name, spec):
@@ -769,6 +841,11 @@ class Calendar(object):
                            if s in season.SEASONS and isinstance(v, str) and v.strip()}
                           if isinstance(names, dict) else {})
             self._kept_names = dict(self.names)
+        place = ns.get("WEATHER_PLACE")
+        if place is not None:
+            self.place_bad = season.place_problems(place)
+            self.place = None if self.place_bad else norm_place(place)
+            self._kept_place = self.place
 
     # what is on the calendar
 
@@ -806,6 +883,17 @@ class Calendar(object):
                       if isinstance(v, str) and v.strip()
                       and v.strip().casefold() != season.default_label(s).casefold()}
 
+    def set_place(self, place):
+        """{name, lat, lon}, or None for Chornobyl. It replaces a WEATHER_PLACE the file had
+        that could not be used."""
+        if self.place_bad:
+            self._replace_place = True
+            self.place_bad = []
+        self.place = norm_place(place) if place else None
+
+    def place_changed(self):
+        return self._replace_place or self.place != self._kept_place
+
     def custom(self):
         """Is the calendar anything but Polesia's, all six on?"""
         return self.dates != polesia()
@@ -823,7 +911,8 @@ class Calendar(object):
                        for n, c in self.toggle.items())
                 or self.events != self._kept_events or self.dates_changed()
                 or set(self._bad_events) != self._kept_bad
-                or self.names_changed() or self.periods != self._kept_periods
+                or self.names_changed() or self.place_changed()
+                or self.periods != self._kept_periods
                 or self.layout != self._kept_layout or self.sound_src != self._kept_sound)
 
     # writing
@@ -864,6 +953,9 @@ class Calendar(object):
                 (s, name_text(s, self.names[s]), self._kept_names.get(s) == self.names[s])
                 for s in _order(self.names, self._kept_names)])
             kept = kept and k
+        if self.place_changed():
+            text, k = self._setting(text, "WEATHER_PLACE", PLACE_HEAD, self.place)
+            kept = kept and k
         return text, kept
 
     @staticmethod
@@ -880,6 +972,17 @@ class Calendar(object):
             return set_value(text, var, None)
         return text, True
 
+    @staticmethod
+    def _setting(text, var, head, value):
+        """A single value the tool may add to a file: set where it is, or added at the end
+        under `head` when the file has none. None where the file has none leaves it be."""
+        if not _assignments(ast.parse(text), var):
+            if value is None:
+                return text, True
+            lines = text.rstrip("\n").split("\n")
+            return "\n".join(lines + [""] + head + ["%s = %s" % (var, literal(value)), ""]), True
+        return set_value(text, var, value)
+
     def check(self, text):
         """What season.py would refuse in `text`, as sentences."""
         ns = {"__file__": self.path}
@@ -890,7 +993,7 @@ class Calendar(object):
         return season._set_twice(text) + season.config_problems(
             ns.get("TOGGLE_MODS", {}), ns.get("LAYOUT", {}), ns.get("SOUND_SRC"),
             ns.get("PERIODS", {}), ns.get("EVENTS", {}), ns.get("CALENDAR"),
-            ns.get("NAMES"))
+            ns.get("NAMES"), ns.get("WEATHER_PLACE"))
 
     def _keepsake(self, why):
         """A dated copy of the file as it is, which no later save touches."""
@@ -911,26 +1014,27 @@ class Calendar(object):
         text, kept = self.render()
         problems = self.check(text)
         if problems:
-            return False, ["Not saved - season.py would refuse the result:"] + problems
+            return False, ["Not saved, because play.bat would refuse the result:"] + problems
         try:
             data = text.replace("\n", self.nl).encode(self.encoding)
         except UnicodeEncodeError as e:
-            return False, ["Not saved - %r can't be written in this file's encoding, %s. "
-                           "Save the file as UTF-8 first." % (e.object[e.start:e.end],
-                                                              self.encoding)]
+            return False, ["Not saved: \"%s\" can't be written in this file's encoding (%s). "
+                           "Delete the # coding line at the top of seasons_config.py, save it "
+                           "as UTF-8 (Notepad: File > Save as, Encoding: UTF-8), then try "
+                           "again." % (e.object[e.start:e.end], self.encoding)]
         # the file as it is now: if it changed since it was read - by hand, or a command
         # run while the window was open - writing would throw that change away
         try:
             now = open(self.path, "rb").read() if os.path.isfile(self.path) else None
         except OSError as e:
-            return False, ["Not saved - seasons_config.py can't be read: %s" % e]
+            return False, ["Not saved: seasons_config.py can't be read: %s" % e]
         if now != self.original:
-            return False, ["Not saved - seasons_config.py has changed since it was read, "
-                           "by hand or by another command. Open it again here to pick up "
-                           "the change; nothing was written."]
+            return False, ["Not saved: seasons_config.py has changed since it was read (by "
+                           "hand, or by a configure command). Close configure.bat and open it "
+                           "again, or run the command again, then redo your change."]
         if now is not None and not os.access(self.path, os.W_OK):
-            return False, ["Not saved - seasons_config.py is read-only. Untick Read-only in "
-                           "its Properties and save again."]
+            return False, ["Not saved: seasons_config.py is read-only. Right-click it (in "
+                           "_tools), choose Properties, uncheck Read-only, then save again."]
         notes = []
         try:
             if now is not None:
@@ -945,7 +1049,8 @@ class Calendar(object):
             with open(self.path, "wb") as f:
                 f.write((codecs.BOM_UTF8 if self.bom else b"") + data)
         except OSError as e:
-            return False, ["Not saved - %s" % e]
+            return False, ["Not saved: %s. Close any program that has seasons_config.py "
+                           "open, then try again." % e]
         self.__init__(self.path)
         return True, (["Saved %s." % os.path.basename(self.path)] + notes
                       + (["Also fixed:"] + ["  " + f for f in fixes] if fixes else []))
@@ -976,7 +1081,7 @@ PARTS = ("calendar", "events", "mods", "textures")
 PART_KEYS = {"calendar": ("calendar", "names"), "events": ("events", "periods"),
              "mods": ("mods",), "textures": ("layout", "sound_src")}
 PART_TEXT = {"calendar": "calendar and season names", "events": "events and periods",
-             "mods": "mods on the calendar", "textures": "texture sets and ambient sound"}
+             "mods": "seasonal mods", "textures": "texture sets and ambient sound"}
 PRESET_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.,'()-]{0,39}$")
 
 
@@ -999,9 +1104,10 @@ def read_preset(path):
     try:
         data = json.loads(io.open(path, encoding="utf-8-sig").read())
     except (OSError, ValueError) as e:
-        return None, ["can't be read: %s" % e]
+        return None, ["It can't be read (%s). Check it is valid JSON, or delete it from "
+                      "_tools\\presets." % e]
     if not isinstance(data, dict) or data.get(PRESET_KEY) != 1:
-        return None, ["is not a Seasons of the Zone preset"]
+        return None, ["It is not a Seasons of the Zone preset."]
     out = {"about": data.get("about") if isinstance(data.get("about"), str) else "",
            "shipped": data.get("shipped") is True}
     problems = []
@@ -1113,9 +1219,7 @@ def apply_preset(cal, inst, preset, parts):
         dates = preset.get("calendar")
         cal.set_dates({s: tuple(md) for s, md in dates.items()} if dates else polesia())
         cal.set_names(preset.get("names") or {})
-        said.append("calendar: %s" % (
-            "your own, %d season%s" % (len(cal.dates), "" if len(cal.dates) == 1 else "s")
-            if cal.custom() else "Polesia's"))
+        said.append("calendar: %s" % calendar_words(cal))
     if "events" in parts and ("events" in preset or "periods" in preset):
         cal.events = {n: norm_event(w) for n, w in preset.get("events", {}).items()}
         cal.periods = {n: tuple(md) for n, md in preset.get("periods", {}).items()}
@@ -1123,7 +1227,7 @@ def apply_preset(cal, inst, preset, parts):
         cal._bad_events = {}
         said.append("events: %s" % (", ".join(sorted(cal.events)) or "none"))
         if dropped:
-            said.append("  the events the file had that could not be used are gone: "
+            said.append("  dropped the events seasons_config.py had that could not be used: "
                         + ", ".join(dropped))
     if "mods" in parts and "mods" in preset:
         toggle, skipped, moved = {}, [], []
@@ -1140,14 +1244,15 @@ def apply_preset(cal, inst, preset, parts):
             above = c["above"]
             if not inst.listed(above):
                 above = anchor_for(inst, name, when, dict(toggle, **{name: c}))[0] or above
-                moved.append("%s (now above %s)" % (name, above))
+                moved.append("%s (now wins over %s)" % (name, above))
             toggle[name] = {"when": when, "above": above, "extra": []}
         cal.toggle = toggle
-        said.append("mods: %d on the calendar" % len(toggle))
+        said.append("seasonal mods: %d" % len(toggle))
         if skipped:
             said.append("  not installed here, left out: " + ", ".join(skipped))
         if moved:
-            said.append("  placed again, since the mod they sat above is not here: "
+            said.append("  given another mod to win over, since the one they won over is not "
+                        "installed here: "
                         + ", ".join(moved))
     if "textures" in parts and ("layout" in preset or "sound_src" in preset):
         layout, left = {}, []
@@ -1171,3 +1276,82 @@ def apply_preset(cal, inst, preset, parts):
             cal.sound_src = src
             said.append("ambient sound: %s" % (src or "off"))
     return said
+
+
+def calendar_words(cal):
+    """The calendar and names `cal` holds, in a few words."""
+    on = len(cal.dates)
+    dates = ("Polesia's dates" if not cal.custom() else "own dates" if on == len(season.SEASONS)
+             else "own dates, %d of %d seasons on" % (on, len(season.SEASONS)))
+    n = len(cal.names)
+    return "%s; %s" % (dates, "the usual names" if not n
+                       else "%d season%s renamed" % (n, "" if n == 1 else "s"))
+
+
+def few(names, most=4):
+    """A list of names, cut short past `most`."""
+    names = sorted(names, key=str.lower)
+    if len(names) > most:
+        return "%s and %d more" % (", ".join(names[:most]), len(names) - most)
+    return ", ".join(names)
+
+
+def preset_effect(cal, inst, preset, parts):
+    """What loading `parts` of `preset` would do to the setup `cal` holds: (lines, losses).
+    `losses` names what of the player's own it would take off or change, empty when it
+    only adds. Worked out on a copy: `cal` is left as it is."""
+    trial = copy.copy(cal)
+    for k in ("toggle", "events", "periods", "layout", "dates", "names", "_bad_events"):
+        setattr(trial, k, copy.deepcopy(getattr(cal, k)))
+    parts = [p for p in parts if p in preset_parts(preset)]
+    apply_preset(trial, inst, preset, parts)
+    out, losses = [], []
+    if "calendar" in parts:
+        if (trial.dates, trial.names) == (cal.dates, cal.names):
+            out.append("Calendar: the same as yours.")
+        else:
+            out.append("Calendar: %s. Yours now: %s." % (calendar_words(trial),
+                                                         calendar_words(cal)))
+            if cal.custom() or cal.names:
+                losses.append("your calendar and names")
+    if "events" in parts:
+        mine = dict(cal.periods, **cal.events)
+        theirs = dict(trial.periods, **trial.events)
+        gone = set(mine) - set(theirs)
+        changed = [n for n in mine if n in theirs and mine[n] != theirs[n]]
+        out.append("Events: %s." % (few(theirs) or "none"))
+        if gone:
+            out.append("  takes off yours: %s" % few(gone))
+        if changed:
+            out.append("  changes yours: %s" % few(changed))
+        if gone or changed:
+            n = len(gone) + len(changed)
+            losses.append("%d of your events" % n if n > 1 else "your event %s"
+                          % next(iter(gone or changed)))
+    if "mods" in parts:
+        gone = set(cal.toggle) - set(trial.toggle)
+        changed = [n for n in cal.toggle if n in trial.toggle and (
+            set(cal.toggle[n]["when"]) != set(trial.toggle[n]["when"])
+            or cal.toggle[n]["above"] != trial.toggle[n]["above"])]
+        out.append("Seasonal mods: %d." % len(trial.toggle))
+        if gone:
+            out.append("  stops switching %d of yours: %s" % (len(gone), few(gone)))
+        if changed:
+            out.append("  changes when %d of yours are on: %s" % (len(changed), few(changed)))
+        left = [n for n in preset.get("mods", {}) if n not in inst.names]
+        if left:
+            out.append("  not installed here, so left out: %s" % few(left))
+        if gone or changed:
+            losses.append("%d of your seasonal mods" % (len(gone) + len(changed)))
+    if "textures" in parts:
+        out.append("Texture sets: %s. Ambient sound: %s." % (few(trial.layout) or "none",
+                                                             trial.sound_src or "off"))
+        if (set(cal.layout) - set(trial.layout)
+                or (cal.sound_src and cal.sound_src != trial.sound_src)):
+            losses.append("your texture sets or ambient sound")
+    stuck = sorted(n for n, c in trial.toggle.items()
+                   if any(p not in trial.known() for p in c["when"]))
+    if stuck:
+        out.append("%s would still be on for events it takes off. Uncheck those before "
+                   "saving." % few(stuck))
+    return out, losses

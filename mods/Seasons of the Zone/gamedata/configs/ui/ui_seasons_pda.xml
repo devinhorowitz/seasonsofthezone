@@ -9,7 +9,7 @@
 
     Dates only. Anything running on the GAME clock - the weather plan, the next emission -
     lives on the forecast page, because those are not calendar questions. Nothing about the
-    MOD belongs here either: which texture mods are staged is a question about an install
+    MOD belongs here either: which seasonal mods are staged is a question about an install
     rather than about the Zone, and MCM's per-season pages already answer it.
 
     Textureless except for two things this mod ships and therefore cannot be missing: the
@@ -18,12 +18,12 @@
     borrow are declared in NO texture_descr in a stock install, which is why opening those
     pages logs "Can't find texture".
 
-    Colours follow the Anomaly PDA convention: amber 238,196,112 for headings, light grey
-    for body, dim grey for things that are off. Fonts are letterica, as everywhere else.
+    Colors follow the Anomaly PDA convention: amber 238,196,112 for headings, light gray
+    for body, dim gray for things that are off. Fonts are letterica, as everywhere else.
 -->
     <background x="28" y="106" width="764" height="603" stretch="1"/>
 
-    <!-- season name, then the accent bar in that season's colour -->
+    <!-- season name, then the accent bar in that season's color -->
     <header x="52" y="120" width="440" height="28">
         <text font="letterica18" r="238" g="196" b="112" align="l" vert_align="c" complex_mode="1"/>
     </header>
@@ -100,7 +100,7 @@
         <text font="letterica16" r="200" g="200" b="200" align="c" vert_align="c" complex_mode="1"/>
     </toggle_fc_label>
 
-    <!-- Rows and headings are allocated from these once and repositioned. Colour carries
+    <!-- Rows and headings are allocated from these once and repositioned. Color carries
          the emphasis a font change would normally carry, because a widget cannot be
          restyled after it is built. -->
     <row_head x="0" y="0" width="460" height="24">

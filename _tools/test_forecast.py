@@ -799,11 +799,24 @@ def t_stock_odds_rows():
     got = rows([("storm", .25), ("cloudy", .25), ("foggy", .25), ("clear", .25)])
     assert got == [("Storm", 25), ("Overcast or fog", 50), ("Clear", 25)], got
     got = rows([("clear", .2), ("partly", .2), ("cloudy", .2), ("rain", .2), ("foggy", .2)])
-    assert got == [("Rain", 20), ("Overcast or fog", 40), ("Clear or broken cloud", 40)], got
+    assert got == [("Rain", 20), ("Overcast or fog", 40), ("Clear or partly cloudy", 40)], got
     # nothing wet can come: the row stays, at zero, because no rain next is the news
     assert rows([("clear", .5), ("partly", .5)])[0] == ("Rain or storm", 0)
     assert fx.odds_rows(lua.table_from([])) is None
-    return "odds read wet, grey, fair, each named by the skies that can still come"
+    return "odds read wet, gray, fair, each named by the skies that can still come"
+
+
+def t_countdown_text():
+    """At CLEARED the panel reads "Emission: <countdown>". A bare "2 hours" there read as
+    how long the emission lasts, so every countdown says when."""
+    lua, _, fx = expose("ui_seasons_forecast.script", ["countdown"])
+    got = {s: fx.countdown(s) for s in (5 * HOUR + 1200, 2 * HOUR, 90 * 60, HOUR,
+                                        45 * 60, 120, 60, 0)}
+    want = {5 * HOUR + 1200: "in 5 hours", 2 * HOUR: "in 2 hours",
+            90 * 60: "in an hour", HOUR: "in an hour", 45 * 60: "in 45 minutes",
+            120: "in 2 minutes", 60: "any moment", 0: "any moment"}
+    assert got == want, got
+    return "in 5 hours, in an hour, in 45 minutes, any moment"
 
 
 for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
@@ -829,7 +842,8 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("horizon", t_forecast_horizon),
              ("exact mode", t_forecast_exact_mode),
              ("stock odds", t_stock_odds),
-             ("stock odds rows", t_stock_odds_rows)):
+             ("stock odds rows", t_stock_odds_rows),
+             ("countdown text", t_countdown_text)):
     case(n, f)
 
 if __name__ == "__main__":

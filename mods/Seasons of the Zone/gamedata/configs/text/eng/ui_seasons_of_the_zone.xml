@@ -14,21 +14,21 @@
 	</string>
 
 	<string id="ui_mcm_seasons_zone_desc_top">
-		<text>Light, foliage, fog, wind, wetness and snowfall follow the real-world date through the seasons, Polesia's six unless configure.bat has set your own, and change as you play. Terrain and grass textures cannot: the engine binds them at load, so they are swapped at launch and need a restart.</text>
+		<text>Light, foliage, fog, wind, wetness and snowfall follow the real-world date through the seasons, Polesia's six unless configure.bat has set your own, and change as you play. Terrain and grass textures can't: the engine loads them once, so play.bat swaps them before the game starts.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_enabled">
 		<text>Enable seasonal atmosphere</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_enabled_desc">
-		<text>Turning this off releases control at once. Values already applied are left as they are, not reset.</text>
+		<text>Turning this off hands control back at once. The color grade returns to neutral; foliage, fog, wind and wetness go back to your Screen Space Shaders settings.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_mode">
 		<text>Season</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_mode_desc">
-		<text>Automatic follows today's real date. The named seasons pin one in place and ignore the calendar. NOTE: pinning changes light, fog, wind, wetness and snowfall at once, but NOT terrain textures - those are chosen at launch. To move the ground too, pick the season, exit, and start the game with play.bat.</text>
+		<text>Automatic follows today's real date. The named seasons pin one in place and ignore the calendar. Pinning changes light, fog, wind, wetness and snowfall at once, but not terrain textures, which are chosen at launch. To move the ground too, pick the season, exit, and start the game with play.bat.</text>
 	</string>
 	<!-- List items are looked up as "<option path>_lst_<value>" with NO ui_mcm_
 	     prefix - ui_mcm.script:1465 builds it from the path directly. The prefixed
@@ -46,27 +46,27 @@
 		<text>Autumn</text>
 	</string>
 	<string id="seasons_zone_main_mode_lst_winter_snow">
-		<text>Deep Winter (snow cover)</text>
+		<text>Deep winter (snow cover)</text>
 	</string>
 	<string id="seasons_zone_main_mode_lst_winter">
 		<text>Winter (first snows)</text>
 	</string>
 	<string id="seasons_zone_main_mode_lst_late_winter">
-		<text>Late Winter (the thaw)</text>
+		<text>Late winter (the thaw)</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_blend_days">
 		<text>Transition length (days)</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_blend_days_desc">
-		<text>How long one season takes to become the next. The window is centered on the changeover date, so 14 eases the shift in across the week either side. 0 is a hard switch.</text>
+		<text>How long one season takes to become the next. The window is centered on the changeover date, so 14 eases the change in over the week on either side. 0 is a hard switch.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_intensity">
 		<text>Intensity</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_intensity_desc">
-		<text>How far to push toward the season. 100% is the full look, 0% the neutral baseline this install ships with.</text>
+		<text>How far to push toward the season. 1 is the full look, 0 the neutral baseline.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_do_grade">
@@ -80,7 +80,7 @@
 		<text>Drive foliage</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_do_flora_desc">
-		<text>Grass and tree specular, and sunlight scattering through a leaf - high on thin spring growth, near zero on bare winter branches.</text>
+		<text>How much grass and trees shine, and how much sunlight comes through leaves - high on thin spring growth, near zero on bare winter branches.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_do_fog">
@@ -104,20 +104,14 @@
 		<text>How fast surfaces take on water and how fast they dry. Spring stays wet from the thaw; summer dries quickly, so it is wet only while it rains. Puddle shape itself is baked into the shaders and cannot follow the season.</text>
 	</string>
 
-	<!-- The launch-time texture layer. The per-mod switches below these are GENERATED
-	     into ui_mcm_seasons_mods.xml by _tools/season.py, one pair per installed mod,
+	<!-- The per-mod checkboxes on the season pages are GENERATED into
+	     ui_mcm_seasons_mods.xml by _tools/season.py, one pair per installed seasonal mod,
 	     because their ids are not known until the folders are scanned. -->
-	<string id="ui_mcm_seasons_zone_desc_mods">
-		<text>Seasonal texture mods</text>
-	</string>
-	<string id="ui_mcm_seasons_zone_desc_mods_unavailable">
-		<text>Mod list unavailable - launch with play.bat and it will be built.</text>
-	</string>
 	<string id="ui_mcm_seasons_zone_rem_ann_weather">
 		<text>Anniversaries: the Zone gets loud</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_rem_ann_weather_desc">
-		<text>The weather is pushed to the storm cycle for the day, not held calm. The two remembrance days do the opposite.</text>
+		<text>The weather is pushed to storms all day, not held calm. The two remembrance days do the opposite.</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_rem_ann_artefacts">
 		<text>Anniversaries: a crop of artefacts</text>
@@ -126,10 +120,10 @@
 		<text>An extra spawn of artefacts on each level you visit that day, through Dynamic Anomalies Overhaul's own spawner. These persist in your save, like any other spawned artefact. Needs that mod; does nothing without it.</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_rem_anniversary">
-		<text>Anniversaries: PDA line</text>
+		<text>Anniversaries: PDA messages</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_rem_anniversary_desc">
-		<text>March 20, August 22, October 2 and November 20 - the release dates of the four mainline games. One line on the PDA counting the years. Unlike the remembrance days, nothing in the world changes.</text>
+		<text>March 20, August 22, October 2 and November 20 - the release dates of the four mainline games. PDA messages on the day: one soon after you load in, then another every 8 to 20 minutes. The storm and the artefacts are the two options below.</text>
 	</string>
 	<string id="pda_btn_forecast">
 		<text>Forecast</text>
@@ -144,26 +138,26 @@
 		<text>Remembrance days: clear sky</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_rem_weather_desc">
-		<text>April 26 and December 14. The weather is held on the clear cycle for the day. April 26 is International Chernobyl Disaster Remembrance Day; December 14 is Liquidators' Day. The season underneath is unchanged.</text>
+		<text>April 26 and December 14. The sky is held clear all day. April 26 is International Chernobyl Disaster Remembrance Day; December 14 is Liquidators' Day. The season underneath is unchanged.</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_rem_messages">
-		<text>Remembrance days: PDA line</text>
+		<text>Remembrance days: PDA messages</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_rem_messages_desc">
-		<text>One line on the PDA when you load in on either day. Nothing else is announced.</text>
+		<text>PDA messages on either day: one soon after you load in, then another every 8 to 20 minutes. Nothing else is announced.</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_stage_textures">
 		<text>Swap textures with the season</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_stage_textures_desc">
-		<text>Master switch for the launch-time layer. Off means no seasonal texture mod is ever mounted, whatever the date, and the Zone keeps the terrain it has now. Light, color, foliage, fog, wind, wetness and snowfall carry on following the calendar either way. Takes effect on the next launch.</text>
+		<text>Master switch for the seasonal mods and texture sets play.bat changes at launch. Off: play.bat disables every seasonal mod and leaves texture sets as they are, whatever the date. Light, color, foliage, fog, wind, wetness and snowfall still follow the calendar. Takes effect the next time you start with play.bat.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_stage_sound">
-		<text>Gate ambient sound by season</text>
+		<text>Seasonal ambient sound</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_stage_sound_desc">
-		<text>Silences sound channels that do not belong to the season - insects under snow, marsh life in a frozen swamp. Spring drops the night crickets; summer keeps everything; autumn drops swamp life; winter silences all insects; deep winter also silences daytime birds; late winter brings the marsh birds back while every insect is still silent. Crows and owls are kept year-round on purpose. Wind, storms and interiors are never touched. Off means the soundscape plays unchanged all year. Takes effect on the next launch.</text>
+		<text>Silences sound channels that do not belong to the season - insects under snow, marsh life in a frozen swamp. Spring drops the night crickets; summer keeps everything; autumn drops daytime insects and marsh birds; winter silences all insects; deep winter also silences daytime birds; late winter brings the marsh birds back while every insect is still silent. Crows and owls are kept year-round on purpose. Wind, storms and interiors are never touched. Off means the soundscape plays unchanged all year. Takes effect the next time you start with play.bat.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_notify">
@@ -177,7 +171,7 @@
 		<text>PDA report on loading in</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_pda_greeting_desc">
-		<text>Once you are in the world, your PDA reports the real date, the season it selects, and how long until the next turns.</text>
+		<text>Once you are in the world, your PDA reports the season, the real date and how long until the next season. With a season pinned, it reports the season only.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_pda_delay">
@@ -188,7 +182,7 @@
 	</string>
 
 	<string id="ui_mcm_seasons_zone_desc_cal_unavailable">
-		<text>Season calendar unavailable - the main script did not load.</text>
+		<text>Season calendar unavailable - the main script did not load. Check the game log for an error from zzz_seasons_of_the_zone.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_page_main"><text>Main</text></string>
@@ -199,14 +193,14 @@
 	<string id="ui_mcm_seasons_zone_page_winter_snow"><text>Deep winter</text></string>
 	<string id="ui_mcm_seasons_zone_page_late_winter"><text>Late winter</text></string>
 	<string id="ui_mcm_seasons_zone_preset"><text>Color grade preset</text></string>
-	<string id="ui_mcm_seasons_zone_preset_desc"><text>Which cfg preset this season's color grade comes from. Built-in is the season table; the rest are presets in appdata - yours, Atmospherics', and the mod's own. Only the grade changes; takes effect on Apply.</text></string>
-	<string id="ui_mcm_seasons_zone_preset_neutral"><text>Neutral preset (intensity 0)</text></string>
-	<string id="ui_mcm_seasons_zone_preset_neutral_desc"><text>The preset the neutral baseline uses, what intensity 0 renders. Only the grade changes; takes effect on Apply.</text></string>
+	<string id="ui_mcm_seasons_zone_preset_desc"><text>Which color grade preset this season uses. Built-in is the mod's own grade for the season; the rest are the cfg_load presets in appdata - yours, Atmospherics' and this mod's. Only the grade changes; takes effect on Apply.</text></string>
+	<string id="ui_mcm_seasons_zone_preset_neutral"><text>Neutral color grade preset (intensity 0)</text></string>
+	<string id="ui_mcm_seasons_zone_preset_neutral_desc"><text>The color grade preset the neutral baseline uses, which is what intensity 0 renders. Only the grade changes; takes effect on Apply.</text></string>
 	<string id="ui_mcm_seasons_zone_units">
 		<text>Temperature units</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_units_desc">
-		<text>Celsius or Fahrenheit, on the forecast page and through the read API. The button on the page writes this same setting.</text>
+		<text>Celsius or Fahrenheit, on the PDA's Forecast page and for mods that read the temperature from this one. The unit button on that page changes this same setting.</text>
 	</string>
 	<string id="seasons_zone_main_units_lst_celsius">
 		<text>Celsius</text>
@@ -218,16 +212,16 @@
 		<text>Ecologist emission forecast</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_desc">
-		<text>Show the next emission and psi storm on the PDA page. How precisely is bought with standing among the ecologists - they are the ones taking the readings.</text>
+		<text>Show the next emission and psi storm on the PDA's Forecast page. The more goodwill you have with the ecologists, the more exact it is - they take the readings.</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_coarse">
-		<text>Forecast: standing for a warning</text>
+		<text>Forecast: goodwill for a warning</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_coarse_desc">
 		<text>Ecologist goodwill needed before they warn you at all. At this level the page gives a bracket (within 2 hours, 2 to 8, 8 to 16, or all clear) and never the hour.</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_exact">
-		<text>Forecast: standing for the hour</text>
+		<text>Forecast: goodwill for the hour</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_exact_desc">
 		<text>Ecologist goodwill needed before they give you the time. Goodwill runs to 1000 at friendly, so 700 is a real investment.</text>
@@ -236,6 +230,6 @@
 		<text>Exact weather forecast</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_wx_exact_desc">
-		<text>Off: the weather reads like a forecast. Times are rounded and can be an hour or two out, about one call in ten is wrong (fewer as the change gets close), and each call shows how likely it is. On: the page shows Atmospherics' day plan exactly. The base game's weather, which GAMMA uses, has no plan, and its odds for the next sky are exact either way.</text>
+		<text>Off: the weather reads like a forecast. Times are rounded and can be off by an hour or two, about one call in ten is wrong (fewer as the change gets close), and each call shows how likely it is. On: the page shows Atmospherics' day plan exactly. The base game's weather, which GAMMA uses, has no plan, and its odds for the next sky are exact either way.</text>
 	</string>
 </string_table>

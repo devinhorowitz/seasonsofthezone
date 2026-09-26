@@ -4,7 +4,7 @@
 -- of the days the Zone marks are coming. Everything comes from
 -- zzz_seasons_of_the_zone.calendar_page(); nothing is computed twice.
 --
--- Dates only, and nothing about the MOD. An earlier version listed the staged texture
+-- Dates only, and nothing about the MOD. An earlier version listed the staged seasonal
 -- mods by name, which put MO2 folder strings on a stalker's PDA - and there is no
 -- reliable way to turn an author-chosen folder name into something the Zone would say.
 -- MCM's per-season pages already list them, which is where a question about an install
@@ -43,14 +43,14 @@ end
 -- These are loose .dds files under gamedata/textures with no texture_descr entry, so the
 -- engine resolves them by path and wants the bare stem. dial_texture() returns the name
 -- WITH .dds because that is what MCM's image option takes; the accent bar is built by
--- concatenation and has none. Normalise both here rather than depending on which.
+-- concatenation and has none. Normalize both here rather than depending on which.
 local function tex(name)
     name = tostring(name or "")
     if name == "" then return nil end
     return (name:gsub("%.dds$", ""))
 end
 
--- name_of() returns lower case; headings want it capitalised.
+-- name_of() returns lowercase; headings want it capitalized.
 local function cap_first(s)
     s = tostring(s or "")
     return s:sub(1, 1):upper() .. s:sub(2)
@@ -64,7 +64,7 @@ local function when_text(days)
 end
 
 -- What each kind of marked day actually does, said the way the Zone would say it. Both
--- are true rather than flavour: a memorial holds the sky clear and quiets the traffic on
+-- are true rather than flavor: a memorial holds the sky clear and quiets the traffic on
 -- every channel, an anniversary holds a storm and seeds an extra crop of artefacts on
 -- each level visited that day.
 local DAY_TEXT = {
@@ -238,7 +238,7 @@ end
 
 -- --- rows ---------------------------------------------------------------------------------
 --
--- Two fixed columns, no scrolling, one list in each. Colour carries the emphasis a font
+-- Two fixed columns, no scrolling, one list in each. Color carries the emphasis a font
 -- change would normally carry, because a widget cannot be restyled after it is built.
 local HEAD_RGB = {238, 196, 112}
 local LINE_RGB = {200, 200, 200}
@@ -376,7 +376,7 @@ local PITCH   = 20                  -- month to month, so the rows read as twelv
 local ROW_Y0  = 18                  -- under the day scale, in grid-local y
 local BAR_POOL = 72                 -- ~15 runs + 30 day rules + 6 marked + today
 
--- The dial's own arc colours, so the grid and the dial are one picture of the year seen
+-- The dial's own arc colors, so the grid and the dial are one picture of the year seen
 -- twice rather than two that merely sit near each other. These are exactly what
 -- _tools/build_season_dial.py season_colors() computes from the season grades, scaled by
 -- SEASON_DIM: the dial draws thin arcs and can carry full brightness, while a third of
@@ -429,7 +429,7 @@ end
 
 -- Which season owns each day of the year. Built by walking each season's span rather than
 -- by comparing boundaries, so the one that runs December into March needs no special case
--- at all - the modulo carries it round the year end.
+-- at all - the modulo carries it around the year end.
 local function season_map(d, year_len)
     local map = {}
     for _, s in ipairs(d.seasons or {}) do
@@ -558,9 +558,9 @@ function SeasonsPDA:DrawGrid(d)
     -- Underlined rather than filled: the cell already carries its season, and a day that
     -- changes the weather has not stopped being a day in that season. The underline is
     -- also what keeps a marked day distinct from today, which fills - on a day that is
-    -- both, one colour with two meanings would have to pick one.
+    -- both, one color with two meanings would have to pick one.
     --
-    -- One red for every kind. The memorial-against-anniversary split the colour used to
+    -- One red for every kind. The memorial-against-anniversary split the color used to
     -- carry is said in words in the list below, which has room to say it properly.
     for _, day in ipairs(d.days or {}) do
         local m, dd = tonumber(day.month), tonumber(day.day)
@@ -585,7 +585,7 @@ function SeasonsPDA:DrawGrid(d)
         local w = self.axis_x and self.axis_x[i]
         if w then
             w:SetText(tostring(day))
-            -- Centred on its column, the label being 54 wide and the cell 13, then
+            -- Centered on its column, the label being 54 wide and the cell 13, then
             -- clamped inside the grid. The forecast page needed the same clamp for the
             -- same reason: its 24-hour label used to hang half its width past the chart
             -- and into the next column.
@@ -606,7 +606,7 @@ function SeasonsPDA:Fill()
     local d = page()
     if not d then
         put(self.header, "The Year")
-        put(self.subheader, "The calendar is not reading right now.")
+        put(self.subheader, "The calendar can't be read right now.")
         put(self.turning, "")
         put(self.marked, "")
         put(self.grid_cap_l, "")
@@ -639,8 +639,8 @@ function SeasonsPDA:Fill()
     -- days a year is a hole in the header
     if d.marked then
         put(self.marked, (d.marked.kind == "memorial")
-                         and "The Zone is quiet"
-                         or  "The Zone is loud")
+                         and "The Zone is quiet."
+                         or  "The Zone is loud.")
     else
         put(self.marked, "")
     end
@@ -678,11 +678,11 @@ function SeasonsPDA:Fill()
 
     -- --- the marked days, soonest first -----------------------------------------------
     -- The wide column, so each day can say what it actually does rather than leaving it
-    -- to a colour the player has to learn.
+    -- to a color the player has to learn.
     self:Section(1, "Days the Zone marks")
     for _, day in ipairs(d.days or {}) do
         -- White said "this is the one you are on" and nothing more. On the six days that
-        -- actually do something, the row wears the alarm colour the grid cell does.
+        -- actually do something, the row wears the alarm color the grid cell does.
         self:Put(1, {{0, day.date}, {110, when_text(day.away)},
                      {210, DAY_TEXT[tostring(day.kind)] or ""}},
                  day.today and MARK_RGB or LINE_RGB)
@@ -693,7 +693,7 @@ function SeasonsPDA:Fill()
     -- already - illegibly, at 236px, but it prints them - and the grid on the left shows
     -- each span at its true width. What neither can state exactly is the date a season
     -- turns, which is the thing a stalker would actually want off this page.
-    self:Section(2, "The year")
+    self:Section(2, "Season starts")
     for _, s in ipairs(d.seasons or {}) do
         self:Put(2, {{0, cap_first(s.label)}, {118, "from " .. tostring(s.from)}},
                  s.current and NOW_RGB or LINE_RGB)
@@ -716,12 +716,12 @@ end
 -- something, and on those the cell ALARMS instead - the same 900ms square pulse the
 -- forecast strobes an approaching emission in, in the same red.
 --
--- So the tell is the rhythm, not the colour: you can see which kind of day it is from
+-- So the tell is the rhythm, not the color: you can see which kind of day it is from
 -- across the room without reading a word, which is most of the reason for drawing a year
 -- as a grid at all. A fade would have been wrong here for the same reason it was wrong
 -- there - a fade reads as decoration, a pulse reads as an alarm.
 --
--- One colour write per frame on one cell, two on an event day. Same budget as the
+-- One color write per frame on one cell, two on an event day. Same budget as the
 -- forecast page's live dot.
 local PULSE_MS = 2400
 local ALERT_MS = 900

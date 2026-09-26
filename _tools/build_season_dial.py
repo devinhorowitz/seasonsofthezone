@@ -304,6 +304,22 @@ def positions_per_season(bounds):
     return got
 
 
+def shown(day, bounds):
+    """(index, date) of the drawn position the game shows on `day`, a date in YEAR: the
+    nearest one whose own date is in `day`'s season, as the mod's dial_texture() picks it.
+    The hand moves in steps of about eleven days, so a preview has to take the same step."""
+    want = season_on(day, bounds)
+    d0 = day.timetuple().tm_yday
+    best = None
+    for i, d in positions():
+        if season_on(d, bounds) == want:
+            gap = abs(d.timetuple().tm_yday - d0)
+            gap = min(gap, year_len(YEAR) - gap)
+            if best is None or gap < best[0]:
+                best = (gap, i, d)
+    return best[1], best[2]
+
+
 def write_set(bounds, texdir, prefix, cfg=None, quiet=False, names=None):
     """Draw every hand position for `bounds`, [(month, day, season), ...], as
     <texdir>/<prefix>NN.dds, with `names` ({season: name}) for seasons the player renamed.

@@ -17,6 +17,7 @@ folder, and the tools and docs come along in the mod folder. Before the zip is k
 is walked the way MO2's installer walks it, installed into a simulated fresh GAMMA under
 MO2's default name, and the packaged tools are run there. A failure refuses the package.
 """
+import ast
 import io
 import os
 import re
@@ -298,9 +299,11 @@ def verify_fresh_install(zp, base, name):
     shutil.copy2(os.path.join(mod, "play.bat"), os.path.join(root, "play.bat"))
     shutil.copy2(os.path.join(mod, "configure.bat"), os.path.join(root, "configure.bat"))
 
-    def run(args):
+    def run(args, offline=False):
+        # offline: nothing a check starts goes out to open-meteo
         r = subprocess.run([sys.executable] + args, capture_output=True, text=True,
-                           cwd=os.path.join(root, "_tools") if args[0] == "-c" else root)
+                           cwd=os.path.join(root, "_tools") if args[0] == "-c" else root,
+                           env=dict(os.environ, SEASONS_OFFLINE="1") if offline else None)
         return r.returncode, r.stdout + r.stderr
 
     def report(what, good, text=""):
@@ -411,6 +414,14 @@ def verify_fresh_install(zp, base, name):
     code, text = run([configure, "preset", "save", "Mine"])
     ok &= report("a preset saved", code == 0 and os.path.isfile(
         os.path.join(root, "_tools", "presets", "Mine.json")), text)
+    # where the real weather comes from, as the Weather tab sets it
+    code, text = run([configure, "place", "--at", "50.45", "30.52", "--name", "Kyiv"],
+                     offline=True)
+    code2, text2 = run([season, "status"])
+    ok &= report("a weather place set", code == 0 and code2 == 0
+                 and "weather from    Kyiv (50.45 N, 30.52 E)" in text2, text + text2)
+    code, text = run([configure, "place", "--reset"], offline=True)
+    ok &= report("and Chornobyl again", code == 0, text)
     for f in (cfg, cfg + ".bak"):
         if os.path.isfile(f):
             os.remove(f)
@@ -462,6 +473,61 @@ def write_presets(td):
         raise SystemExit("  refusing to package: the GAMMA example can't be used: %s"
                          % problems)
     return n
+
+
+EXAMPLE_DOC = '''"""A worked example: the setup these tools were made on, each table filled in.
+
+Your own settings go in seasons_config.py, next to this file. configure.bat makes that
+file and edits it for you - its window, its commands and its presets - and you can edit
+it by hand as well: the tool keeps what you write and rewrites only the entries it
+changes. This file is only here to read. The same setup loads into configure.bat as the
+"GAMMA example" preset.
+
+With every table empty, the seasonal atmosphere still runs; the tables add what play.bat
+changes at launch, using mods you install yourself. The full reference is
+docs/CONFIGURING.md.
+
+  TOGGLE_MODS    seasonal mods: each is enabled in the seasons it lists and disabled the
+                 rest of the year. Nothing is copied. `above` is the mod it wins over,
+                 which configure.bat finds from the files the two share; to check one,
+                 `season.py whowins <file> --for "<your mod>"`.
+  LAYOUT         texture sets: mods restaged from their archive each season, for mods
+                 that ship one folder per season. Gigabytes move; prefer TOGGLE_MODS.
+  SOUND_SRC      the ambience mod whose sound channels are cut back by season. It has to
+                 be the mod that wins those files.
+  PERIODS        base periods of your own, alongside the seasons: name: (month, day) it
+                 starts. Each runs until the next one begins.
+  EVENTS         windows laid over whatever period they land in, so an event keeps the
+                 season under it: name: ((m, d) start, (m, d) end), both inclusive, and a
+                 start after its end wraps the year. Or a rule, like
+                 {"weekdays": ("sat", "sun")}. See docs/SCHEDULING.md.
+  CALENDAR       the day each season starts, and which are on; None is Polesia's six.
+  NAMES          names of your own for the seasons; None keeps the usual ones.
+"""
+'''
+
+
+def write_example(src, dst):
+    """This install's config as the worked example. Its tables are shipped as they are;
+    its docstring is replaced, since the one in the file may be older than the tools."""
+    sys.path.insert(0, TOOLS)
+    import season
+    text = season.read_config_text(src)
+    tree = ast.parse(text)
+    lines = text.split("\n")
+    first = tree.body[0] if tree.body else None
+    if (isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant)
+            and isinstance(first.value.value, str)):
+        lines = lines[first.end_lineno:]
+    body = "\n".join(lines).lstrip("\n")
+    io.open(dst, "w", encoding="utf-8", newline="\n").write(EXAMPLE_DOC + "\n" + body)
+    theirs, ours = {}, {}
+    exec(compile(text, src, "exec"), theirs)
+    exec(compile(io.open(dst, encoding="utf-8").read(), dst, "exec"), ours)
+    for var in season.CONFIG_NAMES:
+        if theirs.get(var) != ours.get(var):
+            raise SystemExit("  refusing to package: the worked example's %s differs from "
+                             "this install's" % var)
 
 
 def copytree(src, dst):
@@ -530,7 +596,7 @@ def main():
     # empty one would wipe their tables. season.py runs without it.
     live = os.path.join(TOOLS, "seasons_config.py")
     if os.path.isfile(live):
-        shutil.copy2(live, os.path.join(td, "seasons_config.example.py"))
+        write_example(live, os.path.join(td, "seasons_config.example.py"))
     print("  tools                  %3d files  (+ worked example)" % len(TOOL_FILES))
     print("  presets                %3d shipped (+ GAMMA example)" % write_presets(td))
 

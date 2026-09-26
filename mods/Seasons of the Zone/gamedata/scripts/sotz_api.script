@@ -60,8 +60,9 @@ end
 --
 -- What it models is the real Zone. The daily high and low come from climate normals for
 -- the Polesia region around Chornobyl, interpolated between months so nothing jumps on
--- the 1st. The mod already runs its calendar on real dates, so the real month is the
--- right input.
+-- the 1st - or for the place picked in configure.bat, whose own normals fetch_weather.py
+-- leaves in season_weather.ltx. The mod already runs its calendar on real dates, so the
+-- real month is the right input.
 --
 -- The curve between those two is driven by the GAME clock, not the real one. The day is
 -- accelerated, so a fixed number would be wrong twice over - it would ignore the night,
@@ -120,7 +121,7 @@ local WEATHER_T = {
 --
 -- _tools/fetch_weather.py leaves today's observed high and low in season_weather.ltx,
 -- fetched from open-meteo for Chornobyl. Only the ENDPOINTS are taken: the curve between
--- them stays modelled, because the game's day runs six times real time and the sky above
+-- them stays modeled, because the game's day runs six times real time and the sky above
 -- the player belongs to Atmospherics rather than to Ukraine.
 --
 -- The file is read through ini_file, which is the engine's own parser and therefore
@@ -181,18 +182,41 @@ local function observed()
     return nil
 end
 
-local function month_normals()
+-- A place of the player's own: its name and monthly normals, from the [place] and
+-- [normals] sections fetch_weather.py writes, m1 to m12 each "high, low". nil for
+-- Chornobyl, whose normals are the table above, and for anything short of twelve months.
+local function place_normals()
+    local ok, out = pcall(function()
+        local ini = ini_file("season_weather.ltx")
+        if not (ini and ini:section_exist("normals")) then return nil end
+        local t = {}
+        for m = 1, 12 do
+            local v = ini:r_string_ex("normals", "m" .. m)
+            local hi, lo = tostring(v or ""):match("^%s*(%-?[%d%.]+)%s*,%s*(%-?[%d%.]+)%s*$")
+            hi, lo = tonumber(hi), tonumber(lo)
+            if not (hi and lo) or lo > hi then return nil end
+            t[m] = {hi, lo}
+        end
+        t.place = ini:section_exist("place") and ini:r_string_ex("place", "name") or nil
+        return t
+    end)
+    if ok then return out end
+    return nil
+end
+
+local function month_normals(table_)
+    local normals = table_ or NORMALS
     local now = os.date("*t")
     local m = now.month
     local days = tonumber(os.date("%d")) or 15
-    -- slide toward the neighbouring month across the month, so 31 Jan is nearly February
+    -- slide toward the neighboring month across the month, so 31 Jan is nearly February
     local span = 30.0
     local f = (days - 15) / span
     local other = m
     if f >= 0 then other = (m % 12) + 1 else other = ((m - 2) % 12) + 1; f = -f end
     f = math.min(f, 1.0)
 
-    local a, b = NORMALS[m], NORMALS[other]
+    local a, b = normals[m], normals[other]
     if not (a and b) then return 10, 0 end
     return a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f
 end
@@ -242,7 +266,7 @@ local function to_f(c)
     return c * 9.0 / 5.0 + 32.0
 end
 
---- Modelled air temperature.
+--- Modeled air temperature.
 -- @return {low, high, now, hour, rising, cycle, unit = "C", source = "model"}
 --         low/high are today's endpoints AFTER the weather adjustment, so a consumer can
 --         draw a band without knowing anything about the model. `rising` is true while
@@ -252,11 +276,12 @@ function temperature()
         -- The base: the real Zone's reading when there is one, climate normals for the
         -- region when there is not.
         local obs = observed()
+        local own = not obs and place_normals() or nil
         local base_high, base_low
         if obs then
             base_high, base_low = obs.high, obs.low
         else
-            base_high, base_low = month_normals()
+            base_high, base_low = month_normals(own)
         end
 
         -- Then the in-game sky moves it. This is the blend: an observation says what kind
@@ -318,10 +343,12 @@ function temperature()
             base_high = math.floor(base_high_out + 0.5),
             sky_shift = math.floor((now_c - base_now_c) + 0.5),
             -- "observed" means the endpoints came from the real Chornobyl; the shape
-            -- between them is modelled either way, and no consumer should read this as
+            -- between them is modeled either way, and no consumer should read this as
             -- an in-game sensor.
             source = obs and "observed" or "model",
-            place  = obs and obs.place or nil,
+            -- where the reading is from, or, modeled, whose climate the model is: nil for
+            -- Chornobyl's built-in normals
+            place  = obs and obs.place or (own and own.place) or nil,
             date   = obs and obs.date or nil,
             real_cycle = obs and obs.cycle or nil,
             -- the two hooks worth hanging a mod off
@@ -336,9 +363,9 @@ end
 --- Tomorrow, as the real Zone expects it.
 -- @return {date, high, low, cycle, frost} or nil when there is no fetched file.
 --
--- Observations only - there is no modelled fallback here on purpose. A modelled "today"
+-- Observations only - there is no modeled fallback here on purpose. A modeled "today"
 -- is a reasonable stand-in for a reading, because the shape of a day in this region is
--- genuinely predictable. A modelled "tomorrow" would be the same curve with a different
+-- genuinely predictable. A modeled "tomorrow" would be the same curve with a different
 -- label, which is not a forecast of anything.
 function tomorrow()
     return cached("tomorrow", function()

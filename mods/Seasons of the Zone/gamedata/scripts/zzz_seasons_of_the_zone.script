@@ -143,14 +143,15 @@ end
 local MONTHS = {"January", "February", "March", "April", "May", "June", "July",
                 "August", "September", "October", "November", "December"}
 
+-- "September 25, 2026": month first, as the page's own dates ("Sep 15") are
 local function today_text()
     local t = os.date("*t")
-    return string.format("%d %s %d", t.day, MONTHS[t.month] or tostring(t.month), t.year)
+    return string.format("%s %d, %d", MONTHS[t.month] or tostring(t.month), t.day, t.year)
 end
 
 -- Options live on three MCM pages; the stored path is seasons_zone/<page>/<id>.
 -- Options live on pages: the global settings on "main", each season's preset and mod
--- ticks on its own page. mcm() reads a main-page option; season_preset() a season's.
+-- checkboxes on its own page. mcm() reads a main-page option; season_preset() a season's.
 local function mcm_path(path, default)
     if ui_mcm and ui_mcm.get then
         local ok, v = pcall(ui_mcm.get, path)
@@ -160,7 +161,7 @@ local function mcm_path(path, default)
 end
 
 -- Ecologist goodwill buying forecast resolution. Faction goodwill runs -1000 (enemy) to
--- +1000 (friend) and starts near nought, so 200 is a few jobs done for them and 700 is a
+-- +1000 (friend) and starts near zero, so 200 is a few jobs done for them and 700 is a
 -- real investment. Both are MCM tracks; these are only the defaults.
 local FORECAST_COARSE = 200
 local FORECAST_EXACT  = 700
@@ -500,7 +501,8 @@ function season_readout(s)
     for _, u in ipairs(UNIFORMS) do
         for _, k in ipairs(u.keys or {}) do g[k] = ini:r_float_ex(s, k) end
     end
-    local src = "season table"
+    -- named as the dropdown names it, not by the file's stem
+    local src = "built-in values"
     local sel = (s == "neutral") and cfg_raw(PREFIX .. "main/preset_neutral", "builtin")
                                   or  cfg_raw(PREFIX .. s .. "/preset", "builtin")
     if sel and tostring(sel):lower() ~= "builtin" then
@@ -509,7 +511,7 @@ function season_readout(s)
         local vals = paths[key] and read_preset(paths[key])
         if vals then
             for k, v in pairs(vals) do g[k] = v end
-            src = tostring(sel)
+            src = pretty(key)
         end
     end
     local function f(x) return x and string.format("%.4g", x) or "-" end
@@ -981,19 +983,20 @@ end
 
 local REM_MS  = 5000          -- how often the day is re-checked; cheap either way
 local next_rem = 0
-local rem_said = false        -- the PDA line is once per session, not once per tick
+local rem_said = false        -- the opening is once per session, not once per tick
 
 -- Two kinds of day, deliberately not treated alike.
 --
 --   memorial     a real observance for a real disaster. The sky is held clear and the
 --                PDA carries the day's transmissions.
---   anniversary  the release date of a mainline game. A nod, nothing more: the PDA line
---                and nothing else. Giving a game's birthday the same still sky as the
---                26th of April would flatten the difference between them.
+--   anniversary  the release date of a mainline game. The Zone gets loud: a storm, a
+--                crop of artefacts and the PDA's transmissions, each with its own MCM
+--                switch. Giving a game's birthday the same still sky as the 26th of April
+--                would flatten the difference between them.
 --
--- `since` is the release year; the line is formatted with the elapsed count, so it stays
--- correct every year instead of going stale.
--- `open` is sent shortly after you load in. `lines` is a pool drawn from at random
+-- `since` is the year the game's story is set in, not its release year: the count is
+-- in-game years (game_year below), so it stays correct instead of going stale.
+-- `opens` is a pool for the opening line, sent shortly after you load in. `lines` is a pool drawn from at random
 -- intervals after that, shuffled so nothing repeats until the pool is exhausted. Any
 -- line containing %d is formatted with the years elapsed since `since`, so the count is
 -- computed rather than written down and cannot go stale.
@@ -1054,7 +1057,7 @@ local REMEMBRANCE = {
                   "Forester: Storm building. Same as it did %d years back, they say.",
               },
               lines = {
-                  "Sidorovich: Trader's truck came through with bodies in the back, they say. Old story. Comes round every year.",
+                  "Sidorovich: Trader's truck came through with bodies in the back, they say. Old story. Comes around every year.",
                   "Barman: Old hands get strange this week. Something about a man who walked into the Sarcophagus and did not come out.",
                   "Nimble: Sidorovich has had his bunker door shut since morning.",
                   "Barman: Two rookies arguing about who really did it. Neither of them was here.",
@@ -1111,7 +1114,7 @@ local REMEMBRANCE = {
                   "Nimble: Flight recorder, allegedly. He will not show it to anyone.",
                   "Guide: The old evac route is busy tonight. Nobody is evacuating.",
                   "Beard: Two ex-military drinking together. Neither has said a word in an hour.",
-                  "Owl: There is a map going round with five crosses on it. Four crossed out.",
+                  "Owl: There is a map going around with five crosses on it. Four crossed out.",
                   "Sakharov: Pripyat is quiet on the scanners. Too quiet for the date.",
                   "Sidorovich: Trader says a pilot's watch came through here once. Sold it fast.",
                   "Barman: Someone is asking about Yanov like they expect it to be different.",
@@ -1127,15 +1130,15 @@ local REMEMBRANCE = {
               },
               lines = {
                   "Guide: Zone is bigger than the maps say. Has been a while now.",
-                  "Sidorovich: Newcomers with gear nobody recognises, coming up from the south.",
+                  "Sidorovich: Newcomers with gear nobody recognizes, coming up from the south.",
                   "Sakharov: Scanner picked up something it had no name for.",
                   "Forester: A sphere out past the ridge. Looked again and there was nothing.",
-                  "Barman: New faction colours at the checkpoint. Nobody asked whose.",
+                  "Barman: New faction colors at the checkpoint. Nobody asked whose.",
                   "Nimble: Traders are stocking things that were not made here.",
                   "Sidorovich: Hiring notice on the board with no destination written on it.",
                   "Barman: Old hands do not like how many people are coming in.",
                   "Forester: Something went through the treeline at speed. Left no prints.",
-                  "Beard: A guide walked a route he has known for years and did not recognise it.",
+                  "Beard: A guide walked a route he has known for years and did not recognize it.",
                   "Sakharov: Anomaly two clicks east that nobody has a name for. One of them will name it.",
                   "Nimble: Detector at the bar reads something the others do not. Owner will not sell it.",
                   "Owl: Three expeditions went out this week. One has reported back.",
@@ -1203,7 +1206,7 @@ local ARTE_PASSES = 5          -- see the note in anniversary_artefacts
 
 -- Count every artefact the simulation knows about. alife():iterate_objects, never a
 -- 0..65534 sweep - that is the pattern that had to be removed from Homestead for the
--- hitches it caused. Returns nil if the engine will not co-operate.
+-- hitches it caused. Returns nil if the engine will not cooperate.
 local function count_artefacts()
     local n = 0
     local ok = pcall(function()
@@ -1229,7 +1232,7 @@ local function anniversary_artefacts()
     -- measured at 28 -> 29 once and 28 -> 28 twice on Garbage. The chance itself lives
     -- in a file local inside DAO and cannot be reached, so repeating the call is the
     -- only lever. Five passes gives a light 0-5, which is the intended dose for a day
-    -- that comes round once a year.
+    -- that comes around once a year.
     local before = count_artefacts()
     for _ = 1, ARTE_PASSES do
         local ok, err = pcall(drx_da_main.spawn_artefacts_on_level)
@@ -1348,7 +1351,7 @@ local function remembrance_tick()
         say("remembrance day active: " .. day.key .. " (" .. tostring(day.kind) .. ")")
     end
 
-    -- An anniversary is a line and nothing else; only a memorial touches the world.
+    -- A memorial holds the sky clear; an anniversary pushes a storm and seeds artefacts.
     local memorial = (day.kind == "memorial")
 
     if mcm(memorial and "rem_messages" or "rem_anniversary", true) then
@@ -1390,10 +1393,11 @@ function eco_access_tick()
 
     eco_told = true
     pcall(function()
+        -- the LIMITED tier: a bracket like "2 to 8 hours" on the Forecast page
         news_manager.send_tip(db.actor,
-            "Your standing has been noted. Bunker relays will carry emission warnings to "
-            .. "your device from now on - direction only, no timings. Do not mistake that "
-            .. "for safety.",
+            "Your standing has been noted. From now on the bunker relays will send emission "
+            .. "warnings to your PDA's forecast - a rough window, never the hour. Do not "
+            .. "mistake that for safety.",
             nil, "sotz_sakharov", 16000)
     end)
     say("ecologist access granted at standing " .. tostring(st))
@@ -1495,7 +1499,7 @@ local function actor_on_first_update()
         if on and a_season and s ~= running then
             say("!TEXTURES ARE STAGED FOR " .. string.upper(s) .. " but the season running is "
                 .. string.upper(running) .. " - terrain will not match the light.")
-            say(" run  _tools/season.py apply  (or play.bat) and relaunch to line them up")
+            say(" exit, and start the game with play.bat to line them up")
         end
     end
 

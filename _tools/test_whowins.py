@@ -52,7 +52,7 @@ def run(root, *args):
 
 def answers(out):
     """Every `"above": "..."` the output offers, in order."""
-    return [l.split('"above": "', 1)[1].rstrip('"') for l in out.splitlines()
+    return [l.split('"above": "', 1)[1].split('"')[0] for l in out.splitlines()
             if '"above": "' in l]
 
 
@@ -75,7 +75,7 @@ def t_for_leaves_your_mod_out():
         rc, out = run(d, "whowins", FILE, "--for", "INVERNO")
         assert rc == 0, out
         assert answers(out) == ["SSS 24"], "answered %s" % answers(out)
-        assert "<-- yours" in out and "<-- to outrank" in out, out
+        assert "<-- yours" in out and "<-- yours has to win over this one" in out, out
     return "INVERNO on top, --for INVERNO answers SSS 24 and only that"
 
 
@@ -109,7 +109,7 @@ def t_nothing_else_ships_it():
         rc, out = run(d, "whowins", FILE, "--for", "INVERNO")
         assert rc == 0, out
         assert not answers(out), "answered %s" % answers(out)
-        assert "any anchor keeps INVERNO winning" in out, out
+        assert "so INVERNO wins it wherever it sits" in out, out
     return "sole shipper: no anchor needed, and it says so"
 
 

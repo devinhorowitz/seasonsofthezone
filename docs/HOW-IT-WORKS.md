@@ -94,8 +94,8 @@ value reading OK.
 ## Why textures need a launcher
 
 Terrain and grass textures are loaded from MO2's virtual file system when a level loads
-and kept for the session. There is no way to reload them at runtime. So the texture layer
-is decided before the game starts: `play.bat` runs `season.py apply`, then starts MO2.
+and kept for the session. There is no way to reload them at runtime. So the seasonal mods
+are switched before the game starts: `play.bat` runs `season.py apply`, then starts MO2.
 
 That is also why a season pinned in MCM reaches the textures and the soundscape only
 at the next launch: `season.py` reads the pin from MCM's store before the game exists.
@@ -103,11 +103,14 @@ at the next launch: `season.py` reads the pin from MCM's store before the game e
 
 ## The MO2 rule
 
-MO2 gives a shared file to the highest enabled mod that ships it. That is what makes
-switching a texture set on and off a one-line change to `modlist.txt`, and it is also the
-one thing that fails silently: a mod anchored below the real owner of its files flips its
-flag, reports success, and changes nothing on screen. `season.py whowins <path>` shows who
-owns a file. See [CONFIGURING.md](CONFIGURING.md).
+MO2 gives a shared file to the enabled mod with the highest priority that ships it: the
+one lowest in its left pane, highest in `modlist.txt`. That is what makes switching a
+texture set on and off a one-line change to `modlist.txt`, and it is also the one thing
+that fails silently: a seasonal mod that doesn't win over the real owner of its files flips
+its flag, reports success, and changes nothing on screen. That is what each seasonal mod's
+`above` is for: `play.bat` keeps the mod just above that one in `modlist.txt`, so it wins
+over it. `season.py whowins <path>` shows who owns a file. See
+[CONFIGURING.md](CONFIGURING.md).
 
 ---
 
@@ -115,9 +118,9 @@ owns a file. See [CONFIGURING.md](CONFIGURING.md).
 
 `season.py` runs before the game exists, so it reads MCM's own store: MCM saves every
 setting through `axr_main.config` into `gamedata/configs/axr_options.ltx`, under `[mcm]`,
-one line per option as `<tree>/<page>/<option> = <value>` — the launch-time switches are
+one line per option as `<tree>/<page>/<option> = <value>` — the switches for launch are
 `seasons_zone/main/stage_textures` and `seasons_zone/main/stage_sound`, and a mod's
-per-season tick is `seasons_zone/<season>/mod_<name>`. MO2 maps that path to the mod that owns
+per-season checkbox is `seasons_zone/<season>/mod_<name>`. MO2 maps that path to the mod that owns
 it (on GAMMA, "G.A.M.M.A. MCM values"). It is plain text, so a switch set in the menu is
 readable at the next launch.
 
@@ -125,11 +128,13 @@ Three files go the other way, written by `season.py` and read by the mod:
 
 | File | Holds |
 |---|---|
-| `configs/season_mods.ltx` | the installed season-scoped mods: seasons, sizes, state |
+| `configs/season_mods.ltx` | the installed seasonal mods: seasons, sizes, state |
 | `configs/season_staged.ltx` | which season the textures were staged for |
 | `configs/text/eng/ui_mcm_seasons_mods.xml` | the MCM labels and hover text for those mods |
 
-They ship empty and are rewritten at every launch. Do not edit them.
+They ship empty and are rewritten at every launch. Do not edit them. A fourth,
+`configs/season_calendar.ltx`, holds the calendar and season names; `configure.bat` writes
+it on Save, and `play.bat` at every launch.
 
 The season pages are built from that list, which is why a mod added to `TOGGLE_MODS`
 appears in the menu by itself.

@@ -1,7 +1,7 @@
 # Seasons of the Zone
 
 **Point a mod at a stretch of the real calendar. It loads itself when that time of year
-comes round, and unloads when it passes.**
+comes around, and unloads when it passes.**
 
 The Zone follows the real-world calendar. Boot the game in late October, and it is autumn,
 because Chornobyl is in autumn.
@@ -13,7 +13,7 @@ blend across each season boundary. Nothing to download beyond this mod, nothing 
 configure.
 
 That is the part that works out of the box. Underneath it is a scheduler, and the six
-seasons are simply the calendar it ships with — see
+seasons are the calendar it ships with — see
 **[the calendar underneath](#the-calendar-underneath)**.
 
 *More of the interface: [docs/INTERFACE.md](docs/INTERFACE.md)*
@@ -48,10 +48,10 @@ late_winter  Mar 05 - Apr 14    41 d   the thaw: patchy snow, mud, bare trees
 ```
 
 These are the dates the landscape changes, not the equinoxes, and they are only the
-default. `configure.bat`'s Seasons tab moves the day any season starts and turns seasons
-off, for a year of only summer and deep winter, say, or one on Ukraine's meteorological
-dates. A season turned off gives its days to the one before it, and the game, MCM and the
-dial all follow.
+default. `configure.bat`'s Seasons tab moves the day any season starts, turns seasons off
+and renames them, for a year of only summer and deep winter, say, or one on Ukraine's
+meteorological dates. A season turned off gives its days to the one before it, and the
+game, MCM and the dial all follow.
 
 ---
 
@@ -61,12 +61,12 @@ Seasons of the Zone is two independent halves, and you can use either on its own
 
 | | What it is | Configurable? |
 |---|---|---|
-| **In-engine** | Twenty console values blended across the date. Color, fog, wind, wetness. | No — it just runs |
-| **Launch-time** | A scheduler that decides which mods MO2 mounts today | Yes — this is the open half |
+| **Seasonal atmosphere**, in game | Twenty console values blended across the date. Color, fog, wind, wetness. | Its strength, per layer, in MCM |
+| **Seasonal mods**, at launch | A scheduler that decides which mods MO2 mounts today | Yes — this is the open half |
 
-The launch-time half has nothing seasonal about it. It maps a date to a set of names, and
-mods declare which names they belong to. The six seasons are the default set. You can add
-your own.
+The seasonal-mods half has nothing seasonal about it. It maps a date to a set of names,
+and mods declare which names they belong to. The six seasons are the default set. You can
+add your own.
 
 **Base periods** partition the year — exactly one is active on any date. **Events** overlay
 whatever period they land in, so they add without displacing:
@@ -89,9 +89,9 @@ On December 25th the game stages deep winter **and** Christmas. The snow does no
 anywhere — that is what "overlay" means, and it is the difference between a mod that
 does seasons and one that can do occasions.
 
-Nothing about a period has to be a texture. If MO2 can mount it as a folder, it can be put
-on the calendar: a gameplay patch, an audio set, a spawn table, a loading screen. The
-texture packs are just the obvious first use.
+Nothing about a period has to be a texture. If MO2 can mount it as a folder, it can be
+made seasonal: a gameplay patch, an audio set, a spawn table, a loading screen. The
+texture packs are the obvious first use.
 
 ```python
 PERIODS = {                    # extra base periods, alongside the seasons
@@ -152,9 +152,10 @@ of the mod that writes to your save.
   the log.
 - **MCM**
 - **Mod App Creator**, for the PDA app. MCM's Main page shows in red if it's missing.
-- **Python 3**, for the launcher only. The python.org installer is enough.
-- For the optional `LAYOUT` texture layer only: `python -m pip install py7zr` (and
-  `rarfile` plus WinRAR or 7-Zip for `.rar` archives)
+- **Python 3**, for `play.bat` and `configure.bat` only. The python.org installer is
+  enough.
+- For the optional `LAYOUT` texture sets only: `py -m pip install py7zr` (and `rarfile`
+  plus WinRAR or 7-Zip for `.rar` archives)
 
 ### Outside GAMMA
 
@@ -175,7 +176,7 @@ of the mod that writes to your save.
 - The anniversary artifacts need Dynamic Anomalies Overhaul.
 
 Tested on Anomaly 1.5.3 with Modded Exes, MCM and Mod App Creator, and nothing else from
-GAMMA: the in-engine layers, the marked days, the PDA app and MCM all work, and the forecast
+GAMMA: the seasonal atmosphere, the marked days, the PDA app and MCM all work, and the forecast
 reads the base game's weather. Plain Anomaly without Modded Exes hasn't been run; its column
 follows from what its engine lacks.
 
@@ -185,26 +186,32 @@ follows from what its engine lacks.
 
 1. In MO2, use **Install a new mod from archive** on the release zip, then enable the mod.
    That's everything in game: the light and weather, the marked days, the PDA app and MCM.
-2. For real-world temperatures and the texture and sound layers, copy `_tools/`,
-   `play.bat` and `configure.bat` from the mod's folder into your GAMMA folder, next to
+2. For real-world temperatures and seasonal mods, copy `_tools`, `play.bat` and
+   `configure.bat` from the mod's folder into your GAMMA folder, next to
    `ModOrganizer.exe`. (In MO2, right-click the mod and choose **Open in Explorer**.)
-3. Open `play.bat` and check that `SHORTCUT=` names the entry you launch in MO2's
-   executable dropdown (default `Anomaly (DX11-AVX)`). It is the entry's name, not the
-   .exe file, so a custom exe copied over the stock one in `bin\` needs no change.
-4. Launch with `play.bat` from now on.
+3. Open `play.bat` in Notepad and check that `SHORTCUT=` names the entry you launch in
+   MO2's executable dropdown (default `Anomaly (DX11-AVX)`). It is the entry's name, not
+   the .exe file, so a custom exe copied over the stock one in `bin\` needs no change.
+4. Close MO2, and start the game with `play.bat` from now on. It opens MO2 itself; it
+   can't switch mods while MO2 is already open.
+5. To make mods seasonal, open `configure.bat` ([below](#making-a-mod-seasonal)).
 
-`play.bat` fetches Chornobyl's weather, checks the date, stages anything that needs staging,
-and starts the game. Most days it changes nothing. Paths come from `ModOrganizer.ini`, so
-the drive, game folder and profile are read rather than assumed.
+`play.bat` fetches the day's real weather - Chornobyl's, or a place you pick on
+`configure.bat`'s Weather tab - checks the date, switches the seasonal mods, and starts the
+game. Most days it changes nothing. Paths come from `ModOrganizer.ini`, so the
+drive, game folder and profile are read rather than assumed. To see what the next launch
+will do without starting anything, use **Preview the next launch** in `configure.bat`, or
+run `py _tools\season.py status` in the GAMMA folder.
 
 **Updating:** install the new zip over the old one and choose **Replace**, then copy
-`_tools/`, `play.bat` and `configure.bat` again. Your `seasons_config.py` isn't in the zip, so copying
-`_tools/` leaves it alone. Versions before 1.7.0 were installed by copying the
+`_tools`, `play.bat` and `configure.bat` again. Your `seasons_config.py` isn't in the zip, so
+copying `_tools` leaves it alone. Versions before 1.7.0 were installed by copying the
 `mods/Seasons of the Zone` folder: name the new install `Seasons of the Zone` so it
 replaces that copy.
 
 **Removing it:** switch it off in MCM first (this restores the color grade to neutral),
-then disable the mod. If you applied the snowfall patch, `--revert` it too; without the
+then disable the mod. Seasonal mods stay as `play.bat` last left them; enable or disable
+them in MO2 as you like. If you applied the snowfall patch, `--revert` it too; without the
 mod, the addon snows whenever the weather says so.
 
 **While a layer is on**, SSS's own MCM sliders for that layer, and the vanilla sunshafts
@@ -215,12 +222,12 @@ yourself.
 
 ## Why a launcher
 
-Everything above changes in-engine, immediately. Terrain and grass textures cannot: X-Ray
+The seasonal atmosphere changes in game, immediately. Terrain and grass textures can't: X-Ray
 loads them from MO2's virtual file system when a level loads and keeps them for the
-session. So the texture layer has to be decided before the game starts, and that is what
+session. So seasonal mods have to be switched before the game starts, and that is what
 `play.bat` does.
 
-If you never use the texture layer, launch however you like.
+If you have no seasonal mods, launch however you like.
 
 ---
 
@@ -235,82 +242,107 @@ season your calendar has on: seven pages with the default calendar.
   foliage, fog, wind, and wetness; the two launch-time switches, for textures and
   ambient sound; the PDA message.
 - **Spring, Summer, Autumn, Winter, Deep winter, Late winter** — that season's color
-  grade preset, a read-out of the values it resolves to, and a tick for each texture
-  mod scoped to it.
+  grade preset, a read-out of the values it resolves to, and a checkbox for each
+  seasonal mod on in it. The pages take your own season names.
 
 ---
 
-## Putting a mod on the calendar
+## Making a mod seasonal
 
 Any installed mod can follow the calendar. You do not modify it; you say when it belongs.
+A seasonal mod is switched on by `play.bat` in the seasons, events and weather you pick,
+and off the rest of the year.
 
-**With `configure.bat`.** It opens a window listing your MO2 mods. Pick one, tick the
-seasons it belongs to, and save. The window works out the mod it has to sit above, and
-checks the file before it writes it.
+**With `configure.bat`.** Double-click it in your GAMMA folder. It opens a window listing
+your mods as MO2 does. Pick one, check the seasons it belongs to, and save. The window
+works out the mod it has to win over - where two mods ship the same file, MO2 uses the
+one lower in its list - and checks the file before it writes it. **Preview the next
+launch** shows what `play.bat` would switch, saved or not.
 
-![The configure window: MO2's mods on the left, the chosen mod's seasons and anchor on the right](docs/images/configure.png)
+![The configure window: MO2's mods on the left, the chosen mod's seasons and the mod it wins over on the right](docs/images/configure.png)
 
 The same from a command prompt in your GAMMA folder, which is handy when someone is
-helping you:
+helping you (use `python` in place of `py` if that is how your Python starts):
 
 ```
-python _tools\configure.py add "INVERNO Winter Textures" --when winter "deep winter"
-python _tools\configure.py event christmas 12-24 12-26
-python _tools\configure.py list
+py _tools\configure.py add "INVERNO Winter Textures" --when winter "deep winter"
+py _tools\configure.py event christmas 12-24 12-26
+py _tools\configure.py list
 ```
+
+`py _tools\configure.py --help` lists every command.
 
 The window's **Seasons** tab sets the calendar itself: the day each season starts, which
-seasons are on, and what each is called. `python _tools\configure.py calendar` shows it,
-and `configure.py calendar summer=5-1 "deep winter=11-15" --only` makes a two-season year.
+seasons are on, and what each is called, with the dial the game will draw for it.
+`py _tools\configure.py calendar` shows it, and
+`py _tools\configure.py calendar summer=5-1 "deep winter=11-15" --only` makes a two-season
+year.
 
 ![The Seasons tab: summer moved to May 1, late winter off so deep winter runs to April 14, and deep winter named The Long Cold](docs/images/configure-seasons.png)
 
-**Presets** keep the whole setup under a name - the calendar, the events, the mods on the
-calendar, texture sets and sound - to load again, or to share. Load one made on another
-install and the mods you don't have are left out. Four calendars come with the tool, and a
-GAMMA example with the setup these tools were made on, so nothing in the config needs
-editing by hand.
+The **Weather** tab picks where the real weather comes from: Chornobyl, or a town you look
+up by name. The PDA's temperature, its Forecast page and the freezing, thaw and heat days
+follow the weather there.
+
+![The Weather tab: Kyiv found by name, today's weather there, and the credits for the data](docs/images/configure-weather.png)
+
+**Presets** keep a setup under a name - the calendar and season names, the events, the
+seasonal mods, texture sets and sound - to load again, or to share. Loading one shows
+what it would replace first, and nothing is written until you save. Load one made on
+another install and the mods you don't have are left out. Four calendars come with the
+tool, and a **GAMMA example**: the seasonal mods these tools were made with, set up for the
+GAMMA mods you have installed. Its texture sets need `py7zr` (see
+[Requirements](#requirements)), and it names mods by their folder names in GAMMA, so a mod
+you have renamed is left out.
 
 ![Loading a preset: pick one, and the parts of it to load in place of yours](docs/images/configure-presets.png)
 
-**By hand.** Both write `_tools/seasons_config.py`, which you can also edit yourself:
+**By hand.** Both write `_tools\seasons_config.py`, which you can also edit yourself:
 
 ```python
 TOGGLE_MODS = {
     "INVERNO Winter Textures": {                  # folder name, exactly as MO2 shows it
-        "when": ("winter", "winter_snow", "late_winter"),   # any period or event name
+        "when": ("winter", "winter_snow", "late_winter"),   # seasons, events or weather
         "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
-    },
+    },                                            # ^ the mod it wins over
 }
 ```
 
-`when` takes any mix of base periods and events. `seasons` is the original spelling of the
+`when` takes any mix of seasons, events and weather. In the file, deep winter is
+`winter_snow` and late winter is `late_winter`. `seasons` is the original spelling of the
 same key and still works, so nothing written for an earlier version needs editing.
 
-Relaunch. The mod is enabled in November and disabled in mid-April, and appears on the
-Winter, Deep winter and Late winter pages with its file count and size. Nothing is copied — MO2 just
-stops mounting the folder — so an 11 GB texture set costs nothing to switch.
+Start the game with `play.bat`. The mod is enabled in November and disabled in mid-April,
+and appears on the Winter, Deep winter and Late winter pages with its file count and size.
+Nothing is copied — MO2 stops mounting the folder — so an 11 GB texture set costs nothing
+to switch.
 
-![The Winter page, with a tick for each mod winter uses](docs/images/mcm-season-winter.png)
+To stop switching a mod, use **Stop switching this mod** in `configure.bat`, or
+`py _tools\configure.py remove "<mod>"`. `play.bat` then leaves it as it is in MO2. Every
+save keeps the previous file as `seasons_config.py.bak`, to go back to.
+
+![The Winter page, with a checkbox for each seasonal mod on in winter](docs/images/mcm-season-winter.png)
 
 *The packs shown are third-party texture mods, not included here.*
 
-### Choosing `above`
+### Which mod it wins over (`above`)
 
-`above` is the mod yours must outrank. MO2 gives a shared file to the highest enabled mod
-that ships it; if a mod above yours ships the same file, yours loses and nothing tells you.
-Pick a file your mod ships and ask, naming your mod with `--for`:
-
-```
-python _tools/season.py whowins textures/map/map_escape.dds --for "Winter PDA Maps (seasonal)"
-```
+`above` is the mod yours wins over. MO2 gives a shared file to the enabled mod with the
+highest priority - the one lowest in its left pane - and if another mod wins over yours on
+a file, yours loses it and nothing tells you. `configure.bat` picks `above` from the files
+the mods share. To check by hand, pick a file your mod ships and ask, naming your mod with
+`--for`:
 
 ```
-  line   190  [-]  Winter PDA Maps (seasonal)                   2097280 B   <-- yours
-  line   539  [+]  358- Global Map Rework - DeadEnvoy           8388736 B   <-- to outrank
-  line   862  [+]  26- High Res PDA Maps - Bazingarrey          8388736 B
+py _tools\season.py whowins textures/map/map_escape.dds --for "Winter PDA Maps (seasonal)"
+```
 
-  Put Winter PDA Maps (seasonal) ABOVE:  358- Global Map Rework - DeadEnvoy
+```
+    line   190  disabled  Winter PDA Maps (seasonal)             2097280 B   <-- yours
+    line   539  enabled   358- Global Map Rework - DeadEnvoy     8388736 B   <-- yours has to win over this one
+    line   862  enabled   26- High Res PDA Maps - Bazingarrey    8388736 B
+
+  Make Winter PDA Maps (seasonal) win over:  358- Global Map Rework - DeadEnvoy
 ```
 
 Use that name. If no other mod ships the file, any position works. `--for` keeps your mod
@@ -321,12 +353,12 @@ a fresh install.
 
 | Mod | Seasons | Notes |
 |---|---|---|
-| Project I.N.V.E.R.N.O — winter textures | `winter`, `winter_snow`, `late_winter` | Terrain, flora and levels. Must outrank your grass mod and Atmospherics/SSS; it carries its own shader headers. |
-| I.N.V.E.R.N.O — "Partly snowy" ground detail | `winter`, `late_winter` | Patchy ground while the snow arrives and while it melts. Above the base INVERNO. |
+| Project I.N.V.E.R.N.O — winter textures | `winter`, `winter_snow`, `late_winter` | Terrain, flora and levels. Must win over your grass mod and Atmospherics/SSS; it carries its own shader headers. |
+| I.N.V.E.R.N.O — "Partly snowy" ground detail | `winter`, `late_winter` | Patchy ground while the snow arrives and while it melts. Wins over the base INVERNO. |
 | C Consciousness Grass & Trees | `spring` / `summer` / `autumn` / the three winters | Four sets, one entry each; the Dead set covers all three winters, under the snow and through the thaw. Its grass placement does not change with the season, so that part stays mounted year-round and is not a seasonal entry. |
 | Grass and Trees by PanceRide | `summer` / `autumn` | Matching Summer and Autumn editions; two entries, one per season. |
-| Winter loading screens | `winter`, `winter_snow`, `late_winter` | Above your loading-screen mod. |
-| Winter PDA maps | `winter`, `winter_snow`, `late_winter` | Above every mod that ships map textures, INVERNO included. |
+| Winter loading screens | `winter`, `winter_snow`, `late_winter` | Wins over your loading-screen mod. |
+| Winter PDA maps | `winter`, `winter_snow`, `late_winter` | Wins over every mod that ships map textures, INVERNO included. |
 | Swamp / ground fog | `late_winter`, `spring`, `autumn` | |
 
 If MO2 can mount it as a folder, it can be seasonal: footstep audio, menu art, a flower pack.
@@ -335,10 +367,10 @@ If MO2 can mount it as a folder, it can be seasonal: footstep audio, menu art, a
 
 Some mods ship one folder per season inside a single archive (Aydin's Grass Tweaks).
 `LAYOUT` restages the mod's contents from the archive when the season changes. Gigabytes
-move, so use `TOGGLE_MODS` wherever a mod can simply be switched off.
+move, so use `TOGGLE_MODS` wherever a mod can be switched off instead.
 
-`seasons_config.example.py` is a complete working configuration;
-[docs/CONFIGURING.md](docs/CONFIGURING.md) is the field reference.
+`_tools\seasons_config.example.py` is the setup these tools were made on, each table
+filled in; [docs/CONFIGURING.md](docs/CONFIGURING.md) is the field reference.
 
 ---
 
@@ -364,10 +396,10 @@ in the three winters, lighter in the first and the last, seeds in spring, leaves
 dust in the dry months, mist in the thaw.
 
 It edits your own copy of the addon; none of INVERNO's code is shipped here. Install the
-standalone "Snowfall (light + Dynamic Fog)" addon, then:
+standalone "Snowfall (light + Dynamic Fog)" addon, then, in your GAMMA folder:
 
 ```
-python patches/apply_seasonal_snowfall.py
+py "mods\Seasons of the Zone\patches\apply_seasonal_snowfall.py"
 ```
 
 It finds the script under `mods/`, backs it up to `yawm_snowfall.script.orig`, and inserts
@@ -398,8 +430,9 @@ Seasons of the Zone can go anywhere in MO2. No other mod ships any of its files,
 script order comes from the engine's directory listing (hence the `zzz_` name), not from
 priority. It only has to be enabled. What does need placing:
 
-- the mods in `TOGGLE_MODS` — `play.bat` puts each directly above its `above` anchor at
-  every launch, and `season.py status` reports anything higher up that would override it;
+- the seasonal mods — `play.bat` keeps each just below the mod it wins over in MO2's list
+  at every launch, and `py _tools\season.py status` reports any other mod that would still
+  win its files;
 - INVERNO's snowfall addon — remove `level_weathers.script` from it;
 - never enable the old Season Flora prototype alongside this.
 
@@ -416,7 +449,7 @@ Details and recovery: [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
 | [docs/INTERFACE.md](docs/INTERFACE.md) | The MCM pages and the Seasons app in the PDA |
 | [docs/API.md](docs/API.md) | The read API other mods hook into: temperature, weather, the next emission |
 | [docs/WEARABLE-DEVICES.md](docs/WEARABLE-DEVICES.md) | A blowout warning for Wearable Devices: the code, and why it cannot break that mod |
-| [docs/CONFIGURING.md](docs/CONFIGURING.md) | Making other mods seasonal: fields, commands, troubleshooting |
+| [docs/CONFIGURING.md](docs/CONFIGURING.md) | Making mods seasonal: the window, the commands, the file, troubleshooting |
 | [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) | The calendar, the blend, the values, the MO2 rule |
 | [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md) | Where everything sits, what must not be enabled together, recovering from a GAMMA update |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
@@ -426,6 +459,13 @@ Details and recovery: [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
 ## Credits
 
 Seasons of the Zone is by **Devin Horowitz**, MIT license.
+
+Weather data by [Open-Meteo.com](https://open-meteo.com/), under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/): the day's high and low, and, for
+a place you pick, its climate over the last ten years, which contains modified Copernicus
+Climate Change Service information. The place search is based on
+[GeoNames](https://www.geonames.org/) (CC BY 4.0). The game moves the temperature with its
+own sky, so what the PDA shows is Open-Meteo's, changed.
 
 No third-party assets are included. The texture, snowfall and soundscape layers read mods
 you install yourself, and the configuration ships empty. INVERNO's `yawm_snowfall.script`

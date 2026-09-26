@@ -15,7 +15,8 @@ import sys
 import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-TOOLS = ("season.py", "config_edit.py", "configure.py", "build_season_dial.py")
+TOOLS = ("season.py", "config_edit.py", "configure.py", "build_season_dial.py",
+         "fetch_weather.py")
 MOD_CFG = os.path.join(os.path.dirname(HERE), "mods", "Seasons of the Zone", "gamedata",
                        "configs", "seasons_of_the_zone.ltx")
 CRLF = "\r\n"
@@ -388,7 +389,7 @@ def t_the_calendar_command_moves_and_turns_off_seasons():
         install(d)
         game, tex = with_mod(d)
         rc, out = run(d, "calendar")
-        assert rc == 0 and "Polesia's calendar" in out and "Late winter" in out, out
+        assert rc == 0 and "Polesia's dates" in out and "Late winter" in out, out
         rc, out = run(d, "calendar", "summer=5-1", "deep winter=11-15", "--only")
         assert rc == 0, out
         assert calendar_of(d) == {"summer": (5, 1), "winter_snow": (11, 15)}, calendar_of(d)
@@ -459,7 +460,8 @@ def t_status_follows_the_calendar():
         assert rc == 0, out
         assert "season          summer" in out, out
         assert "your own: summer Jan 1" in out, out
-        assert "Winter Pack is scoped only to winter, which your calendar has off" in out, out
+        assert ("Winter Pack is on only in winter, which your calendar has off, so it never "
+                "switches on") in out, out
         assert "MCM pins spring, which your calendar has off" in out, out
         io.open(opts, "w").write("[mcm]\nseasons_zone/main/mode = summer\n")
         rc, out = run(d, "status", tool="season.py")
@@ -503,7 +505,7 @@ root.destroy()
         out = r.stdout + r.stderr
         assert r.returncode == 0 and "saved True" in out, out
         assert "refused False" in out, "saved with a blank day:\n" + out
-        assert "never switched on: Winter Maps" in out, out
+        assert "never switch on: Winter Maps" in out, out
         assert "dirty after False" in out, out
         want = {"winter_snow": (12, 1), "spring": (4, 1), "summer": (6, 1),
                 "autumn": (9, 1), "winter": (11, 1)}
@@ -794,9 +796,9 @@ def t_events_that_repeat_from_the_command_line():
         rc, out = run(d, "add", "Map Pack", "--when", "weekend")
         assert rc == 0, out
         accepted(d)
-        for args, says in ((["fall", "10-1"], "another name for one"),
+        for args, says in ((["fall", "10-1"], "taken by a season"),
                            (["freezing", "1-1"], "a kind of weather"),
-                           (["x", "--weeks", "first"], "'weeks' needs 'weekdays'"),
+                           (["x", "--weeks", "first"], '"weeks" needs "weekdays"'),
                            (["x", "--days", "31", "--months", "feb"], "never happens"),
                            (["x", "12-24", "--weekdays", "sat"], "--between"),
                            (["x", "--weekdays", "funday"], "days of the week")):
@@ -811,7 +813,7 @@ def t_seasons_can_be_named():
         install(d)
         game, tex = with_mod(d)
         rc, out = run(d, "name", "deep winter", "The Long Cold")
-        assert rc == 0 and "drawn for your calendar" in out, out
+        assert rc == 0 and "drawn for your dates and names" in out, out
         ns = {}
         exec(config(d), ns)
         assert ns["NAMES"] == {"winter_snow": "The Long Cold"}, ns.get("NAMES")
@@ -839,8 +841,8 @@ def t_presets_save_and_load():
         run(d, "calendar", "summer=5-1", "--off", "late_winter")
         run(d, "name", "deep winter", "The Long Cold")
         rc, out = run(d, "preset", "save", "Mine", "--about", "a test")
-        assert rc == 0 and "calendar and season names, events and periods, mods on the " \
-            "calendar" in out and "texture" not in out, out
+        assert rc == 0 and "calendar and season names; events and periods; seasonal " \
+            "mods" in out and "texture" not in out, out
         preset = open(os.path.join(d, "_tools", "presets", "Mine.json"), encoding="utf-8").read()
         # another install: Lonely Mod is not there, and Grass Compat - Winter Pack's anchor -
         # is not either
@@ -854,7 +856,7 @@ def t_presets_save_and_load():
             rc, out = run(e, "preset", "load", "mine")
             assert rc == 0, out
             assert "not installed here, left out: Lonely Mod" in out, out
-            assert "Winter Pack (now above" in out, out
+            assert "Winter Pack (now wins over" in out, out
             t, ev = table(e)
             assert set(t) == {"Winter Pack"} and t["Winter Pack"]["above"] != "Grass Compat", t
             assert ev == {"weekend": {"weekdays": ("sat", "sun")}}, ev
@@ -875,7 +877,18 @@ def t_presets_save_and_load():
             '{"seasons_of_the_zone_preset": 1, "shipped": true, "calendar": null}')
         rc, out = run(d, "preset", "save", "shipped", "--force")
         assert rc == 1 and "comes with the tool" in out, out
-    return "saved with its parts; loaded elsewhere, missing mods left out and re-anchored"
+        # loading over a setup of one's own asks for --force, and changes nothing without it
+        io.open(os.path.join(d, "_tools", "presets", "Two.json"), "w", encoding="utf-8").write(
+            '{"seasons_of_the_zone_preset": 1, "calendar": {"summer": [5, 1], '
+            '"winter_snow": [11, 15]}}')
+        before = config(d)
+        rc, out = run(d, "preset", "load", "Two")
+        assert rc == 1 and "--force" in out and "your calendar and names" in out, out
+        assert config(d) == before, "a refused load changed the file"
+        rc, out = run(d, "preset", "load", "Two", "--force")
+        assert rc == 0 and calendar_of(d) == {"summer": (5, 1), "winter_snow": (11, 15)}, out
+    return ("saved with its parts; loaded elsewhere, missing mods left out and re-anchored; "
+            "over your own only with --force")
 
 
 @case
@@ -919,6 +932,175 @@ root.destroy()
         assert ns["EVENTS"] == {"weekend": {"weekdays": ("sat", "sun")}}, ns["EVENTS"]
         accepted(d)
     return "a name, a rule event, and a day box that holds 1_0 refused"
+
+
+@case
+def t_the_window_draws_the_dial_as_you_type():
+    driver = r"""
+import sys, time
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+import config_edit as ce
+import configure
+root = tk.Tk()
+root.withdraw()
+app = configure.App(root, ce.Calendar(), ce.Install())
+def settle():
+    for _ in range(20):
+        root.update()
+        time.sleep(0.02)
+settle()
+first = app._dial_photo
+print("drawn", first is not None)
+app.srows["winter_snow"][7].set("The Long Cold")
+app.names_edited()
+app.dial_day.set(350)
+app.dial_later()
+settle()
+print("again", app._dial_photo is not first, app.dial_text.cget("text"))
+app.srows["winter"][2].set("25")
+app.dates_edited()
+settle()
+print("held", "lines in red" in app.dial_text.cget("text"))
+root.destroy()
+"""
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        with_mod(d)
+        p = os.path.join(d, "drive.py")
+        io.open(p, "w", encoding="utf-8").write(driver)
+        r = subprocess.run([sys.executable, "-B", p, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True)
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "drawn True" in out, out
+        assert "again True 16 Dec: The Long Cold" in out, out
+        assert "held True" in out, out
+    return "drawn on opening, redrawn for a name and a day, held while a date is wrong"
+
+
+@case
+def t_the_window_shows_the_way_to_each_fix():
+    """The list runs as MO2's does, separators and all; what holds Save back sits on top,
+    each with a way to it; a loop of mods winning over each other is refused; the preview
+    shows unsaved changes; a preset's effect is worked out without touching the setup."""
+    driver = r"""
+import sys
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+from tkinter import messagebox
+said = []
+messagebox.showerror = lambda *a, **k: said.append(a[1])
+import config_edit as ce
+import configure
+root = tk.Tk()
+root.withdraw()
+app = configure.App(root, ce.Calendar(), ce.Install())
+root.update()
+
+def widgets(w):
+    for c in w.winfo_children():
+        yield c
+        yield from widgets(c)
+
+def texts(w):
+    out = []
+    for c in widgets(w):
+        try:
+            out.append(str(c.cget("text")))
+        except tk.TclError:
+            pass
+    return out
+
+seps = [i for i in app.tree.get_children() if i.startswith(configure.SEP)]
+print("separator", [app.tree.item(i, "text") for i in seps])
+app.tree.selection_set(seps[0])
+app.pick()
+print("picked", app.current)
+banner = texts(app.banner)
+print("banner", "Delete event" in banner, any("payday" in x for x in banner))
+app.select("Lonely Mod")
+app.set_when("Lonely Mod", ["summer"])
+app.set_anchor("Lonely Mod", "Map Pack")
+print("loop", app.cal.toggle["Lonely Mod"]["above"] != "Map Pack",
+      any("already wins over" in x for x in said))
+lines, losses = ce.preset_effect(app.cal, app.inst, {"mods": {}, "about": ""}, ["mods"])
+print("effect", losses, "Map Pack" in app.cal.toggle)
+app.delete_event("payday", ask=False)
+app.preview()
+d = [w for w in root.winfo_children() if isinstance(w, tk.Toplevel)][-1]
+combo = [w for w in widgets(d) if w.winfo_class() == "TCombobox"][0]
+combo.set("Summer")
+combo.event_generate("<<ComboboxSelected>>")
+root.update()
+out = [w for w in widgets(d) if isinstance(w, tk.Text)][0].get("1.0", "end")
+print("preview", "Lonely Mod" in out, "needs fixing" not in out)
+d.destroy()
+app.search.set("zzz")
+app.show_mod("Map Pack")
+print("shown", app.current, app.tree.exists("Map Pack"))
+root.destroy()
+"""
+    mods = MODS[:5] + [("Textures_separator", True, [])] + MODS[5:]
+    with tempfile.TemporaryDirectory() as d:
+        install(d, mods=mods, config=(
+            'TOGGLE_MODS = {"Map Pack": {"when": ("summer",), "above": "Lonely Mod"}}\n'
+            'EVENTS = {"payday": {"days": (31,), "months": (2,)}}\n'))
+        before = config(d)
+        p = os.path.join(d, "drive.py")
+        io.open(p, "w", encoding="utf-8").write(driver)
+        r = subprocess.run([sys.executable, "-B", p, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True)
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "separator ['Textures']" in out, out
+        assert "picked None" in out, out
+        assert "banner True True" in out, out
+        assert "loop True True" in out, out
+        assert "effect ['2 of your seasonal mods'] True" in out, out
+        assert "preview True True" in out, out
+        assert "shown Map Pack True" in out, out
+        assert config(d) == before, "the window wrote the file without Save"
+    return "separators shown, a broken event deletable from the top, a loop refused, the " \
+           "preview unsaved"
+
+
+@case
+def t_a_broken_file_is_offered_in_a_dialog_you_can_see():
+    """Before the main window is up, the dialog about a file that can't be edited has to be
+    on screen: a dialog Windows hides with the withdrawn main window would wait forever."""
+    driver = r"""
+import sys
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+import config_edit as ce
+import configure
+root = tk.Tk()
+root.withdraw()
+seen = {}
+
+def widgets(w):
+    for c in w.winfo_children():
+        yield c
+        yield from widgets(c)
+
+def look():
+    d = [w for w in root.winfo_children() if isinstance(w, tk.Toplevel)][-1]
+    seen["viewable"] = d.winfo_viewable()
+    [b for b in widgets(d) if b.winfo_class() == "TButton"
+     and b.cget("text") == "Start a new one"][0].invoke()
+
+root.after(800, look)
+print("chose", configure.unreadable(root, ce.Calendar()), "viewable", seen.get("viewable"))
+root.destroy()
+"""
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config='TOGGLE_MODS = {\n    "A": {"when": ("winter",) "above": "B"},\n}\n')
+        p = os.path.join(d, "drive.py")
+        io.open(p, "w", encoding="utf-8").write(driver)
+        r = subprocess.run([sys.executable, "-B", p, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True, timeout=60)
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "chose new viewable 1" in out, out
+    return "on screen with the main window still withdrawn, and its buttons answer"
 
 
 @case

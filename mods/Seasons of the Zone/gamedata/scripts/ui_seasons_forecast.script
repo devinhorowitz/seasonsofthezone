@@ -39,7 +39,7 @@ end
 -- Atmospherics' internal cycle names, as a stalker would say them.
 local CYCLE = {
     clear   = "Clear",
-    partly  = "Broken cloud",
+    partly  = "Partly cloudy",
     cloudy  = "Overcast",
     foggy   = "Fog",
     rain    = "Rain",
@@ -63,7 +63,7 @@ local function wx_tex(cycle)
     return WX_GLYPH[tostring(cycle or "")] or WX_GLYPH.cloudy
 end
 
--- Ribbon colours. Cold and dark for the weather that keeps you indoors, pale and warm
+-- Ribbon colors. Cold and dark for the weather that keeps you indoors, pale and warm
 -- for the weather that does not, so the strip reads as a mood before it reads as data.
 local CYCLE_RGB = {
     clear  = {226, 232, 220},
@@ -85,11 +85,27 @@ local GAUGE_BAND = {
 }
 
 -- Emission countdowns arrive as GAME seconds, which is what the player reckons in - a
--- surge is "about four hours off", never "24 real minutes".
+-- surge is "about four hours off", never "24 real minutes". Said as when, not how long:
+-- "Emission: 2 hours" read as the length of one.
+-- The line under the temperature: where it comes from. Open-Meteo's data is CC BY 4.0,
+-- and credited wherever it is shown; the built-in Chornobyl normals are the mod's own.
+local function source_line(temp)
+    if temp and temp.source == "observed" then
+        return string.format("Live from %s - weather data by Open-Meteo.com",
+                             temp.place or "Chornobyl")
+    elseif temp and temp.place then
+        return string.format("No station data - modeled on %s's climate (Open-Meteo.com)",
+                             temp.place)
+    elseif temp then
+        return "No station data - temperature modeled"
+    end
+    return ""
+end
+
 local function countdown(sec)
-    if sec >= 7200 then return string.format("%d hours",  math.floor(sec / 3600 + 0.5)) end
-    if sec >= 3600 then return "an hour" end
-    if sec >=  120 then return string.format("%d minutes", math.floor(sec / 60)) end
+    if sec >= 7200 then return string.format("in %d hours", math.floor(sec / 3600 + 0.5)) end
+    if sec >= 3600 then return "in an hour" end
+    if sec >=  120 then return string.format("in %d minutes", math.floor(sec / 60)) end
     return "any moment"
 end
 
@@ -135,9 +151,9 @@ end
 -- is the question. Each group is named by the skies in it that can still come, so a group
 -- with one possible sky says just that one.
 local ODDS_GROUPS = {
-    {"Rain or storm",         {"rain", "storm"}},
-    {"Overcast or fog",       {"cloudy", "foggy"}},
-    {"Clear or broken cloud", {"clear", "partly"}},
+    {"Rain or storm",          {"rain", "storm"}},
+    {"Overcast or fog",        {"cloudy", "foggy"}},
+    {"Clear or partly cloudy", {"clear", "partly"}},
 }
 
 local function odds_rows(odds)
@@ -159,7 +175,7 @@ local function odds_rows(odds)
         end
         rows[i] = {label = (#names == 1) and names[1] or g[1], chance = sum}
     end
-    -- a sky outside the three groups is still a chance of something; count it as grey
+    -- a sky outside the three groups is still a chance of something; count it as gray
     for c, v in pairs(p) do
         if not grouped[c] then rows[2].chance = rows[2].chance + v end
     end
@@ -280,7 +296,7 @@ function SeasonsForecast:InitControls()
         pcall(function() self.eco_logo:InitTexture(tex) end)
         if tex ~= "sotz_eco_mark" then
             -- wide, so sized to the gap before the CLASSIFIED text rather than to the
-            -- shield's height, and centred on the shield's line
+            -- shield's height, and centered on the shield's line
             local p = self.eco_logo:GetWndPos()
             local text_x = self.eco_class and self.eco_class:GetWndPos().x or (p.x + h)
             local h2 = math.min(h, math.floor((text_x - p.x - 6) / (shape * aspect())))
@@ -378,7 +394,7 @@ end
 
 
 
--- Two fixed columns, no scrolling. Colour carries the emphasis a font change would
+-- Two fixed columns, no scrolling. Color carries the emphasis a font change would
 -- normally carry, because a widget cannot be restyled after it is built - and three
 -- parallel pools, one per style, would be three times the widgets for the same page.
 local HEAD_RGB = {238, 196, 112}
@@ -494,9 +510,9 @@ function SeasonsForecast:InitEcoFrame()
         if s then
             s:SetWndPos(vector2():set(e[1], e[2]))
             s:SetWndSize(vector2():set(e[3], e[4]))
-            -- the same grey as the page frame: this was the only border speaking a
+            -- the same gray as the page frame: this was the only border speaking a
             -- different language, and the CLASSIFIED heading inside already carries the
-            -- faction colour
+            -- faction color
             s:SetTextureColor(GetARGB(RULE_A, RULE[1], RULE[2], RULE[3]))
             s:Show(false)
             self.eco_frame[#self.eco_frame + 1] = s
@@ -612,7 +628,7 @@ function SeasonsForecast:Bar(x, y, w, h, r, g, b, alpha)
 end
 
 -- 24 hours across 462px: the weather Atmospherics has planned as a ribbon, and the
--- modelled temperature under it on the same axis, so a glance answers both "when does it
+-- modeled temperature under it on the same axis, so a glance answers both "when does it
 -- turn" and "how cold does it get" without reading a single row.
 -- The left gutter carries the temperature scale, so the plot starts after it. Without
 -- this the bars ran to the panel edge and there was nowhere to put a value.
@@ -736,7 +752,7 @@ function SeasonsForecast:DrawChart(d, temp, shown)
             local ahead = (i - 1) * 6
             local clock = (math.floor(now_h) + ahead) % 24
             w:SetText(string.format("%02d:00", clock))
-            -- centred on its rule, then clamped inside the plot: the 24-hour label used
+            -- centered on its rule, then clamped inside the plot: the 24-hour label used
             -- to hang half its width past the chart and into the SKY/AIR column
             local lx = CHART_X + px(ahead * 60) - 27
             local lo_x = CHART_X + AXIS_W - 6
@@ -759,7 +775,7 @@ function SeasonsForecast:Fill()
     local d = page()
     if not d then
         put(self.header, "Forecast")
-        put(self.subheader, "Nothing is reading right now.")
+        put(self.subheader, "No readings right now.")
         put(self.now, "")
         return
     end
@@ -806,7 +822,7 @@ function SeasonsForecast:Fill()
     end
     put(self.units_label, DEG .. ((temp and temp.unit) or "C"))
     put(self.now, head)
-    -- The face is labelled STORMY / RAIN / CHANGE / FAIR / DRY and the needle points at
+    -- The face is labeled STORMY / RAIN / CHANGE / FAIR / DRY and the needle points at
     -- the word, so a caption underneath repeating it was a third way of saying storm -
     -- after the glyph and the needle.
     put(self.gauge_caption, (w and w.now) and "" or "no reading")
@@ -853,13 +869,7 @@ function SeasonsForecast:Fill()
     -- also tried to say that the weather half came from the game; that is not a claim
     -- the page needs to argue, and mentioning the sky here only made a reader wonder
     -- which of the two numbers in front of them was being sourced.
-    if temp and temp.source == "observed" then
-        put(self.src, string.format("Live from %s", temp.place or "Chornobyl"))
-    elseif temp then
-        put(self.src, "No station data - temperature modelled")
-    else
-        put(self.src, "")
-    end
+    put(self.src, source_line(temp))
 
     -- the crystal marks a day that dips below zero at some point, which is not the same
     -- as it being below zero now - that is what temp.freezing says
@@ -907,7 +917,7 @@ function SeasonsForecast:Fill()
     -- Under the weather it continues, not beside the ecologists - it is a forecast, and
     -- sitting in their column made it look like something they had told you.
     --
-    -- Observed only. There is no modelled tomorrow, because a modelled tomorrow is just
+    -- Observed only. There is no modeled tomorrow, because a modeled tomorrow is just
     -- today's curve wearing a different date.
     local tm = nil
     local okm, tv2 = pcall(function() return sotz_api.tomorrow() end)
@@ -952,12 +962,12 @@ function SeasonsForecast:Fill()
                                          or  d.surge_band
             local p = fc.tier == "exact" and (d.psi   and countdown(d.psi))
                                          or  d.psi_band
-            -- padded to the same column the rest of the page uses for a value
-            put(self.eco_l1, string.format("Emission    %s", e or "no reading"))
-            put(self.eco_l2, string.format("Psi storm    %s", p or "no reading"))
-            -- At LIMITED the relays carry a direction and no timing, and the panel says
+            -- a colon, not padding: letterica is proportional, so spaces line nothing up
+            put(self.eco_l1, string.format("Emission: %s", e or "no reading"))
+            put(self.eco_l2, string.format("Psi storm: %s", p or "no reading"))
+            -- At LIMITED the relays give a window and never the hour, and the panel says
             -- as much rather than leaving the vagueness looking like a fault.
-            put(self.eco_l3, fc.tier == "coarse" and "Relay warnings only, no timings"
+            put(self.eco_l3, fc.tier == "coarse" and "Rough warnings, never the hour"
                 or "")
         end
     else
@@ -990,11 +1000,11 @@ function SeasonsForecast:Fill()
         tostring(d.psi or d.psi_band or "nil") .. "/" .. tostring(d.mgr_psi),
         tostring(temp and temp.now or "?"),
         tostring(temp and temp.unit or "?"),
-        (temp and temp.source == "observed") and " live" or " modelled"))
+        (temp and temp.source == "observed") and " live" or " modeled"))
 end
 
--- The one moving thing. A live reading breathes; a modelled one sits dark. Update runs
--- every frame, so this does the least it can: one colour write on a 7px block.
+-- The one moving thing. A live reading breathes; a modeled one sits dark. Update runs
+-- every frame, so this does the least it can: one color write on a 7px block.
 -- A real barometer never sits perfectly still. Every few seconds the needle gets a
 -- short shiver - a pixel or two, damped out over a fraction of a second - which is the
 -- cheapest honest way to say the reading is being taken rather than remembered. The face

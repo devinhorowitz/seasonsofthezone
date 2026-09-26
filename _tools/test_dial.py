@@ -81,6 +81,28 @@ def t_a_name_too_long_for_its_place_is_shortened():
     return "shortened with an ellipsis where it must be, and not otherwise"
 
 
+@case
+def t_the_hand_shown_is_always_in_the_day_s_season():
+    rnd = random.Random(9)
+    tried = 0
+    while tried < 20:
+        cal = {s: divmod(rnd.randrange(1, 13) * 100 + rnd.randrange(1, 29), 100)
+               for s in rnd.sample(season.SEASONS, rnd.randrange(1, 7))}
+        if season.calendar_problems(cal):
+            continue
+        bounds = sorted((m, d, s) for s, (m, d) in cal.items())
+        day = datetime.date(2026, 1, 1)
+        while day.year == 2026:
+            _, at = b.shown(day, bounds)
+            assert b.season_on(at, bounds) == b.season_on(day, bounds), (cal, day, at)
+            # and never the far side of the year: round the year end, Dec 31 is next to Jan 3
+            gap = abs((at - day).days)
+            assert min(gap, 365 - gap) <= 183, (cal, day, at)
+            day += datetime.timedelta(days=1)
+        tried += 1
+    return "20 calendars, every day: the hand shown is in the day's own season"
+
+
 if __name__ == "__main__":
     print("  the year dial")
     bad = 0

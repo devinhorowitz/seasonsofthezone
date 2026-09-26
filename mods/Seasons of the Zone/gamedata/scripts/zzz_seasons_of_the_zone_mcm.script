@@ -1,8 +1,8 @@
 -- Seasons of the Zone - MCM pages
 --
 -- Pages under one entry: Main (the calendar and the global settings) and one per
--- season the calendar has on. A season page holds that season's color-grade preset, a
--- read-out of its resolved values, and the ticks for the texture mods active in it.
+-- season the calendar has on. A season page holds that season's color grade preset, a
+-- read-out of its resolved values, and a checkbox for each seasonal mod active in it.
 -- Options are stored as seasons_zone/<page>/<id>.
 --
 -- String keys (from ui_mcm.script, not its tutorial):
@@ -56,7 +56,8 @@ local WEATHER_TEXT = {
     stock = "Weather: the base game's scheduler, which GAMMA uses. The forecast shows the "
          .. "sky now, when it turns, and the odds for the next sky, which the scheduler draws "
          .. "at random when the time comes. Atmospherics 2.69 plans the whole day ahead.",
-    none  = "No weather manager was found, so the forecast cannot read the sky.",
+    none  = "No weather manager was found, so the Forecast page can't show the sky. The "
+         .. "rest of the mod works.",
 }
 
 local function dependency_rows(out)
@@ -72,8 +73,8 @@ local function dependency_rows(out)
         row("status_mac", "PDA: the Seasons app opens from the Mod App Creator launcher.",
             false)
     else
-        row("status_mac", "Mod App Creator not found. The Seasons app opens from its "
-            .. "launcher, so it cannot be opened without it.", true)
+        row("status_mac", "Mod App Creator not found. The Seasons PDA app opens from its "
+            .. "launcher, so install Mod App Creator to use it.", true)
     end
 
     -- weather_source() never builds a manager from the main menu, which is where MCM is
@@ -164,7 +165,7 @@ local function page_main()
     add({id = "do_wet",   type = "check", val = 1, def = true})
 
     add({id = "line2", type = "line"})
-    -- launch-time master switches; the per-season mod ticks are on the season pages
+    -- what play.bat switches at launch; each seasonal mod's checkbox is on a season page
     add({id = "stage_textures", type = "check", val = 1, def = true})
     add({id = "stage_sound", type = "check", val = 1, def = true})
 
@@ -173,7 +174,8 @@ local function page_main()
     -- whatever season is running; none of these touch the season layers.
     add({id = "rem_weather", type = "check", val = 1, def = true})
     add({id = "rem_messages", type = "check", val = 1, def = true})
-    -- the four mainline release dates; a line on the PDA and nothing else
+    -- the four mainline release dates: PDA messages, a storm and a crop of artefacts,
+    -- each with its own switch
     add({id = "rem_anniversary", type = "check", val = 1, def = true})
     add({id = "rem_ann_weather", type = "check", val = 1, def = true})
     add({id = "rem_ann_artefacts", type = "check", val = 1, def = true})
@@ -206,8 +208,12 @@ local function page_main()
     return gr
 end
 
--- A season page: a colored bar, the preset dropdown, the resolved read-out, and the
--- texture mods active in this season (each with its own tick for this season).
+-- A season page: a colored bar, the color grade preset dropdown, the resolved read-out,
+-- and the seasonal mods active in this season, each with its own checkbox for this season.
+--
+-- The list comes from season_mods.ltx, which play.bat writes. It ships as a stub with
+-- staged_for = none and no mods, so until the first play.bat start an empty list says
+-- nothing about the config, and the page asks for that start instead.
 local function page_season(s, choices, info)
     local gr = {}
     local function add(t) gr[#gr + 1] = opt(t) end
@@ -233,9 +239,16 @@ local function page_season(s, choices, info)
         end
     end
     if #mine == 0 then
-        desc(gr, "desc_nomods", "No texture mods are set for this season.", false)
+        -- no file at all is as unknown as the stub
+        if not info or info.staged_for == "none" then
+            desc(gr, "desc_nomods", "Start the game once with play.bat to list the seasonal "
+                 .. "mods here.", false)
+        else
+            desc(gr, "desc_nomods", "No seasonal mods are set for this season.", false)
+        end
     else
-        desc(gr, "desc_mods", "Texture mods for this season - untick to leave one out here:", false)
+        desc(gr, "desc_mods", "Seasonal mods for this season - uncheck one to leave it out:",
+             false)
         for _, m in ipairs(mine) do
             add({id = "mod_" .. m.key, type = "check", val = 1, def = true,
                  hint = "seasons_zone_mod_" .. m.key})

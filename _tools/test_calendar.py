@@ -137,11 +137,12 @@ def read_ltx(path):
 TABLE = read_ltx(CFG_PATH)
 
 
-def build(year=2026, month=9, day=22, calendar=None, mcm=None, staged=None, drawn=True):
+def build(year=2026, month=9, day=22, calendar=None, mcm=None, staged=None, drawn=True,
+          mods=None):
     """`calendar` is season_calendar.ltx: its [calendar] section as {key: value string},
     or the whole file as text. `mcm` is the saved MCM values, {path: value}; `staged` the
     [staged] section of season_staged.ltx; `drawn` whether the dials drawn for a calendar
-    of the player's own are on disk."""
+    of the player's own are on disk; `mods` season_mods.ltx, {section: {key: value}}."""
     lua = LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
     lua.execute(PRELUDE)
@@ -184,6 +185,8 @@ def build(year=2026, month=9, day=22, calendar=None, mcm=None, staged=None, draw
         secs = {"staged": staged} if (name == "season_staged.ltx" and staged) else {}
         if name == "seasons_of_the_zone.ltx":
             secs = TABLE
+        if name == "season_mods.ltx" and mods:
+            secs = mods
 
         def r_float_ex(self, s, k):
             try:
@@ -1026,6 +1029,121 @@ def t_a_name_too_long_for_the_dial_is_not_used():
     assert g.zzz_seasons_of_the_zone.calendar_page()["label"] == "deep winter"
     assert any("longer than 20 letters" in l for l in LOG), LOG
     return "the usual name, and a line in the log"
+
+
+@case
+def t_the_date_reads_month_day_year():
+    """Every place the game prints today's date: MCM's row, both PDA pages and the
+    greeting. Month first, as the rest of the page's dates are; the 1.9.0 form was
+    "25 September 2026"."""
+    lua, g = build(2026, 9, 25, mcm={"seasons_zone/main/blend_days": 0})
+    z = g.zzz_seasons_of_the_zone
+    want = "September 25, 2026"
+    assert z.calendar_page()["today"] == want, z.calendar_page()["today"]
+    assert z.forecast_page()["today"] == want, z.forecast_page()["today"]
+    rows = z.calendar_rows()
+    assert rows[1]["text"] == "Today is %s." % want, rows[1]["text"]
+    sent = []
+    g.news_manager = lua.table_from({"send_tip": lambda actor, msg, *a: sent.append(msg)})
+    (announce,) = probe(lua, g, "pda_announce")
+    announce()
+    assert sent and sent[0] == "Autumn in the Zone. %s. Winter begins in 37 days." % want, \
+        sent
+    # a one-digit day has no leading zero
+    _, g = build(2027, 3, 5)
+    got = g.zzz_seasons_of_the_zone.calendar_page()["today"]
+    assert got == "March 5, 2027", got
+    return "%s on the pages, in MCM and in the greeting" % want
+
+
+def season_page(season, mods=None):
+    """One MCM season page as the shipped MCM script builds it from season_mods.ltx:
+    the text of its note about the mods, and the checkboxes under it."""
+    lua, g = build(2026, 7, 1, mods=mods)
+    src = io.open(os.path.join(SCRIPTS, "zzz_seasons_of_the_zone_mcm.script"),
+                  encoding="utf-8").read()
+    op = g.load_in(src, "zzz_seasons_of_the_zone_mcm", g).on_mcm_load()
+    pages = {op.gr[i].id: op.gr[i] for i in range(1, len(op.gr) + 1)}
+    items = [pages[season].gr[i] for i in range(1, len(pages[season].gr) + 1)]
+    notes = [o.text for o in items if o.id in ("desc_nomods", "desc_mods")]
+    assert len(notes) == 1, notes
+    return notes[0], [o.id for o in items if o.type == "check"]
+
+
+STUB_MODS = {"mods": {"staged_for": "none", "list": ""}}
+
+
+@case
+def t_the_season_pages_ask_for_play_bat_before_the_first_start():
+    """season_mods.ltx ships as a stub: staged_for = none and no mods, whatever the config
+    says. Before the first play.bat start a page cannot know the season has none, and
+    saying so sent players looking for a fault in a config that was fine."""
+    first = "Start the game once with play.bat to list the seasonal mods here."
+    none = "No seasonal mods are set for this season."
+    note, checks = season_page("autumn", STUB_MODS)
+    assert note == first and not checks, (note, checks)
+    # no file at all is no better known than the stub
+    note, _ = season_page("autumn", None)
+    assert note == first, note
+    # after a start, an empty season is empty
+    listed = {"mods": {"staged_for": "autumn", "list": "winter_pack"},
+              "winter_pack": {"name": "Winter Pack", "seasons": "winter,winter_snow"}}
+    note, checks = season_page("autumn", listed)
+    assert note == none and not checks, (note, checks)
+    # and the control: a season with a mod lists it, with its own checkbox
+    note, checks = season_page("winter", listed)
+    assert note == "Seasonal mods for this season - uncheck one to leave it out:", note
+    assert checks == ["mod_winter_pack"], checks
+    return "asks for a start until play.bat has run, then lists or says none"
+
+
+@case
+def t_the_read_out_names_its_grade_as_the_dropdown_does():
+    """A season page's read-out says where its grade came from. It used to give the file's
+    stem, "seasons_deepwinter", beside a dropdown that calls the same preset "Seasons: Deep
+    winter", and "season table" for the built-in grade the dropdown calls Built-in."""
+    lua, g = build(2026, 7, 1)
+    folder = os.path.join(os.path.dirname(SCRIPTS), "configs", "seasons_presets")
+    shipped = {("$game_config$", "seasons_presets\\%s.ltx" % n): os.path.join(folder, n + ".ltx")
+               for n in ("Seasons_DeepWinter",)}
+    assert all(os.path.isfile(p) for p in shipped.values()), shipped
+    g.getFS = lambda: lua.table_from({
+        "exist": lambda self, alias, name: (alias, name) in shipped,
+        "update_path": lambda self, alias, name: shipped.get(
+            (alias, name), os.path.join(TMP, "missing", name))})
+    saved = {"seasons_zone/winter_snow/preset": "seasons_deepwinter"}
+    g.axr_main = lua.table_from({"config": lua.table_from({
+        "r_value": lambda self, sec, path, vtype, default: saved.get(path, default)})})
+    z = g.zzz_seasons_of_the_zone
+    picked = z.season_readout("winter_snow")[1]
+    assert picked.endswith("(from Seasons: Deep winter)"), picked
+    builtin = z.season_readout("autumn")[1]
+    assert builtin.endswith("(from built-in values)"), builtin
+    return "Seasons: Deep winter for the preset, built-in values without one"
+
+
+@case
+def t_the_window_previews_the_dial_the_game_shows():
+    """configure.bat draws the dial as the game will show it: the same one of the 32 drawn
+    positions that dial_texture() picks, for Polesia's calendar and a player's own."""
+    import datetime
+    import build_season_dial as b
+    checked = 0
+    for calendar, prefix in ((None, "ui_seasons_dial_"), (OWN, "ui_seasons_dial_c")):
+        bounds = (sorted((m, d, s) for s, m, d in __import__("season").PHENO)
+                  if calendar is None else
+                  sorted((int(v.split(",")[0]), int(v.split(",")[1]), k)
+                         for k, v in calendar.items() if k not in ("custom", "dial")))
+        day = datetime.date(2026, 1, 3)
+        while day.year == 2026:
+            _, g = build(2026, day.month, day.day, calendar=calendar)
+            game = g.zzz_seasons_of_the_zone.dial_texture()
+            i, _ = b.shown(day, bounds)
+            assert game == "%s%02d.dds" % (prefix, i), "%s: game shows %s, the window %d" % (
+                day, game, i)
+            checked += 1
+            day += datetime.timedelta(days=9)
+    return "%d days, two calendars: the window and the game agree" % checked
 
 
 if __name__ == "__main__":
