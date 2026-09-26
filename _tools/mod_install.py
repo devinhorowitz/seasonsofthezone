@@ -360,9 +360,25 @@ def slashed(path):
 
 
 def safe(path):
-    """Does a "/"-separated path stay inside the folder it is under?"""
+    """Does a "/"-separated path stay inside the folder it is under? No ".." part, and no
+    ":" in any part: on Windows "D:" or "C:x" anywhere in a path leaves for that drive, and
+    "x:y" is a hidden stream of x."""
     parts = path.split("/")
-    return bool(path) and ".." not in parts and ":" not in parts[0]
+    return bool(path) and ".." not in parts and not any(":" in p for p in parts)
+
+
+def inside(root, dest):
+    """root joined with the "/"-separated dest, refused with ArchiveError if it would land
+    anywhere but under root: safe() is the rule, and this the check that it held."""
+    top = os.path.abspath(root)
+    p = os.path.abspath(os.path.join(top, *dest.split("/")))
+    try:
+        ok = os.path.commonpath([top, p]) == top and p != top
+    except ValueError:                  # on another drive
+        ok = False
+    if not ok:
+        raise ArchiveError(_("%s isn't a place inside a mod's folder.") % dest)
+    return p
 
 
 def parse_xml(data):
@@ -895,7 +911,7 @@ def install(pkg, name, chosen=None, extra=(), progress=None, mods=None):
         at = {m: i for i, (m, _) in enumerate(pkg.members)}
         targets = {}                # in the archive's order, which a solid archive needs
         for member, dest in sorted(plan, key=lambda x: at.get(x[0], 0)):
-            targets.setdefault(member, []).append(os.path.join(tmp, *dest.split("/")))
+            targets.setdefault(member, []).append(inside(tmp, dest))
         tick = _Ticker(progress, total)
         tick(0)
         try:
@@ -905,7 +921,7 @@ def install(pkg, name, chosen=None, extra=(), progress=None, mods=None):
             raise ArchiveError(_("%s Nothing was installed.") % e)
         tick.end()
         for member, dest in plan:
-            got = os.path.getsize(season.lp(os.path.join(tmp, *dest.split("/"))))
+            got = os.path.getsize(season.lp(inside(tmp, dest)))
             if got != pkg.sizes.get(member):
                 raise ArchiveError(ngettext(
                     "%(file)s came out of %(archive)s at %(got)d bytes, not %(want)d. Nothing "
@@ -915,7 +931,7 @@ def install(pkg, name, chosen=None, extra=(), progress=None, mods=None):
                     % {"file": dest, "archive": os.path.basename(pkg.archive), "got": got,
                        "want": pkg.sizes.get(member)})
         for src, dest in extra:
-            to = season.lp(os.path.join(tmp, *dest.split("/")))
+            to = season.lp(inside(tmp, dest))
             os.makedirs(os.path.dirname(to), exist_ok=True)
             shutil.copyfile(src, to)
         with open(os.path.join(tmp, "meta.ini"), "wb") as f:

@@ -230,6 +230,31 @@ def t_a_plain_archive_installs_from_the_folder_that_holds_gamedata():
 
 
 @case
+def t_an_archive_cant_place_a_file_outside_the_mod():
+    """Member names that would land a file elsewhere - on another drive, "D:" or "C:x" in
+    any part of the path, or in a hidden stream, "x:y" - are left out of the install, and
+    install's own check refuses any path that gets past that. Nothing here is unpacked, so
+    the case writes nothing outside its folder even when the guard is broken."""
+    bad = ["Mod/gamedata/D:/abs.dds", "Mod/gamedata/textures/C:sneaky.dds",
+           "Mod/gamedata/x.dds:stream", "Mod/gamedata/../../up.dds"]
+    with tempfile.TemporaryDirectory() as d:
+        files = {"Mod/gamedata/ok.dds": body("ok")}
+        files.update({m: body(m) for m in bad})
+        pkg = mi.Package(make(os.path.join(d, "Mod.zip"), files))
+        assert pkg.files() == [("Mod/gamedata/ok.dds", "gamedata/ok.dds")], pkg.files()
+        passed = [m for m in bad if mi.safe(m.split("/", 1)[1])]
+        assert not passed, "let through: %s" % passed
+        refused = 0
+        for dest in ("gamedata/D:/abs.dds", "gamedata/../../up.dds", ".."):
+            try:
+                mi.inside(os.path.join(d, "tmp"), dest)
+            except mi.ArchiveError:
+                refused += 1
+        assert refused == 3, refused
+    return "4 names that leave the mod folder left out; install's own check refuses 3 more"
+
+
+@case
 def t_the_fomod_default_installs_every_part():
     with tempfile.TemporaryDirectory() as d:
         pkg = mi.Package(rusty(os.path.join(d, "Rusty Leaves 2.1.7z")))
