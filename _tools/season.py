@@ -1510,8 +1510,13 @@ def own_problems(own, periods=(), events=(), names=None):
                 "the name is %(n)d character long; it can have %(most)d at most.",
                 "the name is %(n)d characters long; it can have %(most)d at most.", len(name))
                 % {"n": len(name), "most": OWN_NAME_CHARS})
-        elif any(ord(c) < 32 or ord(c) == 127 for c in name):
-            out.append(where + ": " + _("the name can't contain a line break or a tab."))
+        elif (any(ord(c) < 32 or ord(c) == 127 for c in name)
+              or any(c in name for c in ",;[]=")):
+            # season_mods.ltx lists a mod's seasons with commas, in an ini file
+            out.append(where + ": " + _("the name can't contain , ; [ ] = or a line break."))
+        elif not _cp1251(name):
+            out.append(where + ": " + _("the name has letters the game can't show. Use "
+                                        "English or Cyrillic letters."))
         elif name.casefold() in taken:
             out.append(where + ": " + _already(taken[name.casefold()]))
         elif name.casefold() in seen:
@@ -1575,8 +1580,9 @@ def spell_problems(spells, on=SEASONS, own=(), periods=(), events=(), names=None
                 "the name is %(n)d character long; it can have %(most)d at most.",
                 "the name is %(n)d characters long; it can have %(most)d at most.", len(name))
                 % {"n": len(name), "most": OWN_NAME_CHARS})
-        elif any(ord(c) < 32 for c in name) or any(c in name for c in ";[]="):
-            out.append(where + ": " + _("the name can't contain ; [ ] = or a line break."))
+        elif (any(ord(c) < 32 or ord(c) == 127 for c in name)
+              or any(c in name for c in ",;[]=")):
+            out.append(where + ": " + _("the name can't contain , ; [ ] = or a line break."))
         elif not _cp1251(name):
             out.append(where + ": " + _("the name has letters the game can't show. Use "
                                         "English or Cyrillic letters."))
@@ -1603,8 +1609,9 @@ def spell_problems(spells, on=SEASONS, own=(), periods=(), events=(), names=None
             out.append(where + ": " + _("\"in\" names the seasons it can start in, like "
                                         "(\"summer\",)."))
         else:
-            bad = [str(x) for x in start if x not in SEASONS and x not in own]
-            off = [x for x in start if x in SEASONS and x not in on]
+            bad = [str(x) for x in start
+                   if not isinstance(x, str) or (x not in SEASONS and x not in own)]
+            off = [x for x in start if isinstance(x, str) and x in SEASONS and x not in on]
             if bad:
                 out.append(where + ": " + ngettext(
                     "\"in\" names %(names)s, which is not a season. The seasons are "

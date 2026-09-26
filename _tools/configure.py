@@ -47,6 +47,7 @@ file is kept as seasons_config.py.bak.
 """
 import argparse
 import datetime
+import math
 import os
 import re
 import subprocess
@@ -92,6 +93,15 @@ def fail(*lines):
     for l in lines:
         print("  " + l)
     raise SystemExit(1)
+
+
+def decimal(text):
+    """A number as typed, with a decimal point or a decimal comma, "0,5" as 0.5; anything
+    but a finite number is a ValueError."""
+    v = float(text.strip().replace(",", "."))
+    if not math.isfinite(v):
+        raise ValueError(text)
+    return v
 
 
 def loaded():
@@ -431,6 +441,9 @@ def cmd_event(a):
             or ce.resolve(name, season.SEASONS, cal.names)):
         fail(_("\"%s\" is already taken by a season, a period or a kind of weather. Pick "
                "another name.") % name)
+    if any(n.casefold() == name for n in list(cal.own) + list(cal.spells)):
+        fail(_("\"%s\" is already the name of a season of your own or a spell. Pick another "
+               "name.") % name)
     rule = event_rule(a)
     if rule:
         if a.start:
@@ -502,6 +515,12 @@ def cmd_season(a):
     start, end = ce.parse_day(a.start), ce.parse_day(a.end)
     if not start or not end:
         fail(_("Dates are month-day, like 08-01."))
+    if (2, 29) in (start, end):
+        # its days can't be counted for the summary below; the refusal is play.bat's
+        fail(*([_("Not saved, because play.bat would refuse the result:")]
+               + season.own_problems({have or name: (start, end)})))
+    if any(n.casefold() == name.casefold() for n in cal.spells):
+        fail(_("You have a spell called \"%s\" already.") % name)
     if not have and len(cal.own) >= season.OWN_MOST:
         fail(ngettext("You have %d season of your own, as many as the year has room for. "
                       "Remove one first.",
@@ -590,7 +609,8 @@ def cmd_spell(a):
     if a.start:
         spec["in"] = tuple(pick_when(a.start, cal))
     if a.chance is not None:
-        spec["chance"] = int(a.chance) if a.chance == int(a.chance) else a.chance
+        spec["chance"] = (int(a.chance) if math.isfinite(a.chance) and a.chance == int(a.chance)
+                          else a.chance)
     if a.days:
         if len(a.days) > 2:
             fail(_("--days takes one number, or the fewest and the most, like --days 1 2."))
@@ -1618,6 +1638,10 @@ class App(object):
                     err = _("\"%s\" is a season's name. Pick another.") % n
                 elif n in season.WEATHER_NAMES:
                     err = _("\"%s\" is a kind of weather. Pick another name.") % n
+                elif any(o.casefold() == n
+                         for o in list(self.cal.own) + list(self.cal.spells)):
+                    err = _("\"%s\" is already the name of a season of your own or a spell. "
+                            "Pick another name.") % n
                 elif n in self.cal.known():
                     # translators: Edit... is the button beside each event
                     err = _("There is already an event called %s. Change it with its Edit "
@@ -2680,6 +2704,8 @@ def own_season_dialog(root, cal, editing=None, done=None):
             return n, w, [_("Give it a first and a last day.")]
         if any(o.casefold() == n.casefold() and o != editing for o in cal.own):
             return n, w, [_("You have a season called %s already.") % n]
+        if any(o.casefold() == n.casefold() for o in cal.spells):
+            return n, w, [_("You have a spell called %s already.") % n]
         trial = {o: x for o, x in cal.own.items() if o != editing}
         trial[n] = w
         return n, w, [plain(p) for p in season.own_problems(trial, cal.periods, cal.events,
@@ -2783,15 +2809,18 @@ def spell_dialog(root, cal, editing=None, done=None):
 
     def number(text, whole=False):
         try:
-            v = float(text.strip().rstrip("%"))
+            v = decimal(text.strip().rstrip("%"))
         except ValueError:
             return None
-        return int(v) if (whole or v == int(v)) and v == int(v) else (None if whole else v)
+        return int(v) if v == int(v) else (None if whole else v)
+
+    # seasons off in the calendar have no box, and stay where the spell had them
+    hidden = tuple(p for p in old["in"] if p not in places)
 
     def read():
         """(name, spec, problems) as the dialog stands."""
         n = name.get().strip()
-        spec = {"in": tuple(p for p in places if start_vars[p].get()),
+        spec = {"in": tuple(p for p in places if start_vars[p].get()) + hidden,
                 "chance": number(chance.get()),
                 "days": (number(lo.get(), True), number(hi.get(), True)),
                 "as": keys[choices.index(brings.get())]}
@@ -2813,6 +2842,9 @@ def spell_dialog(root, cal, editing=None, done=None):
         # an empty name box is a dialog not filled in yet: what it has so far is shown
         if problems and name.get():
             words.configure(text="\n".join(problems), foreground=RED)
+            return
+        if not spec["in"] or spec["chance"] is None or None in spec["days"]:
+            words.configure(text="")
             return
         text = spell_words(cal, ce.norm_spell(spec))
         words.configure(text=text[:1].upper() + text[1:] + ".", foreground=GREY)
@@ -3190,7 +3222,7 @@ def main():
     p.add_argument("name", nargs="?", help=_("its name, in quotes if it has spaces"))
     p.add_argument("--in", dest="start", nargs="+", metavar="SEASON",
                    help=_("the seasons it can start in, yours included"))
-    p.add_argument("--chance", type=float, metavar="PERCENT",
+    p.add_argument("--chance", type=decimal, metavar="PERCENT",
                    help=_("the percent chance it starts on each of those days, like 3"))
     p.add_argument("--days", type=int, nargs="+", metavar="N",
                    help=_("how long it runs: a number, or the fewest and the most, 1 to %d")
@@ -3224,7 +3256,7 @@ def main():
                    help=_("a place to look up on open-meteo.com, like Kyiv or \"New York\""))
     p.add_argument("--pick", type=int, metavar="N",
                    help=_("which of the places found, when there are several"))
-    p.add_argument("--at", nargs=2, type=float, metavar=("LAT", "LON"),
+    p.add_argument("--at", nargs=2, type=decimal, metavar=("LAT", "LON"),
                    help=_("the place's coordinates in degrees, north and east positive"))
     p.add_argument("--name", help=_("with --at, what to call the place"))
     p.add_argument("--reset", action="store_true", help=_("back to Chornobyl"))

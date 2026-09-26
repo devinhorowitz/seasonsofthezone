@@ -374,6 +374,70 @@ def t_a_spell_in_the_command_line_and_the_list():
 
 
 @case
+def t_what_cant_be_used_is_refused_in_words():
+    """February 29, a chance that isn't a finite number, a name taken by the other kind or
+    with a character the game's files can't hold, and an odd season in a spell's "in": each
+    refused in words, on the command line, in the window and by play.bat. A decimal comma is
+    a decimal point. A spell's season that is off in the calendar has no box in its dialog,
+    and stays in the spell when it is saved."""
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d)
+        for first, last in (("02-29", "03-10"), ("02-23", "02-29")):
+            rc, out = tc.run(d, "season", "Leap", first, last)
+            assert rc == 1 and "can't start or end on February 29" in out, out
+        for bad in ("inf", "nan", "1e999"):
+            rc, out = tc.run(d, "spell", "E", "--in", "summer", "--chance", bad)
+            assert rc == 2 and "invalid decimal value" in out, out
+        rc, out = tc.run(d, "spell", "E", "--in", "summer", "--chance", "1e308")
+        assert rc == 1 and "\"chance\" is the percent chance" in out, out
+        rc, out = tc.run(d, "spell", "Frost", "--in", "summer", "--chance", "0,5")
+        assert rc == 0 and "0.5% a day" in out, out
+        rc, out = tc.run(d, "season", "frost", "08-01", "08-31")
+        assert rc == 1 and "You have a spell called \"frost\" already." in out, out
+        rc, out = tc.run(d, "event", "frost", "12-24")
+        assert rc == 1 and "is already the name of a season of your own or a spell" in out, out
+        for name in ("Early, late", "Snow;y", "[x]", "a=b", "雪"):
+            rc, out = tc.run(d, "season", name, "08-01", "08-31")
+            assert rc == 1 and ("the name can't contain , ; [ ] = or a line break." in out
+                                or "letters the game can't show" in out), out
+            rc, out = tc.run(d, "spell", name, "--in", "summer", "--chance", "3")
+            assert rc == 1 and ("the name can't contain , ; [ ] = or a line break." in out
+                                or "letters the game can't show" in out), out
+        tc.accepted(d)
+    got = season.spell_problems({"X": {"in": (["summer"], 3), "chance": 3}})
+    assert got == ["SPELLS['X']: \"in\" names \"['summer']\" and \"3\", which are not seasons. "
+                   "The seasons are spring, summer, autumn, winter, winter_snow and "
+                   "late_winter."], got
+    config = ('CALENDAR = {"spring": (3, 1), "summer": (6, 1), "autumn": (9, 1), '
+              '"winter": (12, 1)}\n'
+              'SPELLS = {"Frost": {"in": ("summer", "winter_snow"), "chance": 3, '
+              '"days": (1, 2), "as": "winter"}}\n')
+    with tempfile.TemporaryDirectory() as d:
+        tg.sandbox(d, config=config)
+        rc, out = tg.drive(d, r"""
+win = cf.spell_dialog(root, g.cal, editing="Frost")
+settle()
+boxes = [w for w in widgets(win) if w.winfo_class() == "TSpinbox"]
+for typed in ("inf", "nan", "1e999", "2,5"):
+    boxes[0].set(typed)
+    settle()
+    print("TYPED", typed, [t for t in texts(win) if t.startswith(("The chance", "In "))])
+[w for w in widgets(win) if w.winfo_class() == "TButton"
+ and str(w.cget("text")) == "Save"][0].invoke()
+settle()
+print("SPELL", g.cal.spells["Frost"])
+""")
+    assert rc == 0 and "Traceback" not in out, out
+    for typed in ("inf", "nan", "1e999"):
+        assert "TYPED %s ['The chance and the days are numbers.']" % typed in out, out
+    assert "TYPED 2,5 ['In summer and deep winter, 2.5% a day, 1 to 2 days; brings winter; " \
+        "about 2 times a year.']" in out, out
+    assert "SPELL {'in': ('summer', 'winter_snow'), 'chance': 2.5" in out, out
+    return "Feb 29, inf, nan, 1e308, taken names and , ; [ ] = refused; 0,5 is 0.5; an off " \
+        "season kept"
+
+
+@case
 def t_a_preset_carries_seasons_of_ones_own_and_spells():
     """A preset saved where a mod is on in a season of one's own and during a spell loads
     on another install with both, and the mod on in them."""
