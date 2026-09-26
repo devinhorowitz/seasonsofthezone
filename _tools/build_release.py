@@ -20,6 +20,7 @@ are run. A failure refuses the package, and so does a season.py VERSION that is 
 newest entry in CHANGELOG.md.
 """
 import ast
+import datetime
 import io
 import os
 import re
@@ -510,6 +511,24 @@ def verify_fresh_install(zp, base, name):
     code2, text2 = run([season, "status"])
     ok &= report("an event that repeats", code == 0 and code2 == 0
                  and "needs fixing" not in text2, text + text2)
+    # a season of the player's own around today; a spell sure to be on today, in either of
+    # the two seasons, that brings deep winter: staged, and written for the game
+    today = datetime.date.today()
+    first, last = (today + datetime.timedelta(days=n) for n in (-3, 4))
+    code, text = run([configure, "season", "Fair week", "%02d-%02d" % (first.month, first.day),
+                      "%02d-%02d" % (last.month, last.day)])
+    code2, text2 = run([season, "status"])
+    ok &= report("a season of your own", code == 0 and code2 == 0
+                 and "also today      Fair week" in text2, text + text2)
+    code, text = run([configure, "spell", "Cold snap", "--in", "summer", "deep winter",
+                      "--chance", "100", "--days", "1", "--as", "deep winter"])
+    code2, text2 = run([season, "apply"])
+    body = io.open(calendar, encoding="cp1251").read()
+    ok &= report("a spell brings its season to the game", code == 0 and code2 == 0
+                 and "(a spell: Cold snap" in text2 and "[spell]" in body
+                 and "season = winter_snow" in body, text + text2 + body)
+    for args in (["spell", "Cold snap", "--remove"], ["season", "Fair week", "--remove"]):
+        run([configure] + args)
     code, text = run([configure, "preset", "save", "Mine"])
     ok &= report("a preset saved", code == 0 and os.path.isfile(
         os.path.join(root, "_tools", "presets", "Mine.json")), text)
