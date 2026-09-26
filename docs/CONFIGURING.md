@@ -20,26 +20,41 @@ base periods and overlapping events, and make mods seasonal on those instead. Th
 
 ## configure.bat
 
-Double-click it in your GAMMA folder. It has three tabs, and nothing is written until you
-press **Save** (or Ctrl+S); closing with unsaved changes asks first.
+The first time, open it from the mod's folder: in MO2, right-click the mod, choose **Open
+in Explorer**, and double-click `configure.bat` there. It puts `play.bat`,
+`configure.bat` and `_tools` in your GAMMA folder, next to `ModOrganizer.exe`, and carries
+on from there. After an update, do the same: it updates the tools there and keeps your
+setup and the MO2 entry `play.bat` starts.
 
-- **Mods** lists your mods as MO2's left pane does, separators and all. Pick one and check
-  the seasons, events or kinds of weather it belongs to. Its **Wins over** box names the
-  mod it has to win over - worked out from the files the two share - and says what else
-  would still win its files. **Stop switching this mod** takes it off; `play.bat` then
-  leaves it as it is in MO2.
-- **Seasons** moves the day each season starts, turns seasons off and names them, with the
-  year dial drawn as the game will draw it. See [`CALENDAR`](#calendar) and
-  [`NAMES`](#names).
-- **Weather** picks the place the real weather comes from. See
-  [`WEATHER_PLACE`](#weather_place).
+The setup goes in steps, and nothing is written until the Review step's **Save**:
 
-**Preview the next launch** shows what `play.bat` would switch, today or in any season,
-with your unsaved changes. Anything `play.bat` would refuse shows in red at the top of the
-window, with a button that takes you to it; Save is held back until it is fixed.
+1. **Start** from what you have set up now, a preset of your own, the GAMMA example, or
+   nothing. The GAMMA example is the seasonal mods these tools were made with, for the
+   ones you have installed.
+2. **Seasonal mods**: a checklist. **Change...** sets when one is on, and under **More
+   options** its events, its kinds of weather, and the mod it wins over. **Add another
+   mod...** makes any other mod seasonal. Texture sets and the ambient sound are here too.
+3. **Seasons**: Polesia's dates, another calendar that comes with the tool, or your own,
+   and names of your own, with the year dial as the game will draw it. See
+   [`CALENDAR`](#calendar) and [`NAMES`](#names).
+4. **Weather**: Chornobyl, or a place you look up. See [`WEATHER_PLACE`](#weather_place).
+5. **Review**: the setup in a few lines, and what `play.bat` will switch today. Anything
+   `play.bat` would refuse is listed with a **Fix** button that takes you to it.
+6. **How to play**: which MO2 entry `play.bat` starts, to change if MO2 names it
+   differently.
 
-**Load preset...** and **Save preset...** keep a setup under a name; see
-[Presets](#presets).
+Once there is a setup, `configure.bat` opens to a summary instead, with a **Change**
+button for each part - each saves on its own - **Run the setup again**, **Save as a
+preset...**, and **Preview the next launch**, which shows what `play.bat` would switch,
+today or in any season.
+
+**Advanced editor...**, on every page, opens the tabbed editor for everything the steps
+leave out: making and changing events, and which mod wins over which. It lists your mods
+as MO2's left pane does; pick one and check the seasons, events or kinds of weather it
+belongs to. Its **Wins over** box names the mod it has to win over - worked out from the
+files the two share - and says what else would still win its files. Anything `play.bat`
+would refuse shows in red at the top of the window, with a button that takes you to it.
+`py _tools\configure.py --advanced` opens it directly.
 
 ---
 
@@ -151,7 +166,7 @@ TOGGLE_MODS = {
 | `above` | The mod this one wins over. `play.bat` keeps it just above that mod in `modlist.txt` - just below it in MO2's left pane - so where both ship a file, this one's is used. `configure.bat` picks it for you. |
 
 The weather comes from the real forecast `play.bat` fetches at each launch, for the place
-set on the Weather tab: `freezing` is a day whose low is 0°C or below, `thaw` one that also
+set in `configure.bat`: `freezing` is a day whose low is 0°C or below, `thaw` one that also
 climbs above 0°C by afternoon, and `heat` one whose high reaches 28°C. Like an event, a
 weather day is added to whatever season is running. Without `play.bat`, or without a
 connection, none of them is on.
@@ -282,7 +297,7 @@ CALENDAR = {
 }
 ```
 
-The seasons that are on and the day each starts. `configure.bat`'s Seasons tab writes it,
+The seasons that are on and the day each starts. `configure.bat`'s Seasons step writes it,
 and `configure.py calendar` does from a command prompt. Each season runs until the next one
 that is on, so a season left out gives its days to the one before it; the example is
 summer from May 1 and deep winter from November 15, and nothing else. `None`, or no
@@ -332,12 +347,12 @@ WEATHER_PLACE = {"name": "Kyiv", "lat": 50.4547, "lon": 30.5238}
 
 Where the real weather comes from: the PDA's temperature, its Forecast page, and the
 `freezing`, `thaw` and `heat` days. `None`, or no `WEATHER_PLACE` at all, is Chornobyl.
-`configure.bat`'s Weather tab writes it - search for a town, or give its coordinates -
+`configure.bat`'s Weather step writes it - search for a town, or give its coordinates -
 and `configure.py place` does from a command prompt. The seasons don't move with it: a
 place in the southern hemisphere wants the Southern hemisphere preset, or a calendar of its
 own.
 
-![The Weather tab: Kyiv found by name, today's weather there, and the credits for the data](images/configure-weather.png)
+![The Weather step: Kyiv found by name, today's weather there, and the credits for the data](images/configure-weather.png)
 
 | Field | Meaning |
 |---|---|

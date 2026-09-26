@@ -22,7 +22,7 @@ Seasons (phenological, for Polesia):
   winter_snow  Dec 01 - Mar 04    94 d   snow on the ground
   late_winter  Mar 05 - Apr 14    41 d   the thaw: patchy snow, mud, bare trees
 --mapping met uses Ukraine's meteorological convention instead. CALENDAR in
-seasons_config.py (configure.bat's Seasons tab) moves the dates and turns seasons off; apply
+seasons_config.py (configure.bat's Seasons step) moves the dates and turns seasons off; apply
 passes it to the game in configs/season_calendar.ltx, with a dial drawn for it.
 
 What is installed is identified by hashing the mod folder against the archive's options,
@@ -52,6 +52,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODS = os.path.join(ROOT, "mods")
 DOWNLOADS = os.path.join(ROOT, "downloads")
 SOTZ = "Seasons of the Zone"
+VERSION = "1.9.0"           # of the tools; build_release.py checks it against CHANGELOG.md
 SEASONS = ("spring", "summer", "autumn", "winter", "winter_snow", "late_winter")
 
 
@@ -2167,8 +2168,9 @@ def _check_install():
     print("                profiles\\%s\\modlist.txt %s"
           % (profile_name(), "found" if os.path.isfile(modlist) else "MISSING"))
     print()
-    print("  Put _tools, play.bat and configure.bat in your GAMMA folder (the one with")
-    print("  ModOrganizer.exe) and run them from there. Nothing has been changed.")
+    print("  The tools run from your GAMMA folder, the one with ModOrganizer.exe. To put")
+    print("  them there, open configure.bat in the mod's folder: in MO2, right-click the")
+    print("  mod and choose Open in Explorer. Nothing has been changed.")
     raise SystemExit(2)
 
 

@@ -200,7 +200,7 @@ forecast** in MCM shows the plan as it will happen instead.
 
 The weather is the game's; the temperature is the real world's. The temperature takes the
 real day's high and low as its base - Chornobyl's, or a place picked on `configure.bat`'s
-Weather tab - and lets the in-game weather move it, so a storm reads colder than clear sky.
+Weather step - and lets the in-game weather move it, so a storm reads colder than clear sky.
 See [API.md](API.md#temperature) for details.
 
 The source line under it says which: *Live from Chornobyl - weather data by

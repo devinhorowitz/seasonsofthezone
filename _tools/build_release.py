@@ -15,7 +15,9 @@ weather.
 The zip installs through MO2 like any other mod: gamedata/ sits at the top of its one
 folder, and the tools and docs come along in the mod folder. Before the zip is kept, it
 is walked the way MO2's installer walks it, installed into a simulated fresh GAMMA under
-MO2's default name, and the packaged tools are run there. A failure refuses the package.
+MO2's default name, and the packaged installer puts the tools in place there, where they
+are run. A failure refuses the package, and so does a season.py VERSION that is not the
+newest entry in CHANGELOG.md.
 """
 import ast
 import io
@@ -54,10 +56,28 @@ TOOL_FILES = [
     "configure.py",
     "config_edit.py",
     "fetch_weather.py",
+    "guide.py",
+    "installer.py",
     "build_season_dial.py",
     "build_season_headers.py",
     "build_seasons_ltx.py",
 ]
+
+
+def check_version(season_py, changelog):
+    """season.py's VERSION names the release, and the installer tells an update from a
+    downgrade by it: it has to be the newest entry in CHANGELOG.md."""
+    m = re.search(r"""(?m)^VERSION\s*=\s*["']([^"']*)["']""",
+                  io.open(season_py, encoding="utf-8").read())
+    heads = (re.findall(r"(?m)^## (\d+\.\d+\.\d+)\b",
+                        io.open(changelog, encoding="utf-8").read())
+             if os.path.isfile(changelog) else [])
+    version = m.group(1) if m else None
+    if not heads or version != heads[0]:
+        raise SystemExit("  refusing to package: season.py's VERSION is %s and CHANGELOG.md's "
+                         "newest entry is %s" % (version or "missing",
+                                                 heads[0] if heads else "missing"))
+    print("  version                %s, CHANGELOG.md's newest" % version)
 
 
 def refuse_test_rigs():
@@ -203,7 +223,8 @@ def check_contents(names, base):
     """What the zip must carry, and what it must never carry."""
     must = [MARKER, "play.bat", "configure.bat", "_tools/season.py",
             "_tools/fetch_weather.py", "_tools/configure.py", "_tools/config_edit.py",
-            "_tools/presets/Polesia.json", "_tools/presets/GAMMA example.json"]
+            "_tools/installer.py", "_tools/presets/Polesia.json",
+            "_tools/presets/GAMMA example.json"]
     never = ["meta.ini",                            # MO2 writes its own
              "_tools/seasons_config.py",            # would overwrite the user's on update
              "gamedata/configs/season_weather.ltx"  # one machine's fetched day
@@ -262,13 +283,69 @@ FETCH_PROBE = (
     "import fetch_weather as f\n"
     "f.write([{'date': '2026-01-15', 'high': -3.0, 'low': -9.5, 'cycle': 'clear'}])\n")
 
+# The sandbox's MO2 executable entries; play.bat starts the first until told otherwise
+ENTRIES = ("Anomaly (DX11-AVX)", "Anomaly (DX11)")
+SHORTCUT = re.compile(r'(?m)^(set "SHORTCUT=)([^"]*)')
+
+
+def report(what, good, text=""):
+    print("  fresh install: %-36s %s" % (what, "OK" if good else "** FAILED **"))
+    if not good and text:
+        print(text[-1200:])
+    return good
+
+
+def verify_installer(root, mod):
+    """The packaged installer, run as configure.bat runs it from the mod's folder: the
+    tools arrive in the GAMMA folder byte for byte, a second run finds nothing to do, and
+    an update puts a changed tool back and keeps the entry play.bat starts. `root` is the
+    GAMMA folder, `mod` the mod's folder in it."""
+    def install():
+        r = subprocess.run([sys.executable, os.path.join(mod, "_tools", "configure.py"),
+                            "install", "--yes"], capture_output=True, text=True, cwd=mod)
+        return r.returncode, r.stdout + r.stderr
+
+    def arrived(rel):
+        there = os.path.join(root, rel)
+        return (os.path.isfile(there)
+                and open(os.path.join(mod, rel), "rb").read() == open(there, "rb").read())
+
+    tools = os.path.join(mod, "_tools")
+    shipped = (["play.bat", "configure.bat"]
+               + [os.path.join("_tools", f) for f in os.listdir(tools) if f.endswith(".py")]
+               + [os.path.join("_tools", "presets", f)
+                  for f in os.listdir(os.path.join(tools, "presets"))])
+    code, text = install()
+    if not report("the installer puts %d files there" % len(shipped),
+                  code == 0 and "Traceback" not in text and all(arrived(f) for f in shipped),
+                  text):
+        return False
+    code, text = install()
+    ok = report("a second run finds them up to date",
+                code == 0 and "Traceback" not in text and "up to date" in text, text)
+    # a tool changed there, and play.bat set to start another of MO2's entries
+    tool = os.path.join("_tools", "season.py")
+    io.open(os.path.join(root, tool), "a", encoding="utf-8").write("# changed" + chr(10))
+    bat = io.open(os.path.join(mod, "play.bat"), encoding="latin-1", newline="").read()
+    was = SHORTCUT.search(bat)
+    mine = [e for e in ENTRIES if not was or e != was.group(2)][0]
+    want = SHORTCUT.sub(lambda m: m.group(1) + mine, bat, count=1)
+    io.open(os.path.join(root, "play.bat"), "w", encoding="latin-1", newline="").write(want)
+    code, text = install()
+    got = io.open(os.path.join(root, "play.bat"), encoding="latin-1", newline="").read()
+    ok &= report("an update puts a changed tool back",
+                 code == 0 and "Traceback" not in text and arrived(tool), text)
+    ok &= report("and keeps the entry play.bat starts",
+                 code == 0 and was is not None and got == want, text)
+    return ok
+
 
 def verify_fresh_install(zp, base, name):
     """Install the zip as MO2 does and run the packaged tools against it.
 
     The mod goes in under MO2's default name, the archive's, so nothing may depend on the
-    folder being called "Seasons of the Zone". Then _tools/ and play.bat are copied to the
-    GAMMA folder, as the README says."""
+    folder being called "Seasons of the Zone". Then the packaged installer puts _tools,
+    play.bat and configure.bat in the GAMMA folder, as configure.bat does for players."""
     import tempfile
     sb = os.path.join(tempfile.gettempdir(), "sotz_fresh_install")
     shutil.rmtree(sb, ignore_errors=True)
@@ -282,7 +359,10 @@ def verify_fresh_install(zp, base, name):
     io.open(os.path.join(root, "ModOrganizer.ini"), "w", encoding="utf-8").write(
         "[General]" + chr(10)
         + "gamePath=@ByteArray(" + game.replace(chr(92), chr(92) * 2) + ")" + chr(10)
-        + "selected_profile=@ByteArray(Default)" + chr(10))
+        + "selected_profile=@ByteArray(Default)" + chr(10)
+        + "[customExecutables]" + chr(10) + "size=%d" % len(ENTRIES) + chr(10)
+        + "".join("%d%stitle=%s%s" % (i, chr(92), t, chr(10))
+                  for i, t in enumerate(ENTRIES, 1)))
     modlist = os.path.join(root, "profiles", "Default", "modlist.txt")
     header = "# This file was automatically generated by Mod Organizer." + CRLF
     io.open(modlist, "w", encoding="utf-8", newline="").write(
@@ -295,9 +375,9 @@ def verify_fresh_install(zp, base, name):
                 os.makedirs(os.path.dirname(t), exist_ok=True)
                 with z.open(n) as src, open(t, "wb") as dst:
                     shutil.copyfileobj(src, dst)
-    copytree(os.path.join(mod, "_tools"), os.path.join(root, "_tools"))
-    shutil.copy2(os.path.join(mod, "play.bat"), os.path.join(root, "play.bat"))
-    shutil.copy2(os.path.join(mod, "configure.bat"), os.path.join(root, "configure.bat"))
+    if not verify_installer(root, mod):
+        shutil.rmtree(sb, ignore_errors=True)
+        return False
 
     def run(args, offline=False):
         # offline: nothing a check starts goes out to open-meteo
@@ -305,12 +385,6 @@ def verify_fresh_install(zp, base, name):
                            cwd=os.path.join(root, "_tools") if args[0] == "-c" else root,
                            env=dict(os.environ, SEASONS_OFFLINE="1") if offline else None)
         return r.returncode, r.stdout + r.stderr
-
-    def report(what, good, text=""):
-        print("  fresh install: %-36s %s" % (what, "OK" if good else "** FAILED **"))
-        if not good and text:
-            print(text[-1200:])
-        return good
 
     season = os.path.join(root, "_tools", "season.py")
     ok = True
@@ -414,7 +488,7 @@ def verify_fresh_install(zp, base, name):
     code, text = run([configure, "preset", "save", "Mine"])
     ok &= report("a preset saved", code == 0 and os.path.isfile(
         os.path.join(root, "_tools", "presets", "Mine.json")), text)
-    # where the real weather comes from, as the Weather tab sets it
+    # where the real weather comes from, as the setup's Weather step sets it
     code, text = run([configure, "place", "--at", "50.45", "30.52", "--name", "Kyiv"],
                      offline=True)
     code2, text2 = run([season, "status"])
@@ -573,6 +647,7 @@ def check_savedgames_repair(moddir):
 def main():
     selftest_mo2_base()
     refuse_test_rigs()
+    check_version(os.path.join(TOOLS, "season.py"), os.path.join(OUT, "CHANGELOG.md"))
     verify_engine_only()
 
     shutil.rmtree(STAGE, ignore_errors=True)
@@ -592,8 +667,9 @@ def main():
     os.makedirs(td)
     for f in TOOL_FILES:
         shutil.copy2(os.path.join(TOOLS, f), os.path.join(td, f))
-    # No seasons_config.py: users copy _tools/ over their own at every update, and an
-    # empty one would wipe their tables. season.py runs without it.
+    # No seasons_config.py: the installer never copies one, but a _tools/ copied by hand
+    # over a player's own, as before the installer, would wipe their tables. season.py
+    # runs without it.
     live = os.path.join(TOOLS, "seasons_config.py")
     if os.path.isfile(live):
         write_example(live, os.path.join(td, "seasons_config.example.py"))

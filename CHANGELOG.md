@@ -2,24 +2,31 @@
 
 ## 1.9.0 — 2026-09-25
 
-- **`configure.bat` sets the mod up without editing Python.** A window lists your mods as
-  MO2 does, separators and all; check the seasons, events or kinds of weather each one
-  belongs to, and save. It works out the mod each one wins over from the files they share,
-  names any other seasonal mod that would still win its files, and makes and deletes
-  events. Anything `play.bat` would refuse shows at the top of the window, with a button
-  that takes you to it. **Preview the next launch** shows what `play.bat` would switch,
-  today or in any season, before you save. Copy it into your GAMMA folder along with
-  `_tools` and `play.bat`.
-- **Your own calendar.** The window's Seasons tab moves the day each season starts and
+- **`configure.bat` walks you through the setup.** Opened from the mod's folder - in MO2,
+  right-click the mod, Open in Explorer - it puts `play.bat`, `configure.bat` and `_tools`
+  in your GAMMA folder, and updates them there after a new zip, keeping your setup and the
+  MO2 entry `play.bat` starts. Then it goes a step at a time: where to start from (the GAMMA
+  example, for the seasonal mods you have installed, or a preset of your own), the seasonal
+  mods as a checklist, the seasons, the weather, a review of what `play.bat` will switch
+  today, and which MO2 entry `play.bat` starts. After that it opens to a summary, with a
+  Change button for each part. Nothing needs editing by hand, and copying files into the
+  GAMMA folder is no longer a step.
+- **The advanced editor, a button away,** for everything the steps leave out: a window
+  that lists your mods as MO2 does, separators and all, and makes events and sets which
+  mod wins over which, working out the one each has to win over from the files they
+  share. Anything `play.bat` would refuse shows at the top, with a button to the fix, and
+  **Preview the next launch** shows what `play.bat` would switch, today or in any season,
+  before you save.
+- **Your own calendar.** The setup's Seasons step moves the day each season starts and
   turns seasons off, for a year of only summer and deep winter, or one on the
   meteorological dates. Polesia's stays the default. A season turned off gives its days to
   the one before it; the game follows from its next start, MCM shows pages and pins for the
-  seasons that are on, and the year dial is redrawn for your dates. The tab draws the dial
+  seasons that are on, and the year dial is redrawn for your dates. The step draws the dial
   as you type. Redrawing needs Pillow, which the tool offers to install; without it the
   dial is hidden.
 - **Names of your own for the seasons.** Call deep winter "The Long Cold" and the PDA, the
   messages, MCM's pages and the dial all say so.
-- **Weather from a place of your own.** The Weather tab looks a town up by name, or takes
+- **Weather from a place of your own.** The Weather step looks a town up by name, or takes
   its coordinates, and the PDA's temperature, the Forecast page and the freezing, thaw and
   heat days follow the real weather there. Chornobyl stays the default. For a place of your
   own the tools also fetch its climate once, so the game can model a day there without a

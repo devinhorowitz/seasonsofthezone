@@ -16,7 +16,7 @@ import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOLS = ("season.py", "config_edit.py", "configure.py", "build_season_dial.py",
-         "fetch_weather.py")
+         "fetch_weather.py", "guide.py", "installer.py")
 MOD_CFG = os.path.join(os.path.dirname(HERE), "mods", "Seasons of the Zone", "gamedata",
                        "configs", "seasons_of_the_zone.ltx")
 CRLF = "\r\n"

@@ -8,6 +8,8 @@ Every case below has a negative control - a standing or a manager state that MUS
 produce the tier under test - so a function that returned a constant would be caught.
 """
 import io, sys
+import atexit
+import shutil
 import tempfile
 from lua_runtime import LuaRuntime, NAME as LUA_NAME
 
@@ -18,6 +20,7 @@ SRC = (os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
 
 HOUR = 3600
 SCRATCH = tempfile.mkdtemp(prefix="sotz_forecast_")
+atexit.register(shutil.rmtree, SCRATCH, True)
 
 
 def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True,

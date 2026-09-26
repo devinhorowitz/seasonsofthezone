@@ -48,7 +48,7 @@ late_winter  Mar 05 - Apr 14    41 d   the thaw: patchy snow, mud, bare trees
 ```
 
 These are the dates the landscape changes, not the equinoxes, and they are only the
-default. `configure.bat`'s Seasons tab moves the day any season starts, turns seasons off
+default. `configure.bat` moves the day any season starts, turns seasons off
 and renames them, for a year of only summer and deep winter, say, or one on Ukraine's
 meteorological dates. A season turned off gives its days to the one before it, and the
 game, MCM and the dial all follow.
@@ -186,28 +186,26 @@ follows from what its engine lacks.
 
 1. In MO2, use **Install a new mod from archive** on the release zip, then enable the mod.
    That's everything in game: the light and weather, the marked days, the PDA app and MCM.
-2. For real-world temperatures and seasonal mods, copy `_tools`, `play.bat` and
-   `configure.bat` from the mod's folder into your GAMMA folder, next to
-   `ModOrganizer.exe`. (In MO2, right-click the mod and choose **Open in Explorer**.)
-3. Open `play.bat` in Notepad and check that `SHORTCUT=` names the entry you launch in
-   MO2's executable dropdown (default `Anomaly (DX11-AVX)`). It is the entry's name, not
-   the .exe file, so a custom exe copied over the stock one in `bin\` needs no change.
-4. Close MO2, and start the game with `play.bat` from now on. It opens MO2 itself; it
-   can't switch mods while MO2 is already open.
-5. To make mods seasonal, open `configure.bat` ([below](#making-a-mod-seasonal)).
+2. For real-world temperatures and seasonal mods: in MO2, right-click the mod, choose
+   **Open in Explorer**, and double-click `configure.bat` there. It puts `play.bat`,
+   `configure.bat` and the `_tools` folder in your GAMMA folder, next to
+   `ModOrganizer.exe`, and then walks you through the setup, a step at a time
+   ([below](#making-a-mod-seasonal)). Its last step checks which MO2 entry `play.bat`
+   starts.
+3. Close MO2, and start the game with `play.bat` in your GAMMA folder from now on. It opens
+   MO2 itself; it can't switch mods while MO2 is already open.
 
-`play.bat` fetches the day's real weather - Chornobyl's, or a place you pick on
-`configure.bat`'s Weather tab - checks the date, switches the seasonal mods, and starts the
-game. Most days it changes nothing. Paths come from `ModOrganizer.ini`, so the
+`play.bat` fetches the day's real weather - Chornobyl's, or a place you pick in the
+setup - checks the date, switches the seasonal mods, and starts the game. Most days it changes nothing. Paths come from `ModOrganizer.ini`, so the
 drive, game folder and profile are read rather than assumed. To see what the next launch
 will do without starting anything, use **Preview the next launch** in `configure.bat`, or
 run `py _tools\season.py status` in the GAMMA folder.
 
-**Updating:** install the new zip over the old one and choose **Replace**, then copy
-`_tools`, `play.bat` and `configure.bat` again. Your `seasons_config.py` isn't in the zip, so
-copying `_tools` leaves it alone. Versions before 1.7.0 were installed by copying the
-`mods/Seasons of the Zone` folder: name the new install `Seasons of the Zone` so it
-replaces that copy.
+**Updating:** install the new zip over the old one and choose **Replace**, then open
+`configure.bat` from the mod's folder again, as in step 2. It updates the tools in your
+GAMMA folder and keeps your setup and the MO2 entry `play.bat` starts. Versions before
+1.7.0 were installed by copying the `mods/Seasons of the Zone` folder: name the new install
+`Seasons of the Zone` so it replaces that copy.
 
 **Removing it:** switch it off in MCM first (this restores the color grade to neutral),
 then disable the mod. Seasonal mods stay as `play.bat` last left them; enable or disable
@@ -253,13 +251,34 @@ Any installed mod can follow the calendar. You do not modify it; you say when it
 A seasonal mod is switched on by `play.bat` in the seasons, events and weather you pick,
 and off the rest of the year.
 
-**With `configure.bat`.** Double-click it in your GAMMA folder. It opens a window listing
-your mods as MO2 does. Pick one, check the seasons it belongs to, and save. The window
-works out the mod it has to win over - where two mods ship the same file, MO2 uses the
-one lower in its list - and checks the file before it writes it. **Preview the next
-launch** shows what `play.bat` would switch, saved or not.
+**With `configure.bat`.** The first time, it walks you through the setup in six steps:
 
-![The configure window: MO2's mods on the left, the chosen mod's seasons and the mod it wins over on the right](docs/images/configure.png)
+1. **Start** from the GAMMA example - the seasonal mods these tools were made with, for the
+   ones you have installed - from a preset of your own, or from nothing.
+2. **Seasonal mods**: a checklist. **Change...** sets when one is on; **Add another
+   mod...** makes any other mod seasonal.
+3. **Seasons**: Polesia's dates, another calendar, or your own, with the year dial as the
+   game will draw it, and names of your own if you like.
+4. **Weather**: Chornobyl, or a place you look up.
+5. **Review**: what `play.bat` will switch today. Nothing is written until you save here.
+6. **How to play**: which MO2 entry `play.bat` starts, and how to start the game.
+
+![The first step of the setup: start from the GAMMA example, or a clean start](docs/images/configure-start.png)
+
+![The seasonal mods step: a checklist, with the seasons each is on in](docs/images/configure-mods.png)
+
+After that, `configure.bat` opens to a summary of your setup, with a **Change** button for
+each part, **Run the setup again**, and **Preview the next launch**, which shows what
+`play.bat` would switch.
+
+![The summary: seasonal mods, seasons, weather and events, each with a Change button](docs/images/configure-summary.png)
+
+Everything the steps leave out - events, and which mod wins over which - is in the
+**Advanced editor**, a button away on every page. It works out the mod each seasonal mod
+has to win over - where two mods ship the same file, MO2 uses the one lower in its list -
+and checks the file before it writes it.
+
+![The advanced editor: MO2's mods on the left, the chosen mod's seasons and the mod it wins over on the right](docs/images/configure.png)
 
 The same from a command prompt in your GAMMA folder, which is handy when someone is
 helping you (use `python` in place of `py` if that is how your Python starts):
@@ -272,30 +291,29 @@ py _tools\configure.py list
 
 `py _tools\configure.py --help` lists every command.
 
-The window's **Seasons** tab sets the calendar itself: the day each season starts, which
-seasons are on, and what each is called, with the dial the game will draw for it.
+The **Seasons** step sets the calendar itself: the day each season starts, which seasons
+are on, and what each is called, with the dial the game will draw for it.
 `py _tools\configure.py calendar` shows it, and
 `py _tools\configure.py calendar summer=5-1 "deep winter=11-15" --only` makes a two-season
 year.
 
-![The Seasons tab: summer moved to May 1, late winter off so deep winter runs to April 14, and deep winter named The Long Cold](docs/images/configure-seasons.png)
+![The Seasons step: Polesia's calendar and the others, your own dates, and the year dial](docs/images/configure-seasons.png)
 
-The **Weather** tab picks where the real weather comes from: Chornobyl, or a town you look
+The **Weather** step picks where the real weather comes from: Chornobyl, or a town you look
 up by name. The PDA's temperature, its Forecast page and the freezing, thaw and heat days
 follow the weather there.
 
-![The Weather tab: Kyiv found by name, today's weather there, and the credits for the data](docs/images/configure-weather.png)
+![The Weather step: Kyiv found by name, today's weather there, and the credits for the data](docs/images/configure-weather.png)
 
 **Presets** keep a setup under a name - the calendar and season names, the events, the
-seasonal mods, texture sets and sound - to load again, or to share. Loading one shows
-what it would replace first, and nothing is written until you save. Load one made on
-another install and the mods you don't have are left out. Four calendars come with the
+seasonal mods, texture sets and sound - to load again, or to share. The setup's first
+step offers yours to start from, and the Review step saves nothing until you say. Load
+one made on another install and the mods you don't have are left out. Four calendars come with the
 tool, and a **GAMMA example**: the seasonal mods these tools were made with, set up for the
 GAMMA mods you have installed. Its texture sets need `py7zr` (see
 [Requirements](#requirements)), and it names mods by their folder names in GAMMA, so a mod
 you have renamed is left out.
 
-![Loading a preset: pick one, and the parts of it to load in place of yours](docs/images/configure-presets.png)
 
 **By hand.** Both write `_tools\seasons_config.py`, which you can also edit yourself:
 
@@ -317,7 +335,7 @@ and appears on the Winter, Deep winter and Late winter pages with its file count
 Nothing is copied — MO2 stops mounting the folder — so an 11 GB texture set costs nothing
 to switch.
 
-To stop switching a mod, use **Stop switching this mod** in `configure.bat`, or
+To stop switching a mod, uncheck it on the Seasonal mods step, or run
 `py _tools\configure.py remove "<mod>"`. `play.bat` then leaves it as it is in MO2. Every
 save keeps the previous file as `seasons_config.py.bak`, to go back to.
 

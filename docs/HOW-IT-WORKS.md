@@ -18,7 +18,7 @@ late_winter  Mar 05 - Apr 14    41 d   the thaw: patchy snow, mud, bare trees
 ```
 
 These are the dates the landscape changes, not the equinoxes. They are the default:
-`CALENDAR` in `seasons_config.py`, which `configure.bat`'s Seasons tab writes, moves them
+`CALENDAR` in `seasons_config.py`, which `configure.bat`'s Seasons step writes, moves them
 and turns seasons off. `season.py` hands it to the game as `configs/season_calendar.ltx`,
 which the script reads when it loads, and draws a dial for it with Pillow. A file that does
 not read leaves the Polesia dates running. `--mapping met` uses Ukraine's meteorological

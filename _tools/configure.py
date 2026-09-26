@@ -21,6 +21,10 @@ GAMMA folder (use python in place of py if that is how your Python starts):
   py _tools\configure.py place                   where the real weather comes from
   py _tools\configure.py place "Kyiv" [--pick 2]  look a place up, and take the weather there
   py _tools\configure.py place --at 50.45 30.52 [--name "Home"] | place --reset
+  py _tools\configure.py --advanced              the tabbed editor, not the guided setup
+  py mods\<the mod>\_tools\configure.py install  put the tools in the GAMMA folder, or
+                                                update them there (configure.bat does it
+                                                when opened from the mod's folder)
   py _tools\configure.py preset                  the presets there are
   py _tools\configure.py preset save "<name>" [--about "..."] [--parts calendar mods]
   py _tools\configure.py preset load "<name>" [--parts calendar events mods textures]
@@ -1877,10 +1881,7 @@ class App(object):
     # saving
 
     def refused(self):
-        """What season.py would refuse in the setup as it stands, in the window's words."""
-        if self.cal.error:
-            return []
-        return [plain(p) for p in self.cal.check(self.cal.render()[0])]
+        return refused_lines(self.cal)
 
     def update_status(self):
         n = len(self.cal.toggle)
@@ -1992,29 +1993,7 @@ class App(object):
         self.root.wait_window(win)
 
     def offer_pillow(self):
-        from tkinter import messagebox
-        if not messagebox.askyesno("The year dial", (
-                "The dial in MCM and on the PDA shows Polesia's dates and names, so it is "
-                "hidden while your own are in use. Drawing one for them needs Pillow, a "
-                "Python package.\n\nInstall it now? This runs:\n\n"
-                "    py -m pip install pillow"), parent=self.root):
-            return
-        self.root.configure(cursor="watch")
-        self.root.update()
-        r = subprocess.run([sys.executable, "-m", "pip", "install", "pillow"],
-                           capture_output=True, text=True, encoding="utf-8", errors="replace")
-        self.root.configure(cursor="")
-        if r.returncode != 0:
-            messagebox.showerror("The year dial", "pip could not install Pillow. The dial "
-                                 "stays hidden; everything else is saved. pip said:\n\n"
-                                 + "\n".join((r.stdout + r.stderr).strip().splitlines()[-8:]),
-                                 parent=self.root)
-            return
-        ok, out = draw_dial()
-        (messagebox.showinfo if ok else messagebox.showerror)(
-            "The year dial", "\n".join(["Pillow is installed.", ""] + out
-                                       + ["", "Close and open configure.bat again to see "
-                                              "the dial here too."]), parent=self.root)
+        offer_pillow(self.root)
         self.refresh_seasons()
 
     # presets
@@ -2106,129 +2085,15 @@ class App(object):
         present(win, self.root, box)
 
     def save_preset(self):
-        tk, ttk = self.tk, self.ttk
         from tkinter import messagebox
         if self.bad_dates:
             messagebox.showerror("Save preset", "Give %s a start day first, on the Seasons tab."
                                  % " and ".join(self.bad_dates), parent=self.root)
             return
-        problems = self.refused()
-        if problems:
-            messagebox.showerror("Save preset", "\n".join(
-                ["Fix these before saving a preset:"] + problems),
-                parent=self.root)
-            return
-        win, f = dialog(self.root, "Save preset")
-        name, about = tk.StringVar(), tk.StringVar()
-        grid = ttk.Frame(f)
-        grid.pack(fill="x")
-        ttk.Label(grid, text="Name").grid(row=0, column=0, sticky="w")
-        name_box = ttk.Entry(grid, textvariable=name, width=32)
-        name_box.grid(row=0, column=1, sticky="w", padx=8)
-        ttk.Label(grid, text="About it").grid(row=1, column=0, sticky="w", pady=(6, 0))
-        ttk.Entry(grid, textvariable=about, width=50).grid(row=1, column=1, sticky="w", padx=8,
-                                                           pady=(6, 0))
-        full = ce.parts_with_content(self.cal)
-        pick = {p: tk.BooleanVar(value=p in full) for p in ce.PARTS}
-        checks = ttk.Frame(f)
-        checks.pack(fill="x", pady=(12, 0))
-        ttk.Label(checks, text="Keep these parts of your setup in it:").pack(anchor="w")
-        for p in ce.PARTS:
-            ttk.Checkbutton(checks, text=ce.PART_TEXT[p], variable=pick[p]).pack(anchor="w")
-        ttk.Label(f, text="It goes in _tools\\presets, as a file you can share.",
-                  foreground=GREY).pack(anchor="w", pady=(10, 0))
-
-        def ok():
-            n = name.get().strip()
-            if not ce.PRESET_NAME.match(n):
-                messagebox.showerror("Save preset", "A preset name is up to 40 letters, "
-                                     "digits, spaces and - _ . , ' ( ).", parent=win)
-                return
-            parts = [p for p in ce.PARTS if pick[p].get()]
-            if not parts:
-                messagebox.showerror("Save preset", "Check at least one part to keep.",
-                                     parent=win)
-                return
-            files = ce.preset_files()
-            same = next((x for x in files if x.lower() == n.lower()), None)
-            if same:
-                old, _ = ce.read_preset(files[same])
-                if old and old["shipped"]:
-                    messagebox.showerror("Save preset", "\"%s\" comes with the tool. Save "
-                                         "yours under another name." % same, parent=win)
-                    return
-                if not messagebox.askyesno("Save preset", "Replace your preset \"%s\"?"
-                                           % same, parent=win):
-                    return
-                n = same
-            path = ce.write_preset(n, about.get().strip(), ce.preset_from(self.cal, parts))
-            win.destroy()
-            messagebox.showinfo("Save preset", "Saved %s:\n\n%s" % (n, path),
-                                parent=self.root)
-
-        button_row(f, ("Save", ok), ("Cancel", win.destroy))
-        win.bind("<Return>", lambda e: ok())
-        present(win, self.root, name_box)
+        save_preset_dialog(self.root, self.cal)
 
     def preview(self):
-        """What play.bat would switch at the next launch - today, or on another season -
-        for the setup as it stands in the window, saved or not."""
-        tk, ttk = self.tk, self.ttk
-        import tempfile
-        win, f = dialog(self.root, "The next launch")
-        row = ttk.Frame(f)
-        row.pack(fill="x")
-        ttk.Label(row, text="Show what play.bat would do").pack(side="left")
-        choices = ["today"] + [title(s, self.cal) for s in season.SEASONS if s in self.cal.dates]
-        keys = [None] + [s for s in season.SEASONS if s in self.cal.dates]
-        which = tk.StringVar(value="today")
-        combo = ttk.Combobox(row, textvariable=which, values=choices, state="readonly",
-                             width=16)
-        combo.pack(side="left", padx=8)
-        ttk.Label(row, text="Nothing is changed, and unsaved changes are included.",
-                  foreground=GREY).pack(side="left", padx=(8, 0))
-        box = ttk.Frame(f)
-        box.pack(fill="both", expand=True, pady=(10, 0))
-        text = tk.Text(box, width=108, height=30, wrap="none", font=("Consolas", 9))
-        ys = ttk.Scrollbar(box, orient="vertical", command=text.yview)
-        xs = ttk.Scrollbar(box, orient="horizontal", command=text.xview)
-        text.configure(yscrollcommand=ys.set, xscrollcommand=xs.set)
-        text.grid(row=0, column=0, sticky="nsew")
-        ys.grid(row=0, column=1, sticky="ns")
-        xs.grid(row=1, column=0, sticky="ew")
-        box.rowconfigure(0, weight=1)
-        box.columnconfigure(0, weight=1)
-
-        def run(e=None):
-            problems = self.refused()
-            if problems:
-                out = "\n".join(["Fix these first:"] + problems)
-            else:
-                fd, path = tempfile.mkstemp(suffix=".py", prefix="seasons_config_preview_")
-                os.close(fd)
-                try:
-                    with open(path, "w", encoding="utf-8") as h:
-                        h.write(self.cal.render()[0])
-                    args = [sys.executable, os.path.join(ce.HERE, "season.py"), "apply",
-                            "--dry-run"]
-                    key = keys[choices.index(which.get())]
-                    if key:
-                        args += ["--season", key]
-                    r = subprocess.run(args, capture_output=True, text=True, cwd=season.ROOT,
-                                       encoding="utf-8", errors="replace",
-                                       env=dict(os.environ, SEASONS_CONFIG=path))
-                    out = r.stdout + r.stderr
-                finally:
-                    os.remove(path)
-            text.configure(state="normal")
-            text.delete("1.0", "end")
-            text.insert("end", out)
-            text.configure(state="disabled")
-
-        combo.bind("<<ComboboxSelected>>", run)
-        button_row(f, ("Close", win.destroy))
-        run()
-        present(win, self.root, combo)
+        show_preview(self.root, self.cal)
 
     def close(self):
         from tkinter import messagebox
@@ -2239,6 +2104,164 @@ class App(object):
             if ans and not self.save():
                 return
         self.root.destroy()
+
+
+def refused_lines(cal):
+    """What season.py would refuse in the setup `cal` holds, in the window's words."""
+    if cal.error:
+        return []
+    return [plain(p) for p in cal.check(cal.render()[0])]
+
+
+def offer_pillow(root):
+    """Offer to install Pillow, which drawing a dial of your own needs, and draw it."""
+    from tkinter import messagebox
+    if not messagebox.askyesno("The year dial", (
+            "The dial in MCM and on the PDA shows Polesia's dates and names, so it is "
+            "hidden while your own are in use. Drawing one for them needs Pillow, a "
+            "Python package.\n\nInstall it now? This runs:\n\n"
+            "    py -m pip install pillow"), parent=root):
+        return
+    root.configure(cursor="watch")
+    root.update()
+    r = subprocess.run([sys.executable, "-m", "pip", "install", "pillow"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    root.configure(cursor="")
+    if r.returncode != 0:
+        messagebox.showerror("The year dial", "pip could not install Pillow. The dial "
+                             "stays hidden; everything else is saved. pip said:\n\n"
+                             + "\n".join((r.stdout + r.stderr).strip().splitlines()[-8:]),
+                             parent=root)
+        return
+    ok, out = draw_dial()
+    (messagebox.showinfo if ok else messagebox.showerror)(
+        "The year dial", "\n".join(["Pillow is installed.", ""] + out
+                                   + ["", "Close and open configure.bat again to see "
+                                          "the dial here too."]), parent=root)
+
+
+def save_preset_dialog(root, cal):
+    """Keep parts of the setup `cal` holds as a preset of the player's own."""
+    import tkinter as tk
+    from tkinter import messagebox, ttk
+    problems = refused_lines(cal)
+    if problems:
+        messagebox.showerror("Save preset", "\n".join(
+            ["Fix these before saving a preset:"] + problems), parent=root)
+        return
+    win, f = dialog(root, "Save preset")
+    name, about = tk.StringVar(), tk.StringVar()
+    grid = ttk.Frame(f)
+    grid.pack(fill="x")
+    ttk.Label(grid, text="Name").grid(row=0, column=0, sticky="w")
+    name_box = ttk.Entry(grid, textvariable=name, width=32)
+    name_box.grid(row=0, column=1, sticky="w", padx=8)
+    ttk.Label(grid, text="About it").grid(row=1, column=0, sticky="w", pady=(6, 0))
+    ttk.Entry(grid, textvariable=about, width=50).grid(row=1, column=1, sticky="w", padx=8,
+                                                       pady=(6, 0))
+    full = ce.parts_with_content(cal)
+    pick = {p: tk.BooleanVar(value=p in full) for p in ce.PARTS}
+    checks = ttk.Frame(f)
+    checks.pack(fill="x", pady=(12, 0))
+    ttk.Label(checks, text="Keep these parts of your setup in it:").pack(anchor="w")
+    for p in ce.PARTS:
+        ttk.Checkbutton(checks, text=ce.PART_TEXT[p], variable=pick[p]).pack(anchor="w")
+    ttk.Label(f, text="It goes in _tools\\presets, as a file you can share. Where your "
+              "weather comes from is never in it.", foreground=GREY).pack(anchor="w",
+                                                                         pady=(10, 0))
+
+    def ok():
+        n = name.get().strip()
+        if not ce.PRESET_NAME.match(n):
+            messagebox.showerror("Save preset", "A preset name is up to 40 letters, "
+                                 "digits, spaces and - _ . , ' ( ).", parent=win)
+            return
+        parts = [p for p in ce.PARTS if pick[p].get()]
+        if not parts:
+            messagebox.showerror("Save preset", "Check at least one part to keep.",
+                                 parent=win)
+            return
+        files = ce.preset_files()
+        same = next((x for x in files if x.lower() == n.lower()), None)
+        if same:
+            old, _ = ce.read_preset(files[same])
+            if old and old["shipped"]:
+                messagebox.showerror("Save preset", "\"%s\" comes with the tool. Save "
+                                     "yours under another name." % same, parent=win)
+                return
+            if not messagebox.askyesno("Save preset", "Replace your preset \"%s\"?"
+                                       % same, parent=win):
+                return
+            n = same
+        path = ce.write_preset(n, about.get().strip(), ce.preset_from(cal, parts))
+        win.destroy()
+        messagebox.showinfo("Save preset", "Saved %s:\n\n%s" % (n, path), parent=root)
+
+    button_row(f, ("Save", ok), ("Cancel", win.destroy))
+    win.bind("<Return>", lambda e: ok())
+    present(win, root, name_box)
+
+
+def show_preview(root, cal):
+    """What play.bat would switch at the next launch - today, or in another season - for
+    the setup `cal` holds, saved or not."""
+    import tempfile
+    import tkinter as tk
+    from tkinter import ttk
+    win, f = dialog(root, "The next launch")
+    row = ttk.Frame(f)
+    row.pack(fill="x")
+    ttk.Label(row, text="Show what play.bat would do").pack(side="left")
+    choices = ["today"] + [title(s, cal) for s in season.SEASONS if s in cal.dates]
+    keys = [None] + [s for s in season.SEASONS if s in cal.dates]
+    which = tk.StringVar(value="today")
+    combo = ttk.Combobox(row, textvariable=which, values=choices, state="readonly",
+                         width=16)
+    combo.pack(side="left", padx=8)
+    ttk.Label(row, text="Nothing is changed, and unsaved changes are included.",
+              foreground=GREY).pack(side="left", padx=(8, 0))
+    box = ttk.Frame(f)
+    box.pack(fill="both", expand=True, pady=(10, 0))
+    text = tk.Text(box, width=108, height=30, wrap="none", font=("Consolas", 9))
+    ys = ttk.Scrollbar(box, orient="vertical", command=text.yview)
+    xs = ttk.Scrollbar(box, orient="horizontal", command=text.xview)
+    text.configure(yscrollcommand=ys.set, xscrollcommand=xs.set)
+    text.grid(row=0, column=0, sticky="nsew")
+    ys.grid(row=0, column=1, sticky="ns")
+    xs.grid(row=1, column=0, sticky="ew")
+    box.rowconfigure(0, weight=1)
+    box.columnconfigure(0, weight=1)
+
+    def run(e=None):
+        problems = refused_lines(cal)
+        if problems:
+            out = "\n".join(["Fix these first:"] + problems)
+        else:
+            fd, path = tempfile.mkstemp(suffix=".py", prefix="seasons_config_preview_")
+            os.close(fd)
+            try:
+                with open(path, "w", encoding="utf-8") as h:
+                    h.write(cal.render()[0])
+                args = [sys.executable, os.path.join(ce.HERE, "season.py"), "apply",
+                        "--dry-run"]
+                key = keys[choices.index(which.get())]
+                if key:
+                    args += ["--season", key]
+                r = subprocess.run(args, capture_output=True, text=True, cwd=season.ROOT,
+                                   encoding="utf-8", errors="replace",
+                                   env=dict(os.environ, SEASONS_CONFIG=path))
+                out = r.stdout + r.stderr
+            finally:
+                os.remove(path)
+        text.configure(state="normal")
+        text.delete("1.0", "end")
+        text.insert("end", out)
+        text.configure(state="disabled")
+
+    combo.bind("<<ComboboxSelected>>", run)
+    button_row(f, ("Close", win.destroy))
+    run()
+    present(win, root, combo)
 
 
 def unreadable(root, cal):
@@ -2273,7 +2296,9 @@ def unreadable(root, cal):
     return chose["what"]
 
 
-def window():
+def window(advanced=False):
+    """configure.bat's window: the guided setup, or its summary once there is a setup to
+    sum up. `advanced` opens the tabbed editor instead."""
     try:
         import tkinter as tk
         from tkinter import messagebox
@@ -2301,7 +2326,11 @@ def window():
     for n in inst.names:
         inst.files(n)
     root.deiconify()
-    App(root, cal, inst)
+    if advanced:
+        App(root, cal, inst)
+    else:
+        import guide
+        guide.Guide(root, cal, inst)
     if cal.fixes:
         messagebox.showinfo("seasons_config.py", "Saving from here also fixes:\n\n- "
                             + "\n- ".join(cal.fixes), parent=root)
@@ -2312,6 +2341,8 @@ def main():
     ap = argparse.ArgumentParser(
         description="Set up Seasons of the Zone. With no command, opens the window.",
         epilog=__doc__.split("\n\n", 1)[1], formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--advanced", action="store_true",
+                    help="open the tabbed editor rather than the guided setup")
     sub = ap.add_subparsers(dest="cmd", metavar="command")
     sub.add_parser("list", help="show the seasonal mods, events and calendar")
     p = sub.add_parser("add", help="make a mod seasonal, or change when it is on")
@@ -2363,6 +2394,11 @@ def main():
                    help="the place's coordinates in degrees, north and east positive")
     p.add_argument("--name", help="with --at, what to call the place")
     p.add_argument("--reset", action="store_true", help="back to Chornobyl")
+    p = sub.add_parser("install", help="copy the tools from the mod's folder into the "
+                       "GAMMA folder, or update them there; configure.bat does this when "
+                       "opened from the mod's folder")
+    p.add_argument("--yes", action="store_true",
+                   help="in the console, without asking")
     p = sub.add_parser("preset", help="save your setup under a name, or load one")
     p.add_argument("action", nargs="?", choices=["list", "save", "load", "show"],
                    help="list (the default), save, load or show")
@@ -2375,7 +2411,8 @@ def main():
     a = ap.parse_args()
     {"list": cmd_list, "add": cmd_add, "remove": cmd_remove, "event": cmd_event,
      "calendar": cmd_calendar, "name": cmd_name, "preset": cmd_preset, "place": cmd_place,
-     None: lambda a: window()}[a.cmd](a)
+     "install": lambda a: __import__("installer").main(a),
+     None: lambda a: window(a.advanced)}[a.cmd](a)
 
 
 if __name__ == "__main__":

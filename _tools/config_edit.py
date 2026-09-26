@@ -44,16 +44,16 @@ ALIASES = {"deep winter": "winter_snow", "deep_winter": "winter_snow",
 
 # written above CALENDAR and NAMES, in a new file and when the tool adds one to an old file
 CALENDAR_HEAD = [
-    "# The seasons that are on and the day each starts, (month, day). configure.bat's",
-    "# Seasons tab writes this; None is Polesia's dates with all six seasons on.",
+    "# The seasons that are on and the day each starts, (month, day). configure.bat",
+    "# writes this; None is Polesia's dates with all six seasons on.",
 ]
 NAMES_HEAD = [
     "# Names of your own for the seasons, shown in game in place of the usual ones.",
-    "# configure.bat's Seasons tab writes this; None keeps the usual names.",
+    "# configure.bat writes this; None keeps the usual names.",
 ]
 PLACE_HEAD = [
     "# Where the real weather comes from: {\"name\": ..., \"lat\": ..., \"lon\": ...}.",
-    "# configure.bat's Weather tab writes this; None is Chornobyl.",
+    "# configure.bat writes this; None is Chornobyl.",
 ]
 
 TEMPLATE = '''"""Which mods this install stages, and when.
