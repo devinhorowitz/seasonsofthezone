@@ -315,7 +315,7 @@ class Window(object):
         from tkinter import ttk
         self.cf, self.ttk, self.plan = cf, ttk, plan
         self.on, self.error = False, None
-        self.win, self.frame = cf.dialog(root, cf.TITLE, transient=False)
+        self.win, self.frame = cf.dialog(root, _(cf.TITLE), transient=False)
         if plan.todo():
             first = self.ask()
         else:
@@ -370,7 +370,7 @@ class Window(object):
         from tkinter import messagebox
         p = self.plan
         if p.downgrade() and not messagebox.askyesno(
-                self.cf.TITLE, _("The tools in your GAMMA folder are newer than these: "
+                _(self.cf.TITLE), _("The tools in your GAMMA folder are newer than these: "
                                  "%(there)s there, %(here)s here. Put these older ones in "
                                  "their place?") % p.values(), icon="warning",
                 default="no", parent=self.win):

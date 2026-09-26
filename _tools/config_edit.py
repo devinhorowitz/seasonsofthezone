@@ -1097,13 +1097,15 @@ class Calendar(object):
         self.dates = dict(dates)
 
     def set_names(self, names):
-        """{season: name}. A name that is empty, or the usual one in any case, is none."""
+        """{season: name}. A name that is empty, or the usual one in any case - in English or
+        in the player's language, as a window shows it - is none."""
         if self.names_bad:
             self._replace_names = True
             self.names_bad = []
         self.names = {s: v.strip() for s, v in names.items()
                       if isinstance(v, str) and v.strip()
-                      and v.strip().casefold() != season.default_label(s).casefold()}
+                      and v.strip().casefold() not in (season.default_label(s).casefold(),
+                                                        season.usual_name(s).casefold())}
 
     def set_place(self, place):
         """{name, lat, lon}, or None for Chornobyl. It replaces a WEATHER_PLACE the file had

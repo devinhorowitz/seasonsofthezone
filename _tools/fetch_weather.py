@@ -31,7 +31,11 @@ import unicodedata
 import urllib.parse
 import urllib.request
 
-from lang import _, N_, ngettext, pgettext
+from lang import _, ngettext, pgettext
+
+# what it says can be in any language, and play.bat's window or a pipe may not take it
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODS = os.path.join(os.path.dirname(HERE), "mods")
@@ -78,8 +82,6 @@ TIMEOUT = 12
 # ERA5 reanalysis. credit() and the two after it say so in the player's language.
 SOURCE = "Open-Meteo.com"
 LINK = "https://open-meteo.com/"
-# the place search's credit in English, as configure.py's place command prints it
-PLACES_CREDIT = N_("Places from %s, based on GeoNames (CC BY 4.0)") % SOURCE
 
 # the longest name the Forecast page has room for, beside its credit
 PLACE_CHARS = 24

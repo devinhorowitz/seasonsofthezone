@@ -218,7 +218,6 @@ class Guide(object):
         style.configure("Head.TLabel", font=("TkDefaultFont", 10, "bold"))
         style.configure("Step.TLabel", foreground="#888888")
         style.configure("Now.TLabel", font=("TkDefaultFont", 9, "bold"))
-        root.title(cf.TITLE)
         root.geometry("980x700")
         root.minsize(840, 600)
         root.protocol("WM_DELETE_WINDOW", self.close)
@@ -240,6 +239,7 @@ class Guide(object):
     def clear(self):
         """Empty the window, and start a page that scrolls when it is taller than the
         window. Its text wraps to the window's width as it is now."""
+        self.root.title(_(cf.TITLE))        # here, so it follows a change of language
         for frame in (self.top, self.body, self.bar):
             for w in frame.winfo_children():
                 w.destroy()
@@ -387,13 +387,13 @@ class Guide(object):
         if key == "start":
             self.apply_start()
         elif key == "seasons" and (self.seasons_bad or self.names_bad) and not going_back:
-            messagebox.showerror(cf.TITLE, "\n".join([_("Fix the seasons first:")]
+            messagebox.showerror(_(cf.TITLE), "\n".join([_("Fix the seasons first:")]
                                                      + self.seasons_bad + self.names_bad),
                                  parent=self.root)
             return False
         elif key == "weather" and self.where.get() == "elsewhere" and not self.cal.place \
                 and not going_back:
-            messagebox.showerror(cf.TITLE, _("Pick a place from the search, or choose "
+            messagebox.showerror(_(cf.TITLE), _("Pick a place from the search, or choose "
                                              "Chornobyl."), parent=self.root)
             return False
         return True
@@ -568,7 +568,7 @@ class Guide(object):
         from tkinter import filedialog, messagebox
         if archives() is None:
             # translators: %s is a file in the tools' folder, _tools
-            messagebox.showerror(cf.TITLE, _("%s is missing. Copy _tools from the mod's "
+            messagebox.showerror(_(cf.TITLE), _("%s is missing. Copy _tools from the mod's "
                                              "folder again.") % "_tools\\mod_install.py",
                                  parent=self.root)
             return
@@ -1077,7 +1077,7 @@ class Guide(object):
                 "(%(low_f).0f°F), %(sky)s.") % {
                     "place": place["name"], "high": t["high"], "high_f": t["high"] * 9 / 5 + 32,
                     "low": t["low"], "low_f": t["low"] * 9 / 5 + 32,
-                    "sky": cf.SKY.get(t["cycle"], t["cycle"])})
+                    "sky": cf.sky_words(t["cycle"])})
             self.check_credit.pack(anchor="w", after=self.check_label)
 
         self.in_background(lambda: fw.to_rows(fw.fetch(place)), done)
@@ -1505,7 +1505,7 @@ class ModDialog(object):
         for p in season.WEATHER_NAMES:
             v = tk.BooleanVar(value=p in when)
             self.vars[p] = v
-            ttk.Checkbutton(self.more_box, text="%s: %s" % (p, cf.WEATHER_TEXT[p]),
+            ttk.Checkbutton(self.more_box, text="%s: %s" % (p, _(cf.WEATHER_TEXT[p])),
                             variable=v).pack(anchor="w")
         self.above_choices = [(None, _("picked for you, from the files they share"))]
         if name:

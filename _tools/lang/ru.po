@@ -148,7 +148,7 @@ msgctxt "the last two in a list of choices"
 msgid "%(rest)s or %(last)s"
 msgstr ""
 
-#: lang.py season.py config_edit.py guide.py installer.py mod_install.py
+#: lang.py season.py config_edit.py configure.py guide.py installer.py mod_install.py
 msgctxt "between words in a list"
 msgid ", "
 msgstr ""
@@ -1591,7 +1591,7 @@ msgstr ""
 msgid "%(season)s: %(mods)s and %(sets)s skipped; the ! lines above say why."
 msgstr ""
 
-#: season.py
+#: season.py configure.py
 #, python-format
 msgid "%d seasonal mod"
 msgid_plural "%d seasonal mods"
@@ -1848,7 +1848,7 @@ msgstr ""
 msgid "%s: saving rewrites this entry in the right shape"
 msgstr ""
 
-#: config_edit.py
+#: config_edit.py configure.py
 msgid "seasons_config.py can't be edited here:"
 msgstr ""
 
@@ -2027,7 +2027,7 @@ msgstr ""
 msgid "ambient sound: %s is not installed here, so it stays off"
 msgstr ""
 
-#: config_edit.py
+#: config_edit.py configure.py
 #, python-format
 msgid "ambient sound: %s"
 msgstr ""
@@ -2228,20 +2228,2225 @@ msgstr[0] ""
 msgstr[1] ""
 msgstr[2] ""
 
+#: configure.py
+#, python-format
+msgid "%d day"
+msgid_plural "%d days"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+msgid "seasons_config.py can't be edited here, so nothing was changed:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Fix %s by hand, or open configure.bat and let it start a new, empty one (the old file is kept next to it with the date in its name)."
+msgstr ""
+
+#: configure.py
+msgid "The game now uses Polesia's dates and the usual names, on the dial it ships with."
+msgstr ""
+
+#: configure.py
+msgid "The game now has your dates and names, and the year dial was drawn for them."
+msgstr ""
+
+#: configure.py
+msgid "The game now has your dates and names. The year dial stays hidden until Pillow is installed."
+msgstr ""
+
+#: configure.py
+msgid "The weather there comes at the next launch."
+msgstr ""
+
+#: configure.py
+msgid "Nothing changed: it is already set that way."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%3d day"
+msgid_plural "%3d days"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+#, python-format
+msgid "off: %s"
+msgstr ""
+
+#. the word a line of a command's output starts with; the lines are lined up
+#: configure.py
+msgctxt "start of a line"
+msgid "calendar"
+msgstr ""
+
+#: configure.py
+msgid "No seasonal mods yet."
+msgstr ""
+
+#: configure.py
+msgid "<-- not in MO2's mod list"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "on in %s"
+msgstr ""
+
+#: configure.py
+msgid "wins over (none set)"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "wins over %s"
+msgstr ""
+
+#: configure.py
+msgid "can't be used; see below"
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "season"
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "spell"
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "period"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "from %s"
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "event"
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "texture set"
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "ambient sound"
+msgstr ""
+
+#: configure.py
+msgid "off"
+msgstr ""
+
+#: configure.py
+msgid "play.bat can't switch anything until these are fixed:"
+msgstr ""
+
+#: configure.py
+msgid "Saving from configure.bat also fixes:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%(name)s\" is not a season, an event or a kind of weather. These are: %(known)s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "A name with a space goes in quotes, like %s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "No mod named \"%s\" in MO2's mod list."
+msgstr ""
+
+#: configure.py
+msgid "Did you mean one of these?"
+msgstr ""
+
+#: configure.py
+msgid "Copy the name exactly as MO2's mod list shows it, in quotes."
+msgstr ""
+
+#: configure.py
+msgid "That is Seasons of the Zone itself. It stays on all year, so it can't be a seasonal mod."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "No mod named \"%s\" in MO2's mod list for it to win over."
+msgstr ""
+
+#: configure.py
+msgid "A mod can't win over itself. To find the mod it has to win over, run:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(mod)s already wins over this mod, so this one can't win over it as well (%(chain)s)."
+msgstr ""
+
+#: configure.py
+msgid "as you asked"
+msgstr ""
+
+#: configure.py
+msgid "as it was"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Can't place it: %(why)s. Name the mod it wins over with %(option)s."
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "changed"
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "added"
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "was on in"
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "on in"
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "wins over"
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "note"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(mod)s is also on in %(when)s and ships %(n)d of the same files. To make this mod win them, run the command again with %(option)s."
+msgid_plural "%(mod)s is also on in %(when)s and ships %(n)d of the same files. To make this mod win them, run the command again with %(option)s."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+#, python-format
+msgid "%(seasons)s is off in your calendar, so the mod does not switch on then. To turn it back on: %(command)s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(seasons)s are off in your calendar, so the mod does not switch on then. To turn them back on: %(command)s"
+msgstr ""
+
+#: configure.py
+msgid "play.bat switches it from the next launch."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%s\" is not a seasonal mod."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s shows them."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "stopped switching %s; play.bat leaves it as it is in MO2"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "--weekdays takes days of the week, like %(days)s, or %(weekends)s or %(workdays)s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "--days takes days of the month, 1 to 31, or %(last)s, like %(example)s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "--weeks takes %s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "--months takes months, like %s, or 12 1 2."
+msgstr ""
+
+#: configure.py
+msgid "--between takes two dates, month-day, like 12-01 02-28."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "There is no event called \"%(name)s\". %(command)s shows the events."
+msgstr ""
+
+#. Delete event is the button in the window
+#: configure.py
+#, python-format
+msgid "These seasonal mods still use %s. Uncheck it for them first (the Delete event button in configure.bat does both), then remove it:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "removed event %s"
+msgstr ""
+
+#. English letters, a to z: an event's name takes no others
+#: configure.py
+#, python-format
+msgid "An event name is lowercase letters, digits and underscores, like %(one)s or %(other)s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%s\" is already taken by a season, a period or a kind of weather. Pick another name."
+msgstr ""
+
+#: configure.py
+msgid "A rule can't also take a first and last day. Give dates with --between, like --between 12-01 02-28."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Give the first day, like 12-24, and the last day if it runs more than one day. Or give a rule, like %s."
+msgstr ""
+
+#: configure.py
+msgid "Dates are month-day, like 12-24."
+msgstr ""
+
+#: configure.py
+msgid "Not saved:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "event %(name)s  %(when)s"
+msgstr ""
+
+#: configure.py
+msgid "it runs across the new year"
+msgstr ""
+
+#: configure.py
+msgid "February 29 comes only in leap years"
+msgstr ""
+
+#: configure.py
+msgid "No seasons of your own yet. To add one:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "You have no season called \"%(name)s\". %(command)s shows yours."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "removed season %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "stopped switching %s, on in nothing else"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s can't be used as it is. Give it dates first, then rename it:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "You have a season called \"%s\" already."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "renamed season %(old)s to %(new)s"
+msgstr ""
+
+#: configure.py
+msgid "Give the first and the last day, month-day, like:"
+msgstr ""
+
+#: configure.py
+msgid "Dates are month-day, like 08-01."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "You have %d season of your own, as many as the year has room for. Remove one first."
+msgid_plural "You have %d seasons of your own, as many as the year has room for. Remove one first."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+#, python-format
+msgid "changed season %(name)s  %(when)s  (%(days)s)"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "added season %(name)s  %(when)s  (%(days)s)"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "To have a mod on in it: %s"
+msgstr ""
+
+#. a spell in short: where, the chance, how long, what it brings, how often
+#: configure.py
+#, python-format
+msgid "in %(seasons)s, %(chance)s%% a day, %(days)s; %(brings)s; %(often)s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(lo)d to %(hi)d days"
+msgid_plural "%(lo)d to %(hi)d days"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+#, python-format
+msgid "brings %s"
+msgstr ""
+
+#: configure.py
+msgid "the season stays"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "about %d time a year"
+msgid_plural "about %d times a year"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+msgid "about once a year"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "about once every %d year"
+msgid_plural "about once every %d years"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+msgid "never"
+msgstr ""
+
+#: configure.py
+msgid "No spells yet. To add one:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "You have no spell called \"%(name)s\". %(command)s shows yours."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "removed spell %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s can't be used as it is. Fix it first with --in, --chance or --days."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "You have a spell called \"%s\" already."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "renamed spell %(old)s to %(new)s"
+msgstr ""
+
+#: configure.py
+msgid "A new spell needs --in and --chance, like:"
+msgstr ""
+
+#: configure.py
+msgid "--days takes one number, or the fewest and the most, like --days 1 2."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "changed spell %(name)s  %(words)s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "added spell %(name)s  %(words)s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "To have a mod on during it: %s"
+msgstr ""
+
+#: configure.py
+msgid "--reset and --dates each set the whole calendar; give one."
+msgstr ""
+
+#: configure.py
+msgid "--dates turns every season on and --only turns some off; give one."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%(name)s\" is not a season. These are: %(seasons)s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Give each season as name=month-day, like %s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%s\" is not a date. Dates are month-day, like 5-20."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s is given twice."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s is both turned on and turned off."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s is both moved and turned off."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "--only needs the seasons to keep, like %s."
+msgstr ""
+
+#: configure.py
+msgid "Your own dates:"
+msgstr ""
+
+#: configure.py
+msgid "Polesia's dates, the default:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s is on only in seasons that are off, so it never switches on. Give it other seasons, or turn one of them back on."
+msgstr ""
+
+#: configure.py
+msgid "(its usual name)"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Give the name in quotes, like: %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(season)s is now called \"%(name)s\""
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s has its usual name again"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "The weather comes from %s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "The weather comes from %s, the default."
+msgstr ""
+
+#: configure.py
+msgid "--reset brings Chornobyl back; give it on its own."
+msgstr ""
+
+#: configure.py
+msgid "Give a place to look up, or --at and its coordinates, not both."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Couldn't reach open-meteo.com to look it up (%(error)s). Give its coordinates instead, like %(example)s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "No place called \"%s\" was found. Try another spelling, or give its coordinates with --at."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "--pick takes 1 to %d."
+msgstr ""
+
+#: configure.py
+msgid "Several places are called that:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Run the command again with --pick and the number, like %s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "the weather comes from %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "No presets yet. Save one with: %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "(can't be used; %s says why)"
+msgstr ""
+
+#: configure.py
+msgid "Name the preset, in quotes if it has spaces."
+msgstr ""
+
+#. English letters, A to Z: a preset's name takes no others
+#: configure.py
+msgid "A preset name is up to 40 letters, digits, spaces and - _ . , ' ( )."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%s\" comes with the tool; save yours under another name."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "There is already a preset called \"%s\". Add --force to replace it."
+msgstr ""
+
+#: configure.py
+msgid "Not saved as a preset. Fix these in seasons_config.py first:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Saved preset %(name)s (%(parts)s) as:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "There is no preset called \"%s\"."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "These are: %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%s\" can't be used:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "holds: %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(season)s is called \"%(name)s\""
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%(name)s\" holds none of those parts; it holds %(parts)s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Nothing was changed. Loading %s would do this:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "It takes the place of %s. Run the command again with --force to load it anyway; the old file is kept as seasons_config.py.bak."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "loaded %s"
+msgstr ""
+
+#: configure.py
+msgid "the low is 0°C or below"
+msgstr ""
+
+#: configure.py
+msgid "it freezes overnight and climbs above 0°C by afternoon"
+msgstr ""
+
+#: configure.py
+msgid "the high reaches 28°C"
+msgstr ""
+
+#: configure.py
+msgid "Seasons of the Zone setup"
+msgstr ""
+
+#. a credit in pieces, each a link: "Weather data by Open-Meteo.com (CC BY 4.0)"
+#: configure.py
+#, python-format
+msgid "Weather data by %(site)s"
+msgstr ""
+
+#. the license's name
+#: configure.py
+msgid "(CC BY 4.0)"
+msgstr ""
+
+#. a credit in pieces, each a link: "Places from Open-Meteo.com, based on GeoNames"
+#: configure.py
+#, python-format
+msgid "Places from %(site)s,"
+msgstr ""
+
+#: configure.py
+msgid "based on GeoNames"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Climate from %(site)s"
+msgstr ""
+
+#. the words Copernicus asks for, with its data: keep their meaning exactly
+#: configure.py
+msgid "(CC BY 4.0); contains modified Copernicus Climate Change Service information"
+msgstr ""
+
+#. the sky today, after "Today in Kyiv: high 5°C (41°F), low -2°C (28°F),"
+#: configure.py
+msgid "clear"
+msgstr ""
+
+#. the sky today, after "Today in Kyiv: high 5°C (41°F), low -2°C (28°F),"
+#: configure.py
+msgid "partly cloudy"
+msgstr ""
+
+#. the sky today, after "Today in Kyiv: high 5°C (41°F), low -2°C (28°F),"
+#: configure.py
+msgid "overcast"
+msgstr ""
+
+#. the sky today, after "Today in Kyiv: high 5°C (41°F), low -2°C (28°F),"
+#: configure.py
+msgid "fog"
+msgstr ""
+
+#. the sky today, after "Today in Kyiv: high 5°C (41°F), low -2°C (28°F),"
+#: configure.py
+msgid "rain"
+msgstr ""
+
+#. the sky today, after "Today in Kyiv: high 5°C (41°F), low -2°C (28°F),"
+#: configure.py
+msgid "snow"
+msgstr ""
+
+#. the sky today, after "Today in Kyiv: high 5°C (41°F), low -2°C (28°F),"
+#: configure.py
+msgid "storms"
+msgstr ""
+
+#. the start of a problem with an event; season.py's sentence follows
+#: configure.py
+#, python-format
+msgid "Event %s: "
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Period %s: "
+msgstr ""
+
+#. a spell by name, starting a problem; ": " and a sentence, or a verb, follow
+#: configure.py
+#, python-format
+msgid "Spell %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Texture set %s: "
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "The name for %s: "
+msgstr ""
+
+#: configure.py
+msgid "Load preset..."
+msgstr ""
+
+#: configure.py
+msgid "Save preset..."
+msgstr ""
+
+#: configure.py guide.py
+msgid "Preview the next launch..."
+msgstr ""
+
+#: configure.py guide.py
+msgid "Save"
+msgstr ""
+
+#: configure.py guide.py
+msgid "Close"
+msgstr ""
+
+#: configure.py
+msgid "Mods"
+msgstr ""
+
+#: configure.py guide.py
+msgid "Seasons"
+msgstr ""
+
+#: configure.py guide.py
+msgid "Weather"
+msgstr ""
+
+#: configure.py
+msgid "Find a mod:"
+msgstr ""
+
+#: configure.py
+msgid "Only seasonal mods"
+msgstr ""
+
+#: configure.py
+msgid "Mods, as MO2 lists them"
+msgstr ""
+
+#: configure.py
+msgid "On in"
+msgstr ""
+
+#: configure.py
+msgid "always on (this mod)"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s  (never: its seasons are off)"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s   (not in MO2's mod list)"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "No mod's name has \"%s\" in it."
+msgstr ""
+
+#: configure.py
+msgid "This is Seasons of the Zone itself. It has to stay on all year, so it isn't something to put on the calendar."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Enabled in MO2 now; it has %d file."
+msgid_plural "Enabled in MO2 now; it has %d files."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+#, python-format
+msgid "Disabled in MO2 now; it has %d file."
+msgid_plural "Disabled in MO2 now; it has %d files."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+msgid "Not in MO2's mod list, so play.bat can't switch it. Stop switching it below, or put the mod back in MO2."
+msgstr ""
+
+#: configure.py guide.py
+msgid "On in these seasons"
+msgstr ""
+
+#: configure.py
+msgid "off (see the Seasons tab)"
+msgstr ""
+
+#: configure.py
+msgid "New season of your own..."
+msgstr ""
+
+#: configure.py
+msgid "And on these events"
+msgstr ""
+
+#: configure.py
+msgid "Delete event"
+msgstr ""
+
+#: configure.py
+msgid "Edit..."
+msgstr ""
+
+#: configure.py
+msgid "a period of your own, set in seasons_config.py"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Can't be used. %s"
+msgstr ""
+
+#: configure.py
+msgid "No events of your own yet."
+msgstr ""
+
+#: configure.py
+msgid "New event..."
+msgstr ""
+
+#: configure.py
+msgid "And during these spells"
+msgstr ""
+
+#: configure.py
+msgid "No spells yet."
+msgstr ""
+
+#: configure.py
+msgid "New spell..."
+msgstr ""
+
+#: configure.py guide.py
+#, python-format
+msgid "And on these kinds of weather at %s"
+msgstr ""
+
+#: configure.py
+msgid "play.bat checks the real weather at each launch. Without play.bat, or an internet connection, none of these is on."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "seasons_config.py also has it on for \"%s\", which is not a season, event or kind of weather."
+msgstr ""
+
+#: configure.py
+msgid "Drop it"
+msgstr ""
+
+#: configure.py
+msgid "Stop switching this mod"
+msgstr ""
+
+#: configure.py
+msgid "play.bat then leaves it as it is in MO2."
+msgstr ""
+
+#: configure.py
+msgid "Start here"
+msgstr ""
+
+#: configure.py
+msgid "Pick a mod on the left: one that changes textures, sounds or anything else for a season."
+msgstr ""
+
+#: configure.py
+msgid "Check the seasons it belongs to. play.bat switches it on in those seasons, and off the rest of the year."
+msgstr ""
+
+#: configure.py
+msgid "Save, then start the game with play.bat. It switches the mods each time it starts the game."
+msgstr ""
+
+#: configure.py
+msgid "Or start from a preset. The GAMMA example sets up the seasonal mods that come with GAMMA, where you have them installed."
+msgstr ""
+
+#: configure.py
+msgid "The list runs as MO2's does. Blue mods are seasonal, grey ones are disabled in MO2, and red ones are seasonal but gone from MO2. The Seasons tab sets when each season starts, and the Weather tab where the real weather comes from."
+msgstr ""
+
+#: configure.py guide.py
+msgid "Wins over"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s  (picked for you)"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(mod)s  (%(n)d shared file; seasonal)"
+msgid_plural "%(mod)s  (%(n)d shared files; seasonal)"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+#, python-format
+msgid "%(mod)s  (%(n)d shared file; disabled in MO2)"
+msgid_plural "%(mod)s  (%(n)d shared files; disabled in MO2)"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py guide.py
+#, python-format
+msgid "%(mod)s  (%(n)d shared file)"
+msgid_plural "%(mod)s  (%(n)d shared files)"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+#, python-format
+msgid "\"%s\" is not in MO2's mod list, so play.bat would skip this mod. Pick another in the box above."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "play.bat keeps it just below %s in MO2's mod list, so where the two have the same file, this one's is used."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Picked for you: %s."
+msgstr ""
+
+#: configure.py
+msgid "Picked by you."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(mod)s is on in %(when)s too, and would still win %(n)d file over this one."
+msgid_plural "%(mod)s is on in %(when)s too, and would still win %(n)d files over this one."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+msgid "Make this one win over it"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(mod)s already wins over this mod, so this one can't win over it as well. Pick another, or change what %(mod)s wins over first."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Change event %s"
+msgstr ""
+
+#: configure.py
+msgid "New event"
+msgstr ""
+
+#: configure.py
+msgid "Name"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "like %(one)s or %(other)s"
+msgstr ""
+
+#: configure.py
+msgid "When"
+msgstr ""
+
+#: configure.py
+msgid "On dates, every year"
+msgstr ""
+
+#: configure.py
+msgid "First day"
+msgstr ""
+
+#: configure.py
+msgid "Last day"
+msgstr ""
+
+#: configure.py
+msgid "Month-day, like 12-24. Leave the last day empty for one day."
+msgstr ""
+
+#: configure.py
+msgid "By rule - a day must match every part you fill in"
+msgstr ""
+
+#: configure.py
+msgid "Days of the week"
+msgstr ""
+
+#: configure.py
+msgctxt "which of those weekdays in the month"
+msgid "every one"
+msgstr ""
+
+#: configure.py
+msgid "Which of them"
+msgstr ""
+
+#. after the box beside "Which of them": [first] in the month
+#: configure.py
+msgid "in the month"
+msgstr ""
+
+#: configure.py
+msgid "Days of the month"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "like %s"
+msgstr ""
+
+#: configure.py
+msgid "Only in"
+msgstr ""
+
+#: configure.py
+msgid "Only between"
+msgstr ""
+
+#: configure.py
+msgctxt "Only between [12-01] and [02-28]"
+msgid "and"
+msgstr ""
+
+#: configure.py
+msgid "Check a day of the week for \"Which of them\" to count."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Days of the month are 1 to 31, or %(last)s, like %(example)s."
+msgstr ""
+
+#: configure.py
+msgid "\"Only between\" takes two dates, like 12-01 and 02-28."
+msgstr ""
+
+#: configure.py
+msgid "Give the rule at least one part."
+msgstr ""
+
+#: configure.py
+msgid "Give the event a name."
+msgstr ""
+
+#. English letters, a to z: an event's name takes no others
+#: configure.py
+#, python-format
+msgid "A name is letters, digits and underscores, like %s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%s\" is a season's name. Pick another."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%s\" is a kind of weather. Pick another name."
+msgstr ""
+
+#. Edit... is the button beside each event
+#: configure.py
+#, python-format
+msgid "There is already an event called %s. Change it with its Edit button instead."
+msgstr ""
+
+#: configure.py
+msgid "Add"
+msgstr ""
+
+#: configure.py guide.py
+msgid "Cancel"
+msgstr ""
+
+#: configure.py guide.py
+msgid "None yet."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(when)s, %(days)d day"
+msgid_plural "%(when)s, %(days)d days"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+msgid "Delete"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid ""
+"Delete the event %(event)s?\n"
+"\n"
+"It is checked for:\n"
+"\n"
+"%(mods)s\n"
+"\n"
+"It is unchecked for each of them, and a mod with nothing else checked stops being seasonal."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Delete the event %s?"
+msgstr ""
+
+#: configure.py
+msgid "When each season starts, and what it is called. A season runs until the next one that is on, so a season turned off gives its days to the one before it. The default is Polesia's own year: the days the land around Chornobyl changes, not the equinoxes."
+msgstr ""
+
+#: configure.py
+msgid "Start from:"
+msgstr ""
+
+#: configure.py
+msgid "Polesia (the default)"
+msgstr ""
+
+#: configure.py
+msgid "Meteorological (month starts)"
+msgstr ""
+
+#: configure.py
+msgctxt "the Seasons tab, a column"
+msgid "Starts"
+msgstr ""
+
+#: configure.py
+msgctxt "the Seasons tab, a column"
+msgid "Runs"
+msgstr ""
+
+#: configure.py
+msgctxt "the Seasons tab, a column"
+msgid "Length"
+msgstr ""
+
+#: configure.py
+msgctxt "the Seasons tab, a column"
+msgid "Called"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "A name can be up to %d letter."
+msgid_plural "A name can be up to %d letters."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py guide.py
+msgid "Seasons of your own"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Stretches of the year with names of your own, each a week or longer, that run on top of the season they fall in. Up to %d."
+msgid_plural "Stretches of the year with names of your own, each a week or longer, that run on top of the season they fall in. Up to %d."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py guide.py
+msgid "Spells"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Short stretches, 1 to %d day, that start by chance in the seasons you pick, and can bring another season with them."
+msgid_plural "Short stretches, 1 to %d days, that start by chance in the seasons you pick, and can bring another season with them."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+msgid "The year dial in MCM and on the PDA"
+msgstr ""
+
+#: configure.py
+msgid "Today"
+msgstr ""
+
+#: configure.py
+msgid "Drag to see another day."
+msgstr ""
+
+#: configure.py
+msgid "Showing the dial here needs Pillow, a Python package. Save offers to install it once your calendar or names differ from the usual."
+msgstr ""
+
+#: configure.py guide.py
+msgid "The mod's configs folder is missing, so the dial can't be drawn here."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgctxt "a day of the year, under the dial: 16 Dec"
+msgid "%(day)d %(month)s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid ""
+"%s\n"
+"The dial comes back when the lines in red are fixed."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgctxt "the day under the dial, and its season"
+msgid "%(day)s: %(season)s"
+msgstr ""
+
+#: configure.py guide.py
+#, python-format
+msgid "Give %s a start day."
+msgstr ""
+
+#: configure.py guide.py
+msgid "Check at least one season."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(first)s and %(second)s both start on %(day)s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(season)s would last %(days)d day; each season needs at least %(least)d."
+msgid_plural "%(season)s would last %(days)d days; each season needs at least %(least)d."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+msgid "The calendar in seasons_config.py can't be used as it is. Set the dates here to replace it."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s's name can't hold ; [ or ]."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s's name has letters the game can't show. It takes English and Cyrillic letters."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(first)s and %(second)s would both be called \"%(name)s\"."
+msgstr ""
+
+#: configure.py
+msgid "These are Polesia's dates, with the usual names."
+msgstr ""
+
+#: configure.py
+msgid "Saving sends these dates and names to the game and redraws the year dial in MCM and on the PDA."
+msgstr ""
+
+#: configure.py
+msgid "Saving sends these dates and names to the game. The year dial in MCM and on the PDA stays hidden until Pillow is installed; Save offers to install it."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "These seasonal mods are on only in seasons that are off, so they never switch on: %s"
+msgstr ""
+
+#: configure.py
+msgid "The PDA's temperature, its Forecast page and the freezing, thaw and heat days all follow the real weather at one place. play.bat asks open-meteo.com for that place's day at each launch, sending its coordinates and nothing else. The seasons don't move with it: set those on the Seasons tab."
+msgstr ""
+
+#: configure.py
+msgid "Weather from:"
+msgstr ""
+
+#: configure.py guide.py
+msgid "Today's weather there"
+msgstr ""
+
+#: configure.py
+msgid "Back to Chornobyl"
+msgstr ""
+
+#: configure.py
+msgid "Find a place"
+msgstr ""
+
+#: configure.py guide.py
+msgid "Search"
+msgstr ""
+
+#: configure.py guide.py
+msgid "a town or city, like Kyiv or New York"
+msgstr ""
+
+#: configure.py guide.py
+msgid "Use this place"
+msgstr ""
+
+#: configure.py
+msgid "Or give its coordinates"
+msgstr ""
+
+#: configure.py
+msgid "Latitude"
+msgstr ""
+
+#: configure.py
+msgid "Longitude"
+msgstr ""
+
+#: configure.py guide.py
+msgid "Use these"
+msgstr ""
+
+#: configure.py
+msgid "In degrees, north and east positive: 51.28 and 30.22 is Chornobyl."
+msgstr ""
+
+#: configure.py
+msgid "For a place of your own, saving also looks up its climate once - its last ten years of highs and lows - so the game can model a day there without a connection."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s, the default"
+msgstr ""
+
+#. %s is a file in the tools' folder, _tools
+#: configure.py guide.py
+#, python-format
+msgid "%s is missing. Copy _tools from the mod's folder again."
+msgstr ""
+
+#: configure.py guide.py
+msgid "Type a place to look for."
+msgstr ""
+
+#: configure.py guide.py
+msgid "Looking it up..."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Couldn't reach open-meteo.com (%s). Give the coordinates below instead."
+msgstr ""
+
+#. Use this place is the button under the list
+#. Use this place is the button's name
+#: configure.py guide.py
+#, python-format
+msgid "%d found. Pick one and press Use this place."
+msgid_plural "%d found. Pick one and press Use this place."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py guide.py
+msgid "Nothing by that name. Try another spelling."
+msgstr ""
+
+#: configure.py guide.py
+msgid "Pick a place in the list first."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Now %s - not saved yet."
+msgstr ""
+
+#: configure.py guide.py
+msgid "Give the latitude and longitude as numbers, like 50.45 and 30.52."
+msgstr ""
+
+#: configure.py guide.py
+msgid "Asking open-meteo.com..."
+msgstr ""
+
+#. %s is the kind of error, as Python names it
+#: configure.py guide.py
+#, python-format
+msgid "Couldn't reach open-meteo.com (%s)."
+msgstr ""
+
+#. %(sky)s is the sky that day, like "partly cloudy"
+#: configure.py guide.py
+#, python-format
+msgid "Today in %(place)s: high %(high).0f°C (%(high_f).0f°F), low %(low).0f°C (%(low_f).0f°F), %(sky)s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "own dates (%d season on)"
+msgid_plural "own dates (%d seasons on)"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+#, python-format
+msgid "%d renamed"
+msgid_plural "%d renamed"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+#, python-format
+msgid "weather from %s"
+msgstr ""
+
+#: configure.py
+msgid "Unsaved changes"
+msgstr ""
+
+#: configure.py
+msgid "Save is held back until these are fixed"
+msgstr ""
+
+#: configure.py
+msgid "Show the mod"
+msgstr ""
+
+#: configure.py
+msgid "Show the seasons"
+msgstr ""
+
+#: configure.py guide.py
+#, python-format
+msgid "and %d more"
+msgid_plural "and %d more"
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+msgctxt "window title"
+msgid "Save"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Give %s a start day first, on the Seasons tab."
+msgstr ""
+
+#: configure.py guide.py
+#, python-format
+msgid "The weather now comes from %s:"
+msgstr ""
+
+#: configure.py
+msgid "play.bat applies it the next time it starts the game."
+msgstr ""
+
+#: configure.py guide.py
+msgid "Saved"
+msgstr ""
+
+#: configure.py
+msgid "The dial the game shows from its next start."
+msgstr ""
+
+#: configure.py guide.py
+msgid "OK"
+msgstr ""
+
+#: configure.py
+msgid "Load preset"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "There are no presets yet. Save one, or put a preset file in %s."
+msgstr ""
+
+#: configure.py
+msgid "Load these parts. Each replaces the same part of your setup:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "It takes the place of %s."
+msgstr ""
+
+#: configure.py
+msgid "This preset can't be used:"
+msgstr ""
+
+#: configure.py
+msgid "Check at least one part to load."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Loaded %s. It is not saved yet."
+msgstr ""
+
+#. Save is the button at the bottom of the window
+#: configure.py
+msgid "Click Save to keep it, or close without saving to leave your setup as it was."
+msgstr ""
+
+#: configure.py
+msgid "Load"
+msgstr ""
+
+#: configure.py
+msgid "Save preset"
+msgstr ""
+
+#: configure.py
+msgctxt "window title"
+msgid "Close"
+msgstr ""
+
+#: configure.py
+msgid "Save your changes?"
+msgstr ""
+
+#: configure.py
+msgid "The year dial"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid ""
+"The dial in MCM and on the PDA shows Polesia's dates and names, so it is hidden while your own are in use. Drawing one for them needs Pillow, a Python package.\n"
+"\n"
+"Install it now? This runs:\n"
+"\n"
+"    %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid ""
+"pip could not install Pillow. The dial stays hidden; everything else is saved. pip said:\n"
+"\n"
+"%s"
+msgstr ""
+
+#: configure.py
+msgid "Pillow is installed."
+msgstr ""
+
+#: configure.py
+msgid "Close and open configure.bat again to see the dial here too."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Runs %(days)d days, %(when)s, on top of no season."
+msgid_plural "Runs %(days)d days, %(when)s, on top of no season."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+#, python-format
+msgid "Runs %(days)d days, %(when)s, on top of %(seasons)s."
+msgid_plural "Runs %(days)d days, %(when)s, on top of %(seasons)s."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+#, python-format
+msgid "You have %d season of your own, as many as the year has room for, a week each. Remove one to add another."
+msgid_plural "You have %d seasons of your own, as many as the year has room for, a week each. Remove one to add another."
+msgstr[0] ""
+msgstr[1] ""
+msgstr[2] ""
+
+#: configure.py
+#, python-format
+msgid "Change %s"
+msgstr ""
+
+#: configure.py
+msgid "A season of your own"
+msgstr ""
+
+#: configure.py
+msgid "A stretch of the year with a name of your own, a week or longer. It runs on top of the season it falls in: the mods you put on in it come on for those days, and the season's own mods stay on."
+msgstr ""
+
+#: configure.py
+msgid "like Wormhole season"
+msgstr ""
+
+#: configure.py
+msgid "Give it a name."
+msgstr ""
+
+#: configure.py
+msgid "Give it a first and a last day."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "You have a season called %s already."
+msgstr ""
+
+#: configure.py
+msgid "A spell"
+msgstr ""
+
+#: configure.py
+msgid "A short stretch that starts by chance. On each day of the seasons you check, there is a chance it starts; then it runs a day or a few. It can bring another season with it - winter for a day or two in summer - or leave the season as it is and switch on only the mods you put on during it. The date decides, so every launch that day agrees."
+msgstr ""
+
+#: configure.py
+msgid "Can start in"
+msgstr ""
+
+#: configure.py
+msgid "Chance each day"
+msgstr ""
+
+#: configure.py
+msgctxt "Runs [1] to [2] days"
+msgid "Runs"
+msgstr ""
+
+#: configure.py
+msgctxt "Runs [1] to [2] days"
+msgid "to"
+msgstr ""
+
+#: configure.py
+msgctxt "Runs [1] to [2] days"
+msgid "days"
+msgstr ""
+
+#: configure.py
+msgid "no other season"
+msgstr ""
+
+#: configure.py
+msgid "Brings"
+msgstr ""
+
+#: configure.py
+msgid "Check a season it can start in."
+msgstr ""
+
+#: configure.py
+msgid "The chance and the days are numbers."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "You have a spell called %s already."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid ""
+"Remove %(spell)s? These mods are on during it:\n"
+"\n"
+"%(mods)s\n"
+"\n"
+"It comes off each of them."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s is on in nothing else, so play.bat stops switching it."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s are on in nothing else, so play.bat stops switching them."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Remove %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid ""
+"Remove %(season)s? These mods are on in it:\n"
+"\n"
+"%(mods)s\n"
+"\n"
+"It comes off each of them."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Remove %s?"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s can start only in it, so it goes too."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s can start only in it, so they go too."
+msgstr ""
+
+#: configure.py
+msgid "Fix these before saving a preset:"
+msgstr ""
+
+#: configure.py
+msgid "About it"
+msgstr ""
+
+#: configure.py
+msgid "Keep these parts of your setup in it:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "It goes in %s, as a file you can share. Where your weather comes from is never in it."
+msgstr ""
+
+#: configure.py
+msgid "Check at least one part to keep."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%s\" comes with the tool. Save yours under another name."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Replace your preset \"%s\"?"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid ""
+"Saved %(name)s:\n"
+"\n"
+"%(path)s"
+msgstr ""
+
+#: configure.py
+msgid "The next launch"
+msgstr ""
+
+#. a box follows, holding "today" or a season's name
+#: configure.py
+msgid "Show what play.bat would do"
+msgstr ""
+
+#: configure.py
+msgid "today"
+msgstr ""
+
+#: configure.py
+msgid "Nothing is changed, and unsaved changes are included."
+msgstr ""
+
+#: configure.py
+msgid "Fix these first:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "It is %s. Open it in Notepad and fix it there, then open configure.bat again. Or start a new, empty one: your seasonal mods, events and dates start over, and the old file is kept next to it with the date in its name."
+msgstr ""
+
+#: configure.py
+msgid "Open it in Notepad"
+msgstr ""
+
+#: configure.py
+msgid "Start a new one"
+msgstr ""
+
+#: configure.py
+msgid "The window needs tkinter, which this Python does not have. Reinstall Python from python.org with \"tcl/tk and IDLE\" checked. Until then the commands work, like:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Started a new, empty one. The old file is kept as %(file)s, in %(folder)s."
+msgstr ""
+
+#: configure.py
+msgid "Reading your mods..."
+msgstr ""
+
+#: configure.py
+msgid "Saving from here also fixes:"
+msgstr ""
+
+#. keep each command as it is; translate what is said about it, and the rest
+#: configure.py
+msgid ""
+"configure.bat opens the window. The same changes can be made with commands, run in the\n"
+"GAMMA folder (use python in place of py if that is how your Python starts):\n"
+"\n"
+"  py _tools\\configure.py list                    the seasonal mods, events and calendar\n"
+"  py _tools\\configure.py add \"<mod>\" --when winter \"deep winter\" [--above \"<mod>\"]\n"
+"  py _tools\\configure.py remove \"<mod>\"\n"
+"  py _tools\\configure.py event <name> <MM-DD> [<MM-DD>]\n"
+"  py _tools\\configure.py event <name> --weekdays sat sun\n"
+"  py _tools\\configure.py event <name> --days 1 15 last [--months dec jan]\n"
+"  py _tools\\configure.py event <name> --weekdays mon --weeks first [--between 12-01 02-28]\n"
+"  py _tools\\configure.py event <name> --remove\n"
+"  py _tools\\configure.py season                  your own seasons\n"
+"  py _tools\\configure.py season \"<name>\" <MM-DD> <MM-DD>    add or change one, a week or\n"
+"                                                longer; it runs on top of the season it\n"
+"                                                falls in\n"
+"  py _tools\\configure.py season \"<name>\" --rename \"<new>\" | --remove\n"
+"  py _tools\\configure.py spell                   your spells\n"
+"  py _tools\\configure.py spell \"<name>\" --in summer --chance 3 [--days 1 2] [--as winter]\n"
+"                                                a short stretch, 1 to 6 days, that starts by\n"
+"                                                chance; --as is the season it brings\n"
+"  py _tools\\configure.py spell \"<name>\" --rename \"<new>\" | --remove\n"
+"  py _tools\\configure.py calendar                when each season starts\n"
+"  py _tools\\configure.py calendar summer=5-1 \"deep winter=11-15\" [--only]\n"
+"  py _tools\\configure.py calendar --off \"late winter\" | --on \"late winter\"\n"
+"  py _tools\\configure.py calendar --dates met | --reset\n"
+"  py _tools\\configure.py name                    what the seasons are called\n"
+"  py _tools\\configure.py name \"deep winter\" \"The Long Cold\" | name \"deep winter\" --reset\n"
+"  py _tools\\configure.py place                   where the real weather comes from\n"
+"  py _tools\\configure.py place \"Kyiv\" [--pick 2]  look a place up, and take the weather there\n"
+"  py _tools\\configure.py place --at 50.45 30.52 [--name \"Home\"] | place --reset\n"
+"  py _tools\\configure.py --advanced              the tabbed editor, not the guided setup\n"
+"  py mods\\<the mod>\\_tools\\configure.py install  put the tools in the GAMMA folder, or\n"
+"                                                update them there (configure.bat does it\n"
+"                                                when opened from the mod's folder)\n"
+"  py _tools\\configure.py preset                  the presets there are\n"
+"  py _tools\\configure.py preset save \"<name>\" [--about \"...\"] [--parts calendar mods]\n"
+"  py _tools\\configure.py preset load \"<name>\" [--parts calendar events mods textures]\n"
+"  py _tools\\configure.py preset show \"<name>\"\n"
+"\n"
+"Mod names are as MO2's mod list shows them; a name with a space goes in quotes. --above\n"
+"is the mod a seasonal mod wins over, worked out from the files they share when left out.\n"
+"Every change is checked with season.py's rules before it is written, and the previous\n"
+"file is kept as seasons_config.py.bak.\n"
+msgstr ""
+
+#: configure.py
+msgid "Set up Seasons of the Zone. With no command, opens the window."
+msgstr ""
+
+#: configure.py
+msgid "open the tabbed editor rather than the guided setup"
+msgstr ""
+
+#: configure.py
+msgid "show the seasonal mods, events and calendar"
+msgstr ""
+
+#: configure.py
+msgid "make a mod seasonal, or change when it is on"
+msgstr ""
+
+#: configure.py
+msgid "the mod as MO2's mod list names it, in quotes if it has spaces"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "the seasons, events or weather it is on in, like %s"
+msgstr ""
+
+#: configure.py
+msgid "the mod it wins over; worked out from shared files if left out"
+msgstr ""
+
+#: configure.py
+msgid "stop switching a mod by season"
+msgstr ""
+
+#: configure.py
+msgid "the seasonal mod to stop switching"
+msgstr ""
+
+#: configure.py
+msgid "add, change or remove an event"
+msgstr ""
+
+#. English letters, a to z: an event's name takes no others
+#: configure.py
+#, python-format
+msgid "lowercase letters, digits and underscores, like %s"
+msgstr ""
+
+#: configure.py
+msgid "the first day, month-day, like 12-24"
+msgstr ""
+
+#: configure.py
+msgid "the last day, month-day; left out for one day"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "days of the week: %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "days of the month: %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "with --weekdays, which of them in the month: %s"
+msgstr ""
+
+#: configure.py
+msgid "only in these months"
+msgstr ""
+
+#: configure.py
+msgid "only between these dates, month-day"
+msgstr ""
+
+#: configure.py
+msgid "delete the event"
+msgstr ""
+
+#: configure.py
+msgid "show, add, change or remove a season of your own"
+msgstr ""
+
+#: configure.py
+msgid "its name, in quotes if it has spaces"
+msgstr ""
+
+#: configure.py
+msgid "the first day, month-day, like 08-01"
+msgstr ""
+
+#: configure.py
+msgid "the last day, month-day, at least a week on"
+msgstr ""
+
+#: configure.py
+msgid "give it another name"
+msgstr ""
+
+#: configure.py
+msgid "delete it, and take it off the mods on in it"
+msgstr ""
+
+#: configure.py
+msgid "show, add, change or remove a spell: a short stretch that starts by chance"
+msgstr ""
+
+#: configure.py
+msgid "the seasons it can start in, yours included"
+msgstr ""
+
+#: configure.py
+msgid "the percent chance it starts on each of those days, like 3"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "how long it runs: a number, or the fewest and the most, 1 to %d"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "the season it brings, or %s to leave the season as it is"
+msgstr ""
+
+#: configure.py
+msgid "delete it, and take it off the mods on during it"
+msgstr ""
+
+#: configure.py
+msgid "show or change when each season starts"
+msgstr ""
+
+#: configure.py
+msgid "move a season's start, turning it on if it was off"
+msgstr ""
+
+#: configure.py
+msgid "the seasons named are the only ones on"
+msgstr ""
+
+#: configure.py
+msgid "turn seasons off"
+msgstr ""
+
+#: configure.py
+msgid "turn seasons back on, at Polesia's date"
+msgstr ""
+
+#: configure.py
+msgid "start from Polesia's dates or the meteorological ones (month starts), all six seasons on"
+msgstr ""
+
+#: configure.py
+msgid "back to Polesia's dates"
+msgstr ""
+
+#: configure.py
+msgid "show or change what the seasons are called"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "a season, like %(one)s or %(other)s"
+msgstr ""
+
+#: configure.py
+msgid "the name to show in the game, in quotes"
+msgstr ""
+
+#: configure.py
+msgid "back to its usual name"
+msgstr ""
+
+#: configure.py
+msgid "show or change where the real weather comes from"
+msgstr ""
+
+#: configure.py
+msgid "a place to look up on open-meteo.com, like Kyiv or \"New York\""
+msgstr ""
+
+#: configure.py
+msgid "which of the places found, when there are several"
+msgstr ""
+
+#: configure.py
+msgid "the place's coordinates in degrees, north and east positive"
+msgstr ""
+
+#: configure.py
+msgid "with --at, what to call the place"
+msgstr ""
+
+#: configure.py
+msgid "back to Chornobyl"
+msgstr ""
+
+#: configure.py
+msgid "copy the tools from the mod's folder into the GAMMA folder, or update them there; configure.bat does this when opened from the mod's folder"
+msgstr ""
+
+#: configure.py
+msgid "in the console, without asking"
+msgstr ""
+
+#: configure.py
+msgid "save your setup under a name, or load one"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s (the default)"
+msgstr ""
+
+#: configure.py
+msgid "the preset's name, in quotes if it has spaces"
+msgstr ""
+
+#: configure.py
+msgid "a line saying what the preset is"
+msgstr ""
+
+#: configure.py
+msgid "which parts to save or load; all of them by default"
+msgstr ""
+
+#: configure.py
+msgid "save over a preset of that name, or load over your own setup"
+msgstr ""
+
 #: guide.py
 msgid "Start"
 msgstr ""
 
 #: guide.py
 msgid "Seasonal mods"
-msgstr ""
-
-#: guide.py
-msgid "Seasons"
-msgstr ""
-
-#: guide.py
-msgid "Weather"
 msgstr ""
 
 #: guide.py
@@ -2319,18 +4524,6 @@ msgstr ""
 
 #: guide.py
 msgid "Advanced editor..."
-msgstr ""
-
-#: guide.py
-msgid "Save"
-msgstr ""
-
-#: guide.py
-msgid "Cancel"
-msgstr ""
-
-#: guide.py
-msgid "Close"
 msgstr ""
 
 #: guide.py
@@ -2452,12 +4645,6 @@ msgstr ""
 msgid "Install..."
 msgstr ""
 
-#. %s is a file in the tools' folder, _tools
-#: guide.py
-#, python-format
-msgid "%s is missing. Copy _tools from the mod's folder again."
-msgstr ""
-
 #: guide.py
 msgid "Install a mod from its archive"
 msgstr ""
@@ -2520,10 +4707,6 @@ msgid "Give the seasons names of my own"
 msgstr ""
 
 #: guide.py
-msgid "Seasons of your own"
-msgstr ""
-
-#: guide.py
 #, python-format
 msgid "A stretch of the year with a name of your own, a week or longer, that runs on top of the season it falls in: the mods you put on in it come on for those days, and the season's own mods stay on. You can have up to %d."
 msgid_plural "A stretch of the year with a name of your own, a week or longer, that runs on top of the season it falls in: the mods you put on in it come on for those days, and the season's own mods stay on. You can have up to %d."
@@ -2536,10 +4719,6 @@ msgid "Add a season of your own..."
 msgstr ""
 
 #: guide.py
-msgid "Spells"
-msgstr ""
-
-#: guide.py
 #, python-format
 msgid "A short stretch, 1 to %d day, that starts by chance: on each day of the seasons you pick there is a chance of it. It can bring another season with it - winter for a day or two in summer - or switch on only the mods you put on during it."
 msgid_plural "A short stretch, 1 to %d days, that starts by chance: on each day of the seasons you pick there is a chance of it. It can bring another season with it - winter for a day or two in summer - or switch on only the mods you put on during it."
@@ -2549,10 +4728,6 @@ msgstr[2] ""
 
 #: guide.py
 msgid "Add a spell..."
-msgstr ""
-
-#: guide.py
-msgid "None yet."
 msgstr ""
 
 #: guide.py
@@ -2587,15 +4762,6 @@ msgstr ""
 
 #: guide.py
 #, python-format
-msgid "Give %s a start day."
-msgstr ""
-
-#: guide.py
-msgid "Check at least one season."
-msgstr ""
-
-#: guide.py
-#, python-format
 msgid "Up to %d letter. Leave one empty for its usual name."
 msgid_plural "Up to %d letters. Leave one empty for its usual name."
 msgstr[0] ""
@@ -2619,18 +4785,6 @@ msgid "Somewhere else"
 msgstr ""
 
 #: guide.py
-msgid "Search"
-msgstr ""
-
-#: guide.py
-msgid "a town or city, like Kyiv or New York"
-msgstr ""
-
-#: guide.py
-msgid "Use this place"
-msgstr ""
-
-#: guide.py
 msgid "Or its coordinates:"
 msgstr ""
 
@@ -2648,14 +4802,6 @@ msgid "name"
 msgstr ""
 
 #: guide.py
-msgid "Use these"
-msgstr ""
-
-#: guide.py
-msgid "Today's weather there"
-msgstr ""
-
-#: guide.py
 msgid "For a place other than Chornobyl, saving also looks up its climate once - its last ten years of highs and lows - so the game can model a day there without a connection."
 msgstr ""
 
@@ -2666,51 +4812,6 @@ msgstr ""
 
 #: guide.py
 msgid "Weather from: pick a place above"
-msgstr ""
-
-#: guide.py
-msgid "Type a place to look for."
-msgstr ""
-
-#: guide.py
-msgid "Looking it up..."
-msgstr ""
-
-#. %s is the kind of error, as Python names it
-#: guide.py
-#, python-format
-msgid "Couldn't reach open-meteo.com (%s)."
-msgstr ""
-
-#. Use this place is the button's name
-#: guide.py
-#, python-format
-msgid "%d found. Pick one and press Use this place."
-msgid_plural "%d found. Pick one and press Use this place."
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
-
-#: guide.py
-msgid "Nothing by that name. Try another spelling."
-msgstr ""
-
-#: guide.py
-msgid "Pick a place in the list first."
-msgstr ""
-
-#: guide.py
-msgid "Give the latitude and longitude as numbers, like 50.45 and 30.52."
-msgstr ""
-
-#: guide.py
-msgid "Asking open-meteo.com..."
-msgstr ""
-
-#. %(sky)s is the sky that day, like "partly cloudy"
-#: guide.py
-#, python-format
-msgid "Today in %(place)s: high %(high).0f°C (%(high_f).0f°F), low %(low).0f°C (%(low_f).0f°F), %(sky)s."
 msgstr ""
 
 #: guide.py
@@ -2782,14 +4883,6 @@ msgid "Fix"
 msgstr ""
 
 #: guide.py
-#, python-format
-msgid "and %d more"
-msgid_plural "and %d more"
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
-
-#: guide.py
 msgid "All set"
 msgstr ""
 
@@ -2825,11 +4918,6 @@ msgstr ""
 #: guide.py
 msgctxt "dialog title"
 msgid "Save"
-msgstr ""
-
-#: guide.py
-#, python-format
-msgid "The weather now comes from %s:"
 msgstr ""
 
 #: guide.py
@@ -2891,15 +4979,7 @@ msgid "Save as a preset..."
 msgstr ""
 
 #: guide.py
-msgid "Preview the next launch..."
-msgstr ""
-
-#: guide.py
 msgid "play.bat would refuse this:"
-msgstr ""
-
-#: guide.py
-msgid "Saved"
 msgstr ""
 
 #: guide.py
@@ -2924,10 +5004,6 @@ msgid "Showing the dial here needs Pillow, a Python package. Save offers to inst
 msgstr ""
 
 #: guide.py
-msgid "The mod's configs folder is missing, so the dial can't be drawn here."
-msgstr ""
-
-#: guide.py
 msgid "The dial comes back when the lines in red are fixed."
 msgstr ""
 
@@ -2941,10 +5017,6 @@ msgstr ""
 
 #: guide.py
 msgid "Which mod?"
-msgstr ""
-
-#: guide.py
-msgid "On in these seasons"
 msgstr ""
 
 #: guide.py
@@ -2970,32 +5042,11 @@ msgid "Also on during these spells"
 msgstr ""
 
 #: guide.py
-#, python-format
-msgid "And on these kinds of weather at %s"
-msgstr ""
-
-#: guide.py
 msgid "picked for you, from the files they share"
 msgstr ""
 
 #: guide.py
-#, python-format
-msgid "%(mod)s  (%(n)d shared file)"
-msgid_plural "%(mod)s  (%(n)d shared files)"
-msgstr[0] ""
-msgstr[1] ""
-msgstr[2] ""
-
-#: guide.py
-msgid "Wins over"
-msgstr ""
-
-#: guide.py
 msgid "Where two mods have the same file, MO2 uses the one that wins. play.bat keeps this one just below the mod it wins over in MO2's list."
-msgstr ""
-
-#: guide.py
-msgid "OK"
 msgstr ""
 
 #: guide.py
@@ -3559,12 +5610,6 @@ msgstr ""
 msgid "Couldn't install %(mod)s: %(error)s. Nothing was installed."
 msgstr ""
 
-#. %s is Open-Meteo.com; GeoNames and CC BY 4.0 stay as they are
-#: fetch_weather.py
-#, python-format
-msgid "Places from %s, based on GeoNames (CC BY 4.0)"
-msgstr ""
-
 #: fetch_weather.py
 msgctxt "sky"
 msgid "clear"
@@ -3605,6 +5650,12 @@ msgstr ""
 #: fetch_weather.py
 #, python-format
 msgid "Weather data by %s (CC BY 4.0)"
+msgstr ""
+
+#. %s is Open-Meteo.com; GeoNames and CC BY 4.0 stay as they are
+#: fetch_weather.py
+#, python-format
+msgid "Places from %s, based on GeoNames (CC BY 4.0)"
 msgstr ""
 
 #. %s is Open-Meteo.com; CC BY 4.0 is the data's license, as it is
