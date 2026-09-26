@@ -14,6 +14,12 @@
   leaves the season be and switches on only the mods you put on during it. The date
   decides, so every launch that day agrees, and the setup says how often each comes on
   average. An MCM pin still wins over a spell.
+- **MCM settings that follow the season.** A mod you keep on all year can follow the season
+  through its own MCM options: a cold-weather mod's winter mode on in the winter seasons
+  and on freezing days, off the rest of the year. `play.bat` sets each option in MCM's saved
+  options before the game starts, changing only those lines; the mod needs to know nothing
+  about this one. The Seasonal mods step finds an option by a word of its name, and so
+  does `configure.py mcm --find`.
 - **The season, for other mods.** `sotz_api.season()` gives the season the world runs - an
   MCM pin's, a spell's, or the calendar's - with the blend and the ground's snow, and
   `sotz_api.climate(month, day)` the climate for any day of the year. docs/API.md has

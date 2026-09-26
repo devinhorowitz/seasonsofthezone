@@ -197,7 +197,7 @@ def raw_problems(cal):
 
 def step_for(problem):
     """The step where a refusal can be fixed, or None for the advanced editor."""
-    if problem.startswith(("TOGGLE_MODS", "LAYOUT", "SOUND_SRC")):
+    if problem.startswith(("TOGGLE_MODS", "LAYOUT", "SOUND_SRC", "MCM_SETTINGS")):
         return "mods"
     if problem.startswith(("CALENDAR", "NAMES", "OWN_SEASONS", "SPELLS")):
         return "seasons"
@@ -547,6 +547,7 @@ class Guide(object):
         self.button(row, _("Install one from an archive..."), self.pick_archive)
         self.found_archives(box)
         self.mods_extras(box)
+        self.mcm_box(box)
         self.mods_count = ttk.Label(box, text="", foreground=cf.GREY)
         self.mods_count.pack(anchor="w", pady=(12, 0))
         self.count_mods()
@@ -623,6 +624,54 @@ class Guide(object):
                             variable=var, command=lambda v=var, s=src:
                             setattr(self.cal, "sound_src", s if v.get() else None)).pack(
                 anchor="w", pady=(6, 1))
+
+    def mcm_box(self, box):
+        """Other mods' MCM options that follow the season: each to change or take off, and
+        a way to add one."""
+        ttk = self.ttk
+        self.subhead(_("MCM settings that follow the season"), parent=box)
+        self.para(_("An option of another mod, set in MCM by play.bat before the game starts: "
+                    "a cold-weather mod's winter mode on in the winter seasons and on freezing "
+                    "days, say, and off the rest of the year."), parent=box, pad=(0, 0))
+        self.mcm_list = ttk.Frame(box)
+        self.mcm_list.pack(anchor="w", fill="x", pady=(6, 0))
+        row = ttk.Frame(box)
+        row.pack(anchor="w", pady=(6, 0))
+        self.button(row, _("Add an MCM setting..."), lambda: cf.mcm_dialog(
+            self.root, self.cal, done=lambda key: self.show_mcm()), pad=0)
+        self.show_mcm()
+
+    def show_mcm(self):
+        """The MCM settings, each with a way to change it or take it off."""
+        ttk = self.ttk
+        if not (getattr(self, "mcm_list", None) and self.mcm_list.winfo_exists()):
+            return
+        for w in self.mcm_list.winfo_children():
+            w.destroy()
+        cal = self.cal
+        if not (cal.mcm or cal._bad_mcm):
+            ttk.Label(self.mcm_list, text=_("None yet."), foreground=cf.GREY).pack(anchor="w")
+        for k, s in cal.mcm.items():
+            line = ttk.Frame(self.mcm_list)
+            line.pack(anchor="w", fill="x", pady=1)
+            ttk.Label(line, text=k, style="Head.TLabel").pack(side="left")
+            self.button(line, _("Remove"), lambda k=k: self.remove_mcm(k), side="right",
+                        pad=0)
+            self.button(line, _("Change..."), lambda k=k: cf.mcm_dialog(
+                self.root, self.cal, editing=k, done=lambda key: self.show_mcm()),
+                side="right")
+            ttk.Label(self.mcm_list, text=cf.mcm_words(cal, s), foreground=cf.GREY,
+                      wraplength=520, justify="left").pack(anchor="w", padx=(18, 0),
+                                                           pady=(0, 4))
+        for k in list(cal._bad_mcm):
+            self.bad_row(self.mcm_list, k, cf.bad_reasons(cal, "mcm", k),
+                         lambda k=k: self.remove_mcm(k),
+                         lambda k=k: cf.mcm_dialog(self.root, self.cal, editing=k,
+                                                   done=lambda key: self.show_mcm()))
+
+    def remove_mcm(self, key):
+        if cf.remove_mcm(self.root, self.cal, key):
+            self.show_mcm()
 
     def check_mod(self, name, on):
         if on:
@@ -1198,6 +1247,8 @@ class Guide(object):
             rows.append((_("Seasons of your own"), own_words(cal)))
         if cal.spells:
             rows.append((_("Spells"), ce.few(cal.spells, 4)))
+        if cal.mcm:
+            rows.append((_("MCM settings"), "%d: %s" % (len(cal.mcm), ce.few(cal.mcm, 3))))
         rows.append((_("Weather from"), ce.place_text(cal.place)))
         if cal.events:
             rows.append((_("Events"), ce.few(cal.events, 4)))
@@ -1356,6 +1407,9 @@ class Guide(object):
             else:
                 text = _("ambient sound from %s") % cal.sound_src
             rows.append((_("Texture sets and sound"), text, lambda: self.edit("mods")))
+        if cal.mcm:
+            rows.append((_("MCM settings"), "%d: %s" % (len(cal.mcm), ce.few(cal.mcm, 3)),
+                         lambda: self.edit("mods")))
         rows += [(_("Seasons"), seasons_words(cal), lambda: self.edit("seasons")),
                  (_("Seasons of your own"), own_words(cal) if cal.own else _("none yet"),
                   lambda: self.edit("seasons")),

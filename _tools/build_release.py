@@ -583,6 +583,27 @@ def verify_fresh_install(zp, base, name):
         if os.path.isfile(f):
             os.remove(f)
 
+    # An MCM setting that follows the season, as the Seasonal mods step adds one. No mod
+    # here ships MCM's saved options, so apply makes them in overwrite/; the next season
+    # changes that line in place and keeps the file before it in _baseline.
+    axr = os.path.join(root, "overwrite", "gamedata", "configs", "axr_options.ltx")
+    code, text = run([configure, "mcm", "some_mod/cold", "--in", "summer", "--to", "true",
+                      "--else", "false"])
+    ok &= report("an MCM setting added", code == 0 and "Traceback" not in text, text)
+    for s, v in (("summer", "true"), ("winter", "false")):
+        code, text = run([season, "apply", "--season", s])
+        body = io.open(axr, encoding="latin-1").read() if os.path.isfile(axr) else ""
+        got = re.findall(r"(?m)^\s*some_mod/cold\s*=\s*(\S+)\s*$", body)
+        ok &= report("MCM's options follow the season to %s" % s,
+                     code == 0 and "[mcm]" in body and got == [v], text + body)
+    kept = [f for f in os.listdir(os.path.join(root, "_baseline", "modfile-backups"))
+            if f.startswith("axr_options-")] if os.path.isdir(
+                os.path.join(root, "_baseline", "modfile-backups")) else []
+    ok &= report("and the file before is kept", len(kept) == 1, repr(kept))
+    for f in (cfg, cfg + ".bak"):
+        if os.path.isfile(f):
+            os.remove(f)
+
     # A second copy under the old name, lower in the list: season.py says so and keeps
     # using the copy MO2 loads.
     copytree(os.path.join(mod, "gamedata"), os.path.join(root, "mods", MOD, "gamedata"))
@@ -667,6 +688,9 @@ choose Open in Explorer.
   SPELLS         short stretches that start by chance: name: {"in": (seasons...),
                  "chance": percent a day, "days": (fewest, most), 1 to 6, "as": the season
                  it brings, or None}. See docs/SCHEDULING.md.
+  MCM_SETTINGS   other mods' MCM options that follow the season: "page/option": {name:
+                 its value then, ..., "else": the rest of the year}. play.bat sets them
+                 in MCM's saved options before the game starts.
 """
 '''
 

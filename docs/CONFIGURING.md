@@ -112,6 +112,11 @@ py _tools\configure.py spell                          # your spells, and how oft
 py _tools\configure.py spell "Summer frost" --in summer --chance 3 --days 1 2 --as winter
 py _tools\configure.py spell "Summer frost" --chance 2          # change one part
 py _tools\configure.py spell "Summer frost" --remove
+py _tools\configure.py mcm                            # MCM settings that follow the season
+py _tools\configure.py mcm --find winter              # MCM's options, by a word of the name
+py _tools\configure.py mcm cold_system/winter --in winter "deep winter" --to true --else false
+py _tools\configure.py mcm cold_system/wind --set "deep winter=2" winter=1.5 --else 1
+py _tools\configure.py mcm cold_system/wind --remove
 py _tools\configure.py calendar           # when each season starts, and which are off
 py _tools\configure.py calendar summer=5-1 "deep winter=11-15" [--only]
 py _tools\configure.py calendar --off "late winter"
@@ -429,6 +434,42 @@ one that way.
 
 ---
 
+## `MCM_SETTINGS`
+
+```python
+MCM_SETTINGS = {
+    "cold_system/winter": {"winter": True, "winter_snow": True, "late_winter": True,
+                           "freezing": True, "else": False},
+    "cold_system/wind": {"winter_snow": 2.0, "winter": 1.5, "else": 1.0},
+}
+```
+
+Another mod's options in MCM that follow the season, for a mod that stays on all year.
+Before the game starts, `play.bat` sets each in MCM's saved options,
+`axr_options.ltx`, to its value for what is on that day, or to `"else"` when none of its
+names is. The mod reads it from MCM as it always does, and needs to know nothing about
+this one.
+
+| Part | Meaning |
+|---|---|
+| *key* | The option as MCM saves it: its page and the option, with `/` between, like `cold_system/winter`. `configure.py mcm --find <word>` lists them, and the Seasonal mods step's **Add an MCM setting...** finds one by a word of its name. This mod's own options can't be here. |
+| *a name* | A season, event, period, season of your own, spell or kind of weather, as `when` takes them, and the option's value then. |
+| `else` | Its value the rest of the year. Needed. |
+
+A value is `True` or `False` for a checkbox, a number, or text in quotes, the same kind
+throughout. When more than one of its names is on, the most specific wins: a kind of
+weather, then a spell, an event, a season of your own, and last the season or period; of
+two alike, the first listed.
+
+`status` shows each option's value for today and what MCM has now. `play.bat` changes only
+the lines of options that need it, keeping the rest of the file as it was, and keeps the
+file as it was first in `_baseline\modfile-backups`, the newest ten. It doesn't write
+while the game is running, since MCM saves its own values as the game closes. A change
+made in MCM lasts until the next launch. Removing a setting leaves the option at the value
+it has then.
+
+---
+
 ## `WEATHER_PLACE`
 
 ```python
@@ -477,7 +518,7 @@ of four parts:
 |---|---|
 | calendar | `CALENDAR` and `NAMES` |
 | events | `OWN_SEASONS`, `SPELLS`, `EVENTS` and `PERIODS` |
-| mods | `TOGGLE_MODS` |
+| mods | `TOGGLE_MODS` and `MCM_SETTINGS` |
 | textures | `LAYOUT` and `SOUND_SRC` |
 
 **Save preset...** in the window, or `configure.py preset save`, keeps the parts that have

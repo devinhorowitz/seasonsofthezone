@@ -247,7 +247,8 @@ yourself.
 The seasonal atmosphere changes in game, immediately. Terrain and grass textures can't: X-Ray
 loads them from MO2's virtual file system when a level loads and keeps them for the
 session. So seasonal mods have to be switched before the game starts, and that is what
-`play.bat` does.
+`play.bat` does, along with the texture sets, the ambient sound, a spell's season and MCM
+settings that follow the season.
 
 It isn't needed to play. Started from MO2, everything else goes on by the date: the light
 and weather, the marked days, the PDA and MCM, and the API other mods read. What
@@ -421,6 +422,22 @@ a fresh install.
 | Swamp / ground fog | `late_winter`, `spring`, `autumn` | |
 
 If MO2 can mount it as a folder, it can be seasonal: footstep audio, menu art, a flower pack.
+
+### MCM settings that follow the season
+
+A mod you keep on all year can still follow the season through its own MCM options: a
+cold-weather mod's winter mode on in the winter seasons and on freezing days, say, and
+off the rest of the year. `play.bat` sets each option before the game starts, in MCM's own
+saved options; the mod doesn't need to know about this one. **Add an MCM setting...** on
+the Seasonal mods step finds an option by a word of its name, or from a command prompt:
+
+```
+py _tools\configure.py mcm --find winter
+py _tools\configure.py mcm cold_system/winter --in winter "deep winter" "late winter" freezing --to true --else false
+```
+
+An option set this way can still be changed in MCM; the change lasts until the next
+launch. [CONFIGURING.md](docs/CONFIGURING.md#mcm_settings) has the details.
 
 ### `LAYOUT`
 

@@ -22,6 +22,13 @@ GAMMA folder (use python in place of py if that is how your Python starts):
                                                 a short stretch, 1 to 6 days, that starts by
                                                 chance; --as is the season it brings
   py _tools\configure.py spell "<name>" --rename "<new>" | --remove
+  py _tools\configure.py mcm                     other mods' MCM options that follow the
+                                                season
+  py _tools\configure.py mcm --find <words>      MCM's options with those words in their
+                                                names, and their values now
+  py _tools\configure.py mcm <page/option> --in winter "deep winter" --to true --else false
+  py _tools\configure.py mcm <page/option> --set "deep winter=2" winter=1.5 --else 1
+  py _tools\configure.py mcm <page/option> --remove
   py _tools\configure.py calendar                when each season starts
   py _tools\configure.py calendar summer=5-1 "deep winter=11-15" [--only]
   py _tools\configure.py calendar --off "late winter" | --on "late winter"
@@ -265,6 +272,13 @@ def cmd_list(a):
                                        ce.window_text(spec)))
         for name in cal._bad_events:
             print("  %-6s %-17s %s" % (pgettext("start of a line", "event"), name, cant))
+    if cal.mcm or cal._bad_mcm:
+        print()
+        for key, spec in cal.mcm.items():
+            print("  %-6s %-24s %s" % (pgettext("start of a line", "MCM"), key,
+                                       mcm_words(cal, spec)))
+        for key in cal._bad_mcm:
+            print("  %-6s %-24s %s" % (pgettext("start of a line", "MCM"), key, cant))
     if cal.layout or cal.sound_src:
         print()
         for name in cal.layout:
@@ -439,6 +453,11 @@ def cmd_event(a):
             fail(_("These seasonal mods still use %s. Uncheck it for them first (the Delete "
                    "event button in configure.bat does both), then remove it:") % have,
                  *["  " + u for u in users])
+        follows = cal.mcm_users(have)
+        if follows:
+            fail(_("These MCM settings still follow %s. Change them first, with %s, then "
+                   "remove it:") % (have, season.command("configure.py", "mcm")),
+                 *["  " + k for k in follows])
         cal.events.pop(have, None)
         cal._bad_events.pop(have, None)
         save(cal, [_("removed event %s") % have])
@@ -509,7 +528,7 @@ def cmd_season(a):
         gone = cal.take_own(have)
         save(cal, [_("removed season %s") % have]
              + [_("removed spell %s, which could start only in it") % s for s in spells]
-             + stopped_lines(gone))
+             + stopped_lines(gone) + dropped_lines(cal.mcm_dropped))
         return
     if a.rename:
         new = a.rename.strip()
@@ -599,7 +618,8 @@ def cmd_spell(a):
              % {"name": name, "command": season.command("configure.py", "spell")})
     if a.remove:
         gone = cal.take_spell(have)
-        save(cal, [_("removed spell %s") % have] + stopped_lines(gone))
+        save(cal, [_("removed spell %s") % have] + stopped_lines(gone)
+             + dropped_lines(cal.mcm_dropped))
         return
     if a.rename:
         new = a.rename.strip()
@@ -640,6 +660,93 @@ def cmd_spell(a):
     if not cal.users_of(key):
         print("  " + _("To have a mod on during it: %s") % season.command(
             "configure.py", "add \"<mod>\" --when \"%s\"" % key))
+
+
+def cmd_mcm(a):
+    """Another mod's MCM option that follows the season: shown, found, added, changed or
+    removed."""
+    cal = loaded()
+    saved = season.mcm_saved()
+    if a.find is not None:
+        words = a.find.lower().split()
+        hits = [k for k in sorted(saved) if all(w in k.lower() for w in words)]
+        for k in hits[:60]:
+            print("  %-56s %s" % (k, saved[k]))
+        if len(hits) > 60:
+            print("  " + _("... and %d more. Add a word to narrow it down.") % (len(hits) - 60))
+        if not hits:
+            print("  " + (_("MCM's file has no option with \"%s\" in its name.") % a.find
+                          if saved else
+                          _("MCM's file isn't there yet. Start the game once and open MCM, "
+                            "then look again.")))
+        return
+    if not a.option:
+        if not cal.mcm and not cal._bad_mcm:
+            print("  " + _("No MCM settings follow the season yet. To add one:"))
+            print("  " + season.command("configure.py", "mcm cold_system/winter --in winter "
+                                        "\"deep winter\" --to true --else false"))
+            print("  " + _("To find an option's name: %s")
+                  % season.command("configure.py", "mcm --find winter"))
+        for k, s in cal.mcm.items():
+            print("  %-40s %s" % (k, mcm_words(cal, s)))
+        for k in cal._bad_mcm:
+            print("  %-40s %s" % (k, _("can't be used: %s") % " ".join(
+                bad_reasons(cal, "mcm", k))))
+        return
+    key = a.option.strip()
+    have = key if (key in cal.mcm or key in cal._bad_mcm) else None
+    if a.remove:
+        if not have:
+            fail(_("No MCM setting follows the season for %(option)s. %(command)s shows yours.")
+                 % {"option": key, "command": season.command("configure.py", "mcm")})
+        cal.take_mcm(key)
+        save(cal, [_("removed the MCM setting for %s; MCM keeps the value it has now")
+                   % key])
+        return
+    kind = mcm_kind(saved.get(key))
+    spec = dict(cal.mcm.get(key, {}))
+    if (a.start is None) != (a.to is None):
+        fail(_("--in and --to go together: the names, and the value in them, like:"),
+             "  " + season.command("configure.py", "mcm %s --in winter --to true --else false"
+                                   % key))
+    pairs = [(n, a.to) for n in a.start or []]
+    for item in a.set or []:
+        n, eq, v = item.partition("=")
+        if not eq:
+            fail(_("Give each as name=value, like %s.") % "\"deep winter=2\"")
+        pairs.append((n, v))
+    for n, v in pairs:
+        name = pick_when([n.strip()], cal)[0]
+        value, why = mcm_value(v, kind)
+        if why:
+            fail(why)
+        spec.pop(name, None)
+        spec[name] = value
+    if a.otherwise is not None:
+        value, why = mcm_value(a.otherwise, kind)
+        if why:
+            fail(why)
+        spec[season.MCM_ELSE] = value
+    elif season.MCM_ELSE not in spec:
+        value, why = mcm_value(saved.get(key) or "", kind)
+        if why:
+            fail(_("A new MCM setting needs --else, its value the rest of the year, like:"),
+                 "  " + season.command("configure.py", "mcm %s --in winter --to true --else "
+                                       "false" % key))
+        spec[season.MCM_ELSE] = value
+    if not [n for n in spec if n != season.MCM_ELSE]:
+        fail(_("Give the seasons, events, spells or weather it follows, with --in and --to, "
+               "or --set."))
+    cal.put_mcm(key, spec)
+    said = {"option": key, "words": mcm_words(cal, cal.mcm[key])}
+    if not save(cal, [(_("changed the MCM setting for %(option)s: %(words)s") if have else
+                       _("added an MCM setting for %(option)s: %(words)s")) % said]):
+        return
+    if key not in saved:
+        print("  %-7s %s" % (pgettext("start of a line", "note"), _(
+            "MCM's file has no %(option)s yet, so play.bat adds it. Check the name with "
+            "%(command)s.") % {"option": key, "command": season.command(
+                "configure.py", "mcm --find %s" % key.rsplit("/", 1)[-1])}))
 
 
 def cmd_calendar(a):
@@ -993,6 +1100,10 @@ def plain(problem):
         ": " if m.group(3).startswith(":") else " "), p)
     p = re.sub(r"^LAYOUT\[(['\"])(.*?)\1\]:? ?",
                lambda m: _("Texture set %s: ") % name(m), p)
+    # translators: an MCM option by name, starting a problem; a sentence follows
+    p = re.sub(r"^MCM_SETTINGS\[(['\"])(.*?)\1\](:? ?)",
+               lambda m: _("MCM setting %s") % name(m) + (
+                   ": " if m.group(3).startswith(":") else " "), p)
     p = re.sub(r"^NAMES\[(['\"])(.*?)\1\]:? ?",
                lambda m: _("The name for %s: ") % season.usual_name(name(m)), p)
     p = re.sub(r"^CALENDAR\[(['\"])(.*?)\1\]:? ?",
@@ -1015,6 +1126,11 @@ def bad_reasons(cal, kind, name):
         table[name] = cal._bad_own[name]
         got = season.own_problems(table, cal.periods, cal.events, cal.names)
         mine = "OWN_SEASONS[%r]" % (name,)
+    elif kind == "mcm":
+        table = dict(cal.mcm)
+        table[name] = cal._bad_mcm[name]
+        got = season.mcm_problems(table, cal.known())
+        mine = "MCM_SETTINGS[%r]" % (name,)
     else:
         table = dict(cal.spells)
         table[name] = cal._bad_spells[name]
@@ -1022,6 +1138,68 @@ def bad_reasons(cal, kind, name):
                                     cal.names)
         mine = "SPELLS[%r]" % (name,)
     return [reason(p) for p in got if p.startswith(mine)] or [reason(p) for p in got]
+
+
+def mcm_kind(text):
+    """What kind of option MCM saved `text` for: "check" (true or false), "number", or
+    "text"; None when it saved nothing."""
+    if text is None:
+        return None
+    if text.lower() in ("true", "false"):
+        return "check"
+    try:
+        float(text)
+        return "number"
+    except ValueError:
+        return "text"
+
+
+def mcm_value(text, kind=None):
+    """(value, None) for an MCM value as typed - true, false, a number, or text - or (None,
+    why not) when it isn't the `kind` MCM keeps the option as."""
+    t = text.strip()
+    low = t.lower()
+    if low in ("true", "on", "yes"):
+        v = True
+    elif low in ("false", "off", "no"):
+        v = False
+    else:
+        try:
+            v = int(t)
+        except ValueError:
+            try:
+                v = decimal(t)
+            except ValueError:
+                v = t
+    if kind == "check" and not isinstance(v, bool):
+        return None, _("\"%s\" isn't true or false, and this option is a checkbox.") % t
+    if kind == "number" and (isinstance(v, bool) or not isinstance(v, (int, float))):
+        return None, _("\"%s\" isn't a number, and this option is one.") % t
+    if not t:
+        return None, _("Give a value.")
+    return v, None
+
+
+def mcm_words(cal, spec):
+    """An MCM setting in words: each value and when, then the rest of the year's."""
+    groups = {}
+    for n, v in spec.items():
+        if n != season.MCM_ELSE:
+            groups.setdefault(season.mcm_text(v), []).append(n)
+    parts = [_("%(value)s in %(names)s") % {"value": v, "names": lang.and_list(
+        label(n, cal) for n in names)} for v, names in groups.items()]
+    parts.append(_("%s the rest of the year") % season.mcm_text(spec.get(season.MCM_ELSE)))
+    return "; ".join(parts)
+
+
+def dropped_lines(keys):
+    """What a removal says of the MCM settings it took off, following nothing else."""
+    if not keys:
+        return []
+    return [ngettext("stopped setting %s, which followed nothing else; MCM keeps the value it "
+                     "has now",
+                     "stopped setting %s, which followed nothing else; MCM keeps the values "
+                     "they have now", len(keys)) % ce.few(keys, 6)]
 
 
 def center(win, root):
@@ -1755,8 +1933,45 @@ class App(object):
         if remove_spell(self.root, self.cal, name):
             self.changed()
 
+    def new_mcm(self, editing=None):
+        mcm_dialog(self.root, self.cal, editing=editing, done=lambda key: self.changed())
+
+    def delete_mcm(self, key):
+        if remove_mcm(self.root, self.cal, key):
+            self.changed()
+
+    def mcm_list(self):
+        """The Seasons tab's list of MCM settings."""
+        ttk = self.ttk
+        if getattr(self, "mcm_frame", None) is None or not self.mcm_frame.winfo_exists():
+            return
+        for w in self.mcm_frame.winfo_children():
+            w.destroy()
+        if not (self.cal.mcm or self.cal._bad_mcm):
+            ttk.Label(self.mcm_frame, text=_("None yet."), foreground=GREY).pack(anchor="w")
+        for k, s in self.cal.mcm.items():
+            line = ttk.Frame(self.mcm_frame)
+            line.pack(fill="x", pady=1)
+            ttk.Label(line, text=k, width=34).pack(side="left")
+            ttk.Button(line, text=_("Delete"), command=lambda k=k: self.delete_mcm(k)).pack(
+                side="right")
+            ttk.Button(line, text=_("Edit..."), command=lambda k=k: self.new_mcm(k)).pack(
+                side="right", padx=(0, 4))
+            ttk.Label(line, text=mcm_words(self.cal, s), foreground=GREY, wraplength=300,
+                      justify="left").pack(side="left")
+        for k in self.cal._bad_mcm:
+            line = ttk.Frame(self.mcm_frame)
+            line.pack(fill="x", pady=1)
+            ttk.Label(line, text=str(k), foreground=RED, width=34).pack(side="left")
+            ttk.Button(line, text=_("Delete"), command=lambda k=k: self.delete_mcm(k)).pack(
+                side="right")
+            ttk.Label(line, text=_("Can't be used. %s") % " ".join(
+                bad_reasons(self.cal, "mcm", k)), foreground=RED, wraplength=300,
+                justify="left").pack(side="left")
+
     def own_list(self):
-        """The Seasons tab's list of the player's own seasons."""
+        """The Seasons tab's lists: the player's own seasons, spells and MCM settings."""
+        self.mcm_list()
         ttk = self.ttk
         for w in self.own_frame.winfo_children():
             w.destroy()
@@ -1824,11 +2039,14 @@ class App(object):
         being seasonal, since a mod on for nothing would never be switched on."""
         from tkinter import messagebox
         users = self.cal.users_of(name)
-        if ask and not messagebox.askyesno(_("Delete event"), (
-                _("Delete the event %(event)s?\n\nIt is checked for:\n\n%(mods)s\n\nIt is "
+        lost = mcm_lost(self.cal, {name})
+        text = (_("Delete the event %(event)s?\n\nIt is checked for:\n\n%(mods)s\n\nIt is "
                   "unchecked for each of them, and a mod with nothing else checked stops "
                   "being seasonal.") % {"event": name, "mods": "\n".join(users)} if users
-                else _("Delete the event %s?") % name), parent=self.root):
+                else _("Delete the event %s?") % name)
+        if lost:
+            text += "\n\n" + lost_words(lost)
+        if ask and not messagebox.askyesno(_("Delete event"), text, parent=self.root):
             return
         for u in users:
             rest = [p for p in self.cal.toggle[u]["when"] if p != name]
@@ -1839,6 +2057,7 @@ class App(object):
                 self.cal.take(u)
         self.cal.events.pop(name, None)
         self.cal._bad_events.pop(name, None)
+        self.cal.drop_from_mcm(name)
         self.changed()
 
     # the Seasons tab
@@ -1933,6 +2152,15 @@ class App(object):
         self.spell_frame = ttk.Frame(box)
         self.spell_frame.pack(fill="x", pady=(6, 0))
         ttk.Button(box, text=_("New spell..."), command=lambda: self.new_spell()).pack(
+            anchor="w", pady=(6, 0))
+        box = ttk.LabelFrame(f, text=_("MCM settings"), padding=8)
+        box.pack(fill="x", pady=(12, 0))
+        ttk.Label(box, wraplength=500, justify="left", foreground=GREY, text=_(
+            "Other mods' options in MCM that follow the season: play.bat sets each before "
+            "the game starts.")).pack(anchor="w")
+        self.mcm_frame = ttk.Frame(box)
+        self.mcm_frame.pack(fill="x", pady=(6, 0))
+        ttk.Button(box, text=_("New MCM setting..."), command=lambda: self.new_mcm()).pack(
             anchor="w", pady=(6, 0))
         self.own_list()
         self.dates_edited(user=False)
@@ -2925,21 +3153,217 @@ def spell_dialog(root, cal, editing=None, done=None):
     return win
 
 
+def mcm_dialog(root, cal, editing=None, done=None):
+    """Add an MCM setting to `cal`, or change the one for the option `editing`: the option,
+    its value in each season, event, spell or weather it follows, and the rest of the
+    year's, checked as they are set. `done(option)` runs once it is in `cal`; nothing is
+    saved here."""
+    import tkinter as tk
+    from tkinter import messagebox, ttk
+    saved = season.mcm_saved()
+    old = (cal.mcm.get(editing) or {}) if editing else {}
+    win, f = dialog(root, _("Change %s") % editing if editing else _("An MCM setting"))
+    ttk.Label(f, wraplength=540, justify="left", text=_(
+        "play.bat sets another mod's option in MCM before the game starts: to its value for "
+        "the season, event, spell or weather on that day, or else to the rest of the year's. "
+        "When more than one is on, the most specific wins: weather, then a spell, an event, "
+        "a season of your own, the season. A change made in MCM lasts until the next "
+        "launch.")).pack(anchor="w")
+    ttk.Label(f, text=_("The option, as MCM saves it. Type a word of its name:")).pack(
+        anchor="w", pady=(12, 2))
+    key = tk.StringVar(value=editing or "")
+    box = ttk.Entry(f, textvariable=key, width=66)
+    box.pack(anchor="w")
+    found = tk.Listbox(f, height=6, width=76, exportselection=False)
+    found.pack(anchor="w", pady=(4, 0))
+    now = ttk.Label(f, text="", foreground=GREY)
+    now.pack(anchor="w", pady=(2, 0))
+    grid = ttk.Frame(f)
+    grid.pack(anchor="w", pady=(10, 0))
+    names = cal.known()
+    shown = [label(n, cal) for n in names]
+    by_shown = dict(zip(shown, names))
+    rows = []
+    ttk.Label(grid, text=_("When")).grid(row=0, column=0, sticky="w")
+    ttk.Label(grid, text=_("Value")).grid(row=0, column=1, sticky="w", padx=(10, 0))
+
+    def add_row(n=None, v=""):
+        name_var, value_var = tk.StringVar(value=label(n, cal) if n else ""), tk.StringVar(
+            value=v)
+        pick = ttk.Combobox(grid, textvariable=name_var, values=shown, state="readonly",
+                            width=22)
+        entry = ttk.Entry(grid, textvariable=value_var, width=14)
+        row = [name_var, value_var, pick, entry, None]
+        drop = ttk.Button(grid, text=_("Remove"), command=lambda r=row: take_row(r))
+        row[4] = drop
+        rows.append(row)
+        # show() comes further down: looked up when a row changes, not now
+        name_var.trace_add("write", lambda *a: show())
+        value_var.trace_add("write", lambda *a: show())
+        lay_out()
+
+    def take_row(row):
+        rows.remove(row)
+        for w in row[2:]:
+            w.destroy()
+        lay_out()
+        show()
+
+    def lay_out():
+        for i, (_n, _v, pick, entry, drop) in enumerate(rows, 1):
+            pick.grid(row=i, column=0, sticky="w", pady=2)
+            entry.grid(row=i, column=1, sticky="w", padx=(10, 0))
+            drop.grid(row=i, column=2, sticky="w", padx=(10, 0))
+
+    for n, v in old.items():
+        if n != season.MCM_ELSE:
+            add_row(n, season.mcm_text(v))
+    if not rows:
+        add_row()
+    more = ttk.Frame(f)
+    more.pack(anchor="w", pady=(4, 0))
+    ttk.Button(more, text=_("Add a row"), command=lambda: add_row()).pack(side="left")
+    rest_line = ttk.Frame(f)
+    rest_line.pack(anchor="w", pady=(10, 0))
+    ttk.Label(rest_line, text=_("The rest of the year")).pack(side="left")
+    rest = tk.StringVar(value=season.mcm_text(old[season.MCM_ELSE])
+                        if season.MCM_ELSE in old else saved.get(editing or "", ""))
+    ttk.Entry(rest_line, textvariable=rest, width=14).pack(side="left", padx=(10, 0))
+    words = ttk.Label(f, text="", wraplength=540, justify="left")
+    words.pack(anchor="w", pady=(12, 0))
+
+    def matches(*a):
+        q = key.get().strip().lower().split()
+        found.delete(0, "end")
+        if key.get().strip() in saved:
+            if not rest.get().strip():
+                rest.set(saved[key.get().strip()])
+            return
+        if not q:
+            return
+        for k in [k for k in sorted(saved) if all(w in k.lower() for w in q)][:300]:
+            found.insert("end", "%s  =  %s" % (k, saved[k]))
+
+    def picked(e=None):
+        sel = found.curselection()
+        if sel:
+            k = found.get(sel[0]).split("  =  ")[0]
+            key.set(k)
+            if not rest.get().strip():
+                rest.set(saved.get(k, ""))
+
+    found.bind("<<ListboxSelect>>", picked)
+
+    def read():
+        """(option, spec, problems) as the dialog stands."""
+        k = key.get().strip()
+        kind = mcm_kind(saved.get(k))
+        spec = {}
+        for name_var, value_var, _p, _e, _d in rows:
+            if not name_var.get():
+                continue
+            v, why = mcm_value(value_var.get(), kind)
+            if why:
+                return k, spec, [why]
+            spec[by_shown[name_var.get()]] = v
+        if not k:
+            return k, spec, [_("Pick the option.")]
+        if not spec:
+            return k, spec, [_("Pick when it takes another value.")]
+        v, why = mcm_value(rest.get(), kind)
+        if why:
+            return k, spec, [_("The rest of the year: %s") % why]
+        spec[season.MCM_ELSE] = v
+        if k != editing and k in cal.mcm:
+            return k, spec, [_("There is an MCM setting for %s already.") % k]
+        return k, spec, [plain(p) for p in season.mcm_problems({k: spec}, cal.known())]
+
+    def show(*a):
+        k = key.get().strip()
+        kind = mcm_kind(saved.get(k))
+        now.configure(text=(_("MCM's file doesn't have this option yet.") if k and k not in saved
+                            else "" if not k else
+                            _("Now %s in MCM. A checkbox: true or false.") % saved[k]
+                            if kind == "check" else
+                            _("Now %s in MCM. A number.") % saved[k] if kind == "number"
+                            else _("Now %s in MCM.") % saved[k]))
+        k, spec, problems = read()
+        if problems and k and any(r[0].get() for r in rows):
+            words.configure(text="\n".join(problems), foreground=RED)
+        elif not problems:
+            text = mcm_words(cal, spec)
+            words.configure(text=text[:1].upper() + text[1:] + ".", foreground=GREY)
+        else:
+            words.configure(text="")
+
+    def ok():
+        k, spec, problems = read()
+        if problems:
+            messagebox.showerror(win.title(), "\n".join(problems), parent=win)
+            return
+        cal.put_mcm(k, spec, was=editing)
+        win.destroy()
+        if done:
+            done(k)
+
+    key.trace_add("write", matches)
+    key.trace_add("write", show)
+    rest.trace_add("write", show)
+    matches()
+    show()
+    button_row(f, (_("Save") if editing else _("Add"), ok), (_("Cancel"), win.destroy))
+    win.bind("<Return>", lambda e: ok())
+    present(win, root, box)
+    return win
+
+
+def remove_mcm(root, cal, key):
+    """Take an MCM setting off `cal`, once the player says so. True when it was taken off;
+    nothing is saved here."""
+    from tkinter import messagebox
+    if not messagebox.askyesno(_("Remove %s") % key, _(
+            "Stop setting %s by season? MCM keeps the value it has then.") % key,
+            parent=root):
+        return False
+    cal.take_mcm(key)
+    return True
+
+
 def remove_spell(root, cal, name):
     """Take a spell off `cal` and off the mods on during it, once the player says so when
     there are any. True when it was taken off; nothing is saved here."""
     from tkinter import messagebox
     users = cal.users_of(name)
-    if users:
+    lost = mcm_lost(cal, {name})
+    if users or lost:
         only = [u for u in users if all(p == name for p in cal.toggle[u]["when"])]
         text = (_("Remove %(spell)s? These mods are on during it:\n\n%(mods)s\n\nIt comes off "
-                  "each of them.") % {"spell": name, "mods": "\n".join(users)})
+                  "each of them.") % {"spell": name, "mods": "\n".join(users)} if users
+                else _("Remove %s?") % name)
         if only:
             text += " " + only_words(only)
+        if lost:
+            text += "\n\n" + lost_words(lost)
         if not messagebox.askyesno(_("Remove %s") % name, text, parent=root):
             return False
     cal.take_spell(name)
     return True
+
+
+def mcm_lost(cal, going):
+    """The MCM settings that follow nothing but the names in `going`: a removal of those
+    takes them off too."""
+    return [k for k, s in cal.mcm.items()
+            if [n for n in s if n != season.MCM_ELSE]
+            and all(n in going for n in s if n != season.MCM_ELSE)]
+
+
+def lost_words(keys):
+    """What a removal in the window says of the MCM settings it takes off."""
+    return (_("The MCM setting for %s follows nothing else, so play.bat stops setting it; MCM "
+              "keeps the value it has then.") if len(keys) == 1 else
+            _("The MCM settings for %s follow nothing else, so play.bat stops setting them; "
+              "MCM keeps the values they have then.")) % ce.few(keys, 6)
 
 
 def only_words(only):
@@ -2961,7 +3385,8 @@ def remove_own_season(root, cal, name):
     going = set([name] + spells)
     only = [u for u, c in cal.toggle.items()
             if c["when"] and all(p in going for p in c["when"])]
-    if users or spells:
+    lost = mcm_lost(cal, going)
+    if users or spells or lost:
         if users:
             text = (_("Remove %(season)s? These mods are on in it:\n\n%(mods)s\n\nIt comes off "
                       "each of them.") % {"season": name, "mods": "\n".join(users)})
@@ -2973,6 +3398,8 @@ def remove_own_season(root, cal, name):
                               ) % ce.few(spells, 6)
         if only:
             text += " " + only_words(only)
+        if lost:
+            text += "\n\n" + lost_words(lost)
         if not messagebox.askyesno(_("Remove %s") % name, text, parent=root):
             return False
     cal.take_own(name)
@@ -3210,6 +3637,13 @@ GAMMA folder (use python in place of py if that is how your Python starts):
                                                 a short stretch, 1 to 6 days, that starts by
                                                 chance; --as is the season it brings
   py _tools\configure.py spell "<name>" --rename "<new>" | --remove
+  py _tools\configure.py mcm                     other mods' MCM options that follow the
+                                                season
+  py _tools\configure.py mcm --find <words>      MCM's options with those words in their
+                                                names, and their values now
+  py _tools\configure.py mcm <page/option> --in winter "deep winter" --to true --else false
+  py _tools\configure.py mcm <page/option> --set "deep winter=2" winter=1.5 --else 1
+  py _tools\configure.py mcm <page/option> --remove
   py _tools\configure.py calendar                when each season starts
   py _tools\configure.py calendar summer=5-1 "deep winter=11-15" [--only]
   py _tools\configure.py calendar --off "late winter" | --on "late winter"
@@ -3292,6 +3726,22 @@ def main():
     p.add_argument("--rename", metavar="NEW", help=_("give it another name"))
     p.add_argument("--remove", action="store_true",
                    help=_("delete it, and take it off the mods on during it"))
+    p = sub.add_parser("mcm", help=_("show, add, change or remove another mod's MCM option "
+                                     "that follows the season"))
+    p.add_argument("option", nargs="?", metavar="PAGE/OPTION",
+                   help=_("the option as MCM saves it, like cold_system/winter"))
+    p.add_argument("--find", metavar="WORDS",
+                   help=_("list MCM's options with these words in their names"))
+    p.add_argument("--in", dest="start", nargs="+", metavar="NAME",
+                   help=_("the seasons, events, spells or weather that take the value --to "
+                          "gives"))
+    p.add_argument("--to", metavar="VALUE", help=_("the value in those"))
+    p.add_argument("--set", nargs="+", metavar="NAME=VALUE",
+                   help=_("a value for each name, like \"deep winter=2\""))
+    p.add_argument("--else", dest="otherwise", metavar="VALUE",
+                   help=_("the value the rest of the year"))
+    p.add_argument("--remove", action="store_true",
+                   help=_("stop setting it; MCM keeps the value it has then"))
     p = sub.add_parser("calendar", help=_("show or change when each season starts"))
     p.add_argument("starts", nargs="*", metavar="SEASON=MM-DD",
                    help=_("move a season's start, turning it on if it was off"))
@@ -3338,7 +3788,8 @@ def main():
                    help=_("save over a preset of that name, or load over your own setup"))
     a = ap.parse_args()
     {"list": cmd_list, "add": cmd_add, "remove": cmd_remove, "event": cmd_event,
-     "season": cmd_season, "spell": cmd_spell, "calendar": cmd_calendar, "name": cmd_name, "preset": cmd_preset, "place": cmd_place,
+     "season": cmd_season, "spell": cmd_spell, "mcm": cmd_mcm, "calendar": cmd_calendar,
+     "name": cmd_name, "preset": cmd_preset, "place": cmd_place,
      "install": lambda a: __import__("installer").main(a),
      None: lambda a: window(a.advanced)}[a.cmd](a)
 

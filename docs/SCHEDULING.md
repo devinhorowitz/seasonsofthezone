@@ -205,6 +205,11 @@ page doesn't show them.
 An MCM pin fixes the season, and a spell doesn't change a pinned season; the mods on
 during it still come on. `season.py status --season` works the same way.
 
+**MCM settings follow the same names.** An option in `MCM_SETTINGS` takes its value for
+the most specific name on that day - a kind of weather, then a spell, an event, a season of
+your own, and last the season - or its `else`. See
+[CONFIGURING.md](CONFIGURING.md#mcm_settings).
+
 **Seasons of your own and spells meet what they fall in.** When two seasonal mods ship the
 same file and are on at the same time, the setup asks whose the game should use. For a
 mod in a season of your own or a spell, "at the same time" is worked out from the dates, so

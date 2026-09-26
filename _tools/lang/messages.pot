@@ -422,6 +422,62 @@ msgid "names %s, which is this mod itself. Name the ambient sound mod to read fr
 msgstr ""
 
 #: season.py
+#, python-format
+msgid "the value for %s isn't a number MCM can hold."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "the value for %s can't be empty, start or end with a space, or hold ; [ ], a line break or a letter the game can't show."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "the value for %s must be True, False, a number or text in quotes."
+msgstr ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+msgid "must be a table, {\"mod/option\": {\"winter\": True, \"else\": False}}, or {} for none."
+msgstr ""
+
+#: season.py
+msgid "an option is named as MCM saves it: its page and the option, with / between, like \"cold_system/winter\"."
+msgstr ""
+
+#: season.py
+msgid "that is one of this mod's own options, which follow the season already. Take the entry out."
+msgstr ""
+
+#. follows an entry, like PERIODS['x'], which stays English
+#: season.py
+msgid "must be {\"winter\": True, \"else\": False}: a value for each season, event, spell or weather it names, and one for the rest of the year."
+msgstr ""
+
+#: season.py
+msgid "it needs \"else\", its value the rest of the year."
+msgstr ""
+
+#: season.py
+msgid "it names no season, event, spell or weather, so it would never change."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(names)s is not a season, an event, a spell or weather. Valid: %(valid)s."
+msgid_plural "%(names)s are not seasons, events, spells or weather. Valid: %(valid)s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "its values are of more than one kind; MCM keeps an option as a checkbox, a number or text. Give each the same kind."
+msgstr ""
+
+#: season.py
+msgid "the rest of the year"
+msgstr ""
+
+#: season.py
 msgctxt "season"
 msgid "spring"
 msgstr ""
@@ -1450,6 +1506,20 @@ msgstr ""
 
 #: season.py
 #, python-format
+msgid "(now %s)"
+msgstr ""
+
+#: season.py
+msgid "(not in MCM's file yet)"
+msgstr ""
+
+#: season.py
+msgctxt "report"
+msgid "MCM settings"
+msgstr ""
+
+#: season.py
+#, python-format
 msgid "not in mods/ - left alone (MO2 has \"%s\")"
 msgstr ""
 
@@ -1568,6 +1638,20 @@ msgstr ""
 
 #: season.py
 #, python-format
+msgid "The MCM settings wait for the next launch: %s is running, and would save its own over them."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(was)s -> %(now)s"
+msgstr ""
+
+#: season.py
+msgid "not set"
+msgstr ""
+
+#: season.py
+#, python-format
 msgid "%(season)s: %(mods)s and %(sets)s skipped; the ! lines above say why."
 msgstr ""
 
@@ -1607,6 +1691,16 @@ msgstr ""
 #: season.py
 #, python-format
 msgid "%(season)s: seasonal mods need switching. Start the game with play.bat, or run %(command)s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s: MCM settings set. The game picks this up when it starts."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(season)s: MCM settings need setting. Start the game with play.bat, or run %(command)s"
 msgstr ""
 
 #: season.py
@@ -1736,6 +1830,11 @@ msgstr ""
 #: season.py
 msgctxt "staged"
 msgid "seasonal mods"
+msgstr ""
+
+#: season.py
+msgctxt "staged"
+msgid "MCM settings"
 msgstr ""
 
 #: season.py
@@ -1887,7 +1986,7 @@ msgid "seasons of your own, spells, events and periods"
 msgstr ""
 
 #: config_edit.py
-msgid "seasonal mods"
+msgid "seasonal mods and MCM settings"
 msgstr ""
 
 #: config_edit.py
@@ -1965,6 +2064,13 @@ msgstr ""
 #, python-format
 msgid "seasonal mods: %d"
 msgid_plural "seasonal mods: %d"
+msgstr[0] ""
+msgstr[1] ""
+
+#: config_edit.py
+#, python-format
+msgid "MCM settings: %d"
+msgid_plural "MCM settings: %d"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -2172,6 +2278,24 @@ msgstr[1] ""
 
 #: config_edit.py
 #, python-format
+msgid "MCM settings: %s."
+msgstr ""
+
+#: config_edit.py
+#, python-format
+msgid "takes off or changes yours: %s"
+msgstr ""
+
+#. what loading a preset takes the place of, in a list
+#: config_edit.py
+#, python-format
+msgid "%d of your MCM settings"
+msgid_plural "%d of your MCM settings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: config_edit.py
+#, python-format
 msgid "Texture sets: %(sets)s. Ambient sound: %(sound)s."
 msgstr ""
 
@@ -2312,6 +2436,11 @@ msgstr ""
 #: configure.py
 msgctxt "start of a line"
 msgid "event"
+msgstr ""
+
+#: configure.py
+msgctxt "start of a line"
+msgid "MCM"
 msgstr ""
 
 #: configure.py
@@ -2489,6 +2618,11 @@ msgstr ""
 #: configure.py
 #, python-format
 msgid "These seasonal mods still use %s. Uncheck it for them first (the Delete event button in configure.bat does both), then remove it:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "These MCM settings still follow %s. Change them first, with %s, then remove it:"
 msgstr ""
 
 #: configure.py
@@ -2700,6 +2834,76 @@ msgstr ""
 #: configure.py
 #, python-format
 msgid "To have a mod on during it: %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "... and %d more. Add a word to narrow it down."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "MCM's file has no option with \"%s\" in its name."
+msgstr ""
+
+#: configure.py
+msgid "MCM's file isn't there yet. Start the game once and open MCM, then look again."
+msgstr ""
+
+#: configure.py
+msgid "No MCM settings follow the season yet. To add one:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "To find an option's name: %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "can't be used: %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "No MCM setting follows the season for %(option)s. %(command)s shows yours."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "removed the MCM setting for %s; MCM keeps the value it has now"
+msgstr ""
+
+#: configure.py
+msgid "--in and --to go together: the names, and the value in them, like:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Give each as name=value, like %s."
+msgstr ""
+
+#: configure.py
+msgid "A new MCM setting needs --else, its value the rest of the year, like:"
+msgstr ""
+
+#: configure.py
+msgid "Give the seasons, events, spells or weather it follows, with --in and --to, or --set."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "changed the MCM setting for %(option)s: %(words)s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "added an MCM setting for %(option)s: %(words)s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "MCM's file has no %(option)s yet, so play.bat adds it. Check the name with %(command)s."
 msgstr ""
 
 #: configure.py
@@ -3031,8 +3235,44 @@ msgstr ""
 
 #: configure.py
 #, python-format
+msgid "MCM setting %s"
+msgstr ""
+
+#: configure.py
+#, python-format
 msgid "The name for %s: "
 msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%s\" isn't true or false, and this option is a checkbox."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%s\" isn't a number, and this option is one."
+msgstr ""
+
+#: configure.py
+msgid "Give a value."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(value)s in %(names)s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s the rest of the year"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "stopped setting %s, which followed nothing else; MCM keeps the value it has now"
+msgid_plural "stopped setting %s, which followed nothing else; MCM keeps the values they have now"
+msgstr[0] ""
+msgstr[1] ""
 
 #: configure.py
 msgid "Load preset..."
@@ -3429,15 +3669,15 @@ msgid "None yet."
 msgstr ""
 
 #: configure.py
+msgid "Delete"
+msgstr ""
+
+#: configure.py
 #, python-format
 msgid "%(when)s, %(days)d day"
 msgid_plural "%(when)s, %(days)d days"
 msgstr[0] ""
 msgstr[1] ""
-
-#: configure.py
-msgid "Delete"
-msgstr ""
 
 #: configure.py
 #, python-format
@@ -3520,6 +3760,18 @@ msgid "Short stretches, 1 to %d day, that start by chance in the seasons you pic
 msgid_plural "Short stretches, 1 to %d days, that start by chance in the seasons you pick, and can bring another season with them."
 msgstr[0] ""
 msgstr[1] ""
+
+#: configure.py guide.py
+msgid "MCM settings"
+msgstr ""
+
+#: configure.py
+msgid "Other mods' options in MCM that follow the season: play.bat sets each before the game starts."
+msgstr ""
+
+#: configure.py
+msgid "New MCM setting..."
+msgstr ""
 
 #: configure.py
 msgid "The year dial in MCM and on the PDA"
@@ -3999,6 +4251,81 @@ msgid "The chance and the days are numbers."
 msgstr ""
 
 #: configure.py
+msgid "An MCM setting"
+msgstr ""
+
+#: configure.py
+msgid "play.bat sets another mod's option in MCM before the game starts: to its value for the season, event, spell or weather on that day, or else to the rest of the year's. When more than one is on, the most specific wins: weather, then a spell, an event, a season of your own, the season. A change made in MCM lasts until the next launch."
+msgstr ""
+
+#: configure.py
+msgid "The option, as MCM saves it. Type a word of its name:"
+msgstr ""
+
+#: configure.py
+msgid "Value"
+msgstr ""
+
+#: configure.py guide.py
+msgid "Remove"
+msgstr ""
+
+#: configure.py
+msgid "Add a row"
+msgstr ""
+
+#: configure.py
+msgid "The rest of the year"
+msgstr ""
+
+#: configure.py
+msgid "Pick the option."
+msgstr ""
+
+#: configure.py
+msgid "Pick when it takes another value."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "The rest of the year: %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "There is an MCM setting for %s already."
+msgstr ""
+
+#: configure.py
+msgid "MCM's file doesn't have this option yet."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Now %s in MCM. A checkbox: true or false."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Now %s in MCM. A number."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Now %s in MCM."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Remove %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Stop setting %s by season? MCM keeps the value it has then."
+msgstr ""
+
+#: configure.py
 #, python-format
 msgid ""
 "Remove %(spell)s? These mods are on during it:\n"
@@ -4010,7 +4337,17 @@ msgstr ""
 
 #: configure.py
 #, python-format
-msgid "Remove %s"
+msgid "Remove %s?"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "The MCM setting for %s follows nothing else, so play.bat stops setting it; MCM keeps the value it has then."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "The MCM settings for %s follow nothing else, so play.bat stops setting them; MCM keeps the values they have then."
 msgstr ""
 
 #: configure.py
@@ -4031,11 +4368,6 @@ msgid ""
 "%(mods)s\n"
 "\n"
 "It comes off each of them."
-msgstr ""
-
-#: configure.py
-#, python-format
-msgid "Remove %s?"
 msgstr ""
 
 #: configure.py
@@ -4162,6 +4494,13 @@ msgid ""
 "                                                a short stretch, 1 to 6 days, that starts by\n"
 "                                                chance; --as is the season it brings\n"
 "  py _tools\\configure.py spell \"<name>\" --rename \"<new>\" | --remove\n"
+"  py _tools\\configure.py mcm                     other mods' MCM options that follow the\n"
+"                                                season\n"
+"  py _tools\\configure.py mcm --find <words>      MCM's options with those words in their\n"
+"                                                names, and their values now\n"
+"  py _tools\\configure.py mcm <page/option> --in winter \"deep winter\" --to true --else false\n"
+"  py _tools\\configure.py mcm <page/option> --set \"deep winter=2\" winter=1.5 --else 1\n"
+"  py _tools\\configure.py mcm <page/option> --remove\n"
 "  py _tools\\configure.py calendar                when each season starts\n"
 "  py _tools\\configure.py calendar summer=5-1 \"deep winter=11-15\" [--only]\n"
 "  py _tools\\configure.py calendar --off \"late winter\" | --on \"late winter\"\n"
@@ -4316,6 +4655,38 @@ msgstr ""
 
 #: configure.py
 msgid "delete it, and take it off the mods on during it"
+msgstr ""
+
+#: configure.py
+msgid "show, add, change or remove another mod's MCM option that follows the season"
+msgstr ""
+
+#: configure.py
+msgid "the option as MCM saves it, like cold_system/winter"
+msgstr ""
+
+#: configure.py
+msgid "list MCM's options with these words in their names"
+msgstr ""
+
+#: configure.py
+msgid "the seasons, events, spells or weather that take the value --to gives"
+msgstr ""
+
+#: configure.py
+msgid "the value in those"
+msgstr ""
+
+#: configure.py
+msgid "a value for each name, like \"deep winter=2\""
+msgstr ""
+
+#: configure.py
+msgid "the value the rest of the year"
+msgstr ""
+
+#: configure.py
+msgid "stop setting it; MCM keeps the value it has then"
 msgstr ""
 
 #: configure.py
@@ -4659,6 +5030,18 @@ msgid "Ambient sound follows the season, from %s"
 msgstr ""
 
 #: guide.py
+msgid "MCM settings that follow the season"
+msgstr ""
+
+#: guide.py
+msgid "An option of another mod, set in MCM by play.bat before the game starts: a cold-weather mod's winter mode on in the winter seasons and on freezing days, say, and off the rest of the year."
+msgstr ""
+
+#: guide.py
+msgid "Add an MCM setting..."
+msgstr ""
+
+#: guide.py
 #, python-format
 msgid "%d seasonal mod checked."
 msgid_plural "%d seasonal mods checked."
@@ -4721,10 +5104,6 @@ msgid "%(dates)s, %(days)d day; %(mods)s"
 msgid_plural "%(dates)s, %(days)d days; %(mods)s"
 msgstr[0] ""
 msgstr[1] ""
-
-#: guide.py
-msgid "Remove"
-msgstr ""
 
 #: guide.py
 msgid "play.bat can't use it as it is"

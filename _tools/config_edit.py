@@ -67,6 +67,11 @@ SPELLS_HEAD = [
     "# \"chance\" the percent chance each day, \"days\" how long it runs (fewest, most, up to 6),",
     "# \"as\" the season it brings, or None. configure.bat writes this.",
 ]
+MCM_HEAD = [
+    "# Other mods' MCM options that follow the season: {\"page/option\": {name: value, ...,",
+    "# \"else\": value}}. play.bat sets each before the game starts, to its value for the most",
+    "# specific name on that day, or \"else\". configure.bat writes this.",
+]
 
 TEMPLATE = '''"""Which mods this install stages, and when.
 
@@ -95,8 +100,11 @@ OWN_SEASONS = {}
 
 %s
 SPELLS = {}
+
+%s
+MCM_SETTINGS = {}
 ''' % ("\n".join(CALENDAR_HEAD), "\n".join(NAMES_HEAD), "\n".join(PLACE_HEAD),
-       "\n".join(OWN_HEAD), "\n".join(SPELLS_HEAD))
+       "\n".join(OWN_HEAD), "\n".join(SPELLS_HEAD), "\n".join(MCM_HEAD))
 
 
 # --- the install ----------------------------------------------------------------------
@@ -324,6 +332,31 @@ def spell_text(name, spec):
     return ["%s: {\"in\": %s, \"chance\": %s, \"days\": %s, \"as\": %s}," % (
         _q(name), literal(spec["in"]), literal(spec["chance"]), literal(spec["days"]),
         literal(spec["as"]))]
+
+
+def mcm_entry_text(key, spec):
+    """An MCM_SETTINGS entry as the tool writes it: its names in the order given, "else"
+    last, on one line, or wrapped when that is too long."""
+    spec = norm_mcm(spec)
+    one = "%s: %s," % (_q(key), literal(spec))
+    if len(one) <= 84:
+        return [one]
+    lines, cur = ["%s: {" % _q(key)], "   "
+    for n, v in spec.items():
+        item = " %s: %s," % (literal(n), literal(v))
+        if len(cur) > 3 and len(cur) + len(item) > 84:
+            lines.append(cur)
+            cur = "   "
+        cur += item
+    return lines + [cur, "},"]
+
+
+def norm_mcm(spec):
+    """An MCM setting as the tool keeps it: its names in their order, "else" last."""
+    out = {n: v for n, v in spec.items() if n != season.MCM_ELSE}
+    if season.MCM_ELSE in spec:
+        out[season.MCM_ELSE] = spec[season.MCM_ELSE]
+    return out
 
 
 def spell_json(spec):
@@ -713,6 +746,9 @@ class Calendar(object):
         self._bad_own, self._kept_bad_own = {}, set()
         self.spells, self._kept_spells = {}, {}
         self._bad_spells, self._kept_bad_spells = {}, set()
+        self.mcm, self._kept_mcm = {}, {}
+        self._bad_mcm, self._kept_bad_mcm = {}, set()
+        self.mcm_dropped = []           # MCM settings the last removal left following nothing
         self.dates, self._kept_dates = polesia(), None     # None: the file has none
         self.calendar_bad, self._replace_calendar = [], False
         self.names, self._kept_names = {}, {}
@@ -842,6 +878,12 @@ class Calendar(object):
 
         toggle, events = ns.get("TOGGLE_MODS", {}), ns.get("EVENTS", {})
         own, spells = ns.get("OWN_SEASONS", {}), ns.get("SPELLS", {})
+        mcm = ns.get("MCM_SETTINGS", {})
+        if mcm is None:
+            mcm = {}
+        if not isinstance(mcm, dict):
+            self.error = [_("%s must be a table, {...}.") % "MCM_SETTINGS"]
+            return
         if toggle is None:
             toggle = {}
         if events is None:
@@ -869,7 +911,7 @@ class Calendar(object):
         calendar, names = ns.get("CALENDAR"), ns.get("NAMES")
         self.problems = season.config_problems(toggle, self.layout, self.sound_src,
                                                self.periods, events, calendar, names, own=own,
-                                               spells=spells)
+                                               spells=spells, mcm=mcm)
 
         for name, cfg in toggle.items():
             when = periods_of(cfg)
@@ -920,6 +962,15 @@ class Calendar(object):
             else:
                 self._bad_spells[name] = spec
                 self._kept_bad_spells.add(name)
+        known = (list(season.SEASONS) + list(self.periods) + list(events) + list(own)
+                 + list(spells) + list(season.WEATHER_NAMES))
+        for key, spec in mcm.items():
+            if not season.mcm_problems({key: spec}, known):
+                self.mcm[key] = norm_mcm(spec)
+                self._kept_mcm[key] = norm_mcm(spec)
+            else:
+                self._bad_mcm[key] = spec           # as with events: kept as written
+                self._kept_bad_mcm.add(key)
 
         if calendar is not None:
             usable = ({s: tuple(md) for s, md in calendar.items()
@@ -977,6 +1028,7 @@ class Calendar(object):
                 if was in spec["in"]:
                     self.spells[s] = dict(spec, **{"in": tuple(
                         name if p == was else p for p in spec["in"])})
+            self._rename_in_mcm(was, name)
         self._bad_own.pop(name, None)
         self.own[name] = norm_event(win)
 
@@ -1010,6 +1062,7 @@ class Calendar(object):
             self._bad_spells.pop(was, None)
             for c in self.toggle.values():
                 c["when"] = [name if p == was else p for p in c["when"]]
+            self._rename_in_mcm(was, name)
         self._bad_spells.pop(name, None)
         self.spells[name] = norm_spell(spec)
 
@@ -1021,6 +1074,9 @@ class Calendar(object):
         return self._drop_everywhere(name)
 
     def _drop_everywhere(self, name):
+        """Take `name` off every mod and MCM setting. A mod on in nothing else comes off the
+        calendar, and is returned; an MCM setting following nothing else goes too, and is
+        kept in `mcm_dropped`."""
         gone = []
         for n, c in list(self.toggle.items()):
             if name in c["when"]:
@@ -1028,14 +1084,51 @@ class Calendar(object):
                 if not c["when"]:
                     self.toggle.pop(n)
                     gone.append(n)
+        self.mcm_dropped = self.drop_from_mcm(name)
         return gone
+
+    def mcm_users(self, name):
+        """The MCM settings that follow `name`."""
+        return [k for k, s in self.mcm.items() if name in s]
+
+    def drop_from_mcm(self, name):
+        """Take `name` off every MCM setting; those left following nothing else go, and are
+        returned."""
+        gone = []
+        for k, s in list(self.mcm.items()):
+            if name in s:
+                rest = {n: v for n, v in s.items() if n != name}
+                if [n for n in rest if n != season.MCM_ELSE]:
+                    self.mcm[k] = rest
+                else:
+                    self.mcm.pop(k)
+                    gone.append(k)
+        return gone
+
+    def _rename_in_mcm(self, was, name):
+        for k, s in list(self.mcm.items()):
+            if was in s:
+                self.mcm[k] = {(name if n == was else n): v for n, v in s.items()}
+
+    def put_mcm(self, key, spec, was=None):
+        """Add an MCM setting, or change one; `was` is the option it was for, when that
+        changes."""
+        if was is not None and was != key:
+            self.mcm.pop(was, None)
+            self._bad_mcm.pop(was, None)
+        self._bad_mcm.pop(key, None)
+        self.mcm[key] = norm_mcm(spec)
+
+    def take_mcm(self, key):
+        self.mcm.pop(key, None)
+        self._bad_mcm.pop(key, None)
 
     def take_own(self, name):
         """Take a season of the player's own off the calendar, and off every mod on in it.
         A mod on in nothing else comes off the calendar too; those are returned."""
         self.own.pop(name, None)
         self._bad_own.pop(name, None)
-        gone = []
+        gone, dropped = [], []
         # a spell that could start only in it has nowhere left to start, and goes too
         for s, spec in list(self.spells.items()):
             if name in spec["in"]:
@@ -1044,7 +1137,10 @@ class Calendar(object):
                     self.spells[s] = dict(spec, **{"in": rest})
                 else:
                     gone += self.take_spell(s)
-        return self._drop_everywhere(name) + gone
+                    dropped += self.mcm_dropped
+        gone = self._drop_everywhere(name) + gone
+        self.mcm_dropped += dropped
+        return gone
 
     def spells_only_in(self, name):
         """The spells that can start in the player's own season `name` and nowhere else."""
@@ -1112,6 +1208,8 @@ class Calendar(object):
                 or self.own != self._kept_own or set(self._bad_own) != self._kept_bad_own
                 or self.spells != self._kept_spells
                 or set(self._bad_spells) != self._kept_bad_spells
+                or list(self.mcm.items()) != list(self._kept_mcm.items())
+                or set(self._bad_mcm) != self._kept_bad_mcm
                 or self.names_changed() or self.place_changed()
                 or self.periods != self._kept_periods
                 or self.layout != self._kept_layout or self.sound_src != self._kept_sound)
@@ -1138,8 +1236,13 @@ class Calendar(object):
                  for n, s in self.spells.items()]
         splan += [(n, ["%s: %s," % (_q(n), literal(s))], True)
                   for n, s in self._bad_spells.items()]
+        mplan = [(k, mcm_entry_text(k, s), list(self._kept_mcm.get(k, {}).items())
+                  == list(s.items())) for k, s in self.mcm.items()]
+        mplan += [(k, ["%s: %s," % (_q(k), literal(s))], True)
+                  for k, s in self._bad_mcm.items()]
         for var, head, plan in (("OWN_SEASONS", OWN_HEAD, oplan),
-                                ("SPELLS", SPELLS_HEAD, splan)):
+                                ("SPELLS", SPELLS_HEAD, splan),
+                                ("MCM_SETTINGS", MCM_HEAD, mplan)):
             if plan or _assignments(ast.parse(text), var):
                 if not _assignments(ast.parse(text), var):
                     # a file from before it gets the table, with what it is
@@ -1210,7 +1313,8 @@ class Calendar(object):
         return season._set_twice(text) + season.config_problems(
             ns.get("TOGGLE_MODS", {}), ns.get("LAYOUT", {}), ns.get("SOUND_SRC"),
             ns.get("PERIODS", {}), ns.get("EVENTS", {}), ns.get("CALENDAR"),
-            ns.get("NAMES"), ns.get("WEATHER_PLACE"), ns.get("OWN_SEASONS"), ns.get("SPELLS"))
+            ns.get("NAMES"), ns.get("WEATHER_PLACE"), ns.get("OWN_SEASONS"), ns.get("SPELLS"),
+            ns.get("MCM_SETTINGS"))
 
     def _keepsake(self, why):
         """A dated copy of the file as it is, which no later save touches."""
@@ -1303,11 +1407,12 @@ PRESET_KEY = "seasons_of_the_zone_preset"
 PARTS = ("calendar", "events", "mods", "textures")
 PART_KEYS = {"calendar": ("calendar", "names"),
              "events": ("events", "periods", "own_seasons", "spells"),
-             "mods": ("mods",), "textures": ("layout", "sound_src")}
+             "mods": ("mods", "mcm"), "textures": ("layout", "sound_src")}
 # the parts in words, in English: _(PART_TEXT[p]) shows one in the player's language
 PART_TEXT = {"calendar": N_("calendar and season names"),
              "events": N_("seasons of your own, spells, events and periods"),
-             "mods": N_("seasonal mods"), "textures": N_("texture sets and ambient sound")}
+             "mods": N_("seasonal mods and MCM settings"),
+             "textures": N_("texture sets and ambient sound")}
 PRESET_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.,'()-]{0,39}$")
 
 
@@ -1405,6 +1510,14 @@ def read_preset(path):
             own=both(own, "own_seasons"), spells=both(spells, "spells"))
             if p.startswith("TOGGLE_MODS")]
         out["mods"] = mods
+    if "mcm" in data:
+        mcm = data["mcm"]
+        known = (list(season.SEASONS) + list(both(periods, "periods"))
+                 + list(both(events, "events")) + list(both(own, "own_seasons"))
+                 + list(both(spells, "spells")) + list(season.WEATHER_NAMES))
+        problems += season.mcm_problems(mcm, known)
+        out["mcm"] = ({k: norm_mcm(s) if isinstance(s, dict) else s for k, s in mcm.items()}
+                      if isinstance(mcm, dict) else mcm)
     if "layout" in data or "sound_src" in data:
         layout = data.get("layout", {})
         problems += [p for p in season.config_problems(
@@ -1423,7 +1536,7 @@ def parts_with_content(cal):
     empty part would, loaded elsewhere, empty that part of someone else's setup."""
     out = [p for p, has in (("calendar", cal.custom() or cal.names),
                             ("events", cal.events or cal.periods or cal.own or cal.spells),
-                            ("mods", cal.toggle),
+                            ("mods", cal.toggle or cal.mcm),
                             ("textures", cal.layout or cal.sound_src)) if has]
     return out or ["calendar"]
 
@@ -1443,6 +1556,7 @@ def preset_from(cal, parts):
     if "mods" in parts:
         out["mods"] = {n: {"when": list(c["when"]), "above": c["above"]}
                        for n, c in cal.toggle.items()}
+        out["mcm"] = {k: dict(s) for k, s in cal.mcm.items()}
         if "events" not in parts:
             need = {k: v for k, v in needed(cal).items() if v}
             if need:
@@ -1460,6 +1574,7 @@ def needed(cal):
     season of one's own, spell, event and period they name, and the seasons of one's own
     those spells start in. A preset of the mods alone carries these, to load elsewhere."""
     names = {p for c in cal.toggle.values() for p in c["when"]}
+    names |= {n for s in cal.mcm.values() for n in s if n != season.MCM_ELSE}
     spells = {n: s for n, s in cal.spells.items() if n in names}
     for s in spells.values():
         names |= set(s["in"])
@@ -1569,6 +1684,15 @@ def apply_preset(cal, inst, preset, parts):
         cal.toggle = toggle
         said.append(ngettext("seasonal mods: %d", "seasonal mods: %d", len(toggle))
                     % len(toggle))
+        if "mcm" in preset:
+            for key, spec in preset["mcm"].items():
+                for p in spec:
+                    if p != season.MCM_ELSE:
+                        said += bring(cal, preset, p, key)
+            cal.mcm = {k: norm_mcm(s) for k, s in preset["mcm"].items()}
+            cal._bad_mcm = {}
+            said.append(ngettext("MCM settings: %d", "MCM settings: %d", len(cal.mcm))
+                        % len(cal.mcm))
         if skipped:
             said.append("  " + _("not installed here, left out: %s") % commas(skipped))
         if moved:
@@ -1640,7 +1764,7 @@ def _trial(cal):
     """A copy of `cal` a preset can be loaded into, leaving `cal` as it is."""
     trial = copy.copy(cal)
     for k in ("toggle", "events", "periods", "layout", "dates", "names", "_bad_events",
-              "own", "_bad_own", "spells", "_bad_spells"):
+              "own", "_bad_own", "spells", "_bad_spells", "mcm", "_bad_mcm"):
         setattr(trial, k, copy.deepcopy(getattr(cal, k)))
     return trial
 
@@ -1733,6 +1857,14 @@ def preset_effect(cal, inst, preset, parts):
             # translators: what loading a preset takes the place of, in a list
             losses.append(ngettext("%d of your seasonal mods", "%d of your seasonal mods",
                                    len(gone) + len(changed)) % (len(gone) + len(changed)))
+        if trial.mcm:
+            out.append(_("MCM settings: %s.") % few(trial.mcm))
+        lost = [k for k in cal.mcm if trial.mcm.get(k) != cal.mcm[k]]
+        if lost:
+            out.append("  " + _("takes off or changes yours: %s") % few(lost))
+            # translators: what loading a preset takes the place of, in a list
+            losses.append(ngettext("%d of your MCM settings", "%d of your MCM settings",
+                                   len(lost)) % len(lost))
     if "textures" in parts:
         sets, sound = few(trial.layout), trial.sound_src
         if sets and sound:

@@ -104,7 +104,7 @@ def profile_name():
 APPDATA = os.path.join(game_dir(), "appdata")
 
 CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS", "CALENDAR",
-                "NAMES", "WEATHER_PLACE", "OWN_SEASONS", "SPELLS")
+                "NAMES", "WEATHER_PLACE", "OWN_SEASONS", "SPELLS", "MCM_SETTINGS")
 
 
 def _config_error(e):
@@ -257,6 +257,11 @@ OWN_SEASONS = {} if OWN_SEASONS is None else OWN_SEASONS
 # may bring another season with them. The date decides, so every launch that day agrees.
 SPELLS = getattr(_cfg, "SPELLS", None)
 SPELLS = {} if SPELLS is None else SPELLS
+# Other mods' MCM options that follow the season, {"mod/option": {name: value, ...,
+# "else": value}}: play.bat sets each in MCM's saved options before the game starts, to
+# its value for what is on that day, or its "else".
+MCM_SETTINGS = getattr(_cfg, "MCM_SETTINGS", None)
+MCM_SETTINGS = {} if MCM_SETTINGS is None else MCM_SETTINGS
 
 
 def _q(v):
@@ -343,7 +348,7 @@ def _validate_config():
                          + "\n  " + _("Nothing has been changed."))
     problems = _set_twice() + config_problems(TOGGLE_MODS, LAYOUT, SOUND_SRC, PERIODS, EVENTS,
                                               CALENDAR, NAMES, WEATHER_PLACE, OWN_SEASONS,
-                                              SPELLS)
+                                              SPELLS, MCM_SETTINGS)
     if problems:
         raise SystemExit(head + "\n".join("    - " + p for p in problems)
                          + "\n  " + _("Nothing has been changed."))
@@ -390,7 +395,7 @@ def _own_folders():
 
 
 def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=None,
-                    names=None, place=None, own=None, spells=None):
+                    names=None, place=None, own=None, spells=None, mcm=None):
     """What is wrong with a set of config tables, one sentence per entry at fault. The
     configure tool checks a file with this before it writes one."""
     problems = []
@@ -622,7 +627,224 @@ def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=No
         problems += names_problems(names)
     if place is not None:
         problems += place_problems(place)
+    if mcm is not None:
+        problems += mcm_problems(mcm, known)
     return problems
+
+
+# --- MCM settings -----------------------------------------------------------------------
+#
+# Another mod's MCM option can follow the season without that mod knowing about this one:
+# MCM keeps every option in axr_options.ltx, and reads it as the game starts. play.bat
+# sets each option in MCM_SETTINGS there first, to its value for the most specific name on
+# that day - a kind of weather, then a spell, an event, a season of one's own, and last the
+# season or period - or to its "else" when none is on. A change made in MCM lasts until
+# the next launch.
+
+MCM_ELSE = "else"
+MCM_KEY = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]*(?:/[A-Za-z0-9_.-]+)+$")
+
+
+def _mcm_value_problem(name, v):
+    """Why `v` can't be the value MCM saves for an option, as a sentence, or None."""
+    if isinstance(v, (bool, int)):
+        return None
+    if isinstance(v, float):
+        return None if v == v and abs(v) != float("inf") else (
+            _("the value for %s isn't a number MCM can hold.") % _q(name))
+    if isinstance(v, str):
+        if (not v.strip() or v != v.strip() or any(ord(c) < 32 for c in v)
+                or any(c in v for c in ";[]") or not _cp1251(v)):
+            return (_("the value for %s can't be empty, start or end with a space, or hold "
+                      "; [ ], a line break or a letter the game can't show.") % _q(name))
+        return None
+    return _("the value for %s must be True, False, a number or text in quotes.") % _q(name)
+
+
+def mcm_problems(settings, known):
+    """What is wrong with an MCM_SETTINGS table, one sentence each. `known` is the names an
+    option can follow: seasons, periods, events, seasons of one's own, spells, weather."""
+    if not isinstance(settings, dict):
+        # translators: follows a table's name, like PERIODS, which stays English
+        return ["MCM_SETTINGS " + _("must be a table, {\"mod/option\": {\"winter\": True, "
+                                    "\"else\": False}}, or {} for none.")]
+    out = []
+    for key, spec in settings.items():
+        where = "MCM_SETTINGS[%r]" % (key,)
+        if not isinstance(key, str) or not MCM_KEY.match(key):
+            out.append(where + ": " + _("an option is named as MCM saves it: its page and the "
+                                        "option, with / between, like \"cold_system/winter\"."))
+            continue
+        if key.lower().startswith("seasons_zone/"):
+            out.append(where + ": " + _("that is one of this mod's own options, which follow "
+                                        "the season already. Take the entry out."))
+            continue
+        if not isinstance(spec, dict):
+            # translators: follows an entry, like PERIODS['x'], which stays English
+            out.append(where + " " + _("must be {\"winter\": True, \"else\": False}: a "
+                                       "value for each season, event, spell or weather it "
+                                       "names, and one for the rest of the year."))
+            continue
+        if MCM_ELSE not in spec:
+            out.append(where + ": " + _("it needs \"else\", its value the rest of the year."))
+        names = [n for n in spec if n != MCM_ELSE]
+        if not names:
+            out.append(where + ": " + _("it names no season, event, spell or weather, so it "
+                                        "would never change."))
+        bad = [str(n) for n in names if n not in known]
+        if bad:
+            out.append(where + ": " + ngettext(
+                "%(names)s is not a season, an event, a spell or weather. Valid: %(valid)s.",
+                "%(names)s are not seasons, events, spells or weather. Valid: %(valid)s.",
+                len(bad)) % {"names": _and(_q(x) for x in bad), "valid": ", ".join(known)})
+        kinds = {"check" if isinstance(v, bool) else "text" if isinstance(v, str)
+                 else "number" for v in spec.values()
+                 if isinstance(v, (bool, int, float, str))}
+        if len(kinds) > 1:
+            out.append(where + ": " + _("its values are of more than one kind; MCM keeps an "
+                                        "option as a checkbox, a number or text. Give each "
+                                        "the same kind."))
+        for n, v in spec.items():
+            p = _mcm_value_problem(n, v)
+            if p:
+                out.append(where + ": " + p)
+    return out
+
+
+def mcm_rank(name, spells=None, events=None, own=None):
+    """How specific a name is, for an option with more than one of its names on: lowest
+    wins. A kind of weather, then a spell, an event, a season of one's own, a season."""
+    spells = SPELLS if spells is None else spells
+    events = EVENTS if events is None else events
+    own = OWN_SEASONS if own is None else own
+    return (0 if name in WEATHER_NAMES else 1 if name in spells else 2 if name in events
+            else 3 if name in own else 4)
+
+
+def mcm_values(active, settings=None, rank=None):
+    """{"mod/option": (value, the name it follows, or None for its "else")} for a day, given
+    the names on then, `active`. Of an option's names on, the most specific wins, and of
+    those alike, the first listed."""
+    settings = MCM_SETTINGS if settings is None else settings
+    rank = mcm_rank if rank is None else rank
+    on = set(active)
+    out = {}
+    for key, spec in settings.items():
+        hits = [n for n in spec if n != MCM_ELSE and n in on]
+        if hits:
+            n = min(hits, key=rank)
+            out[key] = (spec[n], n)
+        else:
+            out[key] = (spec.get(MCM_ELSE), None)
+    return out
+
+
+def mcm_text(v):
+    """A value as MCM saves it: true or false, a number without trailing zeros, or text."""
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, int):
+        return "%d" % v
+    if isinstance(v, float):
+        s = ("%.6f" % v).rstrip("0").rstrip(".")
+        return "0" if s in ("", "-0") else s
+    return str(v)
+
+
+def mcm_saved(path=None):
+    """{option: value, as text} from the [mcm] part of MCM's store; {} when there is none."""
+    path = _axr_options() if path is None else path
+    if not path:
+        return {}
+    try:
+        raw = io.open(path, encoding="cp1251", errors="replace", newline="").read()
+    except OSError:
+        return {}
+    out, here = {}, None
+    for line in raw.splitlines():
+        s = line.split(";")[0].strip()
+        if s.startswith("[") and s.endswith("]"):
+            here = s[1:-1].strip()
+        elif here == "mcm" and "=" in s:
+            k, v = s.split("=", 1)
+            out[k.strip()] = v.strip()
+    return out
+
+
+def mcm_changes(values, path=None):
+    """[(option, as saved or None, as it would be)] for each of `values` MCM's store
+    doesn't hold yet."""
+    saved = mcm_saved(path)
+    return [(k, saved.get(k), mcm_text(v)) for k, v in values.items()
+            if saved.get(k) != mcm_text(v)]
+
+
+def write_mcm(values, path=None):
+    """Set options in MCM's store: an option's line in [mcm] gets its new value, keeping the
+    file's own layout, and one it doesn't have yet is added to [mcm]. Everything else stays
+    byte for byte. The file is kept as it was in _baseline/modfile-backups first, the
+    newest ten of them. With no store at all, one is made in overwrite/, where the game
+    would make its own; the base game's is empty, so it hides nothing. Returns the
+    changes, as mcm_changes() gives them."""
+    changes = mcm_changes(values, path)
+    if not changes:
+        return []
+    path = _axr_options() if path is None else path
+    if not path:
+        path = os.path.join(ROOT, "overwrite", "gamedata", "configs", "axr_options.ltx")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        data = b""
+    else:
+        data = open(path, "rb").read()
+        bk = os.path.join(ROOT, "_baseline", "modfile-backups")
+        os.makedirs(bk, exist_ok=True)
+        shutil.copy2(path, os.path.join(bk, "axr_options-%s-pre-mcm.ltx"
+                                        % datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
+        old = sorted(glob.glob(os.path.join(glob.escape(bk), "axr_options-*-pre-mcm.ltx")))
+        for p in old[:-10]:
+            try:
+                os.remove(p)
+            except OSError:
+                pass
+    # latin-1 reads every byte as itself, so what isn't changed is written back unchanged
+    text = data.decode("latin-1")
+    nl = "\r\n" if "\r\n" in text or not text else "\n"
+    lines = text.split(nl)
+    want = {k: new.encode("cp1251").decode("latin-1") for k, _was, new in changes}
+    here, end = None, None
+    for i, line in enumerate(lines):
+        s = line.split(";")[0].strip()
+        if s.startswith("[") and s.endswith("]"):
+            here = s[1:-1].strip()
+            if here == "mcm":
+                end = i
+            continue
+        if here == "mcm":
+            if "=" in s:
+                end = i
+                k = s.split("=", 1)[0].strip()
+                if k in want:
+                    lines[i] = line[:line.index("=") + 1] + " " + want.pop(k)
+    if want:
+        new = ["        %-32s = %s" % (k, v) for k, v in sorted(want.items())]
+        if end is None:
+            while lines and not lines[-1].strip():
+                lines.pop()
+            lines += ([""] if lines else []) + ["[mcm]"] + new + [""]
+        else:
+            lines[end + 1:end + 1] = new
+    tmp = path + ".tmp"
+    with open(tmp, "wb") as f:
+        f.write(nl.join(lines).encode("latin-1"))
+    os.replace(tmp, path)
+    return changes
+
+
+def mcm_why(name):
+    """What an option follows today, in words: the season or name, or the rest of the year."""
+    if name is None:
+        return _("the rest of the year")
+    return season_label(name) if name in SEASONS else name
 
 
 def _detect_nl(raw):
@@ -696,7 +918,8 @@ def write_staged(season, staging=True):
 # Preferences only subtract: they can hold a mod back, never force one on out of season.
 def _axr_options():
     """MCM's store, by MO2's rules: overwrite/ if it has the file, else the highest-priority
-    enabled mod that ships it."""
+    enabled mod that ships it, else a copy loose in the game's own gamedata/, which a start
+    without MO2 leaves. None when there is none; the base game's own is empty."""
     ow = os.path.join(ROOT, "overwrite", "gamedata", "configs", "axr_options.ltx")
     if os.path.isfile(ow):
         return ow
@@ -711,7 +934,10 @@ def _axr_options():
         r = rank.get(mod)
         if r is not None and (best_rank is None or r < best_rank):
             best, best_rank = p, r
-    return best
+    if best:
+        return best
+    loose = os.path.join(game_dir(), "gamedata", "configs", "axr_options.ltx")
+    return loose if os.path.isfile(loose) else None
 
 
 def _slug(name):
@@ -3063,6 +3289,17 @@ def main():
                 "the seasonal atmosphere still runs") if a.no_textures
          else _("OFF in MCM - seasonal mods disabled, texture sets kept; the seasonal "
                 "atmosphere still runs"))
+    # other mods' MCM options that follow the season, and what MCM's file has now
+    mcm_now = mcm_values(active)
+    mcm_want = {k: v for k, (v, _why) in mcm_now.items()}
+    mcm_pending = mcm_changes(mcm_want) if mcm_want else []
+    saved = mcm_saved() if mcm_pending else {}
+    for i, (key, (value, why)) in enumerate(mcm_now.items()):
+        said = "%s = %s   (%s)" % (key, mcm_text(value), mcm_why(why))
+        if key in [k for k, _was, _new in mcm_pending]:
+            said += "   " + (_("(now %s)") % saved[key] if key in saved
+                             else _("(not in MCM's file yet)"))
+        _row(pgettext("report", "MCM settings") if i == 0 else "", said)
     print()
 
     try:
@@ -3161,6 +3398,22 @@ def main():
             if state is None and dial is not None:
                 print("  - " + why)
 
+        def send_mcm():
+            """Set the MCM options that follow the season in MCM's file, each said; the
+            changes. Not while the game runs: it would save its own over them."""
+            if not (writing and mcm_pending):
+                return []
+            game = [p for p in running() if p.startswith("anomaly")]
+            if game:
+                print("  - " + _("The MCM settings wait for the next launch: %s is running, "
+                                 "and would save its own over them.") % _and(game))
+                return []
+            changes = write_mcm(mcm_want)
+            for key, was, now in changes:
+                print("  %-58s %s" % (key[:58], _("%(was)s -> %(now)s") % {
+                    "was": was if was is not None else _("not set"), "now": now}))
+            return changes
+
         def say_skipped():
             mods, sets = len(SKIPPED), len(sets_skipped)
             if mods and sets:
@@ -3201,12 +3454,20 @@ def main():
             tg = apply_toggles(active, not writing, prefs)
             for name, was, now in tg:
                 print("  %-58s %s" % (name[:58], change_text(was, now)))
+            mcm = send_mcm()
             if tg and writing:
                 print("  => " + _("%s: seasonal mods switched. The game picks this up when it "
                                   "starts.") % title)
             elif tg:
                 print("  => " + _("%(season)s: seasonal mods need switching. Start the game "
                                   "with play.bat, or run %(command)s")
+                      % {"season": title, "command": command("season.py", "apply")})
+            elif mcm:
+                print("  => " + _("%s: MCM settings set. The game picks this up when it "
+                                  "starts.") % title)
+            elif mcm_pending and not writing:
+                print("  => " + _("%(season)s: MCM settings need setting. Start the game with "
+                                  "play.bat, or run %(command)s")
                       % {"season": title, "command": command("season.py", "apply")})
             elif SKIPPED or sets_skipped:
                 pass                                        # said just below
@@ -3323,10 +3584,13 @@ def main():
         write_staged(staged_texture_season(installed) if not stage_tex else want, stage_tex)
         write_mod_panel(active, prefs)
         send_spell()
+        if send_mcm():
+            done.append("MCM settings")
         # each restaged texture set adds "textures"; say it once
         words = {"textures": pgettext("staged", "textures"),
                  "soundscape": pgettext("staged", "soundscape"),
-                 "seasonal mods": pgettext("staged", "seasonal mods")}
+                 "seasonal mods": pgettext("staged", "seasonal mods"),
+                 "MCM settings": pgettext("staged", "MCM settings")}
         print("  => " + _("%(season)s staged (%(what)s). The game picks this up when it "
                           "starts.")
               % {"season": title,
