@@ -12,6 +12,16 @@ GAMMA folder (use python in place of py if that is how your Python starts):
   py _tools\configure.py event <name> --days 1 15 last [--months dec jan]
   py _tools\configure.py event <name> --weekdays mon --weeks first [--between 12-01 02-28]
   py _tools\configure.py event <name> --remove
+  py _tools\configure.py season                  your own seasons
+  py _tools\configure.py season "<name>" <MM-DD> <MM-DD>    add or change one, a week or
+                                                longer; it runs on top of the season it
+                                                falls in
+  py _tools\configure.py season "<name>" --rename "<new>" | --remove
+  py _tools\configure.py spell                   your spells
+  py _tools\configure.py spell "<name>" --in summer --chance 3 [--days 1 2] [--as winter]
+                                                a short stretch, 1 to 6 days, that starts by
+                                                chance; --as is the season it brings
+  py _tools\configure.py spell "<name>" --rename "<new>" | --remove
   py _tools\configure.py calendar                when each season starts
   py _tools\configure.py calendar summer=5-1 "deep winter=11-15" [--only]
   py _tools\configure.py calendar --off "late winter" | --on "late winter"
@@ -192,6 +202,19 @@ def cmd_list(a):
         else:
             mark = "" if inst.listed(c["above"]) else "   <-- not in MO2's mod list"
             print("  %-*s  wins over %s%s" % (width, "", c["above"], mark))
+    if cal.own or cal._bad_own:
+        print()
+        for name in cal.own_order():
+            print("  season %-24s %s  (%d days)" % (name, ce.window_text(cal.own[name]),
+                                                     season.own_days(cal.own[name])))
+        for name in cal._bad_own:
+            print("  season %-24s can't be used; see below" % name)
+    if cal.spells or cal._bad_spells:
+        print()
+        for name in sorted(cal.spells, key=str.casefold):
+            print("  spell  %-24s %s" % (name, spell_words(cal, cal.spells[name])))
+        for name in cal._bad_spells:
+            print("  spell  %-24s can't be used; see below" % name)
     if cal.events or cal.periods or cal._bad_events:
         print()
         for name, md in cal.periods.items():
@@ -249,7 +272,7 @@ def cmd_add(a):
         fail("That is Seasons of the Zone itself. It stays on all year, so it can't be a "
              "seasonal mod.")
     when = pick_when(a.when, cal)
-    rivals = ce.anchor_for(inst, name, when, cal.toggle)[2]
+    rivals = ce.anchor_for(inst, name, when, cal.toggle, cal)[2]
     if a.above:
         above, close = inst.match(a.above)
         if not above and a.above in inst.separators:
@@ -388,6 +411,143 @@ def cmd_event(a):
         print("  note    it runs across the new year")
     if (2, 29) in (spec if isinstance(spec, tuple) else ()):
         print("  note    February 29 comes only in leap years")
+
+
+def cmd_season(a):
+    """A season of the player's own: shown, added, changed, renamed or removed."""
+    cal = loaded()
+    if not a.name:
+        if not cal.own:
+            print("  No seasons of your own yet. To add one:")
+            print("  " + season.command("configure.py",
+                                        "season \"Wormhole season\" 08-01 08-31"))
+        for n in cal.own_order():
+            print("  %-24s %s  (%d days)" % (n, ce.window_text(cal.own[n]),
+                                             season.own_days(cal.own[n])))
+        return
+    name = a.name.strip()
+    have = next((n for n in list(cal.own) + list(cal._bad_own)
+                 if n.casefold() == name.casefold()), None)
+    if (a.remove or a.rename) and not have:
+        fail("You have no season called \"%s\". %s shows yours."
+             % (name, season.command("configure.py", "season")))
+    if a.remove:
+        gone = cal.take_own(have)
+        save(cal, ["removed season %s" % have] + (
+            ["stopped switching %s, on in nothing else" % ce.few(gone, 6)] if gone else []))
+        return
+    if a.rename:
+        new = a.rename.strip()
+        if have not in cal.own:
+            fail("%s can't be used as it is. Give it dates first, then rename it:" % have,
+                 "  " + season.command("configure.py", "season \"%s\" 08-01 08-31" % have))
+        if any(n.casefold() == new.casefold() and n != have for n in cal.own):
+            fail("You have a season called \"%s\" already." % new)
+        cal.put_own(new, cal.own[have], was=have)
+        save(cal, ["renamed season %s to %s" % (have, new)])
+        return
+    if not a.start or not a.end:
+        fail("Give the first and the last day, month-day, like:",
+             "  " + season.command("configure.py", "season \"%s\" 08-01 08-31" % name))
+    start, end = ce.parse_day(a.start), ce.parse_day(a.end)
+    if not start or not end:
+        fail("Dates are month-day, like 08-01.")
+    if not have and len(cal.own) >= season.OWN_MOST:
+        fail("You have %d seasons of your own, as many as the year has room for. Remove "
+             "one first." % len(cal.own))
+    key = have or name
+    was = cal.own.get(key)
+    cal.put_own(key, (start, end))
+    if not save(cal, ["%s season %s  %s  (%d days)" % (
+            "changed" if was else "added", key, ce.window_text((start, end)),
+            season.own_days((start, end)))]):
+        return
+    if not cal.users_of(key):
+        print("  To have a mod on in it: " + season.command(
+            "configure.py", "add \"<mod>\" --when \"%s\"" % key))
+
+
+def spell_words(cal, spec):
+    """A spell in words: where it starts, how likely, how long, what it brings, how often."""
+    lo, hi = spec["days"]
+    often = season.spells_a_year(spec, cal.where)
+    return "in %s, %s%% a day, %s; %s; %s" % (
+        season._and(label(p, cal) for p in spec["in"]), ("%g" % spec["chance"]),
+        "%d day%s" % (lo, "" if lo == 1 else "s") if lo == hi else "%d to %d days" % (lo, hi),
+        "brings %s" % label(spec["as"], cal) if spec["as"] else "the season stays",
+        often_words(often))
+
+
+def often_words(n):
+    """How often something happens, from the times a year on average."""
+    if n >= 1.5:
+        return "about %d times a year" % round(n)
+    if n >= 0.75:
+        return "about once a year"
+    if n > 0:
+        return "about once every %d years" % max(2, round(1 / n))
+    return "never"
+
+
+def cmd_spell(a):
+    """A spell: shown, added, changed, renamed or removed."""
+    cal = loaded()
+    if not a.name:
+        if not cal.spells:
+            print("  No spells yet. To add one:")
+            print("  " + season.command("configure.py", "spell \"Summer frost\" --in summer "
+                                        "--chance 3 --days 1 2 --as winter"))
+        for n in sorted(cal.spells, key=str.casefold):
+            print("  %-24s %s" % (n, spell_words(cal, cal.spells[n])))
+        return
+    name = a.name.strip()
+    have = next((n for n in list(cal.spells) + list(cal._bad_spells)
+                 if n.casefold() == name.casefold()), None)
+    if (a.remove or a.rename) and not have:
+        fail("You have no spell called \"%s\". %s shows yours."
+             % (name, season.command("configure.py", "spell")))
+    if a.remove:
+        gone = cal.take_spell(have)
+        save(cal, ["removed spell %s" % have] + (
+            ["stopped switching %s, on in nothing else" % ce.few(gone, 6)] if gone else []))
+        return
+    if a.rename:
+        new = a.rename.strip()
+        if have not in cal.spells:
+            fail("%s can't be used as it is. Fix it first with --in, --chance or --days."
+                 % have)
+        if any(n.casefold() == new.casefold() and n != have for n in cal.spells):
+            fail("You have a spell called \"%s\" already." % new)
+        cal.put_spell(new, cal.spells[have], was=have)
+        save(cal, ["renamed spell %s to %s" % (have, new)])
+        return
+    old = dict(cal.spells.get(have, {}))
+    if not old and not (a.start and a.chance is not None):
+        fail("A new spell needs --in and --chance, like:",
+             "  " + season.command("configure.py", "spell \"%s\" --in summer --chance 3 "
+                                   "--days 1 2 --as winter" % name))
+    spec = dict(old)
+    if a.start:
+        spec["in"] = tuple(pick_when(a.start, cal))
+    if a.chance is not None:
+        spec["chance"] = int(a.chance) if a.chance == int(a.chance) else a.chance
+    if a.days:
+        if len(a.days) > 2:
+            fail("--days takes one number, or the fewest and the most, like --days 1 2.")
+        spec["days"] = (a.days[0], a.days[-1])
+    spec.setdefault("days", (1, 1))
+    if a.brings is not None:
+        spec["as"] = None if a.brings.lower() in ("none", "") else (
+            pick_when([a.brings], cal)[0])
+    spec.setdefault("as", None)
+    key = have or name
+    cal.put_spell(key, spec)
+    if not save(cal, ["%s spell %s  %s" % ("changed" if old else "added", key,
+                                            spell_words(cal, cal.spells[key]))]):
+        return
+    if not cal.users_of(key):
+        print("  To have a mod on during it: " + season.command(
+            "configure.py", "add \"<mod>\" --when \"%s\"" % key))
 
 
 def cmd_calendar(a):
@@ -674,12 +834,17 @@ def plain(problem):
     p = re.sub(r"^TOGGLE_MODS\[(['\"])(.*?)\1\]:? ?", lambda m: name(m) + ": ", problem)
     p = re.sub(r"^EVENTS\[(['\"])(.*?)\1\]:? ?", lambda m: "Event %s: " % name(m), p)
     p = re.sub(r"^PERIODS\[(['\"])(.*?)\1\]:? ?", lambda m: "Period %s: " % name(m), p)
+    p = re.sub(r"^OWN_SEASONS\[(['\"])(.*?)\1\](:? ?)",
+               lambda m: name(m) + (": " if m.group(3).startswith(":") else " "), p)
+    p = re.sub(r"^SPELLS\[(['\"])(.*?)\1\](:? ?)",
+               lambda m: "Spell %s" % name(m) + (": " if m.group(3).startswith(":") else " "),
+               p)
     p = re.sub(r"^LAYOUT\[(['\"])(.*?)\1\]:? ?", lambda m: "Texture set %s: " % name(m), p)
     p = re.sub(r"^NAMES\[(['\"])(.*?)\1\]:? ?",
                lambda m: "The name for %s: " % season.default_label(name(m)), p)
     p = re.sub(r"^CALENDAR\[(['\"])(.*?)\1\]:? ?",
                lambda m: season.default_label(name(m)).capitalize() + ": ", p)
-    p = re.sub(r"^(CALENDAR|NAMES): ", "", p)
+    p = re.sub(r"^(CALENDAR|NAMES|OWN_SEASONS): ", "", p)
     return p[:1].upper() + p[1:]
 
 
@@ -990,6 +1155,17 @@ class App(object):
             self.checks[s] = c
             ttk.Label(box, text=self.windows.get(s) or "off (see the Seasons tab)",
                       foreground=GREY).grid(row=i, column=1, sticky="w", padx=(12, 0))
+        for i, p in enumerate(self.cal.own_order(), start=len(season.SEASONS)):
+            v = tk.BooleanVar(value=p in when)
+            self.vars[p] = v
+            c = ttk.Checkbutton(box, text=p, variable=v, command=lambda p=p: self.ticked(p))
+            c.grid(row=i, column=0, sticky="w")
+            self.checks[p] = c
+            ttk.Label(box, text=ce.window_text(self.cal.own[p]), foreground=GREY).grid(
+                row=i, column=1, sticky="w", padx=(12, 0))
+        ttk.Button(box, text="New season of your own...", command=self.new_own).grid(
+            row=len(season.SEASONS) + len(self.cal.own), column=0, columnspan=2, sticky="w",
+            pady=(6, 0))
 
         box = ttk.LabelFrame(self.side, text="And on these events", padding=8)
         box.pack(fill="x", pady=(8, 0))
@@ -1023,6 +1199,21 @@ class App(object):
             ttk.Label(box, text="No events of your own yet.", foreground=GREY).pack(anchor="w")
         ttk.Button(box, text="New event...", command=self.new_event).pack(anchor="w",
                                                                          pady=(6, 0))
+
+        box = ttk.LabelFrame(self.side, text="And during these spells", padding=8)
+        box.pack(fill="x", pady=(8, 0))
+        for p in sorted(self.cal.spells, key=str.casefold):
+            v = tk.BooleanVar(value=p in when)
+            self.vars[p] = v
+            c = ttk.Checkbutton(box, text=p, variable=v, command=lambda p=p: self.ticked(p))
+            c.pack(anchor="w")
+            self.checks[p] = c
+            self.label(spell_words(self.cal, self.cal.spells[p]), GREY, indent=48,
+                       parent=box).pack(anchor="w", padx=(22, 0))
+        if not self.cal.spells:
+            ttk.Label(box, text="No spells yet.", foreground=GREY).pack(anchor="w")
+        ttk.Button(box, text="New spell...", command=self.new_spell).pack(anchor="w",
+                                                                       pady=(6, 0))
 
         box = ttk.LabelFrame(self.side, text="And on these kinds of weather at %s"
                              % (self.cal.place or ce.DEFAULT_PLACE)["name"],
@@ -1085,7 +1276,8 @@ class App(object):
         ttk = self.ttk
         box = ttk.LabelFrame(self.side, text="Wins over", padding=8)
         box.pack(fill="x", pady=(8, 0))
-        auto, why, rivals = ce.anchor_for(self.inst, name, entry["when"], self.cal.toggle)
+        auto, why, rivals = ce.anchor_for(self.inst, name, entry["when"], self.cal.toggle,
+                                          self.cal)
         choices = [(auto, "%s  (picked for you)" % auto)] if auto else []
         for other, n in ce.overlaps(self.inst, name):
             if other != auto:
@@ -1132,6 +1324,8 @@ class App(object):
         self.fill()
         self.show()
         self.refresh_seasons()
+        if getattr(self, "own_frame", None) is not None and self.own_frame.winfo_exists():
+            self.own_list()
 
     def ticked(self, key=None):
         self._focus = key
@@ -1323,6 +1517,91 @@ class App(object):
         win.bind("<Return>", lambda e: ok())
         present(win, self.root, name_box if not editing else None)
 
+    def new_own(self, editing=None):
+        """A season of the player's own, new or changed. A new one opened from a mod's page
+        is checked for that mod."""
+        mod = self.current
+
+        def done(name):
+            if editing is None and mod and mod not in self.own:
+                when = self.cal.toggle[mod]["when"] if mod in self.cal.toggle else []
+                self.set_when(mod, when + [name])
+            else:
+                self.changed()
+        own_season_dialog(self.root, self.cal, editing=editing, done=done)
+
+    def delete_own(self, name):
+        if remove_own_season(self.root, self.cal, name):
+            self.changed()
+
+    def new_spell(self, editing=None):
+        """A spell, new or changed. A new one opened from a mod's page is checked for that
+        mod."""
+        mod = self.current
+
+        def done(name):
+            if editing is None and mod and mod not in self.own:
+                when = self.cal.toggle[mod]["when"] if mod in self.cal.toggle else []
+                self.set_when(mod, when + [name])
+            else:
+                self.changed()
+        spell_dialog(self.root, self.cal, editing=editing, done=done)
+
+    def delete_spell(self, name):
+        if remove_spell(self.root, self.cal, name):
+            self.changed()
+
+    def own_list(self):
+        """The Seasons tab's list of the player's own seasons."""
+        ttk = self.ttk
+        for w in self.own_frame.winfo_children():
+            w.destroy()
+        if not self.cal.own:
+            ttk.Label(self.own_frame, text="None yet.", foreground=GREY).pack(anchor="w")
+        for n in self.cal.own_order():
+            line = ttk.Frame(self.own_frame)
+            line.pack(fill="x", pady=1)
+            ttk.Label(line, text=n, width=26).pack(side="left")
+            ttk.Label(line, text="%s, %d days" % (ce.window_text(self.cal.own[n]),
+                                                  season.own_days(self.cal.own[n])),
+                      foreground=GREY).pack(side="left")
+            ttk.Button(line, text="Delete", command=lambda n=n: self.delete_own(n)).pack(
+                side="right")
+            ttk.Button(line, text="Edit...", command=lambda n=n: self.new_own(n)).pack(
+                side="right", padx=(0, 4))
+        for n, raw in self.cal._bad_own.items():
+            line = ttk.Frame(self.own_frame)
+            line.pack(fill="x", pady=1)
+            ttk.Label(line, text=n, foreground=RED, width=26).pack(side="left")
+            ttk.Button(line, text="Delete", command=lambda n=n: self.delete_own(n)).pack(
+                side="right")
+            ttk.Label(line, text="Can't be used. " + " ".join(
+                reason(x) for x in season.own_problems({n: raw})), foreground=RED,
+                wraplength=300, justify="left").pack(side="left")
+        for w in self.spell_frame.winfo_children():
+            w.destroy()
+        if not (self.cal.spells or self.cal._bad_spells):
+            ttk.Label(self.spell_frame, text="None yet.", foreground=GREY).pack(anchor="w")
+        for n in sorted(self.cal.spells, key=str.casefold):
+            line = ttk.Frame(self.spell_frame)
+            line.pack(fill="x", pady=1)
+            ttk.Label(line, text=n, width=26).pack(side="left")
+            ttk.Button(line, text="Delete", command=lambda n=n: self.delete_spell(n)).pack(
+                side="right")
+            ttk.Button(line, text="Edit...", command=lambda n=n: self.new_spell(n)).pack(
+                side="right", padx=(0, 4))
+            ttk.Label(line, text=spell_words(self.cal, self.cal.spells[n]), foreground=GREY,
+                      wraplength=330, justify="left").pack(side="left")
+        for n, raw in self.cal._bad_spells.items():
+            line = ttk.Frame(self.spell_frame)
+            line.pack(fill="x", pady=1)
+            ttk.Label(line, text=n, foreground=RED, width=26).pack(side="left")
+            ttk.Button(line, text="Delete", command=lambda n=n: self.delete_spell(n)).pack(
+                side="right")
+            ttk.Label(line, text="Can't be used. " + " ".join(
+                reason(x) for x in season.spell_problems({n: raw}, own=self.cal.own)),
+                foreground=RED, wraplength=300, justify="left").pack(side="left")
+
     def add_event(self, name, start=None, end=None, spec=None, mod="current"):
         """Add an event, a window from `start` to `end` or a rule `spec`, and check it for
         `mod`: the mod on show when the dialog was opened."""
@@ -1420,6 +1699,25 @@ class App(object):
         self.cal_note = ttk.Label(f, text="", foreground=GREY, wraplength=520,
                                   justify="left")
         self.cal_note.pack(anchor="w", pady=(6, 0))
+        box = ttk.LabelFrame(f, text="Seasons of your own", padding=8)
+        box.pack(fill="x", pady=(12, 0))
+        ttk.Label(box, wraplength=500, justify="left", foreground=GREY, text=(
+            "Stretches of the year with names of your own, each a week or longer, that run on "
+            "top of the season they fall in. Up to %d." % season.OWN_MOST)).pack(anchor="w")
+        self.own_frame = ttk.Frame(box)
+        self.own_frame.pack(fill="x", pady=(6, 0))
+        ttk.Button(box, text="New season of your own...",
+                   command=lambda: self.new_own()).pack(anchor="w", pady=(6, 0))
+        box = ttk.LabelFrame(f, text="Spells", padding=8)
+        box.pack(fill="x", pady=(12, 0))
+        ttk.Label(box, wraplength=500, justify="left", foreground=GREY, text=(
+            "Short stretches, 1 to %d days, that start by chance in the seasons you pick, and "
+            "can bring another season with them." % season.SPELL_MOST_DAYS)).pack(anchor="w")
+        self.spell_frame = ttk.Frame(box)
+        self.spell_frame.pack(fill="x", pady=(6, 0))
+        ttk.Button(box, text="New spell...", command=lambda: self.new_spell()).pack(
+            anchor="w", pady=(6, 0))
+        self.own_list()
         self.dates_edited(user=False)
 
     # the dial, drawn as the game will draw it, whenever the calendar or a name changes
@@ -1537,6 +1835,7 @@ class App(object):
                 day.set(str(self.cal.dates[s][1]))
             called.set(self.cal.names.get(s) or title(s))
         self._filling = False
+        self.own_list()
         self.dates_edited(user=False)
 
     def dates_edited(self, user=True):
@@ -2140,6 +2439,272 @@ def offer_pillow(root):
                                           "the dial here too."]), parent=root)
 
 
+def own_window_words(cal, win):
+    """A season of the player's own in words: how long it runs, and on top of what."""
+    year = [datetime.date(2026, 1, 1) + datetime.timedelta(days=i) for i in range(365)]
+    days = [d for d in year if season._in_window(d, *win)]
+    under = [s for s in season.SEASONS if s in cal.dates and cal.days(s) & set(days)]
+    return "Runs %d days, %s, on top of %s." % (
+        len(days), ce.window_text(win), season._and(label(s, cal) for s in under)
+        if under else "no season")
+
+
+def own_season_dialog(root, cal, editing=None, done=None):
+    """Add a season of the player's own to `cal`, or change the one called `editing`: its
+    name and its first and last day, checked as they are typed. `done(name)` runs once it
+    is in `cal`; nothing is saved here."""
+    import tkinter as tk
+    from tkinter import messagebox, ttk
+    if editing is None and len(cal.own) >= season.OWN_MOST:
+        messagebox.showinfo(TITLE, "You have %d seasons of your own, as many as the year has "
+                            "room for, a week each. Remove one to add another."
+                            % len(cal.own), parent=root)
+        return
+    old = cal.own.get(editing) if editing else None
+    if old is None:
+        # the whole of next month, to start from
+        t = datetime.date.today()
+        m = t.month % 12 + 1
+        old = ((m, 1), (m, 28 if m == 2 else ce.DAYS[m - 1]))
+    win, f = dialog(root, "Change %s" % editing if editing else "A season of your own")
+    ttk.Label(f, wraplength=470, justify="left", text=(
+        "A stretch of the year with a name of your own, a week or longer. It runs on top of "
+        "the season it falls in: the mods you put on in it come on for those days, and the "
+        "season's own mods stay on.")).pack(anchor="w")
+    grid = ttk.Frame(f)
+    grid.pack(anchor="w", pady=(12, 0))
+    fits = root.register(lambda text: len(text) <= season.OWN_NAME_CHARS)
+    name = tk.StringVar(value=editing or "")
+    ttk.Label(grid, text="Name").grid(row=0, column=0, sticky="w", pady=3)
+    box = ttk.Entry(grid, textvariable=name, width=28, validate="key",
+                    validatecommand=(fits, "%P"))
+    box.grid(row=0, column=1, columnspan=3, sticky="w", padx=(10, 0))
+    ttk.Label(grid, text="like Wormhole season", foreground=GREY).grid(
+        row=0, column=4, sticky="w", padx=(10, 0))
+    ends = []
+    for r, (text, md) in enumerate((("First day", old[0]), ("Last day", old[1])), start=1):
+        mon, day = tk.StringVar(value=ce.MONTHS[md[0] - 1]), tk.StringVar(value=str(md[1]))
+        ttk.Label(grid, text=text).grid(row=r, column=0, sticky="w", pady=3)
+        cb = ttk.Combobox(grid, textvariable=mon, values=ce.MONTHS, state="readonly",
+                          width=5)
+        cb.grid(row=r, column=1, sticky="w", padx=(10, 0))
+        sp = ttk.Spinbox(grid, from_=1, to=31, textvariable=day, width=4)
+        sp.grid(row=r, column=2, sticky="w", padx=(4, 0))
+        ends.append((mon, day, cb, sp))
+    words = ttk.Label(f, text="", wraplength=470, justify="left")
+    words.pack(anchor="w", pady=(12, 0))
+
+    def read():
+        """(name, window, problems) as the dialog stands."""
+        n = name.get().strip()
+        md = []
+        for mon, day, _, _ in ends:
+            m = ce.MONTHS.index(mon.get()) + 1
+            d = int(day.get()) if DAY_BOX.match(day.get()) else 0
+            md.append((m, min(d, 28 if m == 2 else ce.DAYS[m - 1])))
+        w = (md[0], md[1])
+        if not n:
+            return n, w, ["Give it a name."]
+        if not all(d for _, d in md):
+            return n, w, ["Give it a first and a last day."]
+        if any(o.casefold() == n.casefold() and o != editing for o in cal.own):
+            return n, w, ["You have a season called %s already." % n]
+        trial = {o: x for o, x in cal.own.items() if o != editing}
+        trial[n] = w
+        return n, w, [plain(p) for p in season.own_problems(trial, cal.periods, cal.events,
+                                                             cal.names)]
+
+    def show(*a):
+        n, w, problems = read()
+        if problems and not (problems == ["Give it a name."] and not name.get()):
+            words.configure(text="\n".join(problems), foreground=RED)
+        else:
+            words.configure(text=own_window_words(cal, w), foreground=GREY)
+
+    def ok():
+        n, w, problems = read()
+        if problems:
+            messagebox.showerror(win.title(), "\n".join(problems), parent=win)
+            return
+        cal.put_own(n, w, was=editing)
+        win.destroy()
+        if done:
+            done(n)
+
+    name.trace_add("write", show)
+    for mon, day, _, _ in ends:
+        mon.trace_add("write", show)
+        day.trace_add("write", show)
+    show()
+    button_row(f, ("Save" if editing else "Add", ok), ("Cancel", win.destroy))
+    win.bind("<Return>", lambda e: ok())
+    present(win, root, box)
+    return win
+
+
+def spell_dialog(root, cal, editing=None, done=None):
+    """Add a spell to `cal`, or change the one called `editing`: where it can start, the
+    chance each day, how long it runs and the season it brings, checked as they are set.
+    `done(name)` runs once it is in `cal`; nothing is saved here."""
+    import tkinter as tk
+    from tkinter import messagebox, ttk
+    old = cal.spells.get(editing) if editing else None
+    old = old or {"in": ("summer",) if "summer" in cal.dates else (sorted(cal.dates)[:1]),
+                  "chance": 3, "days": (1, 2),
+                  "as": "winter" if "winter" in cal.dates else None}
+    win, f = dialog(root, "Change %s" % editing if editing else "A spell")
+    ttk.Label(f, wraplength=500, justify="left", text=(
+        "A short stretch that starts by chance. On each day of the seasons you check, there "
+        "is a chance it starts; then it runs a day or a few. It can bring another season with "
+        "it - winter for a day or two in summer - or leave the season as it is and switch on "
+        "only the mods you put on during it. The date decides, so every launch that day "
+        "agrees.")).pack(anchor="w")
+    grid = ttk.Frame(f)
+    grid.pack(anchor="w", pady=(12, 0))
+    fits = root.register(lambda text: len(text) <= season.OWN_NAME_CHARS)
+    name = tk.StringVar(value=editing or "")
+    ttk.Label(grid, text="Name").grid(row=0, column=0, sticky="w", pady=3)
+    box = ttk.Entry(grid, textvariable=name, width=28, validate="key",
+                    validatecommand=(fits, "%P"))
+    box.grid(row=0, column=1, columnspan=5, sticky="w", padx=(10, 0))
+    ttk.Label(grid, text="Can start in").grid(row=1, column=0, sticky="nw", pady=3)
+    starts = ttk.Frame(grid)
+    starts.grid(row=1, column=1, columnspan=5, sticky="w", padx=(10, 0))
+    places = [s for s in season.SEASONS if s in cal.dates] + cal.own_order()
+    start_vars = {}
+    for i, p in enumerate(places):
+        v = tk.BooleanVar(value=p in old["in"])
+        start_vars[p] = v
+        ttk.Checkbutton(starts, text=title(p, cal) if p in season.SEASONS else p,
+                        variable=v).grid(row=i // 3, column=i % 3, sticky="w", padx=(0, 12))
+    chance = tk.StringVar(value="%g" % old["chance"])
+    ttk.Label(grid, text="Chance each day").grid(row=2, column=0, sticky="w", pady=3)
+    odds = ttk.Frame(grid)
+    odds.grid(row=2, column=1, columnspan=5, sticky="w", padx=(10, 0))
+    ttk.Spinbox(odds, from_=0.5, to=100, increment=0.5, textvariable=chance, width=6).pack(
+        side="left")
+    ttk.Label(odds, text="%").pack(side="left", padx=(4, 0))
+    lo, hi = tk.StringVar(value=str(old["days"][0])), tk.StringVar(value=str(old["days"][1]))
+    ttk.Label(grid, text="Runs").grid(row=3, column=0, sticky="w", pady=3)
+    lasts = ttk.Frame(grid)
+    lasts.grid(row=3, column=1, columnspan=5, sticky="w", padx=(10, 0))
+    ttk.Spinbox(lasts, from_=1, to=season.SPELL_MOST_DAYS, textvariable=lo, width=4).pack(
+        side="left")
+    ttk.Label(lasts, text="to").pack(side="left", padx=6)
+    ttk.Spinbox(lasts, from_=1, to=season.SPELL_MOST_DAYS, textvariable=hi, width=4).pack(
+        side="left")
+    ttk.Label(lasts, text="days").pack(side="left", padx=(6, 0))
+    stays = "no other season"
+    choices = [stays] + [title(s, cal) for s in season.SEASONS if s in cal.dates]
+    keys = [None] + [s for s in season.SEASONS if s in cal.dates]
+    brings = tk.StringVar(value=choices[keys.index(old["as"])] if old["as"] in keys
+                          else stays)
+    ttk.Label(grid, text="Brings").grid(row=4, column=0, sticky="w", pady=3)
+    ttk.Combobox(grid, textvariable=brings, values=choices, state="readonly", width=16).grid(
+        row=4, column=1, columnspan=4, sticky="w", padx=(10, 0))
+    words = ttk.Label(f, text="", wraplength=500, justify="left")
+    words.pack(anchor="w", pady=(12, 0))
+
+    def number(text, whole=False):
+        try:
+            v = float(text.strip().rstrip("%"))
+        except ValueError:
+            return None
+        return int(v) if (whole or v == int(v)) and v == int(v) else (None if whole else v)
+
+    def read():
+        """(name, spec, problems) as the dialog stands."""
+        n = name.get().strip()
+        spec = {"in": tuple(p for p in places if start_vars[p].get()),
+                "chance": number(chance.get()),
+                "days": (number(lo.get(), True), number(hi.get(), True)),
+                "as": keys[choices.index(brings.get())]}
+        if not n:
+            return n, spec, ["Give it a name."]
+        if not spec["in"]:
+            return n, spec, ["Check a season it can start in."]
+        if spec["chance"] is None or None in spec["days"]:
+            return n, spec, ["The chance and the days are numbers."]
+        if any(o.casefold() == n.casefold() and o != editing for o in cal.spells):
+            return n, spec, ["You have a spell called %s already." % n]
+        trial = {o: x for o, x in cal.spells.items() if o != editing}
+        trial[n] = spec
+        return n, spec, [plain(p) for p in season.spell_problems(
+            trial, list(cal.dates), cal.own, cal.periods, cal.events, cal.names)]
+
+    def show(*a):
+        n, spec, problems = read()
+        if problems and not (problems == ["Give it a name."] and not name.get()):
+            words.configure(text="\n".join(problems), foreground=RED)
+            return
+        text = spell_words(cal, ce.norm_spell(spec))
+        words.configure(text=text[:1].upper() + text[1:] + ".", foreground=GREY)
+
+    def ok():
+        n, spec, problems = read()
+        if problems:
+            messagebox.showerror(win.title(), "\n".join(problems), parent=win)
+            return
+        cal.put_spell(n, spec, was=editing)
+        win.destroy()
+        if done:
+            done(n)
+
+    name.trace_add("write", show)
+    for v in list(start_vars.values()) + [chance, lo, hi, brings]:
+        v.trace_add("write", show)
+    show()
+    button_row(f, ("Save" if editing else "Add", ok), ("Cancel", win.destroy))
+    win.bind("<Return>", lambda e: ok())
+    present(win, root, box)
+    return win
+
+
+def remove_spell(root, cal, name):
+    """Take a spell off `cal` and off the mods on during it, once the player says so when
+    there are any. True when it was taken off; nothing is saved here."""
+    from tkinter import messagebox
+    users = cal.users_of(name)
+    if users:
+        only = [u for u in users if all(p == name for p in cal.toggle[u]["when"])]
+        text = ("Remove %s? These mods are on during it:\n\n%s\n\nIt comes off each of them."
+                % (name, "\n".join(users)))
+        if only:
+            text += " %s %s on in nothing else, so play.bat stops switching %s." % (
+                ce.few(only, 6), "is" if len(only) == 1 else "are",
+                "it" if len(only) == 1 else "them")
+        if not messagebox.askyesno("Remove %s" % name, text, parent=root):
+            return False
+    cal.take_spell(name)
+    return True
+
+
+def remove_own_season(root, cal, name):
+    """Take a season of the player's own off `cal` and off the mods on in it, once the
+    player says so when there are any. A mod on in nothing else comes off the calendar.
+    True when it was taken off; nothing is saved here."""
+    from tkinter import messagebox
+    users = cal.users_of(name)
+    spells = cal.spells_only_in(name)
+    if users or spells:
+        text = "Remove %s?" % name
+        if users:
+            only = [u for u in users if all(p == name for p in cal.toggle[u]["when"])]
+            text += (" These mods are on in it:\n\n%s\n\nIt comes off each of them."
+                     % "\n".join(users))
+            if only:
+                text += " %s %s on in nothing else, so play.bat stops switching %s." % (
+                    ce.few(only, 6), "is" if len(only) == 1 else "are",
+                    "it" if len(only) == 1 else "them")
+        if spells:
+            text += ("\n\n%s can start only in it, so %s too." % (
+                ce.few(spells, 6), "it goes" if len(spells) == 1 else "they go"))
+        if not messagebox.askyesno("Remove %s" % name, text, parent=root):
+            return False
+    cal.take_own(name)
+    return True
+
+
 def save_preset_dialog(root, cal):
     """Keep parts of the setup `cal` holds as a preset of the player's own."""
     import tkinter as tk
@@ -2367,6 +2932,28 @@ def main():
     p.add_argument("--between", nargs=2, metavar=("FROM", "TO"),
                    help="only between these dates, month-day")
     p.add_argument("--remove", action="store_true", help="delete the event")
+    p = sub.add_parser("season", help="show, add, change or remove a season of your own")
+    p.add_argument("name", nargs="?", help="its name, in quotes if it has spaces")
+    p.add_argument("start", nargs="?", help="the first day, month-day, like 08-01")
+    p.add_argument("end", nargs="?", help="the last day, month-day, at least a week on")
+    p.add_argument("--rename", metavar="NEW", help="give it another name")
+    p.add_argument("--remove", action="store_true",
+                   help="delete it, and take it off the mods on in it")
+    p = sub.add_parser("spell", help="show, add, change or remove a spell: a short stretch "
+                       "that starts by chance")
+    p.add_argument("name", nargs="?", help="its name, in quotes if it has spaces")
+    p.add_argument("--in", dest="start", nargs="+", metavar="SEASON",
+                   help="the seasons it can start in, yours included")
+    p.add_argument("--chance", type=float, metavar="PERCENT",
+                   help="the percent chance it starts on each of those days, like 3")
+    p.add_argument("--days", type=int, nargs="+", metavar="N",
+                   help="how long it runs: a number, or the fewest and the most, 1 to %d"
+                        % season.SPELL_MOST_DAYS)
+    p.add_argument("--as", dest="brings", metavar="SEASON",
+                   help="the season it brings, or none to leave the season as it is")
+    p.add_argument("--rename", metavar="NEW", help="give it another name")
+    p.add_argument("--remove", action="store_true",
+                   help="delete it, and take it off the mods on during it")
     p = sub.add_parser("calendar", help="show or change when each season starts")
     p.add_argument("starts", nargs="*", metavar="SEASON=MM-DD",
                    help="move a season's start, turning it on if it was off")
@@ -2410,7 +2997,7 @@ def main():
                    help="save over a preset of that name, or load over your own setup")
     a = ap.parse_args()
     {"list": cmd_list, "add": cmd_add, "remove": cmd_remove, "event": cmd_event,
-     "calendar": cmd_calendar, "name": cmd_name, "preset": cmd_preset, "place": cmd_place,
+     "season": cmd_season, "spell": cmd_spell, "calendar": cmd_calendar, "name": cmd_name, "preset": cmd_preset, "place": cmd_place,
      "install": lambda a: __import__("installer").main(a),
      None: lambda a: window(a.advanced)}[a.cmd](a)
 

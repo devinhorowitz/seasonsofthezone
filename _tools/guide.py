@@ -23,6 +23,7 @@ import tempfile
 import config_edit as ce
 import configure as cf
 import installer
+import lang
 import season
 
 STEPS = (("start", "Start"), ("mods", "Seasonal mods"), ("seasons", "Seasons"),
@@ -34,7 +35,7 @@ def is_set_up(cal):
     """Is there a setup to sum up? A first run - no file, or one with nothing in it - opens
     to the steps instead."""
     return bool(cal.toggle or cal.layout or cal.sound_src or cal.events or cal.periods
-                or cal.custom() or cal.names or cal.place)
+                or cal.own or cal.spells or cal.custom() or cal.names or cal.place)
 
 
 def preset_from_data(data):
@@ -98,7 +99,14 @@ def on_today(cal):
     own calendar and events. Weather days are left out: they come with play.bat's fetch."""
     today = datetime.date.today()
     now = season_on(today, cal.dates)
-    names = {now} | {e for e, spec in cal.events.items() if season.event_on(today, spec)}
+    names = ({now} | {e for e, spec in cal.events.items() if season.event_on(today, spec)}
+             | {o for o, win in cal.own.items() if season._in_window(today, *win)})
+    spell = [(n, cal.spells[n]["as"]) for n, _, _ in cal.spells_on(today)]
+    names |= {n for n, _ in spell}
+    brings = next((b for _, b in spell if b), None)
+    if brings:
+        names = (names - {now}) | {brings}
+        now = brings
     return now, sorted((n for n, c in cal.toggle.items() if names & set(c["when"])),
                        key=str.casefold)
 
@@ -119,6 +127,13 @@ def seasons_words(cal):
             "%s is \"%s\"" % (season.default_label(s), n)
             for s, n in sorted(cal.names.items(), key=lambda x: season.SEASONS.index(x[0])))
     return text
+
+
+def own_words(cal, most=3):
+    """The player's own seasons in a few words, in the order they come."""
+    names = cal.own_order()
+    text = ", ".join("%s (%s)" % (n, ce.window_text(cal.own[n])) for n in names[:most])
+    return text + (" and %d more" % (len(names) - most) if len(names) > most else "")
 
 
 def setup_words(cal):
@@ -142,7 +157,7 @@ def step_for(problem):
     """The step where a refusal can be fixed, or None for the advanced editor."""
     if problem.startswith(("TOGGLE_MODS", "LAYOUT", "SOUND_SRC")):
         return "mods"
-    if problem.startswith(("CALENDAR", "NAMES")):
+    if problem.startswith(("CALENDAR", "NAMES", "OWN_SEASONS", "SPELLS")):
         return "seasons"
     if problem.startswith("WEATHER_PLACE"):
         return "weather"
@@ -220,6 +235,33 @@ class Guide(object):
         b.pack(side=side, padx=(pad, 0) if side == "left" else (0, pad))
         return b
 
+    def language_box(self, parent):
+        """A choice of the languages there is a translation for, which redraws the window in
+        the one picked and keeps it for next time. None while English is all there is."""
+        langs = lang.available()
+        if len(langs) < 2:
+            return None
+        codes, names = [c for c, _n, _k in langs], [n for _c, n, _k in langs]
+        now = lang.language()
+        var = self.tk.StringVar(value=names[codes.index(now)] if now in codes else names[0])
+        box = self.ttk.Combobox(parent, textvariable=var, values=names, state="readonly",
+                                width=max(len(n) for n in names) + 2)
+        box.pack(side="left", padx=(10, 0))
+
+        def pick(e=None):
+            code = codes[names.index(var.get())]
+            if code == lang.language():
+                return
+            lang.save_choice(code)
+            lang.use(code)
+            if self.mode == "summary":
+                self.summary()
+            else:
+                self.render()
+        box.bind("<<ComboboxSelected>>", pick)
+        self.lang_box = box
+        return box
+
     def in_background(self, work, done):
         """Run `work` off the window's thread - a web request, say - and `done(result,
         error)` on it once it is back, so the window keeps answering meanwhile."""
@@ -273,6 +315,7 @@ class Guide(object):
         left.pack(side="left")
         right.pack(side="right")
         self.button(left, "Advanced editor...", self.advanced, pad=0)
+        self.language_box(left)
         if self.mode == "edit":
             self.button(right, "Save", self.save_edit, default=True, side="right", pad=0)
             self.button(right, "Cancel", self.summary, side="right")
@@ -589,9 +632,82 @@ class Guide(object):
         self.season_msg = ttk.Label(left, text="", foreground=cf.RED, wraplength=560,
                                     justify="left")
         self.season_msg.pack(anchor="w", pady=(8, 0))
+        self.subhead("Seasons of your own", parent=left)
+        self.para("A stretch of the year with a name of your own, a week or longer, that runs "
+                  "on top of the season it falls in: the mods you put on in it come on for "
+                  "those days, and the season's own mods stay on. You can have up to %d."
+                  % season.OWN_MOST, parent=left, color=cf.GREY, pad=(0, 0), wrap=560)
+        self.own_box_list = ttk.Frame(left)
+        self.own_box_list.pack(anchor="w", fill="x", pady=(6, 0))
+        row = ttk.Frame(left)
+        row.pack(anchor="w", pady=(6, 0))
+        self.button(row, "Add a season of your own...", self.add_own, pad=0)
+        self.subhead("Spells", parent=left)
+        self.para("A short stretch, 1 to %d days, that starts by chance: on each day of the "
+                  "seasons you pick there is a chance of it. It can bring another season with "
+                  "it - winter for a day or two in summer - or switch on only the mods you put "
+                  "on during it." % season.SPELL_MOST_DAYS, parent=left, color=cf.GREY,
+                  pad=(0, 0), wrap=560)
+        self.spell_box_list = ttk.Frame(left)
+        self.spell_box_list.pack(anchor="w", fill="x", pady=(6, 0))
+        row = ttk.Frame(left)
+        row.pack(anchor="w", pady=(6, 0))
+        self.button(row, "Add a spell...", self.add_spell, pad=0)
+        self.show_own()
         self.seasons_bad, self.names_bad = [], []
         self.pick_calendar(keep=True)
         self.show_names()
+
+    def show_own(self):
+        """The player's own seasons, each with a way to change it or take it off."""
+        ttk = self.ttk
+        for w in self.own_box_list.winfo_children():
+            w.destroy()
+        cal = self.cal
+        if not cal.own:
+            ttk.Label(self.own_box_list, text="None yet.", foreground=cf.GREY).pack(anchor="w")
+        for n in cal.own_order():
+            line = ttk.Frame(self.own_box_list)
+            line.pack(anchor="w", fill="x", pady=1)
+            ttk.Label(line, text=n, style="Head.TLabel", width=26).pack(side="left")
+            users = len(cal.users_of(n))
+            ttk.Label(line, text="%s, %d days; %s" % (
+                ce.window_text(cal.own[n]), season.own_days(cal.own[n]),
+                "on for %d mod%s" % (users, "" if users == 1 else "s") if users
+                else "no mods on in it yet"), foreground=cf.GREY).pack(side="left")
+            self.button(line, "Remove", lambda n=n: self.remove_own(n), side="right", pad=0)
+            self.button(line, "Change...", lambda n=n: cf.own_season_dialog(
+                self.root, self.cal, editing=n, done=lambda _: self.show_own()),
+                side="right")
+        for w in self.spell_box_list.winfo_children():
+            w.destroy()
+        if not cal.spells:
+            ttk.Label(self.spell_box_list, text="None yet.", foreground=cf.GREY).pack(
+                anchor="w")
+        for n in sorted(cal.spells, key=str.casefold):
+            line = ttk.Frame(self.spell_box_list)
+            line.pack(anchor="w", fill="x", pady=1)
+            ttk.Label(line, text=n, style="Head.TLabel", width=26).pack(side="left")
+            self.button(line, "Remove", lambda n=n: self.remove_spell(n), side="right", pad=0)
+            self.button(line, "Change...", lambda n=n: cf.spell_dialog(
+                self.root, self.cal, editing=n, done=lambda _: self.show_own()),
+                side="right")
+            ttk.Label(line, text=cf.spell_words(cal, cal.spells[n]), foreground=cf.GREY,
+                      wraplength=340, justify="left").pack(side="left")
+
+    def add_own(self):
+        cf.own_season_dialog(self.root, self.cal, done=lambda _: self.show_own())
+
+    def remove_own(self, name):
+        if cf.remove_own_season(self.root, self.cal, name):
+            self.show_own()
+
+    def add_spell(self):
+        cf.spell_dialog(self.root, self.cal, done=lambda _: self.show_own())
+
+    def remove_spell(self, name):
+        if cf.remove_spell(self.root, self.cal, name):
+            self.show_own()
 
     def pick_calendar(self, keep=False):
         name = self.cal_var.get()
@@ -929,6 +1045,10 @@ class Guide(object):
         if cal.sound_src:
             rows.append(("Ambient sound", "follows the season, from %s" % cal.sound_src))
         rows.append(("Seasons", seasons_words(cal)))
+        if cal.own:
+            rows.append(("Seasons of your own", own_words(cal)))
+        if cal.spells:
+            rows.append(("Spells", ce.few(cal.spells, 4)))
         rows.append(("Weather from", ce.place_text(cal.place)))
         if cal.events:
             rows.append(("Events", ce.few(cal.events, 4)))
@@ -1081,6 +1201,10 @@ class Guide(object):
                 + (["ambient sound from %s" % cal.sound_src] if cal.sound_src else [])),
                 lambda: self.edit("mods")))
         rows += [("Seasons", seasons_words(cal), lambda: self.edit("seasons")),
+                 ("Seasons of your own", own_words(cal) if cal.own else "none yet",
+                  lambda: self.edit("seasons")),
+                 ("Spells", ce.few(cal.spells, 3) if cal.spells else "none yet",
+                  lambda: self.edit("seasons")),
                  ("Weather from", ce.place_text(cal.place), lambda: self.edit("weather")),
                  ("Events", (ce.few(cal.events, 3) + " (changed in the advanced editor)")
                   if cal.events else "none (made in the advanced editor)", self.advanced)]
@@ -1103,6 +1227,7 @@ class Guide(object):
         self.button(left, "Run the setup again", lambda: self.steps())
         self.button(left, "Save as a preset...",
                     lambda: cf.save_preset_dialog(self.root, self.cal))
+        self.language_box(left)
         self.button(right, "Close", self.close, default=True, side="right", pad=0)
         self.button(right, "Preview the next launch...",
                     lambda: cf.show_preview(self.root, self.cal), side="right")
@@ -1239,19 +1364,11 @@ class ModDialog(object):
             focus = e
         ttk.Label(f, text="On in these seasons", style="Head.TLabel").pack(anchor="w",
                                                                            pady=(12, 4))
-        wins = ce.season_windows(cal.dates)
         grid = ttk.Frame(f)
         grid.pack(anchor="w")
         self.vars = {}
-        for i, s in enumerate(season.SEASONS):
-            v = tk.BooleanVar(value=s in when)
-            self.vars[s] = v
-            ttk.Checkbutton(grid, text=cf.title(s, cal), variable=v).grid(
-                row=i // 2, column=(i % 2) * 2, sticky="w", pady=1)
-            ttk.Label(grid, text=wins.get(s, "off in your calendar"),
-                      foreground=cf.GREY).grid(row=i // 2, column=(i % 2) * 2 + 1,
-                                               sticky="w", padx=(8, 24))
-        self.more = tk.BooleanVar(value=bool(when - set(season.SEASONS)))
+        season_grid(tk, ttk, grid, cal, when, self.vars)
+        self.more = tk.BooleanVar(value=bool(when - set(season.SEASONS) - set(cal.own)))
         ttk.Checkbutton(f, text="More options", variable=self.more,
                         command=self.show_more).pack(anchor="w", pady=(12, 0))
         # a place held for the options, so they open above the buttons, not under them
@@ -1270,6 +1387,14 @@ class ModDialog(object):
                     anchor="w")
         ttk.Label(self.more_box, text="New events are made in the advanced editor.",
                   foreground=cf.GREY).pack(anchor="w", pady=(2, 0))
+        if cal.spells:
+            ttk.Label(self.more_box, text="Also on during these spells",
+                      style="Head.TLabel").pack(anchor="w", pady=(10, 2))
+            for p in sorted(cal.spells, key=str.casefold):
+                v = tk.BooleanVar(value=p in when)
+                self.vars[p] = v
+                ttk.Checkbutton(self.more_box, text="%s  (%s)" % (
+                    p, cf.spell_words(cal, cal.spells[p])), variable=v).pack(anchor="w")
         ttk.Label(self.more_box, text="And on these kinds of weather at %s"
                   % (cal.place or ce.DEFAULT_PLACE)["name"],
                   style="Head.TLabel").pack(anchor="w", pady=(10, 2))
@@ -1346,6 +1471,22 @@ class ModDialog(object):
         g.render()
 
 
+def season_grid(tk, ttk, grid, cal, when, into):
+    """A checkbox for each season, two to a row with its dates beside it, then one for each
+    of the player's own seasons; their variables go in `into`, by name."""
+    wins = ce.season_windows(cal.dates)
+    rows = ([(s, cf.title(s, cal), wins.get(s, "off in your calendar"))
+             for s in season.SEASONS]
+            + [(o, o, ce.window_text(cal.own[o])) for o in cal.own_order()])
+    for i, (key, text, dates) in enumerate(rows):
+        v = tk.BooleanVar(value=key in when)
+        into[key] = v
+        ttk.Checkbutton(grid, text=text, variable=v).grid(
+            row=i // 2, column=(i % 2) * 2, sticky="w", pady=1)
+        ttk.Label(grid, text=dates, foreground=cf.GREY).grid(
+            row=i // 2, column=(i % 2) * 2 + 1, sticky="w", padx=(8, 24))
+
+
 def archives():
     """mod_install, or None for a _tools from before it."""
     try:
@@ -1392,7 +1533,7 @@ def settle(guide, name, when, parent=None):
     the player says which one wins. Returns it, or None when the player backs out. Setting
     another mod to win moves that mod, not this one."""
     cal, inst = guide.cal, guide.inst
-    auto = ce.anchor_for(inst, name, when, cal.toggle)
+    auto = ce.anchor_for(inst, name, when, cal.toggle, cal)
     above, rivals = auto[0] or "", auto[2]
     beat = []
     for other, n, both in rivals:
@@ -1501,16 +1642,8 @@ class InstallDialog(object):
             os.path.basename(self.archive)))
         grid = ttk.Frame(f)
         grid.pack(anchor="w")
-        wins = ce.season_windows(g.cal.dates)
         self.seasons = {}
-        for i, s in enumerate(season.SEASONS):
-            v = tk.BooleanVar(value=s in guess)
-            self.seasons[s] = v
-            ttk.Checkbutton(grid, text=cf.title(s, g.cal), variable=v).grid(
-                row=i // 2, column=(i % 2) * 2, sticky="w", pady=1)
-            ttk.Label(grid, text=wins.get(s, "off in your calendar"),
-                      foreground=cf.GREY).grid(row=i // 2, column=(i % 2) * 2 + 1,
-                                               sticky="w", padx=(8, 24))
+        season_grid(tk, ttk, grid, g.cal, guess, self.seasons)
         self.bar = ttk.Progressbar(f, mode="determinate", length=560)
         self.msg = ttk.Label(f, text="", foreground=cf.GREY, wraplength=620, justify="left")
         self.msg.pack(anchor="w", pady=(12, 0))

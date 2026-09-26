@@ -59,10 +59,25 @@ TOOL_FILES = [
     "guide.py",
     "installer.py",
     "mod_install.py",
+    "lang.py",
+    "build_messages.py",
     "build_season_dial.py",
     "build_season_headers.py",
     "build_seasons_ltx.py",
 ]
+# the translations and what they are made from; the language picked in the window stays
+LANG_FILES = (".po", ".pot")
+
+
+def check_messages():
+    """The strings for translators up to date with the tools, and every translation one the
+    tools can fill in: build_messages.py --check."""
+    r = subprocess.run([sys.executable, os.path.join(TOOLS, "build_messages.py"), "--check"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if r.returncode != 0:
+        raise SystemExit("  refusing to package: the translations are out of step:\n"
+                         + r.stdout + r.stderr)
+    print("  translations           %s" % r.stdout.strip().splitlines()[-1])
 
 
 def check_version(season_py, changelog):
@@ -315,7 +330,9 @@ def verify_installer(root, mod):
     shipped = (["play.bat", "configure.bat"]
                + [os.path.join("_tools", f) for f in os.listdir(tools) if f.endswith(".py")]
                + [os.path.join("_tools", "presets", f)
-                  for f in os.listdir(os.path.join(tools, "presets"))])
+                  for f in os.listdir(os.path.join(tools, "presets"))]
+               + [os.path.join("_tools", "lang", f)
+                  for f in os.listdir(os.path.join(tools, "lang"))])
     code, text = install()
     if not report("the installer puts %d files there" % len(shipped),
                   code == 0 and "Traceback" not in text and all(arrived(f) for f in shipped),
@@ -668,6 +685,13 @@ def main():
     os.makedirs(td)
     for f in TOOL_FILES:
         shutil.copy2(os.path.join(TOOLS, f), os.path.join(td, f))
+    check_messages()
+    os.makedirs(os.path.join(td, "lang"))
+    words = [f for f in sorted(os.listdir(os.path.join(TOOLS, "lang")))
+             if f.endswith(LANG_FILES)]
+    for f in words:
+        shutil.copy2(os.path.join(TOOLS, "lang", f), os.path.join(td, "lang", f))
+    print("  translations           %3d files" % len(words))
     # No seasons_config.py: the installer never copies one, but a _tools/ copied by hand
     # over a player's own, as before the installer, would wipe their tables. season.py
     # runs without it.

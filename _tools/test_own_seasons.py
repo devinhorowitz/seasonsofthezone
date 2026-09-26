@@ -1,0 +1,344 @@
+"""Seasons of the player's own, and spells: made in the windows and on the command line,
+checked the way play.bat runs them.
+
+A season of one's own runs on top of the season it falls in, for a week or longer, up to 52
+of them. A spell starts by chance on a day of the seasons it names, runs 1 to 6 days, and
+may bring another season, which play.bat then stages and hands to the game. The date
+decides a spell, so each case that needs one on today gives it a chance of 100.
+
+  python _tools/test_own_seasons.py
+"""
+import datetime
+import io
+import os
+import subprocess
+import sys
+import tempfile
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+sys.dont_write_bytecode = True
+import season                                                   # noqa: E402
+import test_configure as tc                                     # noqa: E402
+import test_guide as tg                                         # noqa: E402
+
+CASES = []
+TODAY = datetime.date.today()
+
+
+def case(fn):
+    CASES.append(fn)
+    return fn
+
+
+def md(d):
+    return "%02d-%02d" % (d.month, d.day)
+
+
+def now_season():
+    """The season Polesia's calendar has on today, which the scratch installs use."""
+    return season.season_for(TODAY)
+
+
+def other_season():
+    return "winter" if now_season() != "winter" else "summer"
+
+
+FIND = r"""
+from tkinter import ttk
+def find(win, kind, text=None):
+    return [w for w in widgets(win) if w.winfo_class() == kind
+            and (text is None or str(w.cget("text")) == text)]
+def fill_own(win, name, first=None, last=None):
+    box = find(win, "TEntry")[0]
+    box.delete(0, "end")
+    box.insert(0, name)
+    months, days = find(win, "TCombobox"), find(win, "TSpinbox")
+    for i, md in enumerate((first, last)):
+        if md:
+            months[i].set(ce.MONTHS[md[0] - 1])
+            days[i].set(str(md[1]))
+    settle()
+"""
+
+
+@case
+def t_a_season_of_your_own_is_made_used_and_saved():
+    """Added from the Seasons step, checked for a mod, saved; a season of six days is
+    refused, and the saved file puts the mod on for the season's days."""
+    with tempfile.TemporaryDirectory() as d:
+        tg.sandbox(d)
+        a = TODAY - datetime.timedelta(days=2)
+        b = TODAY + datetime.timedelta(days=6)
+        rc, out = tg.drive(d, FIND + r"""
+g.edit("seasons")
+win = cf.own_season_dialog(root, g.cal, done=lambda n: g.show_own())
+fill_own(win, "Short one", (1, 1), (1, 6))
+print("SHORT", [t for t in texts(win) if "at least a week" in t])
+find(win, "TButton", "Add")[0].invoke()
+print("REFUSED", len(said), "Short one" in g.cal.own)
+fill_own(win, "Fair week", (%d, %d), (%d, %d))
+print("WORDS", [t for t in texts(win) if t.startswith("Runs")])
+find(win, "TButton", "Add")[0].invoke()
+settle()
+print("OWN", g.cal.own)
+print("LISTED", [t for t in texts(g.page) if t == "Fair week"])
+dlg = guide.ModDialog(g, "Lonely Mod")
+print("OFFERED", "Fair week" in dlg.vars)
+dlg.vars["Fair week"].set(True)
+dlg.ok()
+print("WHEN", g.cal.toggle["Lonely Mod"]["when"])
+g.save_edit()
+print("SAVED", said[-1][0])
+""" % (a.month, a.day, b.month, b.day))
+        assert rc == 0, out
+        assert "SHORT ['Short one: it runs 6 days, Jan 1 to Jan 6. A season of your own " \
+            "runs at least a week.']" in out, out
+        assert "REFUSED 1 False" in out, out
+        assert "WORDS ['Runs 9 days, " in out, out
+        assert "OWN {'Fair week': ((%d, %d), (%d, %d))}" % (a.month, a.day, b.month, b.day) \
+            in out, out
+        assert "LISTED ['Fair week']" in out and "OFFERED True" in out, out
+        assert "WHEN ['Fair week']" in out and "SAVED showinfo" in out, out
+        ns = tg.table(d)
+        assert ns["OWN_SEASONS"] == {"Fair week": ((a.month, a.day), (b.month, b.day))}, ns
+        rc, out = tc.run(d, "status", tool="season.py")
+        assert rc == 0 and "also today      Fair week" in out, out
+        assert [l for l in out.splitlines() if l.strip().startswith("Lonely Mod")
+                and "(today: on)" in l], out
+    return "six days refused in the dialog; nine days saved, and play.bat puts its mod on today"
+
+
+@case
+def t_the_year_holds_52_seasons_of_ones_own():
+    """52 is as many as there is room for, a week each: the 53rd can't be added in the
+    window or on the command line, and play.bat refuses a file that has one."""
+    fifty_two = ",\n".join('    "Week %d": ((1, 1), (1, 7))' % i for i in range(52))
+    with tempfile.TemporaryDirectory() as d:
+        tg.sandbox(d, config="OWN_SEASONS = {\n%s,\n}\n" % fifty_two)
+        rc, out = tg.drive(d, r"""
+print("DIALOG", cf.own_season_dialog(root, g.cal), said)
+""")
+        assert rc == 0, out
+        assert "DIALOG None [('showinfo', 'You have 52 seasons of your own, as many as the " \
+            "year has room for, a week each. Remove one to add another.')]" in out, out
+        rc, out = tc.run(d, "season", "Week 52", "02-01", "02-07")
+        assert rc == 1 and "You have 52 seasons of your own" in out, out
+        tc.accepted(d)
+        fifty_three = fifty_two + ',\n    "Week 52": ((1, 1), (1, 7))'
+        io.open(os.path.join(d, "_tools", "seasons_config.py"), "w", encoding="utf-8").write(
+            "OWN_SEASONS = {\n%s,\n}\n" % fifty_three)
+        rc, out = tc.run(d, "status", tool="season.py")
+        assert rc != 0 and "53 seasons of your own, and the year has room for 52" in out, out
+    return "the 53rd refused in the window, on the command line and by play.bat"
+
+
+@case
+def t_seasons_of_ones_own_follow_their_rules():
+    """What season.py says about each way a season of one's own can be wrong."""
+    got = season.own_problems({
+        "Ok": ((8, 1), (8, 7)),
+        "Six": ((8, 1), (8, 6)),
+        "Across the year": ((12, 28), (1, 3)),
+        "Summer": ((6, 1), (6, 30)),
+        "christmas": ((12, 1), (12, 31)),
+        " spaced": ((1, 1), (1, 31)),
+        "x" * 25: ((1, 1), (1, 31)),
+        "Leap": ((2, 29), (3, 10)),
+        "Bad": ((13, 1), (1, 1)),
+        "ok": ((3, 1), (3, 31)),
+    }, events={"christmas": ((12, 24), (12, 26))})
+    want = [
+        "OWN_SEASONS['Six']: it runs 6 days, Aug 1 to Aug 6. A season of your own runs at "
+        "least a week.",
+        "OWN_SEASONS['Summer']: that is already the name of a season. Give it another name.",
+        "OWN_SEASONS['christmas']: that is already an event. Give it another name.",
+        "OWN_SEASONS[' spaced']: the name has spaces at its start or end. Take them out.",
+        "OWN_SEASONS['%s']: the name is 25 characters long; it can have 24 at most." % ("x" * 25),
+        "OWN_SEASONS['Leap'] can't start or end on February 29, which three years in four "
+        "don't have. Use February 28 or March 1.",
+        "OWN_SEASONS['Bad']: give its first and last day, like ((8, 1), (8, 31)).",
+        "OWN_SEASONS['ok']: \"Ok\" is a season of yours already. Give this one another name.",
+    ]
+    assert got == want, "\n".join(got)
+    assert season.own_days(((12, 28), (1, 3))) == 7 and season.own_days(((8, 1), (8, 7))) == 7
+    return "%d problems, each as season.py says it; 7 days across the new year is a week" % (
+        len(want))
+
+
+@case
+def t_a_spell_brings_its_season_to_play_bat_and_the_game():
+    """A spell on today (chance 100, one day) that brings another season: play.bat stages
+    that season - the season's mods off, the brought season's and the spell's own on - and
+    writes it for the game, with its dates. A spell that can't start today is not on."""
+    here, other = now_season(), other_season()
+    later = [s for s in season.SEASONS if s not in (here, other)][0]
+    config = ('SPELLS = {"Cold snap": {"in": (%r,), "chance": 100, "days": 1, "as": %r},\n'
+              '          "Never today": {"in": (%r,), "chance": 100, "days": 1}}\n'
+              'TOGGLE_MODS = {\n'
+              '    "Map Pack": {"when": (%r,), "above": "Lonely Mod"},\n'
+              '    "Winter Maps": {"when": (%r,), "above": "Map Pack"},\n'
+              '    "Lonely Mod": {"when": ("Cold snap",), "above": "Base Grass"},\n'
+              '}\n' % (here, other, later, here, other))
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=config)
+        ltx, _ = tc.with_mod(d)
+        rc, out = tc.run(d, "status", tool="season.py")
+        assert rc == 0, out
+        assert "season          %s   (a spell: Cold snap, %s to %s)" % (
+            season.season_label(other), season._md(TODAY.month, TODAY.day),
+            season._md(TODAY.month, TODAY.day)) in out, out
+        assert "calendar says   %s" % season.season_label(here) in out, out
+        lines = {l.split()[0] + " " + l.split()[1]: l for l in out.splitlines()
+                 if "(today:" in l}
+        assert "(today: off)" in lines["Map Pack"], out
+        assert "(today: on)" in lines["Winter Maps"] and "(today: on)" in lines["Lonely Mod"], out
+        assert "Never today" not in out, out
+        rc, out = tc.run(d, "apply", tool="season.py")
+        assert rc == 0, out
+        text = io.open(ltx, encoding="cp1251").read()
+        assert "[spell]\r\nseason = %s\r\nname = Cold snap\r\nfirst = %s\r\nlast = %s" % (
+            other, TODAY.isoformat(), TODAY.isoformat()) in text.replace("\n", "\r\n").replace(
+                "\r\r\n", "\r\n"), text
+        # an MCM pin fixes the season: the spell's own mods still come on, its season doesn't
+    return "%s brought in %s; its mods on, %s's off; [spell] written for the game" % (
+        other, here, here)
+
+
+@case
+def t_spells_are_the_same_on_every_run_and_as_likely_as_they_say():
+    """The same date gives the same spells in two processes with different hash seeds; over
+    60 years a 3%% spell starts about 3%% of its days, runs 1 or 2 days, and starts only in
+    its season."""
+    snippet = (
+        "import datetime, sys; sys.path.insert(0, %r); import season\n"
+        "sp = {'Frost': {'in': ('summer',), 'chance': 3, 'days': (1, 2), 'as': 'winter'}}\n"
+        "w = lambda day: [season.season_for(day)]\n"
+        "d = datetime.date(2026, 1, 1)\n"
+        "out = []\n"
+        "while d.year < 2029:\n"
+        "    out += [(n, f.isoformat(), l.isoformat()) for n, f, l in season.spells_on(d, sp, w)]\n"
+        "    d += datetime.timedelta(days=1)\n"
+        "print(sorted(set(out)))\n" % HERE)
+    runs = []
+    for seed in ("1", "2"):
+        r = subprocess.run([sys.executable, "-B", "-c", snippet], capture_output=True, text=True,
+                           env=dict(os.environ, PYTHONHASHSEED=seed))
+        assert r.returncode == 0, r.stderr
+        runs.append(r.stdout)
+    assert runs[0] == runs[1] and runs[0].count("Frost") > 3, runs
+    spec = {"in": ("summer",), "chance": 3, "days": (1, 2), "as": "winter"}
+    sp = {"Frost": spec}
+    where = lambda day: [season.season_for(day)]                        # noqa: E731
+    starts, lengths, outside = 0, set(), 0
+    d, end = datetime.date(2026, 1, 1), datetime.date(2086, 1, 1)
+    summer_days = 0
+    while d < end:
+        if season.season_for(d) == "summer":
+            summer_days += 1
+        for n, first, last in season.spells_on(d, sp, where):
+            if first == d:
+                starts += 1
+                lengths.add((last - first).days + 1)
+                if season.season_for(first) != "summer":
+                    outside += 1
+        d += datetime.timedelta(days=1)
+    rate = starts / float(summer_days)
+    assert 0.024 < rate < 0.036, (starts, summer_days, rate)
+    assert lengths == {1, 2} and outside == 0, (lengths, outside)
+    return "identical in two processes; %.2f%% of %d summer days over 60 years" % (
+        rate * 100, summer_days)
+
+
+@case
+def t_spells_follow_their_rules():
+    """What season.py says about each way a spell can be wrong."""
+    on = [s for s in season.SEASONS if s != "winter_snow"]
+    got = []
+    for spec in ({"in": ("summer",), "chance": 0},
+                 {"in": ("summer",), "chance": 3, "days": (1, 7)},
+                 {"in": ("summer",), "chance": 3, "days": (2, 1)},
+                 {"in": ("sumer",), "chance": 3},
+                 {"in": ("winter_snow",), "chance": 3},
+                 {"in": ("summer",), "chance": 3, "as": "summer"},
+                 {"in": ("summer",), "chance": 3, "as": "winter_snow"},
+                 {"in": ("summer",), "chance": 3, "color": 1}):
+        got += season.spell_problems({"X": spec}, on)
+    got += season.spell_problems({"Summer": {"in": ("summer",), "chance": 3}}, on)
+    got += season.spell_problems({"Wormhole": {"in": ("summer",), "chance": 3}}, on,
+                                 own={"Wormhole": ((8, 1), (8, 31))})
+    got += season.spell_problems({"Snow;y": {"in": ("summer",), "chance": 3}}, on)
+    assert len(got) == 11, "\n".join(got)
+    assert got[1].endswith("A week or longer is a season of your own.") and got[1] == got[2]
+    assert "deep winter is off in your calendar, so it never starts." in got[4], got[4]
+    assert got[5].endswith("it would bring summer to summer, which changes nothing."), got[5]
+    assert got[6].endswith("it brings deep winter, which is off in your calendar."), got[6]
+    assert got[9].endswith("that is already a season of your own. Give it another name.")
+    ok = {"Frost": {"in": ("summer", "Wormhole"), "chance": 2.5, "days": 3, "as": None}}
+    assert season.spell_problems(ok, on, own={"Wormhole": ((8, 1), (8, 31))}) == []
+    return "11 problems, one per fault; a good spell with a season of one's own passes"
+
+
+@case
+def t_a_spell_in_the_command_line_and_the_list():
+    """configure.py spell: added, listed with how often it comes, used for a mod, renamed
+    with the mod following, and removed with the mod on in nothing else."""
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d)
+        rc, out = tc.run(d, "spell", "Summer frost", "--in", "summer", "--chance", "3",
+                         "--days", "1", "2", "--as", "winter")
+        assert rc == 0 and "added spell Summer frost  in summer, 3% a day, 1 to 2 days; " \
+            "brings winter; about 4 times a year" in out, out
+        rc, out = tc.run(d, "spell", "Long", "--in", "summer", "--chance", "3", "--days", "7")
+        assert rc == 1 and "A week or longer is a season of your own." in out, out
+        rc, out = tc.run(d, "add", "Lonely Mod", "--when", "summer frost")
+        assert rc == 0 and "on in     Summer frost" in out, out
+        rc, out = tc.run(d, "spell", "Summer frost", "--rename", "Frost")
+        assert rc == 0, out
+        assert tg.table(d)["TOGGLE_MODS"]["Lonely Mod"]["when"] == ("Frost",)
+        rc, out = tc.run(d, "spell", "Frost", "--remove")
+        assert rc == 0 and "stopped switching Lonely Mod, on in nothing else" in out, out
+        ns = tg.table(d)
+        assert ns["SPELLS"] == {} and "Lonely Mod" not in ns["TOGGLE_MODS"], ns
+        tc.accepted(d)
+    return "added, refused at 7 days, used, renamed with its mod, removed with it"
+
+
+@case
+def t_a_mod_in_a_season_of_ones_own_meets_the_season_it_falls_in():
+    """Winter Overlay made seasonal in a season of one's own inside winter, where Winter Pack
+    is on and ships a file it ships: the player is asked whose the game uses, as for two
+    mods in the same season."""
+    with tempfile.TemporaryDirectory() as d:
+        tg.sandbox(d, config='OWN_SEASONS = {"First frost": ((11, 1), (11, 14))}\n'
+                             'TOGGLE_MODS = {"Winter Pack": {"when": ("winter",), '
+                             '"above": "Grass Compat"}}\n')
+        rc, out = tg.drive(d, r"""
+asked = []
+guide.ask_winner = lambda g, name, other, n, seasons, parent=None: (
+    asked.append((name, other, n, seasons)) or True)
+g.edit("mods")
+dlg = guide.ModDialog(g)
+dlg.query.set("overlay")
+settle()
+dlg.list.selection_set(0)
+dlg.vars["First frost"].set(True)
+dlg.ok()
+print("ASKED", asked)
+""")
+        assert rc == 0, out
+        assert "ASKED [('Winter Overlay', 'Winter Pack', 1, 'First frost')]" in out, out
+    return "asked whose file, in First frost"
+
+
+if __name__ == "__main__":
+    failed = 0
+    for fn in CASES:
+        name = fn.__name__[2:]
+        try:
+            print("  PASS  %-58s %s" % (name, fn()))
+        except AssertionError as e:
+            failed += 1
+            print("  FAIL  %-58s %s" % (name, str(e)[:1200]))
+    print("%d/%d passed" % (len(CASES) - failed, len(CASES)))
+    sys.exit(1 if failed else 0)

@@ -1,0 +1,142 @@
+# Seasons of the Zone: the words of its tools, for translators.
+# build_messages.py writes this file; don't edit it. A translation is lang/<code>.po;
+# docs/TRANSLATING.md says how.
+msgid ""
+msgstr ""
+"Project-Id-Version: Seasons of the Zone\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: lang.py
+msgctxt "month, short"
+msgid "Jan"
+msgstr ""
+
+#: lang.py
+msgctxt "month, short"
+msgid "Feb"
+msgstr ""
+
+#: lang.py
+msgctxt "month, short"
+msgid "Mar"
+msgstr ""
+
+#: lang.py
+msgctxt "month, short"
+msgid "Apr"
+msgstr ""
+
+#: lang.py
+msgctxt "month, short"
+msgid "May"
+msgstr ""
+
+#: lang.py
+msgctxt "month, short"
+msgid "Jun"
+msgstr ""
+
+#: lang.py
+msgctxt "month, short"
+msgid "Jul"
+msgstr ""
+
+#: lang.py
+msgctxt "month, short"
+msgid "Aug"
+msgstr ""
+
+#: lang.py
+msgctxt "month, short"
+msgid "Sep"
+msgstr ""
+
+#: lang.py
+msgctxt "month, short"
+msgid "Oct"
+msgstr ""
+
+#: lang.py
+msgctxt "month, short"
+msgid "Nov"
+msgstr ""
+
+#: lang.py
+msgctxt "month, short"
+msgid "Dec"
+msgstr ""
+
+#: lang.py
+msgctxt "month, in a date"
+msgid "January"
+msgstr ""
+
+#: lang.py
+msgctxt "month, in a date"
+msgid "February"
+msgstr ""
+
+#: lang.py
+msgctxt "month, in a date"
+msgid "March"
+msgstr ""
+
+#: lang.py
+msgctxt "month, in a date"
+msgid "April"
+msgstr ""
+
+#: lang.py
+msgctxt "month, in a date"
+msgid "May"
+msgstr ""
+
+#: lang.py
+msgctxt "month, in a date"
+msgid "June"
+msgstr ""
+
+#: lang.py
+msgctxt "month, in a date"
+msgid "July"
+msgstr ""
+
+#: lang.py
+msgctxt "month, in a date"
+msgid "August"
+msgstr ""
+
+#: lang.py
+msgctxt "month, in a date"
+msgid "September"
+msgstr ""
+
+#: lang.py
+msgctxt "month, in a date"
+msgid "October"
+msgstr ""
+
+#: lang.py
+msgctxt "month, in a date"
+msgid "November"
+msgstr ""
+
+#: lang.py
+msgctxt "month, in a date"
+msgid "December"
+msgstr ""
+
+#: lang.py
+#, python-format
+msgctxt "a day of the year, short: Aug 1"
+msgid "%(month)s %(day)d"
+msgstr ""
+
+#: lang.py
+#, python-format
+msgctxt "a date in full: September 26, 2026"
+msgid "%(month)s %(day)d, %(year)d"
+msgstr ""

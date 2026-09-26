@@ -17,7 +17,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOLS = ("season.py", "config_edit.py", "configure.py", "build_season_dial.py",
          "fetch_weather.py", "guide.py", "installer.py",
-         "mod_install.py")
+         "mod_install.py", "lang.py")
 MOD_CFG = os.path.join(os.path.dirname(HERE), "mods", "Seasons of the Zone", "gamedata",
                        "configs", "seasons_of_the_zone.ltx")
 CRLF = "\r\n"
@@ -842,8 +842,8 @@ def t_presets_save_and_load():
         run(d, "calendar", "summer=5-1", "--off", "late_winter")
         run(d, "name", "deep winter", "The Long Cold")
         rc, out = run(d, "preset", "save", "Mine", "--about", "a test")
-        assert rc == 0 and "calendar and season names; events and periods; seasonal " \
-            "mods" in out and "texture" not in out, out
+        assert rc == 0 and "calendar and season names; seasons of your own, spells, events " \
+            "and periods; seasonal mods" in out and "texture" not in out, out
         preset = open(os.path.join(d, "_tools", "presets", "Mine.json"), encoding="utf-8").read()
         # another install: Lonely Mod is not there, and Grass Compat - Winter Pack's anchor -
         # is not either

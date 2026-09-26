@@ -98,7 +98,7 @@ def profile_name():
 APPDATA = os.path.join(game_dir(), "appdata")
 
 CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS", "CALENDAR",
-                "NAMES", "WEATHER_PLACE")
+                "NAMES", "WEATHER_PLACE", "OWN_SEASONS", "SPELLS")
 
 
 def _config_error(e):
@@ -221,6 +221,15 @@ NAMES = getattr(_cfg, "NAMES", None)
 # Where the real weather comes from, {"name": ..., "lat": ..., "lon": ...}; None is
 # Chornobyl. fetch_weather.py reads it; season.py checks it.
 WEATHER_PLACE = getattr(_cfg, "WEATHER_PLACE", None)
+# Seasons of the player's own, {name: ((month, day), (month, day))}: stretches of the year,
+# each at least a week, that run on top of the season they fall in, as an event does.
+OWN_SEASONS = getattr(_cfg, "OWN_SEASONS", None)
+OWN_SEASONS = {} if OWN_SEASONS is None else OWN_SEASONS
+# Spells, {name: {"in": (seasons...), "chance": percent a day, "days": (fewest, most),
+# "as": a season or None}}: short stretches that start by chance in the seasons named, and
+# may bring another season with them. The date decides, so every launch that day agrees.
+SPELLS = getattr(_cfg, "SPELLS", None)
+SPELLS = {} if SPELLS is None else SPELLS
 
 
 def _q(v):
@@ -302,7 +311,8 @@ def _validate_config():
                          + "".join("\n        " + l for l in CONFIG_ERROR[1:])
                          + "\n  Nothing has been changed.")
     problems = _set_twice() + config_problems(TOGGLE_MODS, LAYOUT, SOUND_SRC, PERIODS, EVENTS,
-                                              CALENDAR, NAMES, WEATHER_PLACE)
+                                              CALENDAR, NAMES, WEATHER_PLACE, OWN_SEASONS,
+                                              SPELLS)
     if problems:
         raise SystemExit(head + "\n".join("    - " + p for p in problems)
                          + "\n  Nothing has been changed.")
@@ -311,6 +321,11 @@ def _validate_config():
 # What weather_flags() can assert about a day; a mod can be scoped to these as well
 WEATHER_NAMES = ("freezing", "thaw", "heat")
 NAME_CHARS = 20             # the longest season name the dial and the pages have room for
+OWN_NAME_CHARS = 24         # the longest name for a season of the player's own
+OWN_MIN_DAYS = 7            # a season of one's own runs at least a week,
+OWN_MOST = 52               # so the year has room for 52 of them
+SPELL_MOST_DAYS = 6         # a spell is shorter than a week; a week or longer is a season
+SPELL_KEYS = ("in", "chance", "days", "as")
 
 
 def _is_day(md, leap=False):
@@ -344,7 +359,7 @@ def _own_folders():
 
 
 def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=None,
-                    names=None, place=None):
+                    names=None, place=None, own=None, spells=None):
     """What is wrong with a set of config tables, one sentence per entry at fault. The
     configure tool checks a file with this before it writes one."""
     problems = []
@@ -354,6 +369,15 @@ def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=No
             problems.append("%s must be a table, %s, or {} for none." % (var, shape))
     periods = periods if isinstance(periods, dict) else {}
     events = events if isinstance(events, dict) else {}
+    mine = {} if own is None else own
+    problems += own_problems(mine, periods, events, names if isinstance(names, dict) else {})
+    mine = mine if isinstance(mine, dict) else {}
+    chance = {} if spells is None else spells
+    on = ([s for s in calendar if s in SEASONS] if isinstance(calendar, dict) and calendar
+          else list(SEASONS))
+    problems += spell_problems(chance, on, mine, periods, events,
+                               names if isinstance(names, dict) else {})
+    chance = chance if isinstance(chance, dict) else {}
 
     # the names a mod can be scoped to
     for var, table in (("PERIODS", periods), ("EVENTS", events)):
@@ -393,6 +417,8 @@ def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=No
         problems += event_problems(name, spec)
 
     known = (list(SEASONS) + [n for n in periods if isinstance(n, str)]
+             + [n for n in mine if isinstance(n, str)]
+             + [n for n in chance if isinstance(n, str)]
              + [n for n in events if isinstance(n, str)] + list(WEATHER_NAMES))
     valid = ", ".join(known)
     own = _own_folders()
@@ -1300,6 +1326,229 @@ def calendar_problems(calendar):
     return out
 
 
+def own_days(win):
+    """How many days a window ((month, day), (month, day)) covers, both ends counted, in a
+    year without February 29. A start after its end runs across the new year."""
+    a = datetime.date(2026, *win[0]).toordinal()
+    b = datetime.date(2026, *win[1]).toordinal()
+    return b - a + 1 if b >= a else b + 365 - a + 1
+
+
+def own_problems(own, periods=(), events=(), names=None):
+    """What is wrong with an OWN_SEASONS table, one sentence each. `names` is the NAMES
+    table the seasons go by, so a season of one's own can't take one of theirs."""
+    if not isinstance(own, dict):
+        return ["OWN_SEASONS must be a table, {name: ((month, day), (month, day))}, or {} "
+                "for none."]
+    out = []
+    if len(own) > OWN_MOST:
+        out.append("OWN_SEASONS: %d seasons of your own, and the year has room for %d, a "
+                   "week each. Take some out." % (len(own), OWN_MOST))
+    taken = {}
+    for s in SEASONS:
+        for n in (s, default_label(s), season_label(s, names or {})):
+            taken[n.casefold()] = "the name of a season"
+    for what, table in (("a period", periods), ("an event", events)):
+        for n in table:
+            if isinstance(n, str):
+                taken.setdefault(n.casefold(), what)
+    for n in WEATHER_NAMES:
+        taken[n] = "a kind of weather"
+    seen = {}
+    for name, win in own.items():
+        where = "OWN_SEASONS[%r]" % (name,)
+        if not isinstance(name, str) or not name.strip():
+            out.append(where + ": give the season a name in quotes, like \"Wormhole season\".")
+            continue
+        if name != name.strip():
+            out.append(where + ": the name has spaces at its start or end. Take them out.")
+        elif len(name) > OWN_NAME_CHARS:
+            out.append(where + ": the name is %d characters long; it can have %d at most."
+                       % (len(name), OWN_NAME_CHARS))
+        elif any(ord(c) < 32 or ord(c) == 127 for c in name):
+            out.append(where + ": the name can't contain a line break or a tab.")
+        elif name.casefold() in taken:
+            out.append(where + ": that is already %s. Give it another name."
+                       % taken[name.casefold()])
+        elif name.casefold() in seen:
+            out.append(where + ": %s is a season of yours already. Give this one another "
+                       "name." % _q(seen[name.casefold()]))
+        seen.setdefault(name.casefold(), name)
+        if not (isinstance(win, (tuple, list)) and len(win) == 2
+                and all(_is_day(x, leap=True) for x in win)):
+            out.append(where + ": give its first and last day, like ((8, 1), (8, 31)).")
+        elif (2, 29) in (tuple(win[0]), tuple(win[1])):
+            out.append(where + " can't start or end on February 29, which three years in "
+                       "four don't have. Use February 28 or March 1.")
+        elif own_days(win) < OWN_MIN_DAYS:
+            n = own_days(win)
+            out.append(where + ": it runs %d day%s, %s to %s. A season of your own runs at "
+                       "least a week." % (n, "" if n == 1 else "s", _md(*win[0]), _md(*win[1])))
+    return out
+
+
+def spell_days(spec):
+    """(fewest, most) days a spell runs; "days" is a number or a pair."""
+    d = spec.get("days", 1)
+    return (d, d) if isinstance(d, int) else (int(d[0]), int(d[1]))
+
+
+def spell_problems(spells, on=SEASONS, own=(), periods=(), events=(), names=None):
+    """What is wrong with a SPELLS table, one sentence each. `on` is the seasons the
+    calendar has on; `own` the player's own seasons, which a spell can start in too."""
+    if not isinstance(spells, dict):
+        return ["SPELLS must be a table, {name: {\"in\": (\"summer\",), \"chance\": 3, "
+                "\"days\": (1, 2), \"as\": \"winter\"}}, or {} for none."]
+    out = []
+    taken = {}
+    for s in SEASONS:
+        for n in (s, default_label(s), season_label(s, names or {})):
+            taken[n.casefold()] = "the name of a season"
+    for what, table in (("a season of your own", own), ("a period", periods),
+                        ("an event", events)):
+        for n in table:
+            if isinstance(n, str):
+                taken.setdefault(n.casefold(), what)
+    for n in WEATHER_NAMES:
+        taken[n] = "a kind of weather"
+    seen = {}
+    for name, spec in spells.items():
+        where = "SPELLS[%r]" % (name,)
+        if not isinstance(name, str) or not name.strip():
+            out.append(where + ": give the spell a name in quotes, like \"Summer frost\".")
+            continue
+        if name != name.strip():
+            out.append(where + ": the name has spaces at its start or end. Take them out.")
+        elif len(name) > OWN_NAME_CHARS:
+            out.append(where + ": the name is %d characters long; it can have %d at most."
+                       % (len(name), OWN_NAME_CHARS))
+        elif any(ord(c) < 32 for c in name) or any(c in name for c in ";[]="):
+            out.append(where + ": the name can't contain ; [ ] = or a line break.")
+        elif not _cp1251(name):
+            out.append(where + ": the name has letters the game can't show. Use English or "
+                       "Cyrillic letters.")
+        elif name.casefold() in taken:
+            out.append(where + ": that is already %s. Give it another name."
+                       % taken[name.casefold()])
+        elif name.casefold() in seen:
+            out.append(where + ": %s is a spell already. Give this one another name."
+                       % _q(seen[name.casefold()]))
+        seen.setdefault(name.casefold(), name)
+        if not isinstance(spec, dict):
+            out.append(where + " must be {\"in\": (\"summer\",), \"chance\": 3, \"days\": "
+                       "(1, 2), \"as\": \"winter\"}.")
+            continue
+        odd = [k for k in spec if k not in SPELL_KEYS]
+        if odd:
+            out.append(where + ": %s %s. The parts are %s." % (
+                _and(_q(k) for k in odd), "is not a part of a spell" if len(odd) == 1
+                else "are not parts of a spell", _and(SPELL_KEYS)))
+        start = spec.get("in")
+        start = (start,) if isinstance(start, str) else start
+        if not isinstance(start, (tuple, list)) or not start:
+            out.append(where + ": \"in\" names the seasons it can start in, like "
+                       "(\"summer\",).")
+        else:
+            bad = [str(x) for x in start if x not in SEASONS and x not in own]
+            off = [x for x in start if x in SEASONS and x not in on]
+            if bad:
+                out.append(where + ": \"in\" names %s, which %s. The seasons are %s." % (
+                    _and(_q(x) for x in bad), "is not a season" if len(bad) == 1
+                    else "are not seasons", _and(SEASONS)))
+            elif off and len(off) == len(start):
+                out.append(where + ": %s %s off in your calendar, so it never starts."
+                           % (_and(season_label(x, names or {}) for x in off),
+                              "is" if len(off) == 1 else "are"))
+        c = spec.get("chance")
+        if (isinstance(c, bool) or not isinstance(c, (int, float)) or c != c
+                or not 0 < c <= 100):
+            out.append(where + ": \"chance\" is the percent chance it starts on each day of "
+                       "those seasons, more than 0 and up to 100, like 3.")
+        d = spec.get("days", 1)
+        pair = (d, d) if isinstance(d, int) and not isinstance(d, bool) else d
+        if not (isinstance(pair, (tuple, list)) and len(pair) == 2
+                and all(isinstance(x, int) and not isinstance(x, bool) for x in pair)
+                and 1 <= pair[0] <= pair[1] <= SPELL_MOST_DAYS):
+            out.append(where + ": \"days\" is how long it runs, 1 to %d, or the fewest and the "
+                       "most, like (1, 2). A week or longer is a season of your own."
+                       % SPELL_MOST_DAYS)
+        brings = spec.get("as")
+        if brings is not None:
+            if brings not in SEASONS:
+                out.append(where + ": \"as\" is the season it brings, one of %s, or None to "
+                           "leave the season as it is." % _and(SEASONS))
+            elif brings not in on:
+                out.append(where + ": it brings %s, which is off in your calendar."
+                           % season_label(brings, names or {}))
+            elif isinstance(start, (tuple, list)) and start and all(x == brings
+                                                                   for x in start):
+                out.append(where + ": it would bring %s to %s, which changes nothing."
+                           % ((season_label(brings, names or {}),) * 2))
+    return out
+
+
+def _cp1251(text):
+    try:
+        text.encode("cp1251")
+        return True
+    except UnicodeEncodeError:
+        return False
+
+
+def spell_draws(name, day):
+    """Two numbers from 0 to 1 that the spell `name` draws on `day`: whether it starts, and
+    how long it runs. The same name and day draw the same on every machine and every run."""
+    h = hashlib.sha256(("%s|%s" % (name, day.isoformat())).encode("utf-8")).digest()
+    return (int.from_bytes(h[:8], "big") / 2.0 ** 64,
+            int.from_bytes(h[8:16], "big") / 2.0 ** 64)
+
+
+def spells_on(d, spells=None, where=None):
+    """[(name, first day, last day)] for each spell running on d, the earliest first.
+    `where(day)` is what a spell can start in on that day: the base period and the player's
+    own seasons, by this install's calendar unless another is given."""
+    spells = SPELLS if spells is None else spells
+    if where is None:
+        def where(day):
+            return [season_for(day)] + [o for o, w in OWN_SEASONS.items()
+                                        if _in_window(day, *w)]
+    out = []
+    for name, spec in spells.items():
+        lo, hi = spell_days(spec)
+        start = spec["in"]
+        start = {start} if isinstance(start, str) else set(start)
+        for back in range(hi - 1, -1, -1):
+            first = d - datetime.timedelta(days=back)
+            begins, length = spell_draws(name, first)
+            if begins * 100 >= spec["chance"] or not start & set(where(first)):
+                continue
+            last = first + datetime.timedelta(days=lo + min(int(length * (hi - lo + 1)),
+                                                            hi - lo) - 1)
+            if last >= d:
+                out.append((name, first, last))
+                break
+    return sorted(out, key=lambda t: (t[1], t[0].casefold()))
+
+
+def spell_season(d, spells=None, where=None):
+    """(season, (name, first day, last day)) for the spell that brings a season on d - the
+    one that started first - or (None, None)."""
+    spells = SPELLS if spells is None else spells
+    for name, first, last in spells_on(d, spells, where):
+        if spells[name].get("as"):
+            return spells[name]["as"], (name, first, last)
+    return None, None
+
+
+def spells_a_year(spec, where):
+    """How many times a year a spell starts, on average: its chance on each day of 2026 it
+    could start on. `where(day)` as for spells_on."""
+    start = spec["in"]
+    start = {start} if isinstance(start, str) else set(start)
+    year = [datetime.date(2026, 1, 1) + datetime.timedelta(days=i) for i in range(365)]
+    return sum(1 for d in year if start & set(where(d))) * spec["chance"] / 100.0
+
+
 def calendar_table(mapping="pheno", calendar=None):
     """(season, month, day) for each season that is on: CALENDAR when the config has one,
     else Polesia's dates, or the meteorological ones with --mapping met."""
@@ -1443,6 +1692,12 @@ def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None):
         for s in SEASONS:
             if s in named:
                 lines.append("name_%s = %s" % (s, named[s]))
+    # the spell that brings a season today, for the game to follow while its dates last;
+    # an MCM pin still wins over it in game, as it does here
+    brings, spell = spell_season(datetime.date.today())
+    if spell:
+        lines += ["", "[spell]", "season = %s" % brings, "name = %s" % spell[0],
+                  "first = %s" % spell[1].isoformat(), "last = %s" % spell[2].isoformat()]
     body = "\r\n".join(lines) + "\r\n"
     try:
         old = io.open(path, encoding="cp1251", errors="replace", newline="").read()
@@ -1466,8 +1721,9 @@ def base_table(mapping="pheno"):
 
 
 def period_names(mapping="pheno"):
-    """Every name a mod may be scoped to: base periods first, then events."""
-    return [n for n, _, _ in base_table(mapping)] + list(EVENTS)
+    """Every name a mod may be scoped to: base periods first, then the player's own
+    seasons, then events."""
+    return [n for n, _, _ in base_table(mapping)] + list(OWN_SEASONS) + list(EVENTS)
 
 
 def _in_window(d, start, end):
@@ -1710,12 +1966,19 @@ def weather_flags():
 
 
 def active_for(d, mapping="pheno", base=None):
-    """Every period active on d: the base period, then every event covering it.
+    """Every period active on d: the base period, then every season of the player's own
+    and every event covering it.
 
-    Events OVERLAY rather than replace. That is the whole point - a Christmas event
+    Those OVERLAY rather than replace. That is the whole point - a Christmas event
     does not displace winter, so December 25th keeps its snow and adds to it. Pass
     `base` to honor an MCM pin or --season while events still resolve by date."""
     out = [base or season_for(d, mapping)]
+    for name, win in OWN_SEASONS.items():
+        if _in_window(d, win[0], win[1]) and name not in out:
+            out.append(name)
+    for name, _, _ in spells_on(d):
+        if name not in out:
+            out.append(name)
     for name, spec in EVENTS.items():
         if event_on(d, spec) and name not in out:
             out.append(name)
@@ -2239,7 +2502,9 @@ def main():
     on = seasons_on(a.mapping)
     pinned = prefs["mode"] if prefs["mode"] in on else None
     pin_off = prefs["mode"] in SEASONS and prefs["mode"] not in on
-    want = a.season or pinned or season_for(today, a.mapping)
+    # a spell brings its season unless the season is fixed: by --season or an MCM pin
+    brings, spell = spell_season(today) if not (a.season or pinned) else (None, None)
+    want = a.season or pinned or brings or season_for(today, a.mapping)
     # A pin or --season fixes the BASE period; events still resolve by real date,
     # so pinning summer in December does not cancel a Christmas event.
     active = active_for(today, a.mapping, base=want)
@@ -2254,10 +2519,16 @@ def main():
     print("  date            %s" % today.isoformat())
     print("  calendar        %s" % calendar_text(a.mapping))
     why = ("   (forced with --season)" if a.season else
-           "   (pinned in MCM)" if pinned else "")
+           "   (pinned in MCM)" if pinned else
+           "   (a spell: %s, %s to %s)" % (spell[0], _md(spell[1].month, spell[1].day),
+                                          _md(spell[2].month, spell[2].day)) if spell else "")
     print("  season          %s%s" % (season_label(want), why))
-    if pinned and not a.season:
+    if (pinned and not a.season) or spell:
         print("  calendar says   %s" % season_label(season_for(today, a.mapping)))
+    # the player's own seasons, spells and events on today; the weather has a line of its own
+    also = [n for n in active[1:] if n not in WEATHER_NAMES and not (spell and n == spell[0])]
+    if also:
+        print("  also today      %s" % ", ".join(also))
     if pin_off and not a.season:
         print("  - MCM pins %s, which your calendar has off, so the date decides."
               % season_label(prefs["mode"]))

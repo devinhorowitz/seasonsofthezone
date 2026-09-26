@@ -24,6 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SOURCE = os.path.dirname(HERE)
 MINE = "seasons_config.py"          # the player's own setup: never copied, never touched
 PRESETS = os.path.join("_tools", "presets")
+LANG = os.path.join("_tools", "lang")
 VERSION_LINE = re.compile(r"""^VERSION\s*=\s*["'](\d+(?:\.\d+)*)["']""", re.M)
 
 
@@ -57,7 +58,8 @@ def newer(a, b):
 
 def files_of(source):
     """What an install copies, as paths relative to the folder they came in: the tools and
-    the worked example, the presets, and the two batch files. Never seasons_config.py."""
+    the worked example, the presets, the translations, and the two batch files. Never
+    seasons_config.py, nor the language picked in the window."""
     tools = os.path.join(source, "_tools")
     out = [os.path.join("_tools", f) for f in sorted(os.listdir(tools))
            if f.lower().endswith(".py") and f.lower() != MINE
@@ -66,6 +68,11 @@ def files_of(source):
     if os.path.isdir(presets):
         out += [os.path.join(PRESETS, f) for f in sorted(os.listdir(presets))
                 if f.lower().endswith(".json") and os.path.isfile(os.path.join(presets, f))]
+    words = os.path.join(source, LANG)
+    if os.path.isdir(words):
+        out += [os.path.join(LANG, f) for f in sorted(os.listdir(words))
+                if f.lower().endswith((".po", ".pot"))
+                and os.path.isfile(os.path.join(words, f))]
     return out + [f for f in ("configure.bat", "play.bat")
                   if os.path.isfile(os.path.join(source, f))]
 

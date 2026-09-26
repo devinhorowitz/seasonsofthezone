@@ -79,6 +79,10 @@ def unzipped(mod):
         p = os.path.join(HERE, "presets", f)
         if not installer.saved_by_player(open(p, "rb").read()):
             shutil.copy2(p, os.path.join(tools, "presets"))
+    os.makedirs(os.path.join(tools, "lang"))
+    for f in os.listdir(os.path.join(HERE, "lang")):
+        if f.endswith(build_release.LANG_FILES):
+            shutil.copy2(os.path.join(HERE, "lang", f), os.path.join(tools, "lang"))
     for f in ("play.bat", "configure.bat"):
         build_release.write_crlf(os.path.join(REPO, f), os.path.join(mod, f))
     put(mod, os.path.join(*build_release.MARKER.split("/")), b"-- marker")
@@ -86,12 +90,15 @@ def unzipped(mod):
 
 def shipped(mod):
     """What the installer has to copy, as paths under the mod's folder: every .py in its
-    _tools but a seasons_config.py, the presets, and the two batch files."""
+    _tools but a seasons_config.py, the presets, the translations, and the two batch
+    files."""
     tools = os.path.join(mod, "_tools")
     return sorted([os.path.join("_tools", f) for f in os.listdir(tools)
                    if f.endswith(".py") and f != "seasons_config.py"]
                   + [os.path.join("_tools", "presets", f)
                      for f in os.listdir(os.path.join(tools, "presets"))]
+                  + [os.path.join("_tools", "lang", f)
+                     for f in os.listdir(os.path.join(tools, "lang"))]
                   + ["configure.bat", "play.bat"])
 
 
@@ -292,7 +299,10 @@ def t_a_first_install_puts_the_tools_in_the_gamma_folder():
         rc, out = install(mod, "--yes")
         want = shipped(mod)
         assert rc == 0 and "Installing the tools into your GAMMA folder, %s." % root in out, out
-        assert len(want) == len(build_release.TOOL_FILES) + 7 and "play.bat" in want, want
+        words = [f for f in os.listdir(os.path.join(HERE, "lang"))
+                 if f.endswith(build_release.LANG_FILES)]
+        assert len(want) == len(build_release.TOOL_FILES) + 7 + len(words) and \
+            "play.bat" in want and os.path.join("_tools", "lang", "ru.po") in want, want
         wrong = [f for f in want if read(root, f) != read(mod, f)]
         assert not wrong, "not there as the zip has them: %s\n%s" % (wrong, out)
         extra = set(snapshot(root)) - set(want) - {

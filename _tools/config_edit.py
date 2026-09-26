@@ -55,6 +55,15 @@ PLACE_HEAD = [
     "# Where the real weather comes from: {\"name\": ..., \"lat\": ..., \"lon\": ...}.",
     "# configure.bat writes this; None is Chornobyl.",
 ]
+OWN_HEAD = [
+    "# Seasons of your own: {name: ((month, day), (month, day))}, the first day and the last,",
+    "# a week or longer. Each runs on top of the season it falls in. configure.bat writes this.",
+]
+SPELLS_HEAD = [
+    "# Spells: short stretches that start by chance. \"in\" is the seasons one can start in,",
+    "# \"chance\" the percent chance each day, \"days\" how long it runs (fewest, most, up to 6),",
+    "# \"as\" the season it brings, or None. configure.bat writes this.",
+]
 
 TEMPLATE = '''"""Which mods this install stages, and when.
 
@@ -76,7 +85,14 @@ NAMES = None
 
 %s
 WEATHER_PLACE = None
-''' % ("\n".join(CALENDAR_HEAD), "\n".join(NAMES_HEAD), "\n".join(PLACE_HEAD))
+
+%s
+OWN_SEASONS = {}
+
+%s
+SPELLS = {}
+''' % ("\n".join(CALENDAR_HEAD), "\n".join(NAMES_HEAD), "\n".join(PLACE_HEAD),
+       "\n".join(OWN_HEAD), "\n".join(SPELLS_HEAD))
 
 
 # --- the install ----------------------------------------------------------------------
@@ -179,22 +195,26 @@ def overlaps(inst, name):
     return out
 
 
-def anchor_for(inst, name, when, toggle):
+def anchor_for(inst, name, when, toggle, cal=None):
     """(anchor, reason, rivals) for making `name` seasonal, on in `when`.
 
     The anchor - the mod it wins over - is the highest enabled mod that ships any of the
     same files: just above it in modlist.txt, `name` wins over every mod it shares files
     with. Other seasonal mods are left out, because which of two seasonal mods should win
-    is the player's call; the ones on in a season `name` is also on in come back as rivals,
-    [(mod, files shared, seasons)]. With nothing to win over, the anchor is the mod just
-    under `name`, so it stays where it is."""
+    is the player's call; the ones on at a time `name` is on too come back as rivals,
+    [(mod, files shared, when both are on)]. With `cal`, that is worked out from its dates,
+    so a season of the player's own meets the season it falls in; without, by name alone.
+    With nothing to win over, the anchor is the mod just under `name`, so it stays where
+    it is."""
     mine = inst.files(name)
     others = set(toggle) - {name}
     skip = others | {name, season.SOUND_MOD}
     rivals = []
     for other in inst.names:
         if other in others:
-            both = set(when) & set(periods_of(toggle[other]))
+            theirs = periods_of(toggle[other])
+            both = (cal.together(when, theirs) if cal is not None
+                    else set(when) & set(theirs))
             n = len(mine & inst.files(other)) if both and mine else 0
             if n:
                 rivals.append((other, n, sorted(both, key=order_key)))
@@ -281,6 +301,28 @@ def norm_event(spec):
             v = spec[k]
             out[k] = (tuple(v[0]), tuple(v[1])) if k == "within" else tuple(v)
     return out
+
+
+def norm_spell(spec):
+    """A spell as the tool keeps it: "in" a tuple, "days" (fewest, most), "as" None when it
+    brings no season."""
+    start = spec.get("in")
+    lo, hi = season.spell_days(spec)
+    return {"in": (start,) if isinstance(start, str) else tuple(start),
+            "chance": spec["chance"], "days": (lo, hi), "as": spec.get("as")}
+
+
+def spell_text(name, spec):
+    spec = norm_spell(spec)
+    return ["%s: {\"in\": %s, \"chance\": %s, \"days\": %s, \"as\": %s}," % (
+        _q(name), literal(spec["in"]), literal(spec["chance"]), literal(spec["days"]),
+        literal(spec["as"]))]
+
+
+def spell_json(spec):
+    spec = norm_spell(spec)
+    return {"in": list(spec["in"]), "chance": spec["chance"], "days": list(spec["days"]),
+            "as": spec["as"]}
 
 
 def event_json(spec):
@@ -639,9 +681,10 @@ class Calendar(object):
     """seasons_config.py as the tool edits it.
 
     `toggle` maps each mod on the calendar to {"when": [...], "above": "...", "extra": [...]},
-    `events` each event to ((m, d), (m, d)), `dates` each season that is on to the (m, d)
-    it starts, `names` each renamed season to its name, and `place` is where the real
-    weather comes from, {"name", "lat", "lon"}, or None for Chornobyl. `periods`, `layout` and
+    `events` each event to ((m, d), (m, d)), `own` each season of the player's own to its
+    first and last day, `dates` each season that is on to the (m, d) it starts, `names`
+    each renamed season to its name, and `place` is where the real weather comes from,
+    {"name", "lat", "lon"}, or None for Chornobyl. `periods`, `layout` and
     `sound_src` change only when a preset is loaded. `error` is set, as lines, when the
     file can't be read or edited safely; `problems` lists what season.py would refuse in
     it; `fixes` what saving from the tool repairs."""
@@ -656,6 +699,10 @@ class Calendar(object):
         self._kept_periods, self._kept_layout, self._kept_sound = {}, {}, None
         self._bad_events = {}           # events the rules refuse, kept as written
         self._kept_bad = set()
+        self.own, self._kept_own = {}, {}
+        self._bad_own, self._kept_bad_own = {}, set()
+        self.spells, self._kept_spells = {}, {}
+        self._bad_spells, self._kept_bad_spells = {}, set()
         self.dates, self._kept_dates = polesia(), None     # None: the file has none
         self.calendar_bad, self._replace_calendar = [], False
         self.names, self._kept_names = {}, {}
@@ -779,18 +826,25 @@ class Calendar(object):
                 return
 
         toggle, events = ns.get("TOGGLE_MODS", {}), ns.get("EVENTS", {})
+        own, spells = ns.get("OWN_SEASONS", {}), ns.get("SPELLS", {})
         if toggle is None:
             toggle = {}
         if events is None:
             events = {}
-        for var, v in (("TOGGLE_MODS", toggle), ("EVENTS", events)):
+        if own is None:
+            own = {}
+        if spells is None:
+            spells = {}
+        for var, v in (("TOGGLE_MODS", toggle), ("EVENTS", events), ("OWN_SEASONS", own),
+                       ("SPELLS", spells)):
             if not isinstance(v, dict):
                 self.error = ["%s must be a table, {...}." % var]
                 return
-        odd = [k for k in list(toggle) + list(events) if not isinstance(k, str)]
+        odd = [k for k in list(toggle) + list(events) + list(own) + list(spells)
+               if not isinstance(k, str)]
         if odd:
-            self.error = ["%r in TOGGLE_MODS or EVENTS is not a name in quotes. Put it in "
-                          "quotes, or take it out." % (odd[0],)]
+            self.error = ["%r in TOGGLE_MODS, EVENTS, OWN_SEASONS or SPELLS is not a name in "
+                          "quotes. Put it in quotes, or take it out." % (odd[0],)]
             return
         self.layout = ns.get("LAYOUT", {}) or {}
         self.sound_src = ns.get("SOUND_SRC")
@@ -799,7 +853,8 @@ class Calendar(object):
         self._kept_periods = self.periods
         calendar, names = ns.get("CALENDAR"), ns.get("NAMES")
         self.problems = season.config_problems(toggle, self.layout, self.sound_src,
-                                               self.periods, events, calendar, names)
+                                               self.periods, events, calendar, names, own=own,
+                                               spells=spells)
 
         for name, cfg in toggle.items():
             when = periods_of(cfg)
@@ -817,7 +872,10 @@ class Calendar(object):
             elif not season.config_problems(
                     {name: {"when": tuple(when), "above": self.toggle[name]["above"]}}, {},
                     None, self.periods,
-                    {n: s for n, s in events.items() if not season.event_problems(n, s)}):
+                    {n: s for n, s in events.items() if not season.event_problems(n, s)},
+                    own={n: w for n, w in own.items() if not season.own_problems({n: w})},
+                    spells={n: s for n, s in spells.items()
+                            if not season.spell_problems({n: s}, own=own)}):
                 # only a repair saving really makes; one it would refuse stays a problem
                 self.fixes.append("%s: saving rewrites this entry in the right shape" % name)
         for name, spec in events.items():
@@ -827,6 +885,24 @@ class Calendar(object):
             else:
                 self._bad_events[name] = spec       # the rules name it; saving keeps it
                 self._kept_bad.add(name)
+        known_names = names if isinstance(names, dict) else {}
+        for name, win in own.items():
+            if not season.own_problems({name: win}, self.periods, events, known_names):
+                self.own[name] = norm_event(win)
+                self._kept_own[name] = norm_event(win)
+            else:
+                self._bad_own[name] = win           # as with events: kept as written
+                self._kept_bad_own.add(name)
+        on = ([s for s in calendar if s in season.SEASONS]
+              if isinstance(calendar, dict) and calendar else list(season.SEASONS))
+        for name, spec in spells.items():
+            if not season.spell_problems({name: spec}, on, own, self.periods, events,
+                                         known_names):
+                self.spells[name] = norm_spell(spec)
+                self._kept_spells[name] = norm_spell(spec)
+            else:
+                self._bad_spells[name] = spec
+                self._kept_bad_spells.add(name)
 
         if calendar is not None:
             usable = ({s: tuple(md) for s, md in calendar.items()
@@ -851,8 +927,138 @@ class Calendar(object):
 
     def known(self):
         """Every name a mod may be scoped to, in calendar order."""
-        return (list(season.SEASONS) + sorted(self.periods) + sorted(self.events)
+        return (list(season.SEASONS) + sorted(self.periods) + self.own_order()
+                + sorted(self.spells, key=str.casefold) + sorted(self.events)
                 + list(season.WEATHER_NAMES))
+
+    def own_order(self):
+        """The player's own seasons, by the day each starts."""
+        return sorted(self.own, key=lambda n: (self.own[n][0], n.casefold()))
+
+    def days(self, name):
+        """The days of a year (2026, which has no February 29) that `name` is on, by this
+        calendar: a season or period between its start and the next one's, a season of the
+        player's own or an event on the days it covers. None for a kind of weather, which
+        can come any day."""
+        if name in season.WEATHER_NAMES:
+            return None
+        year = [datetime.date(2026, 1, 1) + datetime.timedelta(days=i) for i in range(365)]
+        if name in self.own:
+            return {d for d in year if season._in_window(d, *self.own[name])}
+        if name in self.events:
+            return {d for d in year if season.event_on(d, self.events[name])}
+        starts = sorted([(md, s) for s, md in self.dates.items()]
+                        + [(tuple(md), p) for p, md in self.periods.items()
+                           if season._is_day(md)])
+        if not starts or name not in [s for _, s in starts]:
+            return set()
+        on, out = starts[-1][1], set()          # the year starts in the last one to start
+        for d in year:
+            for md, s in starts:
+                if (d.month, d.day) == md:
+                    on = s
+            if on == name:
+                out.add(d)
+        return out
+
+    def together(self, when, other):
+        """The names in `when` or `other` that mark the times a mod on in `when` and one on
+        in `other` are both on: for each pair that meets, the shorter of the two. The same
+        kind of weather meets itself only."""
+        cache = {}
+
+        def days(p):
+            if p not in cache:
+                cache[p] = self.days(p)
+            return cache[p]
+
+        out = set()
+        for p in when:
+            for q in other:
+                if p == q:
+                    out.add(p)
+                    continue
+                a, b = days(p), days(q)
+                if a is None or b is None or not (a & b):
+                    continue
+                out.add(p if len(a) <= len(b) else q)
+        return out
+
+    def put_own(self, name, win, was=None):
+        """Add a season of the player's own, or change one. `was` is the name it had, when
+        it is renamed: the mods on in it are then on in the new name."""
+        if was is not None and was != name:
+            self.own.pop(was, None)
+            self._bad_own.pop(was, None)
+            for c in self.toggle.values():
+                c["when"] = [name if p == was else p for p in c["when"]]
+        self._bad_own.pop(name, None)
+        self.own[name] = norm_event(win)
+
+    def where(self, day):
+        """What a spell can start in on `day` by this calendar: the season or period then,
+        and the player's own seasons that cover it."""
+        starts = sorted([(md, s) for s, md in self.dates.items()]
+                        + [(tuple(md), p) for p, md in self.periods.items()
+                           if season._is_day(md)])
+        now = starts[-1][1] if starts else None
+        for md, s in starts:
+            if md <= (day.month, day.day):
+                now = s
+        return ([now] if now else []) + [o for o, w in self.own.items()
+                                         if season._in_window(day, *w)]
+
+    def spells_on(self, day):
+        """[(name, first day, last day)] for the spells this setup has running on `day`."""
+        return season.spells_on(day, self.spells, self.where)
+
+    def put_spell(self, name, spec, was=None):
+        """Add a spell, or change one; `was` is the name it had, when it is renamed, and the
+        mods on during it follow the new name."""
+        if was is not None and was != name:
+            self.spells.pop(was, None)
+            self._bad_spells.pop(was, None)
+            for c in self.toggle.values():
+                c["when"] = [name if p == was else p for p in c["when"]]
+        self._bad_spells.pop(name, None)
+        self.spells[name] = norm_spell(spec)
+
+    def take_spell(self, name):
+        """Take a spell off, and off every mod on during it. A mod on in nothing else comes
+        off the calendar too; those are returned."""
+        self.spells.pop(name, None)
+        self._bad_spells.pop(name, None)
+        return self._drop_everywhere(name)
+
+    def _drop_everywhere(self, name):
+        gone = []
+        for n, c in list(self.toggle.items()):
+            if name in c["when"]:
+                c["when"] = [p for p in c["when"] if p != name]
+                if not c["when"]:
+                    self.toggle.pop(n)
+                    gone.append(n)
+        return gone
+
+    def take_own(self, name):
+        """Take a season of the player's own off the calendar, and off every mod on in it.
+        A mod on in nothing else comes off the calendar too; those are returned."""
+        self.own.pop(name, None)
+        self._bad_own.pop(name, None)
+        gone = []
+        # a spell that could start only in it has nowhere left to start, and goes too
+        for s, spec in list(self.spells.items()):
+            if name in spec["in"]:
+                rest = tuple(p for p in spec["in"] if p != name)
+                if rest:
+                    self.spells[s] = dict(spec, **{"in": rest})
+                else:
+                    gone += self.take_spell(s)
+        return self._drop_everywhere(name) + gone
+
+    def spells_only_in(self, name):
+        """The spells that can start in the player's own season `name` and nowhere else."""
+        return [s for s, spec in self.spells.items() if tuple(spec["in"]) == (name,)]
 
     def put(self, name, when, above):
         known = self.known()
@@ -911,6 +1117,9 @@ class Calendar(object):
                        for n, c in self.toggle.items())
                 or self.events != self._kept_events or self.dates_changed()
                 or set(self._bad_events) != self._kept_bad
+                or self.own != self._kept_own or set(self._bad_own) != self._kept_bad_own
+                or self.spells != self._kept_spells
+                or set(self._bad_spells) != self._kept_bad_spells
                 or self.names_changed() or self.place_changed()
                 or self.periods != self._kept_periods
                 or self.layout != self._kept_layout or self.sound_src != self._kept_sound)
@@ -930,6 +1139,22 @@ class Calendar(object):
         if eplan or _assignments(ast.parse(text), "EVENTS"):
             text, k = splice(text, "EVENTS", eplan)
             kept = kept and k
+        oplan = [(n, event_text(n, w), self._kept_own.get(n) == w) for n, w in self.own.items()]
+        oplan += [(n, ["%s: %s," % (_q(n), literal(w))], True)
+                  for n, w in self._bad_own.items()]
+        splan = [(n, spell_text(n, s), self._kept_spells.get(n) == s)
+                 for n, s in self.spells.items()]
+        splan += [(n, ["%s: %s," % (_q(n), literal(s))], True)
+                  for n, s in self._bad_spells.items()]
+        for var, head, plan in (("OWN_SEASONS", OWN_HEAD, oplan),
+                                ("SPELLS", SPELLS_HEAD, splan)):
+            if plan or _assignments(ast.parse(text), var):
+                if not _assignments(ast.parse(text), var):
+                    # a file from before it gets the table, with what it is
+                    lines = text.rstrip("\n").split("\n")
+                    text = "\n".join(lines + [""] + head + ["%s = {}" % var, ""])
+                text, k = splice(text, var, plan)
+                kept = kept and k
         if self.periods != self._kept_periods:
             text, k = splice(text, "PERIODS", [
                 (n, start_text(n, md), self._kept_periods.get(n) == md)
@@ -993,7 +1218,7 @@ class Calendar(object):
         return season._set_twice(text) + season.config_problems(
             ns.get("TOGGLE_MODS", {}), ns.get("LAYOUT", {}), ns.get("SOUND_SRC"),
             ns.get("PERIODS", {}), ns.get("EVENTS", {}), ns.get("CALENDAR"),
-            ns.get("NAMES"), ns.get("WEATHER_PLACE"))
+            ns.get("NAMES"), ns.get("WEATHER_PLACE"), ns.get("OWN_SEASONS"), ns.get("SPELLS"))
 
     def _keepsake(self, why):
         """A dated copy of the file as it is, which no later save touches."""
@@ -1069,7 +1294,7 @@ class Calendar(object):
 #
 # A preset holds any of four parts of a setup. Loading replaces the parts chosen:
 #   calendar  - CALENDAR and NAMES: when each season starts, which are on, their names
-#   events    - EVENTS and PERIODS
+#   events    - OWN_SEASONS, EVENTS and PERIODS: what is added to the calendar
 #   mods      - TOGGLE_MODS: the mods on the calendar, and when each is on
 #   textures  - LAYOUT and SOUND_SRC: texture sets swapped from archives, the ambience mod
 # A mod this install does not have is left out, and an anchor it does not have is worked
@@ -1078,9 +1303,11 @@ class Calendar(object):
 PRESETS = os.path.join(HERE, "presets")
 PRESET_KEY = "seasons_of_the_zone_preset"
 PARTS = ("calendar", "events", "mods", "textures")
-PART_KEYS = {"calendar": ("calendar", "names"), "events": ("events", "periods"),
+PART_KEYS = {"calendar": ("calendar", "names"),
+             "events": ("events", "periods", "own_seasons", "spells"),
              "mods": ("mods",), "textures": ("layout", "sound_src")}
-PART_TEXT = {"calendar": "calendar and season names", "events": "events and periods",
+PART_TEXT = {"calendar": "calendar and season names",
+             "events": "seasons of your own, spells, events and periods",
              "mods": "seasonal mods", "textures": "texture sets and ambient sound"}
 PRESET_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.,'()-]{0,39}$")
 
@@ -1124,14 +1351,24 @@ def read_preset(path):
         out["names"] = names or {}
     events = data.get("events", {})
     periods = data.get("periods", {})
+    own = data.get("own_seasons", {})
+    spells = data.get("spells", {})
     if isinstance(events, dict):
         events = {n: norm_event(w) if not season.event_problems(n, w) else w
                   for n, w in events.items()}
     if isinstance(periods, dict):
         periods = {n: _days(md) for n, md in periods.items()}
-    if "events" in data or "periods" in data:
-        problems += season.config_problems({}, {}, None, periods, events)
-        out["events"], out["periods"] = events, periods
+    if isinstance(own, dict):
+        own = {n: norm_event(w) if not season.own_problems({n: w}) else w
+               for n, w in own.items()}
+    if isinstance(spells, dict):
+        spells = {n: norm_spell(s) if not season.spell_problems(
+            {n: s}, own=own if isinstance(own, dict) else {}) else s for n, s in spells.items()}
+    if any(k in data for k in PART_KEYS["events"]):
+        problems += season.config_problems({}, {}, None, periods, events, own=own,
+                                           spells=spells)
+        out["events"], out["periods"], out["own_seasons"] = events, periods, own
+        out["spells"] = spells
     if "mods" in data:
         mods = data["mods"]
         if isinstance(mods, dict):
@@ -1139,7 +1376,8 @@ def read_preset(path):
                     and isinstance(c.get("when"), list) else c for n, c in mods.items()}
         problems += [p for p in season.config_problems(
             mods, {}, None, periods if isinstance(periods, dict) else {},
-            events if isinstance(events, dict) else {}) if p.startswith("TOGGLE_MODS")]
+            events if isinstance(events, dict) else {},
+            own=own if isinstance(own, dict) else {}) if p.startswith("TOGGLE_MODS")]
         out["mods"] = mods
     if "layout" in data or "sound_src" in data:
         layout = data.get("layout", {})
@@ -1158,7 +1396,7 @@ def parts_with_content(cal):
     """The parts of a setup worth keeping in a preset: those with something in them. An
     empty part would, loaded elsewhere, empty that part of someone else's setup."""
     out = [p for p, has in (("calendar", cal.custom() or cal.names),
-                            ("events", cal.events or cal.periods),
+                            ("events", cal.events or cal.periods or cal.own or cal.spells),
                             ("mods", cal.toggle),
                             ("textures", cal.layout or cal.sound_src)) if has]
     return out or ["calendar"]
@@ -1172,6 +1410,8 @@ def preset_from(cal, parts):
                            else None)
         out["names"] = dict(cal.names)
     if "events" in parts:
+        out["own_seasons"] = {n: event_json(w) for n, w in cal.own.items()}
+        out["spells"] = {n: spell_json(s) for n, s in cal.spells.items()}
         out["events"] = {n: event_json(w) for n, w in cal.events.items()}
         out["periods"] = {n: list(md) for n, md in cal.periods.items()}
     if "mods" in parts:
@@ -1220,11 +1460,17 @@ def apply_preset(cal, inst, preset, parts):
         cal.set_dates({s: tuple(md) for s, md in dates.items()} if dates else polesia())
         cal.set_names(preset.get("names") or {})
         said.append("calendar: %s" % calendar_words(cal))
-    if "events" in parts and ("events" in preset or "periods" in preset):
+    if "events" in parts and any(k in preset for k in PART_KEYS["events"]):
+        cal.own = {n: norm_event(w) for n, w in preset.get("own_seasons", {}).items()}
+        cal.spells = {n: norm_spell(s) for n, s in preset.get("spells", {}).items()}
         cal.events = {n: norm_event(w) for n, w in preset.get("events", {}).items()}
         cal.periods = {n: tuple(md) for n, md in preset.get("periods", {}).items()}
-        dropped = sorted(cal._bad_events)
-        cal._bad_events = {}
+        dropped = sorted(cal._bad_events) + sorted(cal._bad_own) + sorted(cal._bad_spells)
+        cal._bad_events, cal._bad_own, cal._bad_spells = {}, {}, {}
+        if cal.own:
+            said.append("seasons of your own: %s" % ", ".join(cal.own_order()))
+        if cal.spells:
+            said.append("spells: %s" % ", ".join(sorted(cal.spells, key=str.casefold)))
         said.append("events: %s" % (", ".join(sorted(cal.events)) or "none"))
         if dropped:
             said.append("  dropped the events seasons_config.py had that could not be used: "
@@ -1236,11 +1482,18 @@ def apply_preset(cal, inst, preset, parts):
                 skipped.append(name)
                 continue
             when = list(c["when"])
-            # a mod scoped to an event this setup does not have brings the event along
+            # a mod scoped to an event this setup does not have brings the event along,
+            # and a season of the player's own likewise
             for p in when:
                 if p not in cal.known() and p in preset.get("events", {}):
                     cal.events[p] = norm_event(preset["events"][p])
                     said.append("  event %s came with %s" % (p, name))
+                elif p not in cal.known() and p in preset.get("own_seasons", {}):
+                    cal.own[p] = norm_event(preset["own_seasons"][p])
+                    said.append("  season %s came with %s" % (p, name))
+                elif p not in cal.known() and p in preset.get("spells", {}):
+                    cal.spells[p] = norm_spell(preset["spells"][p])
+                    said.append("  spell %s came with %s" % (p, name))
             above = c["above"]
             if not inst.listed(above):
                 above = anchor_for(inst, name, when, dict(toggle, **{name: c}))[0] or above
@@ -1301,7 +1554,8 @@ def preset_effect(cal, inst, preset, parts):
     `losses` names what of the player's own it would take off or change, empty when it
     only adds. Worked out on a copy: `cal` is left as it is."""
     trial = copy.copy(cal)
-    for k in ("toggle", "events", "periods", "layout", "dates", "names", "_bad_events"):
+    for k in ("toggle", "events", "periods", "layout", "dates", "names", "_bad_events",
+              "own", "_bad_own", "spells", "_bad_spells"):
         setattr(trial, k, copy.deepcopy(getattr(cal, k)))
     parts = [p for p in parts if p in preset_parts(preset)]
     apply_preset(trial, inst, preset, parts)
@@ -1316,18 +1570,33 @@ def preset_effect(cal, inst, preset, parts):
                 losses.append("your calendar and names")
     if "events" in parts:
         mine = dict(cal.periods, **cal.events)
+        mine.update(cal.own)
+        mine.update(cal.spells)
         theirs = dict(trial.periods, **trial.events)
+        theirs.update(trial.own)
+        theirs.update(trial.spells)
         gone = set(mine) - set(theirs)
         changed = [n for n in mine if n in theirs and mine[n] != theirs[n]]
-        out.append("Events: %s." % (few(theirs) or "none"))
+        if trial.own:
+            out.append("Seasons of your own: %s." % few(trial.own))
+        if trial.spells:
+            out.append("Spells: %s." % few(trial.spells))
+        out.append("Events: %s." % (few(set(theirs) - set(trial.own) - set(trial.spells))
+                                    or "none"))
         if gone:
             out.append("  takes off yours: %s" % few(gone))
         if changed:
             out.append("  changes yours: %s" % few(changed))
         if gone or changed:
-            n = len(gone) + len(changed)
-            losses.append("%d of your events" % n if n > 1 else "your event %s"
-                          % next(iter(gone or changed)))
+            lost = set(gone) | set(changed)
+            if len(lost) > 1:
+                losses.append("%d of your %s" % (len(lost), "seasons, spells and events" if lost
+                                                 & (set(cal.own) | set(cal.spells))
+                                                 else "events"))
+            else:
+                one = next(iter(lost))
+                losses.append("your %s %s" % ("season" if one in cal.own else "spell"
+                                              if one in cal.spells else "event", one))
     if "mods" in parts:
         gone = set(cal.toggle) - set(trial.toggle)
         changed = [n for n in cal.toggle if n in trial.toggle and (
