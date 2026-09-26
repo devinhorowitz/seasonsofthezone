@@ -219,6 +219,9 @@ follows from what its engine lacks.
    ([below](#why-a-launcher)): `play.bat` is what moves the seasonal mods along with the
    date.
 
+[docs/INSTALL-GUIDE.md](docs/INSTALL-GUIDE.md) shows every window of a first install, with
+a screenshot of each.
+
 `play.bat` fetches the day's real weather - Chornobyl's, or a place you pick in the
 setup - checks the date, switches the seasonal mods, and starts the game. Most days it changes nothing. Paths come from `ModOrganizer.ini`, so the
 drive, game folder and profile are read rather than assumed. To see what the next launch
@@ -528,6 +531,7 @@ Details and recovery: [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
 
 | | |
 |---|---|
+| [docs/INSTALL-GUIDE.md](docs/INSTALL-GUIDE.md) | A first install, window by window, with screenshots |
 | [docs/SCHEDULING.md](docs/SCHEDULING.md) | The calendar: base periods, seasons of your own, spells, events, and recipes |
 | [docs/TRANSLATING.md](docs/TRANSLATING.md) | Translating the tools and the game's text into another language |
 | [docs/INTERFACE.md](docs/INTERFACE.md) | The MCM pages and the Seasons app in the PDA |

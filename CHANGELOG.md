@@ -33,6 +33,8 @@
   advanced editor and `configure.py add` say what is at stake: switching off a mod that
   changes looks and sounds is safe, and one that adds locations, quest lines or items can
   leave a save that won't load until its season comes back.
+- **An install guide.** [docs/INSTALL-GUIDE.md](docs/INSTALL-GUIDE.md) goes through a first
+  install window by window, from MO2 to the first `play.bat`, with a screenshot of each.
 - **Ready for translation.** The tools' words - the setup, the advanced editor, the
   commands, `play.bat`'s lines - and the game's own text on the PDA, the Forecast page and
   MCM now come from translation files, so a translation needs no code. None is included
