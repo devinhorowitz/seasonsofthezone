@@ -416,8 +416,9 @@ def main():
              "  FREEZING" if t["low"] <= 0.0 else ""))
     print("  " + CREDIT)
     if looked_up:
-        print("  %s's climate, for days without a reading: %s" % (shown_name(place["name"]),
-                                                                 CLIMATE_CREDIT))
+        print("  Also looked up %s's climate, for days without a reading." % shown_name(
+            place["name"]))
+        print("  " + CLIMATE_CREDIT)
     return 0
 
 
