@@ -158,3 +158,33 @@ msgstr ""
 msgctxt "a date in full: September 26, 2026"
 msgid "%(month)s %(day)d, %(year)d"
 msgstr ""
+
+#: season.py
+msgctxt "season"
+msgid "spring"
+msgstr ""
+
+#: season.py
+msgctxt "season"
+msgid "summer"
+msgstr ""
+
+#: season.py
+msgctxt "season"
+msgid "autumn"
+msgstr ""
+
+#: season.py
+msgctxt "season"
+msgid "winter"
+msgstr ""
+
+#: season.py
+msgctxt "season"
+msgid "deep winter"
+msgstr ""
+
+#: season.py
+msgctxt "season"
+msgid "late winter"
+msgstr ""

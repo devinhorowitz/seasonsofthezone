@@ -46,6 +46,8 @@ import tokenize
 import traceback
 import types
 
+from lang import _, N_, ngettext, pgettext        # noqa: F401 - used as the strings are marked
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -667,15 +669,25 @@ def _drop_season(name):
 
 
 def default_label(s):
-    """The name a season goes by unless the player gives it one."""
+    """The name a season goes by unless the player gives it one, in English: what people
+    type for it, and what names are checked against. season_label() is what to show."""
     return {"winter_snow": "deep winter", "late_winter": "late winter"}.get(s, s)
 
 
+def usual_name(s):
+    """A season's usual name in the player's language; any other name as it is."""
+    return {"spring": pgettext("season", "spring"), "summer": pgettext("season", "summer"),
+            "autumn": pgettext("season", "autumn"), "winter": pgettext("season", "winter"),
+            "winter_snow": pgettext("season", "deep winter"),
+            "late_winter": pgettext("season", "late winter")}.get(s, s)
+
+
 def season_label(s, names=None):
-    """How a season is shown: the player's own name for it (NAMES), else its usual one."""
+    """How a season is shown: the player's own name for it (NAMES), else its usual one in
+    the player's language. Anything else - a season of their own, an event - as it is."""
     names = NAMES if names is None else names
     v = names.get(s) if isinstance(names, dict) else None
-    return v.strip() if isinstance(v, str) and v.strip() else default_label(s)
+    return v.strip() if isinstance(v, str) and v.strip() else usual_name(s)
 
 
 def custom_names(names=None):
