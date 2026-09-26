@@ -34,6 +34,9 @@ SOURCES = ("lang.py", "season.py", "config_edit.py", "configure.py", "guide.py",
 POT = os.path.join(lang.FOLDER, "messages.pot")
 CALLS = {"_": ("msgid",), "N_": ("msgid",), "pgettext": ("ctx", "msgid"),
          "ngettext": ("msgid", "plural"), "npgettext": ("ctx", "msgid", "plural")}
+# what a string is built from inside the call, which no translation can have: "x %s" % v,
+# a + b, f"...", "...".format(v), a choice between two
+BUILT = (ast.BinOp, ast.JoinedStr, ast.Call, ast.BoolOp, ast.IfExp)
 HEADER = ("Project-Id-Version: Seasons of the Zone\n"
           "MIME-Version: 1.0\n"
           "Content-Type: text/plain; charset=UTF-8\n"
@@ -74,12 +77,16 @@ def extract(names=None):
                 continue
             want = CALLS[kind]
             args = node.args[:len(want)]
-            if len(args) < len(want) or not all(
-                    isinstance(a, ast.Constant) and isinstance(a.value, str) for a in args):
+            literal = [isinstance(a, ast.Constant) and isinstance(a.value, str) for a in args]
+            if len(args) == len(want) and all(literal):
+                found.append((node.lineno, node.col_offset,
+                              dict(zip(want, (a.value for a in args)))))
+            elif len(args) < len(want) or any(isinstance(a, BUILT) or (
+                    isinstance(a, ast.Constant) and not isinstance(a.value, str))
+                    for a in args):
                 problems.append("%s:%d: %s() takes its strings written out in quotes, whole - "
                                 "values go in after, with %%" % (name, node.lineno, kind))
-                continue
-            found.append((node.lineno, node.col_offset, dict(zip(want, (a.value for a in args)))))
+            # else a name: a string marked with N_() where it is written, collected there
         for lineno, _col, v in sorted(found, key=lambda t: (t[0], t[1])):
             key = (v.get("ctx"), v["msgid"])
             if not v["msgid"]:

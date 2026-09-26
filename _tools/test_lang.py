@@ -284,11 +284,14 @@ def t_the_strings_are_collected_and_the_files_kept_in_step():
 @case
 def t_the_check_refuses_what_a_translator_couldnt_translate():
     """A string built inside _(), an f-string, and _ used as a variable where _() is called
-    are each refused, with the line."""
-    bad = ('from lang import _\n'
+    are each refused, with the line. _() of a name - a string marked with N_() where it is
+    written - is let be."""
+    bad = ('from lang import _, N_\n'
+           'TITLE = N_("A title")\n'
            'def f(x):\n'
            '    print(_("x is %s" % x))\n'
            '    print(_(f"{x} here"))\n'
+           '    print(_(TITLE), _(x.name))\n'
            'def g(rows):\n'
            '    for _, v in rows:\n'
            '        pass\n'
@@ -302,8 +305,9 @@ def t_the_check_refuses_what_a_translator_couldnt_translate():
             problems += bm.shadowed()
         finally:
             bm.HERE, bm.SOURCES = old
-    assert [p.split(":")[1] for p in problems] == ["3", "4", "6"], problems
-    return "3 refused: %s" % "; ".join(p[:40] for p in problems)
+    assert [p.split(":")[1] for p in problems] == ["4", "5", "8"], problems
+    return "3 refused, _() of a marked name let be: %s" % "; ".join(
+        p[:40] for p in problems)
 
 
 @case
