@@ -1126,12 +1126,14 @@ class App(object):
         # the bar first, so nothing above it can push it off the window
         bottom = ttk.Frame(root, padding=(10, 8))
         bottom.pack(side="bottom", fill="x")
+        # the buttons before the words beside them: a long line in another language is cut
+        # short, rather than pushing Save and Close off the window
+        bar = ttk.Frame(bottom)
+        bar.pack(side="right")
         self.status = ttk.Label(bottom, text="")
         self.status.pack(side="left")
         self.unsaved = ttk.Label(bottom, text="", foreground=AMBER)
         self.unsaved.pack(side="left", padx=(10, 0))
-        bar = ttk.Frame(bottom)
-        bar.pack(side="right")
         for text, cmd, pad in ((_("Load preset..."), self.load_preset, 0),
                                (_("Save preset..."), self.save_preset, 6),
                                (_("Preview the next launch..."), self.preview, 18),

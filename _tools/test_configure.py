@@ -980,6 +980,48 @@ root.destroy()
 
 
 @case
+def t_a_long_status_line_leaves_the_buttons_whole():
+    """In Russian the editor's status line pushed Close off the window and cut Save: the
+    words were packed before the buttons, so they took the room first."""
+    driver = r"""
+import sys, time
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+import config_edit as ce
+import configure
+root = tk.Tk()
+app = configure.App(root, ce.Calendar(), ce.Install())
+root.geometry("1180x800")
+app.status.configure(text="x" * 400)
+app.unsaved.configure(text="y" * 80)
+for _ in range(20):
+    root.update()
+    time.sleep(0.02)
+def buttons(w):
+    for c in w.winfo_children():
+        if c.winfo_class() == "TButton" and str(c.cget("text")) in ("Save", "Close"):
+            yield c
+        yield from buttons(c)
+for b in buttons(root):
+    right = b.winfo_rootx() - root.winfo_rootx() + b.winfo_width()
+    print("BUTTON", b.cget("text"), b.winfo_width() >= b.winfo_reqwidth(),
+          right <= root.winfo_width())
+root.destroy()
+"""
+    with tempfile.TemporaryDirectory() as d:
+        install(d)
+        with_mod(d)
+        p = os.path.join(d, "drive.py")
+        io.open(p, "w", encoding="utf-8").write(driver)
+        r = subprocess.run([sys.executable, "-B", p, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True)
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "BUTTON Save True True" in out \
+            and "BUTTON Close True True" in out, out
+    return "Save and Close whole beside 480 characters of status"
+
+
+@case
 def t_the_window_shows_the_way_to_each_fix():
     """The list runs as MO2's does, separators and all; what holds Save back sits on top,
     each with a way to it; a loop of mods winning over each other is refused; the preview
