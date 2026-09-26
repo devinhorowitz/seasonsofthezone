@@ -99,9 +99,9 @@ The game's words are the mod's string tables, in
 
 The game picks the folder by its own language setting: a Russian game reads
 `text\rus\`. A translation is a copy of both files there, with each `<text>` translated
-and every `id` kept. Copy the whole file even before it is all done, leaving what isn't
-translated yet in English: whether the game falls back to English for a string a language
-is missing isn't certain, so every id should be there.
+and every `id` kept as it is. It can be done a piece at a time: for an id a language's
+table doesn't have, the game shows the English. (Before this mod had any Russian table, a
+Russian game showed its MCM page in English, not as ids.)
 
 What to keep:
 
@@ -131,5 +131,7 @@ What stays English for now:
   `text\eng\`.
 - The words other mods read from the API, like the emission warning's bands.
 
-`_tools\test_strings.py` checks that every id the scripts use is in the English tables and
-that no script puts English on the screen itself.
+`_tools\test_strings.py` checks that every id the scripts use is in the English tables,
+that no script puts English on the screen itself, and, for each language folder beside
+`eng`, that its ids are English ones, its `$placeholders` are ones the game fills, and,
+under the Russian rule, that every count has its `_few` form.

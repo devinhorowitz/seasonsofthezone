@@ -899,6 +899,73 @@ def t_the_tables_read_as_the_engine_reads_them():
     return "%d ids in %d files, each once, all windows-1251" % (n, len(files))
 
 
+HOLDER = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)")
+
+
+def translation_problems(folder, eng):
+    """What is wrong with one language's tables beside the English ones, `eng` {id: text}:
+    an id English doesn't have, a $placeholder its English doesn't fill, and, under the
+    Russian plural rule, a count without its _few form. A table may leave ids out: the game
+    shows the English for those."""
+    out, have = [], {}
+    for p in sorted(glob.glob(os.path.join(folder, "*.xml"))):
+        entries, bad = read_table(open(p, "rb").read(), os.path.basename(p))
+        out += bad
+        have.update(entries)
+    lang = os.path.basename(folder)
+    for sid, t in sorted(have.items()):
+        if sid not in eng:
+            if not (sid.endswith("_few") and sid[:-4] + "_many" in eng):
+                out.append("%s: %s is not in the English table" % (lang, sid))
+            continue
+        extra = set(HOLDER.findall(t)) - set(HOLDER.findall(eng[sid]))
+        if extra:
+            out.append("%s: %s has $%s, which the game doesn't fill there"
+                       % (lang, sid, ", $".join(sorted(extra))))
+    if have.get("st_sotz_plural_rule", eng.get("st_sotz_plural_rule")) == "ru":
+        for sid in sorted(eng):
+            if sid.endswith("_many") and sid[:-5] + "_one" in eng \
+                    and sid[:-5] + "_few" not in have:
+                out.append("%s: %s_few is missing, which the Russian rule needs for 2 to 4"
+                           % (lang, sid[:-5]))
+    return out
+
+
+@case
+def t_a_translation_fits_the_english_table():
+    """Every language folder beside eng is checked against it, and a Russian table with a
+    fault of each kind is caught; a partial one that is right passes."""
+    eng = table()
+    langs = [d for d in sorted(os.listdir(TEXT)) if d != "eng"
+             and os.path.isdir(os.path.join(TEXT, d))]
+    problems = [p for d in langs for p in translation_problems(os.path.join(TEXT, d), eng)]
+    assert not problems, "; ".join(problems[:10])
+    d = os.path.join(TMP, "rus")
+    os.makedirs(d, exist_ok=True)
+    head = '<?xml version="1.0" encoding="windows-1251"?>\n<string_table>\n'
+    good = ('<string id="st_sotz_plural_rule"><text>ru</text></string>\n'
+            '<string id="st_sotz_date"><text>$day $month $year</text></string>\n')
+    for sid in sorted(eng):
+        if sid.endswith("_many") and sid[:-5] + "_one" in eng:
+            good += '<string id="%s_few"><text>%s</text></string>\n' % (sid[:-5], eng[sid])
+    with open(os.path.join(d, "st_seasons_of_the_zone.xml"), "wb") as f:
+        f.write((head + good + "</string_table>\n").encode("cp1251"))
+    ok = translation_problems(d, eng)
+    assert not ok, ok
+    bad = (good.replace("$day $month $year", "$day $month $year $moon")
+           + '<string id="st_sotz_no_such_id"><text>х</text></string>\n')
+    few = [l for l in good.split("\n") if "_few" in l]
+    bad = bad.replace(few[0] + "\n", "")
+    with open(os.path.join(d, "st_seasons_of_the_zone.xml"), "wb") as f:
+        f.write((head + bad + "</string_table>\n").encode("cp1251"))
+    got = translation_problems(d, eng)
+    assert len(got) == 3 and any("$moon" in g for g in got) and any(
+        "no_such_id" in g for g in got) and any("_few is missing" in g for g in got), got
+    return ("%d language folder(s) beside eng, all fit; a partial Russian table passes, and "
+            "an unknown id, a stray $placeholder and a missing _few are each caught"
+            % len(langs))
+
+
 @case
 def t_a_broken_table_is_caught():
     head = b'<?xml version="1.0" encoding="windows-1251"?>\n<string_table>\n'
