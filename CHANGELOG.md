@@ -14,6 +14,15 @@
   leaves the season be and switches on only the mods you put on during it. The date
   decides, so every launch that day agrees, and the setup says how often each comes on
   average. An MCM pin still wins over a spell.
+- **The season, for other mods.** `sotz_api.season()` gives the season the world runs - an
+  MCM pin's, a spell's, or the calendar's - with the blend and the ground's snow, and
+  `sotz_api.climate(month, day)` the climate for any day of the year. docs/API.md has
+  them.
+- **`play.bat` is for switching, not for playing.** Started from MO2, the light, weather,
+  PDA, MCM and the API go on by the date, and what `play.bat` switched stays as it left it.
+  It now keeps the 16 days of forecast it fetches, so the weather stays real that long
+  without it, or without a connection; after that the temperature comes from the place's
+  climate, so a mod that reads it never goes without.
 - **Ready for translation.** The tools' words - the setup, the advanced editor, the
   commands, `play.bat`'s lines - and the game's own text on the PDA, the Forecast page and
   MCM now come from translation files, so a translation needs no code. None is included

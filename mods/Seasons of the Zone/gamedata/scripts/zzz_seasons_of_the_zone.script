@@ -748,6 +748,20 @@ local function season_at(doy, year)
     return cur
 end
 
+-- The season the world runs now, for sotz_api.season(): an MCM pin's or a spell's when there
+-- is one, else the calendar's; with the calendar's own, whether a pin holds, the spell
+-- running, and the names to show.
+function season_now()
+    local now = os.date("*t")
+    local cal = season_at(tonumber(os.date("%j")), now.year)
+    local mode = season_mode()
+    local key = (mode ~= "auto") and mode or cal
+    local pin = pinned() ~= "auto"
+    local sp = (not pin) and spell_today() or nil
+    return {key = key, calendar = cal, pinned = pin, label = name_of(key), title = cap(key),
+            spell = sp and {name = sp.name, first = sp.first, last = sp.last} or nil}
+end
+
 -- The nearest dial whose own date is in today's season. Each dial has its season's arc
 -- highlighted, so the nearest by date alone can light the wrong arc near a boundary.
 -- Positions are worked out for the year they were drawn for, not this one: in a leap

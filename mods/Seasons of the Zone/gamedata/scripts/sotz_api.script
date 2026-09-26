@@ -148,6 +148,51 @@ local function day_diff(y, m, d)
     return nil
 end
 
+local MONTH_DAYS = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+
+local function month_len(y, m)
+    if m == 2 and y % 4 == 0 and (y % 100 ~= 0 or y % 400 == 0) then return 29 end
+    return MONTH_DAYS[m]
+end
+
+-- "YYYY-MM-DD" for today, or `offset` days on: the key of a row in [forecast]
+local function date_key(offset)
+    local t = os.date("*t")
+    local y, m, d = t.year, t.month, t.day + (offset or 0)
+    while d > month_len(y, m) do
+        d = d - month_len(y, m)
+        m = m + 1
+        if m > 12 then m, y = 1, y + 1 end
+    end
+    while d < 1 do
+        m = m - 1
+        if m < 1 then m, y = 12, y - 1 end
+        d = d + month_len(y, m)
+    end
+    return string.format("%04d-%02d-%02d", y, m, d)
+end
+
+-- The day `offset` days from today in the forecast fetch_weather.py keeps, up to 16 days
+-- ahead of its last run: {high, low, cycle, date}, or nil. So a launch without play.bat,
+-- or without a connection, still has the real forecast for as long as it reaches.
+local function forecast_row(ini, offset)
+    if not ini:section_exist("forecast") then return nil end
+    local key = date_key(offset)
+    if not ini:line_exist("forecast", key) then return nil end
+    local hi, lo, cycle = tostring(ini:r_string_ex("forecast", key) or ""):match(
+        "^%s*(%-?[%d%.]+)%s*,%s*(%-?[%d%.]+)%s*,?%s*([%w_]*)")
+    hi, lo = tonumber(hi), tonumber(lo)
+    if not (hi and lo) then return nil end
+    return {high = hi, low = lo, cycle = (cycle ~= "") and cycle or nil, date = key}
+end
+
+-- the day the file was fetched, from its "YYYY-MM-DD HH:MM", which the engine's reader
+-- runs together
+local function fetched_on(ini)
+    local v = ini:section_exist("weather") and ini:r_string_ex("weather", "fetched_at")
+    return v and tostring(v):match("^(%d%d%d%d%-%d%d%-%d%d)") or nil
+end
+
 local function parse_ymd(s)
     local y, m, d = tostring(s or ""):match("^(%d+)-(%d+)-(%d+)$")
     if not y then return nil end
@@ -165,7 +210,15 @@ end
 local function observed()
     local ok, out = pcall(function()
         local ini = ini_file("season_weather.ltx")
-        if not (ini and ini:section_exist("weather")) then return nil end
+        if not ini then return nil end
+        local row = forecast_row(ini, 0)
+        if row then
+            row.place = ini:section_exist("weather") and spaced(ini:r_string_ex("weather",
+                                                                                "place")) or nil
+            row.fetched = fetched_on(ini)
+            return row
+        end
+        if not ini:section_exist("weather") then return nil end
         local hi = ini:r_float_ex("weather", "high")
         local lo = ini:r_float_ex("weather", "low")
         if not (hi and lo) then return nil end
@@ -183,6 +236,7 @@ local function observed()
             cycle = ini:r_string_ex("weather", "cycle"),
             date  = ini:r_string_ex("weather", "date"),
             place = spaced(ini:r_string_ex("weather", "place")),
+            fetched = fetched_on(ini),
         }
     end)
     if ok then return out end
@@ -212,11 +266,13 @@ local function place_normals()
     return nil
 end
 
-local function month_normals(table_)
+-- The mean high and low on month m, day `days`, or today when m is nil
+local function month_normals(table_, m, days)
     local normals = table_ or NORMALS
-    local now = os.date("*t")
-    local m = now.month
-    local days = tonumber(os.date("%d")) or 15
+    if not m then
+        m = os.date("*t").month
+        days = tonumber(os.date("%d")) or 15
+    end
     -- slide toward the neighboring month across the month, so 31 Jan is nearly February
     local span = 30.0
     local f = (days - 15) / span
@@ -358,6 +414,9 @@ function temperature()
             -- Chornobyl's built-in normals
             place  = obs and obs.place or (own and own.place) or nil,
             date   = obs and obs.date or nil,
+            -- the day the reading was fetched: `date` or before, when play.bat hasn't run
+            -- since, and the day comes from the forecast it kept
+            fetched = obs and obs.fetched or nil,
             real_cycle = obs and obs.cycle or nil,
             -- the two hooks worth hanging a mod off
             band     = band_now,              -- freezing / cold / mild / warm / hot
@@ -379,24 +438,33 @@ function tomorrow()
     return cached("tomorrow", function()
         local ok, out = pcall(function()
             local ini = ini_file("season_weather.ltx")
-            if not (ini and ini:section_exist("weather_next")) then return nil end
-            local hi = ini:r_float_ex("weather_next", "high")
-            local lo = ini:r_float_ex("weather_next", "low")
-            if not (hi and lo) then return nil end
-            -- a file from an earlier day holds that day's tomorrow: not ours
-            local y, m, d = parse_ymd(ini:r_string_ex("weather_next", "date"))
-            local ago = y and day_diff(y, m, d)
-            if not ago or math.floor(ago + 0.5) ~= -1 then return nil end
+            if not ini then return nil end
+            local row = forecast_row(ini, 1)
+            local hi, lo, cycle, date
+            if row then
+                hi, lo, cycle, date = row.high, row.low, row.cycle, row.date
+            else
+                if not ini:section_exist("weather_next") then return nil end
+                hi = ini:r_float_ex("weather_next", "high")
+                lo = ini:r_float_ex("weather_next", "low")
+                if not (hi and lo) then return nil end
+                -- a file from an earlier day holds that day's tomorrow: not ours
+                local y, m, d = parse_ymd(ini:r_string_ex("weather_next", "date"))
+                local ago = y and day_diff(y, m, d)
+                if not ago or math.floor(ago + 0.5) ~= -1 then return nil end
+                cycle = ini:r_string_ex("weather_next", "cycle")
+                date = ini:r_string_ex("weather_next", "date")
+            end
             local frost = lo <= 0.0          -- decided in Celsius, as above
             local unit = "C"
             if want_f() then
                 unit, hi, lo = "F", to_f(hi), to_f(lo)
             end
             return {
-                date  = ini:r_string_ex("weather_next", "date"),
+                date  = date,
                 high  = math.floor(hi + 0.5),
                 low   = math.floor(lo + 0.5),
-                cycle = ini:r_string_ex("weather_next", "cycle"),
+                cycle = cycle,
                 unit  = unit,
                 frost = frost,
             }
@@ -522,6 +590,54 @@ end
 -- =========================================================================================
 -- Calendar
 -- =========================================================================================
+
+--- What the climate is on a day of the year, whether or not play.bat has ever run: the
+-- place's own normals when configure.bat set a place and they were fetched, else
+-- Chornobyl's, which the mod carries. For a mod that needs a temperature for any day,
+-- not only today.
+-- @param month 1 to 12
+-- @param day 1 to 31
+-- @return {high, low, unit, place} or nil for a day that doesn't exist
+function climate(month, day)
+    local m, d = tonumber(month), tonumber(day)
+    if not (m and d and MONTH_DAYS[m] and d >= 1 and d <= month_len(2024, m)) then
+        return nil
+    end
+    local ok, out = pcall(function()
+        local own = place_normals()
+        local high, low = month_normals(own, m, d)
+        local unit = "C"
+        if want_f() then unit, high, low = "F", to_f(high), to_f(low) end
+        return {high = math.floor(high + 0.5), low = math.floor(low + 0.5), unit = unit,
+                place = own and own.place or nil}
+    end)
+    if ok then return out end
+    return nil
+end
+
+--- The season the world runs now: an MCM pin's or a spell's when there is one, else the
+-- calendar's - the one the light and the weather follow.
+-- @return {key, label, title, calendar, pinned, spell = {name, first, last} or nil,
+--          mix = {season = weight}, snow = 0..1}
+function season()
+    return cached("season", function()
+        local z = zzz_seasons_of_the_zone
+        local now = z.season_now()
+        if not now then return nil end
+        local mix = {}
+        for k, v in pairs(z.season_mix()) do mix[k] = v end
+        return {
+            key      = now.key,
+            label    = now.label,
+            title    = now.title,
+            calendar = now.calendar,
+            pinned   = now.pinned,
+            spell    = now.spell,
+            mix      = mix,
+            snow     = z.snow_factor(),
+        }
+    end)
+end
 
 --- Where the year stands, and whether today is one of the days the Zone marks.
 -- @return {season, label, today, next = {label, days}, marked = {kind, key}}

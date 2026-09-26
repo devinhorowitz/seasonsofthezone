@@ -214,8 +214,10 @@ follows from what its engine lacks.
    `ModOrganizer.exe`, and then walks you through the setup, a step at a time
    ([below](#making-a-mod-seasonal)). Its last step checks which MO2 entry `play.bat`
    starts.
-3. Close MO2, and start the game with `play.bat` in your GAMMA folder from now on. It opens
-   MO2 itself; it can't switch mods while MO2 is already open.
+3. Close MO2, and start the game with `play.bat` in your GAMMA folder. It opens MO2
+   itself; it can't switch mods while MO2 is already open. Starting from MO2 still works
+   ([below](#why-a-launcher)): `play.bat` is what moves the seasonal mods along with the
+   date.
 
 `play.bat` fetches the day's real weather - Chornobyl's, or a place you pick in the
 setup - checks the date, switches the seasonal mods, and starts the game. Most days it changes nothing. Paths come from `ModOrganizer.ini`, so the
@@ -247,7 +249,12 @@ loads them from MO2's virtual file system when a level loads and keeps them for 
 session. So seasonal mods have to be switched before the game starts, and that is what
 `play.bat` does.
 
-If you have no seasonal mods, launch however you like.
+It isn't needed to play. Started from MO2, everything else goes on by the date: the light
+and weather, the marked days, the PDA and MCM, and the API other mods read. What
+`play.bat` switched stays as it last left it until it runs again. The weather stays real
+for as long as the forecast it last fetched reaches, 16 days; after that, and with no
+connection at all, the temperature comes from the place's climate, so nothing that reads
+it goes without. If you have no seasonal mods, launch however you like.
 
 ---
 

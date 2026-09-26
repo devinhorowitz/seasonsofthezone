@@ -2302,7 +2302,7 @@ def weather_flags():
     if not os.path.exists(path):
         return []
     try:
-        section, low, high, when, there = None, None, None, None, {}
+        section, low, high, when, there, ahead = None, None, None, None, {}, {}
         # cp1251, the game's own: a place's name can be Cyrillic
         for line in io.open(path, encoding="cp1251", errors="replace"):
             line = line.split(";")[0].strip()
@@ -2314,6 +2314,8 @@ def weather_flags():
             k, v = (x.strip() for x in line.split("=", 1))
             if section == "place" and k in ("lat", "lon"):
                 there[k] = float(v)
+            if section == "forecast":
+                ahead[k] = v
             if section != "weather":
                 continue
             if k == "low":
@@ -2322,6 +2324,12 @@ def weather_flags():
                 high = float(v)
             elif k == "date":
                 when = v
+        # the day from the forecast the file keeps, when the last fetch was days ago: a
+        # launch without a connection still has it
+        row = ahead.get(datetime.date.today().isoformat())
+        if row:
+            parts = [x.strip() for x in row.split(",")]
+            high, low, when = float(parts[0]), float(parts[1]), datetime.date.today().isoformat()
     except Exception:
         return []
 

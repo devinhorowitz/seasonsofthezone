@@ -102,6 +102,12 @@ local function source_line(temp)
         if place == nil or place == "Chornobyl" then
             place = sotz_text.text("st_sotz_fc_chornobyl")
         end
+        -- a day from the forecast play.bat last fetched, days ago: said so
+        local y, m, d = tostring(temp.fetched or ""):match("^(%d+)%-(%d+)%-(%d+)$")
+        if y and temp.date and temp.fetched ~= temp.date then
+            return sotz_text.text("st_sotz_fc_kept", {place = place, date =
+                sotz_text.date_short(tonumber(m), tonumber(d))})
+        end
         return sotz_text.text("st_sotz_fc_live", {place = place})
     elseif temp and temp.place then
         return sotz_text.text("st_sotz_fc_modeled_on", {place = temp.place})

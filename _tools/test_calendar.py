@@ -743,6 +743,30 @@ def t_a_spell_brings_its_season_while_its_days_last():
 
 
 @case
+def t_the_api_says_the_season_the_world_runs():
+    """sotz_api.season(): a spell's season while it lasts, with its name and days, beside the
+    calendar's; the calendar's the day after; an MCM pin's over a spell, without the spell;
+    and the blend and the snow as the light has them."""
+    spell = SPELL_FILE % ("winter", "2026-07-14", "2026-07-15")
+    src = io.open(os.path.join(SCRIPTS, "sotz_api.script"), encoding="utf-8").read()
+    got = {}
+    for label, day, mcm in (("spell", 15, None), ("after", 16, None),
+                            ("pinned", 15, {"seasons_zone/main/mode": "autumn"})):
+        _, g = build(2026, 7, day, calendar=spell, mcm=mcm)
+        s = g.load_in(src, "sotz_api", g).season()
+        got[label] = (s["key"], s["calendar"], s["pinned"],
+                      dict(s["spell"]) if s["spell"] else None, s["mix"][s["key"]],
+                      round(s["snow"], 2), s["label"], s["title"])
+    assert got == {
+        "spell": ("winter", "summer", False,
+                  {"name": "Summer frost", "first": "2026-07-14", "last": "2026-07-15"},
+                  1.0, 0.6, "winter", "Winter"),
+        "after": ("summer", "summer", False, None, 1.0, 0.0, "summer", "Summer"),
+        "pinned": ("autumn", "summer", True, None, 1.0, 0.0, "autumn", "Autumn")}, got
+    return "winter by a spell over summer, summer after it, autumn by a pin"
+
+
+@case
 def t_a_pin_on_a_season_turned_off_counts_as_automatic():
     """A pin can outlive its season: set in MCM, then turned off in configure.bat. It has
     no dates to stand on, so the date decides - and a pin on a season that is on holds."""

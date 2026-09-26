@@ -125,6 +125,7 @@
 	<string id="st_sotz_fc_cooling"><text>$band, getting colder</text></string>
 	<string id="st_sotz_fc_no_reading"><text>no reading</text></string>
 	<string id="st_sotz_fc_live"><text>Live from $place - weather data by Open-Meteo.com</text></string>
+	<string id="st_sotz_fc_kept"><text>$place's forecast from $date - weather data by Open-Meteo.com</text></string>
 	<string id="st_sotz_fc_chornobyl"><text>Chornobyl</text></string>
 	<string id="st_sotz_fc_modeled_on"><text>No station data - modeled on $place's climate (Open-Meteo.com)</text></string>
 	<string id="st_sotz_fc_modeled"><text>No station data - temperature modeled</text></string>

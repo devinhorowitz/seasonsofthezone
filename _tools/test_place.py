@@ -6,6 +6,7 @@ starts from going out.
 
   python _tools/test_place.py
 """
+import datetime
 import io
 import json
 import os
@@ -161,7 +162,8 @@ fw.main()
         rc, out = drive(d, driver, env=ONLINE)
         assert rc == 0, out
         asked = [l for l in out.splitlines() if l.startswith("ASKED")][0]
-        assert "latitude=-23.5475" in asked and "timezone=auto" in asked, asked
+        assert "latitude=-23.5475" in asked and "timezone=auto" in asked \
+            and "forecast_days=16" in asked, asked
         assert "Weather data by Open-Meteo.com (CC BY 4.0)" in out, out
         assert "Copernicus" in out, "the climate lookup was not credited:\n" + out
         assert "AGAIN 0" in out, "a fresh file for the same place was fetched again:\n" + out
@@ -177,6 +179,9 @@ fw.main()
         s = sections(ltx)
         assert s["place"]["name"] == "Sao_Paulo" and s["weather"]["place"] == "Sao_Paulo", s
         assert s["weather"]["high"] == "18.4" and s["weather_next"]["freezing"] == "true", s
+        # every day fetched is kept, for the days play.bat isn't run
+        assert s["forecast"] == {"2026-09-25": "18.4, 7.5, partly",
+                                 "2026-09-26": "19.0, -1.0, rain"}, s["forecast"]
         # Chornobyl again: its normals are the game's own, so none are written
         io.open(os.path.join(d, "_tools", "seasons_config.py"), "w").write(
             "WEATHER_PLACE = None\n")
@@ -441,6 +446,33 @@ def t_weather_days_come_from_the_place_s_own_reading():
         rc, out = tc.run(d, "status", tool="season.py", env=OFFLINE)
         assert rc == 0 and "weather from" in out and "(today:" not in out, out
     return "a Cyrillic place's frost counted; another place's reading ignored"
+
+
+@case
+def t_a_launch_without_a_connection_keeps_the_forecast_it_has():
+    """play.bat run days after its last fetch, with no connection: today's day comes from
+    the forecast the file kept, so a freezing day is still one; with today past the last
+    day it kept, no weather day is claimed."""
+    import fetch_weather as fw
+    today = datetime.date.today()
+    with tempfile.TemporaryDirectory() as d:
+        path = sandbox(d)
+        was = fw.OUTS, fw.OUT
+        fw.OUTS, fw.OUT = [path], path
+        try:
+            # fetched five days ago: [weather] is that day's, and today is row six of 16
+            rows = [{"date": (today + datetime.timedelta(days=i - 5)).isoformat(),
+                     "high": 4.0 if i == 5 else 15.0, "low": -3.0 if i == 5 else 5.0,
+                     "cycle": "clear"} for i in range(16)]
+            fw.write(rows)
+            rc, out = tc.run(d, "status", tool="season.py", env=OFFLINE)
+            assert rc == 0 and "(today: freezing, thaw)" in out, out
+            fw.write(rows[:3])              # its last day is three days ago
+            rc, out = tc.run(d, "status", tool="season.py", env=OFFLINE)
+            assert rc == 0 and "(today:" not in out, out
+        finally:
+            fw.OUTS, fw.OUT = was
+    return "a frost five days after the fetch still counted; none past the last kept day"
 
 
 if __name__ == "__main__":

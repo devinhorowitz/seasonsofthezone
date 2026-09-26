@@ -28,6 +28,11 @@ itself and silently returns nil everywhere else.
   up — all return `nil`, never an error. Consumers still need a nil check, not a `pcall`.
 - **Cheap.** Every result is cached for 2 real seconds, so a device may call these once a
   frame.
+- **No launcher needed.** Nothing here waits on `play.bat`. Started from MO2, a day it hasn't
+  run for is answered from what it last left - the forecast it fetched reaches 16 days -
+  and then from the place's climate, which the mod carries for Chornobyl and keeps for a
+  place of the player's own. `temperature()` and `climate()` always have a number;
+  `season()` always has a season.
 - **`sotz_api.VERSION`** is an integer that only goes up, and only when an existing field
   changes meaning. New fields are added *without* a bump. Check `>=`, never `==`.
 
@@ -65,6 +70,8 @@ would be a number that is real but inert.
 | `low` / `high` / `now` | after the in-game sky moved it |
 | `sky_shift` | the gap, in whole degrees — negative when the weather is costing you |
 | `source` | `observed` when a station reading was used, `model` when climate normals were |
+| `date` | the day the reading is for, `YYYY-MM-DD`; nil when modeled |
+| `fetched` | the day `play.bat` fetched it (2.0.0): `date` itself, or earlier when the day comes from the forecast it kept |
 | `place` | where the reading is from; modeled, whose climate the model is. nil for the built-in Chornobyl normals. Since 2.0.0 it can be a place the player picked, not only Chornobyl. |
 
 Off a 14 / 4 station reading, clear sky reads 14 at mid-afternoon and a storm reads 8.
@@ -100,6 +107,32 @@ high  31.0  low  19.0  ->  ['autumn', 'heat']
 
 Every flag is decided in **Celsius before any unit conversion**: zero is a property of
 water, not of the unit being read.
+
+## `climate(month, day)`
+
+```lua
+{ high = -2, low = -8, unit = "C", place = nil }
+```
+
+What the climate is on any day of the year (2.0.0): the mean high and low, eased between
+the months. The place's own normals when the player picked a place and they were fetched,
+else Chornobyl's, which the mod carries - so it answers with no file at all, and never
+needs `play.bat`. `place` is nil for Chornobyl's. nil for a day that doesn't exist.
+
+## `season()`
+
+```lua
+{ key = "winter", label = "winter", title = "Winter", calendar = "summer",
+  pinned = false, spell = { name = "Summer frost", first = "2026-07-14", last = "2026-07-15" },
+  mix = { winter = 1, summer = 0, … }, snow = 0.6 }
+```
+
+The season the world runs now (2.0.0): the one the light and the weather follow. An MCM
+pin's when the player pinned one, a spell's while it lasts, else the calendar's.
+`calendar` is the calendar's own, as `calendar().season` gives it; `spell` is nil without
+one, and with a pin. `mix` is the blend of the days either side of a turn, summing to 1;
+`snow` how much snow the ground has, 0 to 1. A cold- or heat-driven mod keys off `key`,
+`mix` or `snow` rather than the calendar.
 
 ## `weather()`
 
@@ -208,7 +241,7 @@ unknown key as a season rather than an error, since the calendar can grow. A pla
 calendar (2.0.0) can turn seasons off and move their dates, so do not assume all six
 occur, or when; `next` is nil when only one season is on. `season` is the calendar's: an
 MCM pin, or a spell that brings another season (2.0.0), changes the light and the weather
-but not `season`.
+but not `season`. `season()` gives the one they follow.
 
 `marked` is nil on ordinary days. `kind` is `memorial` or `anniversary`.
 

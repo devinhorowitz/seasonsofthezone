@@ -464,8 +464,58 @@ def t_alert_hook():
     return "published, gated by tier, and false when the tier may not know"
 
 
+def t_kept_forecast_and_climate():
+    """play.bat's last fetch keeps 16 days: with the file days old, today's and tomorrow's
+    come from those rows and say the day they were fetched; past the last row, the climate
+    model takes over. climate() answers for any day of the year with no file at all, and
+    nil for a day that doesn't exist."""
+    import datetime
+    year = datetime.date.today().year
+
+    def with_file(g, lua, secs):
+        g.ini_file = lambda name: lua.table_from({
+            "section_exist": lambda self, s: s in secs,
+            "line_exist": lambda self, s, k: k in secs.get(s, {}),
+            "r_float_ex": lambda self, s, k: (float(secs[s][k]) if k in secs.get(s, {})
+                                              else None),
+            "r_string_ex": lambda self, s, k: secs.get(s, {}).get(k)})
+    secs = {"weather": {"date": _pinned(9, 10), "high": "30.0", "low": "20.0",
+                        "cycle": "clear", "place": "Kyiv", "fetched_at": "%d-09-1007:30" % year},
+            "forecast": {_pinned(9, 15): "3.0,-2.0,snow", _pinned(9, 16): "1.0,-5.0,snow"}}
+    lua, g = build(hour=12.0, month=9)
+    with_file(g, lua, secs)
+    t = g.sotz_api.temperature()
+    assert F(t, "source") == "observed" and F(t, "base_low") == -2 \
+        and F(t, "fetched") == _pinned(9, 10) and F(t, "date") == _pinned(9, 15), \
+        (F(t, "source"), F(t, "base_low"), F(t, "fetched"), F(t, "date"))
+    tm = g.sotz_api.tomorrow()
+    assert F(tm, "low") == -5 and F(tm, "date") == _pinned(9, 16), (F(tm, "low"), F(tm, "date"))
+    # past the last kept day: the model, and no tomorrow
+    lua, g = build(hour=12.0, month=9, day=20)
+    with_file(g, lua, secs)
+    t = g.sotz_api.temperature()
+    assert F(t, "source") == "model" and g.sotz_api.tomorrow() is None, F(t, "source")
+    # climate(), with no file at all
+    lua, g = build(hour=12.0, month=9, observed=None)
+    jan, feb30, bad = (g.sotz_api.climate(1, 15), g.sotz_api.climate(2, 30),
+                       g.sotz_api.climate(13, 1))
+    assert (F(jan, "high"), F(jan, "low")) == (-2, -8) and F(jan, "unit") == "C" \
+        and feb30 is None and bad is None, (F(jan, "high"), F(jan, "low"), feb30, bad)
+    # the last of March is more than half April's, whatever day it is now
+    mar31 = g.sotz_api.climate(3, 31)
+    assert (F(mar31, "high"), F(mar31, "low")) == (10, 0), (F(mar31, "high"), F(mar31, "low"))
+    # what the Forecast page says of a day from a fetch days ago
+    import test_forecast as tf
+    lua2, _g2, fx = tf.expose("ui_seasons_forecast.script", ["source_line"])
+    line = fx.source_line(lua2.table_from({"source": "observed", "place": "Kyiv",
+                                           "date": _pinned(9, 15), "fetched": _pinned(9, 10)}))
+    assert line == "Kyiv's forecast from Sep 10 - weather data by Open-Meteo.com", line
+    return "today's and tomorrow's from the kept rows, the model after them; climate any day"
+
+
 CASES = [
     ("namespacing", t_namespacing),
+    ("kept forecast", t_kept_forecast_and_climate),
     ("curve shape", t_curve_shape),
     ("rising flag", t_rising_flag),
     ("seasonal", t_seasonal),

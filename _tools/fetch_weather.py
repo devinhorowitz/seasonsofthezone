@@ -66,7 +66,10 @@ DEFAULT = {"name": "Chornobyl", "lat": 51.2763, "lon": 30.2219}
 URL = ("https://api.open-meteo.com/v1/forecast"
        "?latitude=%s&longitude=%s"
        "&daily=temperature_2m_max,temperature_2m_min,weather_code"
-       "&timezone=auto&forecast_days=2")
+       "&timezone=auto&forecast_days=%d")
+# as many days ahead as Open-Meteo gives: the game reads each day's row while it lasts, so a
+# launch without play.bat, or without a connection, keeps the real forecast that long
+FORECAST_DAYS = 16
 SEARCH_URL = ("https://geocoding-api.open-meteo.com/v1/search"
               "?name=%s&count=%d&language=en&format=json")
 ARCHIVE_URL = ("https://archive-api.open-meteo.com/v1/archive"
@@ -292,7 +295,7 @@ def is_fresh(existing):
 
 
 def fetch(place=DEFAULT):
-    return get(URL % (place["lat"], place["lon"]))
+    return get(URL % (place["lat"], place["lon"], FORECAST_DAYS))
 
 
 def to_rows(payload):
@@ -316,6 +319,7 @@ HEAD = """; Seasons of the Zone - the real weather, at the place set in configur
 ;
 ; Only the day's endpoints are real. The curve between them is modeled, because the
 ; game's day is accelerated and its sky belongs to Atmospherics, not to the real place.
+; [forecast] keeps the days ahead, so the game has them while play.bat isn't run.
 
 [place]
 name         = %(name)s
@@ -342,6 +346,12 @@ cycle        = %(n_cycle)s
 freezing     = %(n_freezing)s
 """
 
+# the days ahead, one a line: date = high, low, sky
+FORECAST = """
+[forecast]
+%s
+"""
+
 # a place's own climate, for days without a reading: mean daily high, low by month
 NORMALS = """
 [normals]
@@ -366,6 +376,8 @@ def write(rows, place=DEFAULT, norms=None):
             freezing="true" if today["low"] <= 0.0 else "false",
             n_date=nxt["date"], n_high=nxt["high"], n_low=nxt["low"], n_cycle=nxt["cycle"],
             n_freezing="true" if nxt["low"] <= 0.0 else "false")
+        body += FORECAST % "\n".join("%-12s = %.1f, %.1f, %s" % (r["date"], r["high"], r["low"],
+                                                                  r["cycle"]) for r in rows)
     if norms:
         body += NORMALS % "\n".join("m%-11d= %.1f, %.1f" % (m, hi, lo)
                                     for m, (hi, lo) in enumerate(norms, 1))

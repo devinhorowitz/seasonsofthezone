@@ -195,8 +195,8 @@ TOGGLE_MODS = {
 The weather comes from the real forecast `play.bat` fetches at each launch, for the place
 set in `configure.bat`: `freezing` is a day whose low is 0°C or below, `thaw` one that also
 climbs above 0°C by afternoon, and `heat` one whose high reaches 28°C. Like an event, a
-weather day is added to whatever season is running. Without `play.bat`, or without a
-connection, none of them is on.
+weather day is added to whatever season is running. A launch without a connection uses
+the forecast the last fetch kept, 16 days of it; past that, none of them is on.
 
 Each seasonal mod gets its own checkbox on the MCM page of every season it is on in, with
 its file count and size. Unchecking it there means "never mount this in that season"; the
@@ -451,9 +451,11 @@ own.
 | `lon` | Longitude in degrees, -180 to 180, east positive. |
 
 At each launch `play.bat` asks [Open-Meteo](https://open-meteo.com/) for the day's high and
-low there, sending the coordinates and nothing else. For a place other than Chornobyl, the
-first fetch also asks once for its last ten years of daily highs and lows, so the game can
-model a day there without a connection; Chornobyl's are built in. The search on the Weather
+low there and the 15 days after, sending the coordinates and nothing else. The game reads
+each day from those while they last, so a launch from MO2, or without a connection, still
+has the real weather that far ahead. For a place other than Chornobyl, the first fetch
+also asks once for its last ten years of daily highs and lows, so the game can model any
+day there when the forecast runs out; Chornobyl's are built in. The search on the Weather
 tab sends what you type to Open-Meteo's place search. A preset never holds the place.
 
 The weather data is by Open-Meteo.com, under
