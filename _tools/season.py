@@ -1667,27 +1667,42 @@ def spell_draws(name, day):
 def spells_on(d, spells=None, where=None):
     """[(name, first day, last day)] for each spell running on d, the earliest first.
     `where(day)` is what a spell can start in on that day: the base period and the player's
-    own seasons, by this install's calendar unless another is given."""
+    own seasons, by this install's calendar unless another is given. A spell that starts
+    again while it runs, or on the day after, runs on: its days are the whole stretch."""
     spells = SPELLS if spells is None else spells
     if where is None:
         def where(day):
             return [season_for(day)] + [o for o, w in OWN_SEASONS.items()
                                         if _in_window(day, *w)]
+    one = datetime.timedelta(days=1)
     out = []
     for name, spec in spells.items():
         lo, hi = spell_days(spec)
         start = spec["in"]
         start = {start} if isinstance(start, str) else set(start)
-        for back in range(hi - 1, -1, -1):
-            first = d - datetime.timedelta(days=back)
-            begins, length = spell_draws(name, first)
-            if begins * 100 >= spec["chance"] or not start & set(where(first)):
-                continue
-            last = first + datetime.timedelta(days=lo + min(int(length * (hi - lo + 1)),
-                                                            hi - lo) - 1)
-            if last >= d:
-                out.append((name, first, last))
-                break
+        runs = {}
+
+        def run(first):
+            """How many days a start on `first` runs, or 0 when it doesn't start then."""
+            if first not in runs:
+                begins, length = spell_draws(name, first)
+                runs[first] = (lo + min(int(length * (hi - lo + 1)), hi - lo)
+                               if begins * 100 < spec["chance"] and start & set(where(first))
+                               else 0)
+            return runs[first]
+
+        def on(day):
+            return any(run(day - datetime.timedelta(days=back)) > back for back in range(hi))
+
+        if not on(d):
+            continue
+        # a year either way at most: a spell on every day of its seasons runs through them
+        first, last = d, d
+        while (d - first).days < 366 and on(first - one):
+            first -= one
+        while (last - d).days < 366 and on(last + one):
+            last += one
+        out.append((name, first, last))
     return sorted(out, key=lambda t: (t[1], t[0].casefold()))
 
 
@@ -1702,12 +1717,36 @@ def spell_season(d, spells=None, where=None):
 
 
 def spells_a_year(spec, where):
-    """How many times a year a spell starts, on average: its chance on each day of 2026 it
-    could start on. `where(day)` as for spells_on."""
+    """How many times a year a spell comes, on average: over the days of 2026, the chance
+    it starts on each day it can, while it isn't running already. `where(day)` as for
+    spells_on."""
+    try:
+        p = float(spec["chance"]) / 100.0
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return 0.0
+    if not 0 < p <= 1:                      # nan too; spell_problems says what is wrong
+        return 0.0
+    lo, hi = spell_days(spec)
     start = spec["in"]
     start = {start} if isinstance(start, str) else set(start)
-    year = [datetime.date(2026, 1, 1) + datetime.timedelta(days=i) for i in range(365)]
-    return sum(1 for d in year if start & set(where(d))) * spec["chance"] / 100.0
+    # the chance a start still runs k days later: it runs lo to hi days, each as likely
+    lasts = [1.0 if k < lo else (hi - k) / float(hi - lo + 1) for k in range(hi)]
+    can = {}
+
+    def chance(d):
+        if d not in can:
+            can[d] = p if start & set(where(d)) else 0.0
+        return can[d]
+
+    total = 0.0
+    for i in range(365):
+        d = datetime.date(2026, 1, 1) + datetime.timedelta(days=i)
+        if chance(d):
+            free = 1.0
+            for k in range(hi):
+                free *= 1 - chance(d - datetime.timedelta(days=k + 1)) * lasts[k]
+            total += chance(d) * free
+    return total
 
 
 def calendar_table(mapping="pheno", calendar=None):

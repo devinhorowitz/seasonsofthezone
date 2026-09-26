@@ -170,8 +170,15 @@ def t_seasons_of_ones_own_follow_their_rules():
 def t_a_spell_brings_its_season_to_play_bat_and_the_game():
     """A spell on today (chance 100, one day) that brings another season: play.bat stages
     that season - the season's mods off, the brought season's and the spell's own on - and
-    writes it for the game, with its dates. A spell that can't start today is not on."""
+    writes it for the game, with its dates: starting on every day of the season, it runs the
+    season long. A spell that can't start today is not on."""
     here, other = now_season(), other_season()
+    one = datetime.timedelta(days=1)
+    first, last = TODAY, TODAY
+    while season.season_for(first - one) == here:
+        first -= one
+    while season.season_for(last + one) == here:
+        last += one
     later = [s for s in season.SEASONS if s not in (here, other)][0]
     config = ('SPELLS = {"Cold snap": {"in": (%r,), "chance": 100, "days": 1, "as": %r},\n'
               '          "Never today": {"in": (%r,), "chance": 100, "days": 1}}\n'
@@ -186,8 +193,8 @@ def t_a_spell_brings_its_season_to_play_bat_and_the_game():
         rc, out = tc.run(d, "status", tool="season.py")
         assert rc == 0, out
         assert "season          %s   (a spell: Cold snap, %s to %s)" % (
-            season.season_label(other), season._md(TODAY.month, TODAY.day),
-            season._md(TODAY.month, TODAY.day)) in out, out
+            season.season_label(other), season._md(first.month, first.day),
+            season._md(last.month, last.day)) in out, out
         assert "calendar says   %s" % season.season_label(here) in out, out
         lines = {l.split()[0] + " " + l.split()[1]: l for l in out.splitlines()
                  if "(today:" in l}
@@ -198,9 +205,8 @@ def t_a_spell_brings_its_season_to_play_bat_and_the_game():
         assert rc == 0, out
         text = io.open(ltx, encoding="cp1251").read()
         assert "[spell]\r\nseason = %s\r\nname = Cold snap\r\nfirst = %s\r\nlast = %s" % (
-            other, TODAY.isoformat(), TODAY.isoformat()) in text.replace("\n", "\r\n").replace(
+            other, first.isoformat(), last.isoformat()) in text.replace("\n", "\r\n").replace(
                 "\r\r\n", "\r\n"), text
-        # an MCM pin fixes the season: the spell's own mods still come on, its season doesn't
     return "%s brought in %s; its mods on, %s's off; [spell] written for the game" % (
         other, here, here)
 
@@ -250,8 +256,9 @@ def t_the_game_hears_of_a_spell_only_once_it_is_staged():
 @case
 def t_spells_are_the_same_on_every_run_and_as_likely_as_they_say():
     """The same date gives the same spells in two processes with different hash seeds; over
-    60 years a 3%% spell starts about 3%% of its days, runs 1 or 2 days, and starts only in
-    its season."""
+    60 years a 3%% spell starts on about 3%% of its days, as often as configure.bat says it
+    comes, and only in its season, and runs 1 or 2 days - longer only where it starts again
+    while it runs. One that starts every summer day is one spell a year, the summer long."""
     snippet = (
         "import datetime, sys; sys.path.insert(0, %r); import season\n"
         "sp = {'Frost': {'in': ('summer',), 'chance': 3, 'days': (1, 2), 'as': 'winter'}}\n"
@@ -272,7 +279,12 @@ def t_spells_are_the_same_on_every_run_and_as_likely_as_they_say():
     spec = {"in": ("summer",), "chance": 3, "days": (1, 2), "as": "winter"}
     sp = {"Frost": spec}
     where = lambda day: [season.season_for(day)]                        # noqa: E731
-    starts, lengths, outside = 0, set(), 0
+    one = datetime.timedelta(days=1)
+
+    def starts(x):
+        return season.spell_draws("Frost", x)[0] * 100 < 3 and season.season_for(x) == "summer"
+
+    runs, lengths, outside, alone = 0, set(), 0, 0
     d, end = datetime.date(2026, 1, 1), datetime.date(2086, 1, 1)
     summer_days = 0
     while d < end:
@@ -280,16 +292,31 @@ def t_spells_are_the_same_on_every_run_and_as_likely_as_they_say():
             summer_days += 1
         for n, first, last in season.spells_on(d, sp, where):
             if first == d:
-                starts += 1
-                lengths.add((last - first).days + 1)
+                runs += 1
+                days = (last - first).days + 1
+                lengths.add(days)
                 if season.season_for(first) != "summer":
                     outside += 1
-        d += datetime.timedelta(days=1)
-    rate = starts / float(summer_days)
-    assert 0.024 < rate < 0.036, (starts, summer_days, rate)
-    assert lengths == {1, 2} and outside == 0, (lengths, outside)
-    return "identical in two processes; %.2f%% of %d summer days over 60 years" % (
-        rate * 100, summer_days)
+                if days > 2 and not any(starts(first + one * k) for k in range(1, days)):
+                    alone += 1
+        d += one
+    rate = runs / float(summer_days)
+    assert 0.024 < rate < 0.036, (runs, summer_days, rate)
+    assert {1, 2} <= lengths and outside == 0 and alone == 0, (lengths, outside, alone)
+    said = season.spells_a_year(spec, where)
+    assert abs(said * 60 - runs) < 0.15 * runs, (said, runs)
+    every = {"in": ("summer",), "chance": 100, "days": (1, 2), "as": "winter"}
+    mid = datetime.date(2026, 7, 15)
+    begin, finish = mid, mid
+    while season.season_for(begin - one) == "summer":
+        begin -= one
+    while season.season_for(finish + one) == "summer":
+        finish += one
+    [(n, first, last)] = season.spells_on(mid, {"Every": every}, where)
+    assert first == begin and last in (finish, finish + one), (first, last, begin, finish)
+    assert abs(season.spells_a_year(every, where) - 1) < 0.01, season.spells_a_year(every, where)
+    return ("identical in two processes; %d runs on %.2f%% of %d summer days over 60 years, "
+            "%.2f a year said" % (runs, rate * 100, summer_days, said))
 
 
 @case
@@ -330,7 +357,7 @@ def t_a_spell_in_the_command_line_and_the_list():
         rc, out = tc.run(d, "spell", "Summer frost", "--in", "summer", "--chance", "3",
                          "--days", "1", "2", "--as", "winter")
         assert rc == 0 and "added spell Summer frost  in summer, 3% a day, 1 to 2 days; " \
-            "brings winter; about 4 times a year" in out, out
+            "brings winter; about 3 times a year" in out, out
         rc, out = tc.run(d, "spell", "Long", "--in", "summer", "--chance", "3", "--days", "7")
         assert rc == 1 and "A week or longer is a season of your own." in out, out
         rc, out = tc.run(d, "add", "Lonely Mod", "--when", "summer frost")

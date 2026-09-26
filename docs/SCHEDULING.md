@@ -189,15 +189,16 @@ weather already, so "Wormhole season" is fine as it is.
 
 **A spell** starts by chance. On each day of the seasons it names, it draws a number from
 the date and its name; if the number falls under its chance, it starts that day and runs
-for its days, past the end of the season if it has to. With `"as"`, the season it brings
-takes over while it lasts: that season's mods come on, the calendar's season's go off, and
-`play.bat` tells the game, whose light, weather and PDA follow it until its last day. With
-`"as": None` the season stays, and only the mods on during the spell come on.
+for its days, past the end of the season if it has to; a start while it runs, or on the
+day after, keeps it going. With `"as"`, the season it brings takes over while it lasts:
+that season's mods come on, the calendar's season's go off, and `play.bat` tells the game,
+whose light, weather and PDA follow it until its last day. With `"as": None` the season
+stays, and only the mods on during the spell come on.
 
 The same date and name always draw the same number, on every machine and every launch, so
 a spell can't come and go between launches on the same day, and two players with the same
 spell see it on the same days. `configure.bat` says how often each comes on average:
-3% a day in Polesia's summer is about 4 a year. No one sees a spell coming: the Forecast
+3% a day in Polesia's summer is about 3 a year. No one sees a spell coming: the Forecast
 page doesn't show them.
 
 An MCM pin fixes the season, and a spell doesn't change a pinned season; the mods on

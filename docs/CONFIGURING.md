@@ -420,7 +420,7 @@ reads, so the light, the weather and the PDA follow it until its last day. An MC
 over it. The mods on during a spell come on whether it brings a season or not.
 
 The Seasons step's **Add a spell...** shows how often a spell comes on average as you set
-it - 3% a day in Polesia's summer is about 4 a year - and `configure.py spell` lists each
+it - 3% a day in Polesia's summer is about 3 a year - and `configure.py spell` lists each
 one that way.
 
 ![A spell: where it can start, the chance each day, how long it runs, and the season it brings](images/configure-spell.png) `status` shows a spell on today on its `season` line.
