@@ -729,7 +729,7 @@ class Guide(object):
         for w in self.own_box_list.winfo_children():
             w.destroy()
         cal = self.cal
-        if not cal.own:
+        if not (cal.own or cal._bad_own):
             ttk.Label(self.own_box_list, text=_("None yet."), foreground=cf.GREY).pack(
                 anchor="w")
         for n in cal.own_order():
@@ -749,9 +749,16 @@ class Guide(object):
             self.button(line, _("Change..."), lambda n=n: cf.own_season_dialog(
                 self.root, self.cal, editing=n, done=lambda name: self.show_own()),
                 side="right")
+        # kept as written, since play.bat can't use them: said why, to change or take off
+        for n in list(cal._bad_own):
+            self.bad_row(self.own_box_list, n, cf.bad_reasons(cal, "own", n),
+                         lambda n=n: self.remove_own(n),
+                         lambda n=n: cf.own_season_dialog(
+                             self.root, self.cal, editing=n,
+                             done=lambda name: self.show_own()))
         for w in self.spell_box_list.winfo_children():
             w.destroy()
-        if not cal.spells:
+        if not (cal.spells or cal._bad_spells):
             ttk.Label(self.spell_box_list, text=_("None yet."), foreground=cf.GREY).pack(
                 anchor="w")
         for n in sorted(cal.spells, key=str.casefold):
@@ -767,6 +774,26 @@ class Guide(object):
             ttk.Label(self.spell_box_list, text=cf.spell_words(cal, cal.spells[n]),
                       foreground=cf.GREY, wraplength=520, justify="left").pack(
                 anchor="w", padx=(18, 0), pady=(0, 4))
+        for n in list(cal._bad_spells):
+            self.bad_row(self.spell_box_list, n, cf.bad_reasons(cal, "spell", n),
+                         lambda n=n: self.remove_spell(n),
+                         lambda n=n: cf.spell_dialog(
+                             self.root, self.cal, editing=n,
+                             done=lambda name: self.show_own()))
+
+    def bad_row(self, parent, name, reasons, remove, change):
+        """A season of one's own or a spell play.bat can't use: its name, Change and Remove,
+        and why, under it."""
+        ttk = self.ttk
+        line = ttk.Frame(parent)
+        line.pack(anchor="w", fill="x", pady=1)
+        ttk.Label(line, text=str(name), foreground=cf.RED, width=26).pack(side="left")
+        ttk.Label(line, text=_("play.bat can't use it as it is"), foreground=cf.RED).pack(
+            side="left")
+        self.button(line, _("Remove"), remove, side="right", pad=0)
+        self.button(line, _("Change..."), change, side="right")
+        ttk.Label(parent, text=" ".join(reasons), foreground=cf.RED, wraplength=520,
+                  justify="left").pack(anchor="w", padx=(18, 0), pady=(0, 4))
 
     def add_own(self):
         cf.own_season_dialog(self.root, self.cal, done=lambda name: self.show_own())

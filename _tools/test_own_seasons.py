@@ -572,6 +572,36 @@ print("ASKED", asked)
     return "Frost meets winter, not summer; Storm meets summer; asked, noted; renamed with it"
 
 
+@case
+def t_one_play_bat_cant_use_is_shown_with_why():
+    """A season of one's own or a spell play.bat would refuse was kept in the file but left
+    out of the setup's Seasons step, which said "None yet." over it, and the advanced
+    editor's reason missed what only the rest of the setup shows: a name an event has."""
+    config = ('OWN_SEASONS = {"Too short": ((8, 1), (8, 3))}\n'
+              'EVENTS = {"christmas": ((12, 24), (12, 26))}\n'
+              'SPELLS = {"christmas": {"in": ("winter",), "chance": 3, "days": 1}}\n')
+    with tempfile.TemporaryDirectory() as d:
+        tg.sandbox(d, config=config)
+        rc, out = tg.drive(d, r"""
+g.edit("seasons")
+settle()
+shown = [t for t in texts(g.own_box_list) + texts(g.spell_box_list) if t.strip()]
+print("SHOWN", shown)
+print("EDITOR", cf.bad_reasons(g.cal, "spell", "christmas"))
+[w for w in widgets(g.own_box_list) if w.winfo_class() == "TButton"
+ and str(w.cget("text")) == "Remove"][0].invoke()
+settle()
+print("AFTER", g.cal._bad_own, [t for t in texts(g.own_box_list) if t.strip()])
+""")
+        assert rc == 0, out
+        assert "'Too short', \"play.bat can't use it as it is\"" in out \
+            and "It runs 3 days, Aug 1 to Aug 3. A season of your own runs at least a week." \
+            in out and "None yet." not in out.split("AFTER")[0], out
+        assert "That is already an event. Give it another name." in out.split("EDITOR")[1], out
+        assert "AFTER {} ['None yet.']" in out, out
+    return "each listed with why, Change and Remove; the editor's reason sees the event"
+
+
 if __name__ == "__main__":
     failed = 0
     for fn in CASES:

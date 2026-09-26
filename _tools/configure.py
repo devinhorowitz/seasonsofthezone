@@ -983,6 +983,23 @@ def reason(problem):
     return p[:1].upper() + p[1:]
 
 
+def bad_reasons(cal, kind, name):
+    """Why play.bat can't use the season of one's own ("own") or spell ("spell") `name`
+    that `cal` keeps as written, judged with the rest of the setup, as season.py says it."""
+    if kind == "own":
+        table = dict(cal.own)
+        table[name] = cal._bad_own[name]
+        got = season.own_problems(table, cal.periods, cal.events, cal.names)
+        mine = "OWN_SEASONS[%r]" % (name,)
+    else:
+        table = dict(cal.spells)
+        table[name] = cal._bad_spells[name]
+        got = season.spell_problems(table, list(cal.dates), cal.own, cal.periods, cal.events,
+                                    cal.names)
+        mine = "SPELLS[%r]" % (name,)
+    return [reason(p) for p in got if p.startswith(mine)] or [reason(p) for p in got]
+
+
 def center(win, root):
     """Put a dialog over the middle of the window it belongs to, or of the screen while
     that window is not up yet."""
@@ -1717,7 +1734,7 @@ class App(object):
         ttk = self.ttk
         for w in self.own_frame.winfo_children():
             w.destroy()
-        if not self.cal.own:
+        if not (self.cal.own or self.cal._bad_own):
             ttk.Label(self.own_frame, text=_("None yet."), foreground=GREY).pack(anchor="w")
         for n in self.cal.own_order():
             line = ttk.Frame(self.own_frame)
@@ -1739,7 +1756,7 @@ class App(object):
             ttk.Button(line, text=_("Delete"), command=lambda n=n: self.delete_own(n)).pack(
                 side="right")
             ttk.Label(line, text=_("Can't be used. %s") % " ".join(
-                reason(x) for x in season.own_problems({n: raw})), foreground=RED,
+                bad_reasons(self.cal, "own", n)), foreground=RED,
                 wraplength=300, justify="left").pack(side="left")
         for w in self.spell_frame.winfo_children():
             w.destroy()
@@ -1762,7 +1779,7 @@ class App(object):
             ttk.Button(line, text=_("Delete"), command=lambda n=n: self.delete_spell(n)).pack(
                 side="right")
             ttk.Label(line, text=_("Can't be used. %s") % " ".join(
-                reason(x) for x in season.spell_problems({n: raw}, own=self.cal.own)),
+                bad_reasons(self.cal, "spell", n)),
                 foreground=RED, wraplength=300, justify="left").pack(side="left")
 
     def add_event(self, name, start=None, end=None, spec=None, mod="current"):
