@@ -89,4 +89,47 @@ runs, for when the tools are missing or in the wrong folder, and what is written
 
 ## The game
 
-<!-- the game's half is written from the in-game work -->
+The game's words are the mod's string tables, in
+`mods\Seasons of the Zone\gamedata\configs\text\eng\`:
+
+| File | What it is |
+|---|---|
+| `st_seasons_of_the_zone.xml` | Everything the mod says in game: the PDA app's two pages, its messages, the transmissions on the days the Zone marks, month and season names. |
+| `ui_seasons_of_the_zone.xml` | The MCM pages. |
+
+The game picks the folder by its own language setting: a Russian game reads
+`text\rus\`. A translation is a copy of both files there, with each `<text>` translated
+and every `id` kept. Copy the whole file even before it is all done, leaving what isn't
+translated yet in English: whether the game falls back to English for a string a language
+is missing isn't certain, so every id should be there.
+
+What to keep:
+
+- **The encoding.** The files are windows-1251, as the first line says; Cyrillic fits in
+  it. Save them that way, not as UTF-8.
+- **`$name` placeholders** are values the game fills in - a place, a count, a date, a
+  season. Put each wherever the sentence needs it, and keep its name.
+- **Two forms of a season.** `$Season` starts a sentence and `$season` goes inside one
+  ("Deep winter", "deep winter"); `$From`/`$from`, `$To`/`$to`, `$Next`/`$next` and
+  `$Pinned`/`$pinned` work the same way. Each season has both: `st_sotz_season_<key>` and
+  `st_sotz_season_<key>_mid`.
+- **Counts.** An id that comes as `<id>_one` and `<id>_many` takes a count, `$n`. Russian
+  needs a third form: add `<id>_few` beside each pair, and set `st_sotz_plural_rule` to
+  `ru`. Then `_one` is for 1, 21, 31..., `_few` for 2-4, 22-24..., `_many` for the rest.
+- **Dates.** `st_sotz_date` and `st_sotz_date_short` put the parts of a date in order:
+  "$month $day, $year" becomes "$day $month $year" in Russian. Each month has four forms:
+  on its own and inside a date (`_date`), full and short (`_short`). In Russian the ones
+  inside a date take the genitive: "сентября".
+- **One line each.** A `<text>` stays on one line, with no double spaces and no spaces at
+  its ends: the game's XML reader drops them.
+
+What stays English for now:
+
+- Words drawn into textures: the year dial's season names, its lines under each season and
+  its day counts, and the barometer's STORMY / RAIN / CHANGE / FAIR / DRY.
+- `ui_mcm_seasons_mods.xml`, which `season.py` writes for your own seasonal mods, into
+  `text\eng\`.
+- The words other mods read from the API, like the emission warning's bands.
+
+`_tools\test_strings.py` checks that every id the scripts use is in the English tables and
+that no script puts English on the screen itself.
