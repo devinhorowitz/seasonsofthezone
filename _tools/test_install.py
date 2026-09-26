@@ -730,6 +730,42 @@ def t_the_build_installs_the_way_players_do():
 
 
 @case
+def t_the_build_follows_what_the_batch_files_run():
+    """A package without guide.py, which configure.py imports, passed the build's check of
+    the batch files, and so did a play.bat asking season.py to say a line it doesn't have.
+    Both are refused; the package as it is passes."""
+    def stage(d, leave_out=None, bat=None):
+        os.makedirs(os.path.join(d, "_tools"))
+        for f in build_release.TOOL_FILES:
+            if f != leave_out and f.endswith(".py"):
+                shutil.copy2(os.path.join(HERE, f), os.path.join(d, "_tools", f))
+        for f in ("play.bat", "configure.bat"):
+            shutil.copy2(os.path.join(REPO, f), os.path.join(d, f))
+        if bat:
+            io.open(os.path.join(d, "play.bat"), "a", encoding="latin-1").write(bat)
+        return d
+
+    def refused(d):
+        try:
+            quiet(build_release.check_play_bat, d)
+        except SystemExit as e:
+            return str(e)
+        return None
+
+    with tempfile.TemporaryDirectory() as d:
+        assert refused(stage(d)) is None
+    for leave_out in ("guide.py", "mod_install.py", "lang.py"):
+        with tempfile.TemporaryDirectory() as d:
+            said = refused(stage(d, leave_out))
+            assert said and leave_out in said, (leave_out, said)
+    with tempfile.TemporaryDirectory() as d:
+        said = refused(stage(d, bat='%PY% "_tools\\season.py" say checkin\r\n'))
+        assert said and "checkin" in said, said
+    return "the package passes; without guide.py, mod_install.py or lang.py, or with a " \
+        "line season.py can't say, refused"
+
+
+@case
 def t_the_build_refuses_a_version_not_in_the_changelog():
     changelog = os.path.join(build_release.OUT, "CHANGELOG.md")
     if not os.path.isfile(changelog):               # a clone: the changelog is at the top

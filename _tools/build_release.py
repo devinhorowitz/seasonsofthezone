@@ -276,17 +276,56 @@ def check_doc_images(stage):
     print("  doc images             every shown image is packaged or linked")
 
 
+def imported(path, tools=TOOLS):
+    """The modules of `tools` a script imports, as file names: import x, from x import y,
+    and __import__("x")."""
+    tree = ast.parse(io.open(path, encoding="utf-8").read())
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names |= {a.name.split(".")[0] for a in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
+            names.add(node.module.split(".")[0])
+        elif (isinstance(node, ast.Call) and getattr(node.func, "id", None) == "__import__"
+              and node.args and isinstance(node.args[0], ast.Constant)):
+            names.add(str(node.args[0].value).split(".")[0])
+    return {n + ".py" for n in names if os.path.isfile(os.path.join(tools, n + ".py"))}
+
+
 def check_play_bat(stage):
-    """Every script the batch files run must be in the package. 1.5.0 and 1.6.0 shipped
-    without fetch_weather.py, and play.bat carried on without it."""
+    """Every script the batch files run must be in the package, and every one of ours
+    they import, and theirs. 1.5.0 and 1.6.0 shipped without fetch_weather.py, and play.bat
+    carried on without it; a package without guide.py passed every check here, and
+    configure.bat's window couldn't open. And each line play.bat asks season.py to say has
+    to be one it says, or that line stays English for good."""
     for bat_name in ("play.bat", "configure.bat"):
         bat = io.open(os.path.join(stage, bat_name), encoding="latin-1").read()
-        wanted = sorted(set(re.findall(r"_tools\\(\w+\.py)", bat)))
-        missing = [f for f in wanted if not os.path.isfile(os.path.join(stage, "_tools", f))]
-        if not wanted or missing:
+        runs = sorted(set(re.findall(r"_tools\\(\w+\.py)", bat)))
+        wanted, todo = set(runs), list(runs)
+        while todo:
+            f = todo.pop()
+            src = os.path.join(TOOLS, f)
+            for g in (imported(src) if os.path.isfile(src) else set()) - wanted:
+                wanted.add(g)
+                todo.append(g)
+        missing = sorted(f for f in wanted
+                         if not os.path.isfile(os.path.join(stage, "_tools", f)))
+        if not runs or missing:
             raise SystemExit("  refusing to package: %s runs %s, which is not in _tools/"
                              % (bat_name, ", ".join(missing) or "nothing from _tools"))
-        print("  %-22s %3d tools it runs, all packaged" % (bat_name, len(wanted)))
+        keys = sorted(set(re.findall(r'season\.py" say (\w+)', bat)))
+        if keys:
+            r = subprocess.run([sys.executable, "-B", "-c",
+                                "import sys; sys.path.insert(0, sys.argv[1]); import season;"
+                                "print([k for k in sys.argv[2:] if season.play_words(k) "
+                                "is None])", os.path.join(stage, "_tools")] + keys,
+                               capture_output=True, text=True, env=dict(os.environ,
+                                                                        SEASONS_LANG="en"))
+            if r.returncode or r.stdout.strip() != "[]":
+                raise SystemExit("  refusing to package: %s asks season.py to say %s, which "
+                                 "it doesn't" % (bat_name, r.stdout.strip() or r.stderr[-200:]))
+        print("  %-22s %3d tools it runs and imports, all packaged%s"
+              % (bat_name, len(wanted), "; %d lines said" % len(keys) if keys else ""))
 
 
 def write_crlf(src, dst):
