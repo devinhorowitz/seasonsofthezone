@@ -46,6 +46,7 @@ import time
 import tokenize
 import traceback
 import types
+import zlib
 
 import lang
 from lang import _, N_, ngettext, pgettext        # noqa: F401 - used as the strings are marked
@@ -715,11 +716,33 @@ def _axr_options():
 
 
 def _slug(name):
-    """Stable key for a mod folder; it becomes the MCM option id."""
-    s = "".join(c if c.isalnum() else "_" for c in name.lower())
+    """A mod's name as a key: lower case, letters and digits kept and the rest "_", 48
+    characters at most. A letter the game's files can't hold (cp1251) counts as the rest.
+    mod_keys() makes each mod's its own."""
+    s = "".join(c if c.isalnum() and _cp1251(c) else "_" for c in name.lower())
     while "__" in s:
         s = s.replace("__", "_")
     return s.strip("_")[:48]
+
+
+def mod_keys(names=None):
+    """{mod: key} for the mods on the calendar, a key each: the MCM checkbox goes by it, and
+    season_mods.ltx has a section for it, which the game can't load twice. A mod keeps its
+    _slug unless that lost letters the game's files can't hold, or a mod before it by name
+    has it already - names that differ only in punctuation, or long ones that start alike;
+    then a checksum of its whole name makes it its own."""
+    names = TOGGLE_MODS if names is None else names
+    out, taken = {}, set()
+    for name in sorted(names, key=lambda n: (n.casefold(), n)):
+        k = _slug(name)
+        if not k or k in taken or any(c.isalnum() and not _cp1251(c) for c in name.lower()):
+            k = "%s_%08x" % (k[:39].rstrip("_") or "mod",
+                             zlib.crc32(name.encode("utf-8")) & 0xffffffff)
+        while k in taken:
+            k += "_"
+        taken.add(k)
+        out[name] = k
+    return out
 
 
 def _display(name):
@@ -990,6 +1013,7 @@ def apply_toggles(active, dry_run=False, prefs=None):
     head, body = lines[0], lines[1:]
     changed = []
     folders = _mod_folders()
+    keys = mod_keys()
     del SKIPPED[:]
     for name, cfg in TOGGLE_MODS.items():
         if name not in folders:
@@ -999,7 +1023,7 @@ def apply_toggles(active, dry_run=False, prefs=None):
         # period, because that is what has a page.
         on = (bool(set(_when(cfg)) & active_set)
               and prefs["stage_textures"]
-              and _slug(name) not in prefs["off"].get(base, set()))
+              and keys[name] not in prefs["off"].get(base, set()))
         got = _place(body, name, cfg["above"], "+" if on else "-")
         if got is False:
             print("  ! " + _("%(mod)s skipped: the mod it wins over, \"%(above)s\", is not in "
@@ -1058,6 +1082,7 @@ def toggle_status(active, prefs=None):
     base, active_set = active[0], set(active)
     body = (_modlist_lines() or [])[1:]
     folders = _mod_folders()
+    keys = mod_keys()
     out = []
     for name, cfg in TOGGLE_MODS.items():
         installed = name in folders
@@ -1065,7 +1090,7 @@ def toggle_status(active, prefs=None):
         held = None
         if not prefs["stage_textures"]:
             held = "off"
-        elif _slug(name) in prefs["off"].get(base, set()):
+        elif keys[name] in prefs["off"].get(base, set()):
             held = "mod"
         out.append((name, installed, state, bool(set(_when(cfg)) & active_set), held))
     return out
@@ -1236,14 +1261,14 @@ def write_mod_panel(active, prefs=None):
               toggle_status(active, prefs)}
     crlf = chr(13) + chr(10)
 
-    rows = []
+    rows, keys = [], mod_keys()
     for name, cfg in TOGGLE_MODS.items():
         inst, state, want, held = status[name]
         if not inst:
             continue
         n, b = _mod_weight(os.path.join(MODS, name))
         rows.append({
-            "key": _slug(name), "name": _display(name), "folder": name,
+            "key": keys[name], "name": _display(name), "folder": name,
             "seasons": list(_when(cfg)), "files": n, "mb": b / 1048576.0,
             "enabled": state == "+", "wanted": want, "held": held,
         })
@@ -3093,15 +3118,6 @@ def main():
                                  "off, so it never switches on.")
                       % {"mod": name[:40], "seasons": seasons_text(sorted(w,
                                                                           key=SEASONS.index))})
-        # MCM keys a mod's per-season checkbox by its name with the punctuation dropped, so
-        # "Winter Pack" and "Winter-Pack" would share one
-        keys = {}
-        for name in TOGGLE_MODS:
-            keys.setdefault(_slug(name), []).append(name)
-        for key, same in keys.items():
-            if len(same) > 1:
-                print("  - " + _("%s share one checkbox in MCM, so unchecking it keeps all of "
-                                 "them disabled in that season.") % _and_each(same))
         for line in shadow_check(force=(a.cmd == "status")):
             print(line)
         sound_now = soundscape_installed()

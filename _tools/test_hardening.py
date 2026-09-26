@@ -438,6 +438,39 @@ def t_a_mod_set_to_win_through_another_is_not_a_note():
     return "an overlap through the chain left alone, the control noted; one hint for two mods"
 
 
+@case
+def t_every_seasonal_mod_has_a_section_and_a_checkbox_of_its_own():
+    """Mods whose names differ only in punctuation, long names that start alike, and names in
+    letters the game's files can't hold got one key between them, so season_mods.ltx had a
+    section twice, which stops the game as it loads; and an MCM uncheck for a Polish name
+    was never read back."""
+    import season
+    long = "Seasonal Grass and Trees Overhaul by Someone Winter Edition "
+    names = ["Winter Pack", "Winter-Pack", long + "A", long + "B", "雪地",
+             "冬天", "Śnieg na drzewach"]
+    mods = tc.MODS + [(n, False, ["textures/x/%d.dds" % i]) for i, n in enumerate(names)]
+    toggle = "{%s}" % ", ".join('%r: {"when": ("winter",), "above": "Base Grass"}' % n
+                                for n in names)
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=cfg(TOGGLE_MODS=toggle), mods=mods)
+        tc.with_mod(d)
+        rc, out = status(d, "apply", "--season", "winter")
+        assert rc == 0, out
+        ltx = io.open(os.path.join(d, "mods", "Seasons of the Zone", "gamedata", "configs",
+                                   "season_mods.ltx"), encoding="cp1251").read()
+        sections = [l for l in ltx.splitlines() if l.startswith("[")]
+        assert len(set(sections)) == len(sections) == len(names) + 1, sections
+        assert not [s for s in sections if "?" in s], sections
+        ow = os.path.join(d, "overwrite", "gamedata", "configs")
+        os.makedirs(ow)
+        io.open(os.path.join(ow, "axr_options.ltx"), "w", encoding="cp1251").write(
+            "[mcm]\nseasons_zone/winter/mod_%s = false\n" % season.mod_keys(names)[names[-1]])
+        rc, out = status(d, "status", "--season", "winter")
+        line = [l for l in out.splitlines() if "nieg na drzewach" in l]
+        assert rc == 0 and line and "unchecked for this season in MCM" in line[0], out
+    return "%d sections, each once; the Polish uncheck read back" % len(sections)
+
+
 if __name__ == "__main__":
     print("  breaking the shipped season.py")
     bad = 0

@@ -53,7 +53,7 @@ def install(root, config=None, mods=MODS):
         for f in files:
             p = os.path.join(root, "mods", name, "gamedata", *f.split("/"))
             os.makedirs(os.path.dirname(p), exist_ok=True)
-            io.open(p, "w").write(name)
+            io.open(p, "w", encoding="utf-8").write(name)
     io.open(os.path.join(root, "profiles", "Default", "modlist.txt"), "w",
             encoding="utf-8", newline="").write(CRLF.join(lines) + CRLF)
 
