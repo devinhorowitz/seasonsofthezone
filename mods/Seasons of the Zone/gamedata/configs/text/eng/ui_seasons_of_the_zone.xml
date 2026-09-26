@@ -246,6 +246,7 @@
 	<!-- Main page: the calendar -->
 	<string id="ui_mcm_seasons_zone_today"><text>Today is $date.</text></string>
 	<string id="ui_mcm_seasons_zone_pinned"><text>Pinned to $pinned - the calendar reads $season.</text></string>
+	<string id="ui_mcm_seasons_zone_spell"><text>$name brings $spell until $ends - the calendar reads $season.</text></string>
 
 	<!-- The preset lists: the built-in grade, and the mod's own presets. The rest are
 	     files in appdata and go by their names. -->

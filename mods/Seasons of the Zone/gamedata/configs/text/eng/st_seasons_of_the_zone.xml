@@ -203,6 +203,7 @@
 
 	<!-- The PDA report on loading in; $date is today's -->
 	<string id="st_sotz_news_pinned"><text>$Season in the Zone.</text></string>
+	<string id="st_sotz_news_spell"><text>$Season in the Zone for now: $name, until $ends.</text></string>
 	<string id="st_sotz_news_one_season"><text>$Season in the Zone. $date.</text></string>
 	<string id="st_sotz_news_next_tomorrow"><text>$Season in the Zone. $date. $Next begins tomorrow.</text></string>
 	<string id="st_sotz_news_next_in_days_one"><text>$Season in the Zone. $date. $Next begins in $n day.</text></string>

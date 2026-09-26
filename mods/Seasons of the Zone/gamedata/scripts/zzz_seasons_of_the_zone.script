@@ -242,10 +242,12 @@ local MONTH_LEN = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 local MIN_SEASON_DAYS = 14  -- as season.py holds it: shorter has no dial position of its own
 local NAME_CHARS = 20       -- the longest name season.py lets through
 
--- {key = value} from the file's [calendar] section, keys lower-cased; nil with no file.
--- Read here rather than through ini_file(), because the engine asserts on a malformed
--- section line, and a typo in this one file must not stop the game loading.
-local function calendar_file()
+-- {key = value} from one section of the file, [calendar] unless `want` names another,
+-- keys lower-cased; nil with no file. Read here rather than through ini_file(), because
+-- the engine asserts on a malformed section line, and a typo in this one file must not
+-- stop the game loading.
+local function calendar_file(want)
+    want = want or "calendar"
     local fs = getFS()
     if not fs:exist("$game_config$", "season_calendar.ltx") then return nil end
     local f = io.open(fs:update_path("$game_config$", "season_calendar.ltx"), "r")
@@ -258,7 +260,7 @@ local function calendar_file()
         local sec = line:match("^%[%s*([%w_]+)%s*%]$")
         if sec then
             section = sec:lower()
-        elseif section == "calendar" then
+        elseif section == want then
             local k, v = line:match("^([%w_]+)%s*=%s*(.-)$")
             if k then kv[k:lower()] = v end
         end
@@ -367,6 +369,45 @@ local function pinned()
     local mode = mcm("mode", "auto")
     if mode ~= "auto" and not is_on(mode) then return "auto" end
     return mode
+end
+
+-- The spell play.bat found for the day it staged, when the spell brings a season:
+-- {season, name, first, last}, the days as "YYYY-MM-DD". nil when there is none.
+local function read_spell()
+    local kv = calendar_file("spell")
+    if not kv or not kv.season then return nil end
+    local s, first, last = kv.season:lower(), kv.first or "", kv.last or ""
+    local day = "^%d%d%d%d%-%d%d%-%d%d$"
+    if not is_on(s) or not first:match(day) or not last:match(day) or last < first then
+        say("!season_calendar.ltx: the spell in it can't be used - the calendar decides")
+        return nil
+    end
+    return {season = s, name = kv.name or "", first = first, last = last}
+end
+
+local ok_spell, SPELL = pcall(read_spell)
+if not ok_spell then
+    say("!season_calendar.ltx: its spell could not be read (" .. tostring(SPELL)
+        .. ") - the calendar decides")
+    SPELL = nil
+end
+
+-- The spell, while today is one of its days. A session that runs past its last day, or a
+-- launch on a later day without play.bat, is back on the calendar.
+local function spell_today()
+    if not SPELL then return nil end
+    local today = os.date("%Y-%m-%d")
+    if today >= SPELL.first and today <= SPELL.last then return SPELL end
+    return nil
+end
+
+-- The season the game runs when it isn't the calendar's: the MCM pin, else a spell's.
+-- "auto" when it is the calendar's. Every layer asks this; pinned() is for saying so.
+local function season_mode()
+    local mode = pinned()
+    if mode ~= "auto" then return mode end
+    local sp = spell_today()
+    return sp and sp.season or "auto"
 end
 
 -- --- color grade presets ------------------------------------------------------------
@@ -644,7 +685,7 @@ function snow_factor()
 
     local v = 0.0
     if mcm("enabled", true) then
-        local mode = pinned()
+        local mode = season_mode()
         if mode ~= "auto" then
             v = SNOW_WEIGHT[mode] or 0.0
         else
@@ -671,7 +712,7 @@ function season_mix()
     local m = {spring = 0, summer = 0, autumn = 0, winter = 0, winter_snow = 0,
                late_winter = 0}
     if mcm("enabled", true) then
-        local mode = pinned()
+        local mode = season_mode()
         if mode ~= "auto" and m[mode] then
             m[mode] = 1.0
         else
@@ -727,8 +768,8 @@ function dial_texture()
 end
 
 
--- Rows for the MCM panel: today's date, and a line when a pinned season disagrees with
--- the calendar. Touches no game state, so it is safe at the main menu.
+-- Rows for the MCM panel: today's date, and a line when a pin or a spell has the season
+-- differ from the calendar's. Touches no game state, so it is safe at the main menu.
 function calendar_rows()
     local year = os.date("*t").year
     local doy  = tonumber(os.date("%j"))
@@ -747,7 +788,16 @@ function calendar_rows()
     rows[#rows + 1] = {text = sotz_text.text("ui_mcm_seasons_zone_today", {date = today}),
                        current = false}
 
-    if live and live.mode ~= "auto" and live.season ~= cur then
+    if live and live.spell and live.season ~= cur then
+        local y, m, d = live.spell.last:match("^(%d+)%-(%d+)%-(%d+)$")
+        rows[#rows + 1] = {
+            text = sotz_text.text("ui_mcm_seasons_zone_spell", {
+                name = live.spell.name, ends = sotz_text.date_short(tonumber(m), tonumber(d)),
+                spell = name_of(live.season), Spell = cap(live.season),
+                season = name_of(cur), Season = cap(cur)}),
+            current = true,
+        }
+    elseif live and live.mode ~= "auto" and live.season ~= cur then
         rows[#rows + 1] = {
             text = sotz_text.text("ui_mcm_seasons_zone_pinned", {
                 pinned = name_of(live.season), Pinned = cap(live.season),
@@ -864,7 +914,7 @@ local function apply(announce)
         wet   = mcm("do_wet",   true),
     }
     local intensity = mcm("intensity", 1.0)
-    local mode      = pinned()
+    local mode      = season_mode()
 
     local from, to, k
     if mode == "auto" then
@@ -873,7 +923,10 @@ local function apply(announce)
         from, to, k = mode, mode, 1.0
     end
 
-    live = {mode = mode, season = to}
+    -- the spell, when it is a spell and not the pin that set the season
+    local spell = nil
+    if pinned() == "auto" then spell = spell_today() end
+    live = {mode = mode, season = to, spell = spell}
 
     want = build(from, to, k, intensity, layers)
     local c = get_console()
@@ -950,11 +1003,18 @@ local function pda_announce()
     -- one whole sentence for each thing the report can say, so a translation can put the
     -- season, the date and the count wherever its language wants them
     local mode = pinned()
+    local sp = nil
+    if mode == "auto" then sp = spell_today() end
     local msg
     if mode ~= "auto" then
         -- pinned: no date, which would only contradict the season
         msg = sotz_text.text("st_sotz_news_pinned",
                              {season = name_of(mode), Season = cap(mode)})
+    elseif sp then
+        local y, m, d = sp.last:match("^(%d+)%-(%d+)%-(%d+)$")
+        msg = sotz_text.text("st_sotz_news_spell", {
+            season = name_of(sp.season), Season = cap(sp.season), name = sp.name,
+            ends = sotz_text.date(tonumber(m), tonumber(d), tonumber(y))})
     else
         local from, to, k = resolve(mcm("blend_days", 14))
         if from == to then
@@ -1413,7 +1473,7 @@ local function actor_on_first_update()
     if staged and staged:section_exist("staged") then
         local s = staged:r_string_ex("staged", "season")
         local on = (staged:r_string_ex("staged", "staging") or "on") ~= "off"
-        local mode = pinned()
+        local mode = season_mode()
         local running = (mode ~= "auto") and mode
                         or season_at(tonumber(os.date("%j")), os.date("*t").year)
         local a_season = false
