@@ -693,6 +693,7 @@ class Calendar(object):
         self.path = path
         self.exists = os.path.isfile(path)
         self.error, self.problems, self.fixes = None, [], []
+        self.wrote = False
         self.toggle, self.events = {}, {}
         self.periods, self.layout, self.sound_src = {}, {}, None
         self._kept_toggle, self._kept_events = {}, {}
@@ -1230,7 +1231,9 @@ class Calendar(object):
         return os.path.basename(dst)
 
     def save(self):
-        """Write the file. Returns (saved, lines to show)."""
+        """Write the file. Returns (saved, lines to show); `wrote` says afterwards whether
+        anything was written, as the lines, in the player's language, can't."""
+        self.wrote = False
         if self.error:
             return False, ["seasons_config.py can't be edited here:"] + self.error
         if not self.dirty():
@@ -1277,6 +1280,7 @@ class Calendar(object):
             return False, ["Not saved: %s. Close any program that has seasons_config.py "
                            "open, then try again." % e]
         self.__init__(self.path)
+        self.wrote = True
         return True, (["Saved %s." % os.path.basename(self.path)] + notes
                       + (["Also fixed:"] + ["  " + f for f in fixes] if fixes else []))
 

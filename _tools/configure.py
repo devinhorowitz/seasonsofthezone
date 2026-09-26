@@ -154,7 +154,7 @@ def save(cal, summary=()):
         for l in lines:
             print("  " + l)
         raise SystemExit(1)
-    if lines == ["Nothing to save."]:
+    if not cal.wrote:
         print("  Nothing changed: it is already set that way.")
         return False
     for l in list(summary) + lines:
@@ -2249,7 +2249,7 @@ class App(object):
         moved = calendar_moved(self.cal)
         placed = self.cal.place_changed()
         saved, lines = self.cal.save()
-        if saved and lines != ["Nothing to save."]:
+        if saved and self.cal.wrote:
             self.root.configure(cursor="watch")
             self.root.update()
             if moved:

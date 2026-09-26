@@ -1148,7 +1148,7 @@ class Guide(object):
                                  parent=self.root)
             return False
         extra = []
-        if lines != ["Nothing to save."]:
+        if self.cal.wrote:
             self.root.configure(cursor="watch")
             self.root.update()
             if moved:
