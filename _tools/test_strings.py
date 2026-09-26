@@ -312,6 +312,8 @@ NOT_SHOWN = {
         "Atmospherics not present", "Dynamic Anomalies Overhaul not present", "no level",
         "seeded %s on %s over %s passes (artefacts %s -> %s)", "seeded artefacts on ",
         " (count unavailable)", "no-getter(n=%d %s)"},
+    # the default place's name in the weather file, compared to show the table's instead
+    "ui_seasons_forecast.script": {"Chornobyl"},
 }
 
 FORMAT = re.compile(r"%[-+ #0]*\d*(?:\.\d+)?[sdifgGeExXcq%]|%[aAcCdDgGlLpPsSuUwWxX]")
@@ -900,6 +902,20 @@ def t_the_tables_read_as_the_engine_reads_them():
 
 
 HOLDER = re.compile(r"\$([A-Za-z_][A-Za-z0-9_]*)")
+LITERAL_CALL = re.compile(r'sotz_text\.(?:text|plural)\(\s*"([a-z0-9_]+)"\s*,'
+                          r'(?:[^,{}()]+,)?\s*\{([^{}]*)\}')
+
+
+def filled_keys():
+    """{id: the names a script fills into it}, for each call given a table as written. A
+    season comes in two forms, $Season and $season, and the scripts fill both where they
+    fill one, so a translation may use the other; where the scripts fill a table built
+    elsewhere, only the English's names count."""
+    out = {}
+    for p in sorted(glob.glob(os.path.join(SCRIPTS, "*.script"))):
+        for sid, body in LITERAL_CALL.findall(io.open(p, encoding="cp1251").read()):
+            out.setdefault(sid, set()).update(re.findall(r"([A-Za-z_]\w*)\s*=(?!=)", body))
+    return out
 
 
 def translation_problems(folder, eng):
@@ -907,7 +923,7 @@ def translation_problems(folder, eng):
     an id English doesn't have, a $placeholder its English doesn't fill, and, under the
     Russian plural rule, a count without its _few form. A table may leave ids out: the game
     shows the English for those."""
-    out, have = [], {}
+    out, have, filled = [], {}, filled_keys()
     for p in sorted(glob.glob(os.path.join(folder, "*.xml"))):
         entries, bad = read_table(open(p, "rb").read(), os.path.basename(p))
         out += bad
@@ -918,7 +934,9 @@ def translation_problems(folder, eng):
             if not (sid.endswith("_few") and sid[:-4] + "_many" in eng):
                 out.append("%s: %s is not in the English table" % (lang, sid))
             continue
-        extra = set(HOLDER.findall(t)) - set(HOLDER.findall(eng[sid]))
+        base = sid[:-4] + "_many" if sid.endswith("_few") else sid
+        extra = (set(HOLDER.findall(t)) - set(HOLDER.findall(eng[sid]))
+                 - filled.get(sid, set()) - filled.get(base.rsplit("_", 1)[0], set()))
         if extra:
             out.append("%s: %s has $%s, which the game doesn't fill there"
                        % (lang, sid, ", $".join(sorted(extra))))
@@ -1179,6 +1197,34 @@ def t_a_translation_can_move_the_words():
     _, en = sandbox(table())
     assert en.date(9, 25, 2026) == "September 25, 2026", en.date(9, 25, 2026)
     return "the day before the month, a value used twice, a % left alone"
+
+
+@case
+def t_a_season_is_filled_in_both_its_forms():
+    """TRANSLATING.md lets a translation use $To where the English has $to: the check of a
+    translation takes a name the scripts fill in, not only the English's. Russian's "$To
+    ... $from" for "$From giving way to $to." fits; $From in a span of dates, which the
+    scripts fill as $from only, doesn't."""
+    filled = filled_keys()
+    assert len(filled) > 15 and {"from", "From", "to", "To"} <= filled.get(
+        "st_sotz_msg_giving_way", set()), filled
+    d = os.path.join(TMP, "rus")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "st_seasons_of_the_zone.xml"), "wb") as f:
+        f.write(('<?xml version="1.0" encoding="windows-1251"?>\n<string_table>\n'
+                 '<string id="st_sotz_msg_giving_way"><text>$To выте'
+                 'сняет $from.</text></string>\n'
+                 '</string_table>\n').encode("cp1251"))
+    got = translation_problems(d, table())
+    assert not got, got
+    with open(os.path.join(d, "st_seasons_of_the_zone.xml"), "wb") as f:
+        f.write(('<?xml version="1.0" encoding="windows-1251"?>\n<string_table>\n'
+                 '<string id="st_sotz_year_span"><text>$From - $to</text></string>\n'
+                 '</string_table>\n').encode("cp1251"))
+    got = translation_problems(d, table())
+    assert len(got) == 1 and "$From" in got[0], got
+    return "%d ids filled from a table; $To for $to fits, $From in a date span doesn't" % (
+        len(filled))
 
 
 if __name__ == "__main__":

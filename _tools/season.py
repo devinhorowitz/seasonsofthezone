@@ -1344,8 +1344,9 @@ def write_mod_panel(active, prefs=None):
     for r in rows:
         seas = seasons_english(r["seasons"])
         mb = ("{:,.1f}".format(r["mb"]) if r["mb"] < 10 else "{:,.0f}".format(r["mb"]))
-        desc = ("%s. %s files, %s MB. Uncheck to leave it out of this season."
-                % (cap_first(seas), "{:,}".format(r["files"]), mb))
+        desc = ("%s. %s %s, %s MB. Uncheck to leave it out of this season."
+                % (cap_first(seas), "{:,}".format(r["files"]),
+                   "file" if r["files"] == 1 else "files", mb))
         caption = r["caption"]
         x += ['\t<string id="ui_mcm_seasons_zone_mod_%s"><text>%s</text></string>'
               % (r["key"], _xml_escape(caption)),
