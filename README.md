@@ -99,6 +99,26 @@ PERIODS = {                    # extra base periods, alongside the seasons
 }
 ```
 
+**Seasons of your own** are named stretches of the year, a week or longer - up to 52 of
+them - that run on top of the season they fall in, as events do. A wormhole anomaly mod
+made the usual way can come on for "Wormhole season" in August and leave summer's mods
+where they are.
+
+**Spells** come by chance. On each day of the seasons a spell names there is a chance it
+starts, and then it runs 1 to 6 days. A spell can bring another season with it: a spell
+of winter in summer switches the winter mods on and summer's off, and the game's light and
+weather follow it until it ends. The date decides, so every launch that day agrees.
+
+```python
+OWN_SEASONS = {
+    "Wormhole season": ((8, 1), (8, 31)),        # first and last day, a week or longer
+}
+SPELLS = {
+    # in summer, a 3% chance each day of a day or two of winter
+    "Summer frost": {"in": ("summer",), "chance": 3, "days": (1, 2), "as": "winter"},
+}
+```
+
 Full reference: **[docs/SCHEDULING.md](docs/SCHEDULING.md)**.
 
 ---
@@ -262,7 +282,8 @@ and off the rest of the year.
    say a season are listed there, ready to install. When two seasonal mods on at the same
    time ship the same files, it asks whose the game should use.
 3. **Seasons**: Polesia's dates, another calendar, or your own, with the year dial as the
-   game will draw it, and names of your own if you like.
+   game will draw it, and names of your own if you like. Here too you add seasons of your
+   own and spells.
 4. **Weather**: Chornobyl, or a place you look up.
 5. **Review**: what `play.bat` will switch today. Nothing is written until you save here.
 6. **How to play**: which MO2 entry `play.bat` starts, and how to start the game.
@@ -290,6 +311,8 @@ helping you (use `python` in place of `py` if that is how your Python starts):
 ```
 py _tools\configure.py add "INVERNO Winter Textures" --when winter "deep winter"
 py _tools\configure.py event christmas 12-24 12-26
+py _tools\configure.py season "Wormhole season" 08-01 08-31
+py _tools\configure.py spell "Summer frost" --in summer --chance 3 --days 1 2 --as winter
 py _tools\configure.py list
 ```
 
@@ -467,7 +490,8 @@ Details and recovery: [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
 
 | | |
 |---|---|
-| [docs/SCHEDULING.md](docs/SCHEDULING.md) | The calendar: base periods, events, and recipes |
+| [docs/SCHEDULING.md](docs/SCHEDULING.md) | The calendar: base periods, seasons of your own, spells, events, and recipes |
+| [docs/TRANSLATING.md](docs/TRANSLATING.md) | Translating the tools and the game's text into another language |
 | [docs/INTERFACE.md](docs/INTERFACE.md) | The MCM pages and the Seasons app in the PDA |
 | [docs/API.md](docs/API.md) | The read API other mods hook into: temperature, weather, the next emission |
 | [docs/WEARABLE-DEVICES.md](docs/WEARABLE-DEVICES.md) | A blowout warning for Wearable Devices: the code, and why it cannot break that mod |

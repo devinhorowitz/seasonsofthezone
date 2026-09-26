@@ -1,7 +1,27 @@
 # Changelog
 
-## 1.9.0 — 2026-09-25
+## 2.0.0 — 2026-09-26
 
+- **Seasons of your own.** Name a stretch of the year, a week or longer, and put mods on in
+  it: a wormhole anomaly mod in "Wormhole season", August 1 to 31. It runs on top of the
+  season it falls in, so its mods come on for those days and the season's own mods stay on.
+  Up to 52, one for each week of the year. The Seasons step makes them, and so do the
+  advanced editor and `configure.py season`; `status` names the ones on today.
+- **Spells: a season by chance.** A spell starts by chance on a day of the seasons you
+  pick, 3% a day in summer, say, and runs 1 to 6 days. It can bring another season with it:
+  a spell of winter in summer switches the winter mods on and summer's off, and the game's
+  light, weather and PDA follow it until it ends. Or it leaves the season be and switches
+  on only the mods you put on during it. The date decides, so every launch that day agrees,
+  and the setup says how often each comes on average. An MCM pin still wins over a spell.
+- **Ready for translation.** Every word the tools show - the setup, the advanced editor, the
+  commands, `play.bat`'s lines - and the game's own text on the PDA, the Forecast page and
+  MCM now comes from translation files, so a translation needs no code. None is included
+  yet; docs/TRANSLATING.md says how to make one, starting from the Russian file, which has
+  every string ready to fill in. The setup shows a language switch once a translation has
+  text in it, and starts in the game's language when there is one for it.
+- When two seasonal mods ship the same files, the setup now works out whether they are on
+  at the same time from their dates, so a mod in a season of your own is asked about
+  against the mods of the season it falls in, and an event's mods against theirs.
 - **`configure.bat` walks you through the setup.** Opened from the mod's folder - in MO2,
   right-click the mod, Open in Explorer - it puts `play.bat`, `configure.bat` and `_tools`
   in your GAMMA folder, and updates them there after a new zip, keeping your setup and the

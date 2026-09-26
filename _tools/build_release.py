@@ -595,6 +595,12 @@ docs/CONFIGURING.md.
                  {"weekdays": ("sat", "sun")}. See docs/SCHEDULING.md.
   CALENDAR       the day each season starts, and which are on; None is Polesia's six.
   NAMES          names of your own for the seasons; None keeps the usual ones.
+  WEATHER_PLACE  where the real weather comes from; None is Chornobyl.
+  OWN_SEASONS    seasons of your own: name: ((m, d) first, (m, d) last), a week or
+                 longer, up to 52, each laid over the season it falls in, as an event is.
+  SPELLS         short stretches that start by chance: name: {"in": (seasons...),
+                 "chance": percent a day, "days": (fewest, most), 1 to 6, "as": the season
+                 it brings, or None}. See docs/SCHEDULING.md.
 """
 '''
 

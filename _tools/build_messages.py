@@ -56,11 +56,11 @@ def called(node):
     return None
 
 
-def extract(names=SOURCES):
+def extract(names=None):
     """(entries, problems). entries: {(ctx, msgid): {"plural", "files", "notes"}}, in the
     order they come; problems: sentences for calls that can't be collected."""
     entries, problems = {}, []
-    for name in names:
+    for name in names or SOURCES:
         path = os.path.join(HERE, name)
         text = io.open(path, encoding="utf-8").read()
         lines = text.split("\n")
@@ -100,11 +100,11 @@ def extract(names=SOURCES):
     return entries, problems
 
 
-def shadowed(names=SOURCES):
+def shadowed(names=None):
     """Sentences for each scope that calls _() and also sets a variable called _: there it
     is no longer the function, and the call fails or does nothing useful."""
     out = []
-    for name in names:
+    for name in names or SOURCES:
         tree = ast.parse(io.open(os.path.join(HERE, name), encoding="utf-8").read(), name)
         scopes = [tree] + [n for n in ast.walk(tree)
                            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]

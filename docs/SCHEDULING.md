@@ -26,19 +26,29 @@ switched on.
 **Events** overlay. An event is a window with a start and an end, or a rule like "every
 weekend", and it does not displace the period it lands in — it is added to it.
 
+**Seasons of your own** overlay the same way: a named stretch of the year, a week or
+longer, up to 52 of them. They are made in the setup's Seasons step.
+
+**Spells** overlay, and can do one thing nothing else can: bring another season for a few
+days. A spell starts by chance on a day of the seasons it names, runs 1 to 6 days, and, if
+it brings a season, that season is the base period while it lasts. See
+[Seasons of your own and spells](#seasons-of-your-own-and-spells).
+
 **Weather** overlays too. `play.bat` fetches the real Chornobyl forecast at each launch, and
 three kinds of day are added to the list when they happen: `freezing` (the low is 0°C or
 below), `thaw` (it freezes overnight and climbs above 0°C by afternoon) and `heat` (the
 high reaches 28°C). Without `play.bat`, or without an internet connection, none of them is
 on.
 
-A date therefore resolves to a **list**: the base period, then every event and kind of
-weather covering it.
+A date therefore resolves to a **list**: the base period, then every season of your own,
+spell, event and kind of weather covering it.
 
 ```
 Dec 20  ->  ["winter_snow"]
 Dec 25  ->  ["winter_snow", "christmas"]
 Dec 28  ->  ["winter_snow", "twelvetide"]
+Aug 12  ->  ["summer", "Wormhole season"]
+Jul 14  ->  ["winter", "Summer frost"]      a spell that brings winter to summer
 ```
 
 A mod is switched on if **any** name in its `when` is in that list. That one rule is the
@@ -146,6 +156,60 @@ with them by start date.
 
 ---
 
+## Seasons of your own and spells
+
+Both are made in `configure.bat`'s Seasons step, in the advanced editor, or from a command
+prompt, and both can be written by hand:
+
+```python
+OWN_SEASONS = {
+    # name: (first day, last day), both counted, a week or longer
+    "Wormhole season": ((8, 1), (8, 31)),
+}
+
+SPELLS = {
+    # "in": the seasons it can start in - yours too
+    # "chance": the percent chance it starts on each of those days
+    # "days": how long it runs, a number or (fewest, most), 1 to 6
+    # "as": the season it brings, or None to leave the season as it is
+    "Summer frost": {"in": ("summer",), "chance": 3, "days": (1, 2), "as": "winter"},
+    "Wormhole storm": {"in": ("Wormhole season",), "chance": 10, "days": 2, "as": None},
+}
+
+TOGGLE_MODS = {
+    "Rostok Wormhole": {"when": ("Wormhole season", "Wormhole storm"), "above": "..."},
+}
+```
+
+**A season of your own** runs on top of the season it falls in, as an event does: its
+mods come on for its days, and the season's own mods stay on. It is a week or longer - a
+shorter stretch is an event - and there can be up to 52, as many weeks as the year has. A
+name can be anything up to 24 characters that isn't a season, event, period or kind of
+weather already, so "Wormhole season" is fine as it is.
+
+**A spell** starts by chance. On each day of the seasons it names, it draws a number from
+the date and its name; if the number falls under its chance, it starts that day and runs
+for its days, past the end of the season if it has to. With `"as"`, the season it brings
+takes over while it lasts: that season's mods come on, the calendar's season's go off, and
+`play.bat` tells the game, whose light, weather and PDA follow it until its last day. With
+`"as": None` the season stays, and only the mods on during the spell come on.
+
+The same date and name always draw the same number, on every machine and every launch, so
+a spell can't come and go between launches on the same day, and two players with the same
+spell see it on the same days. `configure.bat` says how often each comes on average:
+3% a day in Polesia's summer is about 4 a year. No one sees a spell coming: the Forecast
+page doesn't show them.
+
+An MCM pin fixes the season, and a spell doesn't change a pinned season; the mods on
+during it still come on. `season.py status --season` works the same way.
+
+**Seasons of your own and spells meet what they fall in.** When two seasonal mods ship the
+same file and are on at the same time, the setup asks whose the game should use. For a
+mod in a season of your own or a spell, "at the same time" is worked out from the dates, so
+a Wormhole season mod is asked about against the summer mods under it.
+
+---
+
 ## What it does not do yet
 
 The model above invites all of these.
@@ -158,7 +222,9 @@ The model above invites all of these.
   the reason in the README: X-Ray mounts the virtual file system once. A date that rolls
   over while you play takes effect at the next launch.
 - **One base period at a time.** Base periods partition the year by design. If you want two
-  things true at once, one of them is an event.
+  things true at once, one of them is an event, a season of your own or a spell.
+- **Seasons of your own and spells aren't on the dial or the MCM pages.** The dial shows
+  the calendar's seasons; a spell that brings a season shows as that season in game.
 
 ---
 

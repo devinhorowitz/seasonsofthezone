@@ -50,7 +50,11 @@ The setup goes in steps, and nothing is written until the Review step's **Save**
    and sets which one wins over the other from the answer.
 3. **Seasons**: Polesia's dates, another calendar that comes with the tool, or your own,
    and names of your own, with the year dial as the game will draw it. See
-   [`CALENDAR`](#calendar) and [`NAMES`](#names).
+   [`CALENDAR`](#calendar) and [`NAMES`](#names). Below them, **Add a season of your
+   own...** and **Add a spell...** make the two things the calendar can add; see
+   [`OWN_SEASONS`](#own_seasons) and [`SPELLS`](#spells). A mod is put on in them in its
+   **Change...** dialog on the Seasonal mods step: seasons of your own sit with the six,
+   spells under **More options**.
 4. **Weather**: Chornobyl, or a place you look up. See [`WEATHER_PLACE`](#weather_place).
 5. **Review**: the setup in a few lines, and what `play.bat` will switch today. Anything
    `play.bat` would refuse is listed with a **Fix** button that takes you to it.
@@ -100,6 +104,14 @@ py _tools\configure.py remove "<mod>"
 py _tools\configure.py event christmas 12-24 12-26
 py _tools\configure.py event weekend --weekdays weekends     # a rule; see SCHEDULING.md
 py _tools\configure.py event christmas --remove
+py _tools\configure.py season                         # your seasons of your own
+py _tools\configure.py season "Wormhole season" 08-01 08-31
+py _tools\configure.py season "Wormhole season" --rename "Rostok wormhole"
+py _tools\configure.py season "Rostok wormhole" --remove
+py _tools\configure.py spell                          # your spells, and how often each comes
+py _tools\configure.py spell "Summer frost" --in summer --chance 3 --days 1 2 --as winter
+py _tools\configure.py spell "Summer frost" --chance 2          # change one part
+py _tools\configure.py spell "Summer frost" --remove
 py _tools\configure.py calendar           # when each season starts, and which are off
 py _tools\configure.py calendar summer=5-1 "deep winter=11-15" [--only]
 py _tools\configure.py calendar --off "late winter"
@@ -122,7 +134,8 @@ py _tools\configure.py preset save "Mine" [--about "..."] [--parts calendar mods
 `add` makes a mod seasonal, or replaces when it is on if it already is. The name is
 checked against MO2's mod list, with suggestions for a near miss; a name with a space goes
 in quotes. `--when` takes seasons as MCM shows them, your own names for them, or as the
-config spells them, and any event, period or kind of weather. Without `--above`, the mod
+config spells them, and any season of your own, spell, event, period or kind of weather.
+Without `--above`, the mod
 it wins over is the highest enabled mod that ships any of the same files; when another
 seasonal mod on in the same season shares files, `add` names it and leaves the choice to
 you.
@@ -353,6 +366,63 @@ seasons can't share one. `None`, or a name left as the usual one, keeps the usua
 
 ---
 
+## `OWN_SEASONS`
+
+```python
+OWN_SEASONS = {
+    "Wormhole season": ((8, 1), (8, 31)),
+    "Mud week": ((3, 20), (3, 26)),
+}
+```
+
+Seasons of your own: a name, and the first and last day, both counted. Each runs on top of
+the season it falls in, as an event does - the mods on in it come on for its days, and the
+season's own mods stay on - so it doesn't cut into the calendar. A window whose first day
+comes after its last runs across the new year.
+
+- A season of your own runs **at least a week**; a shorter stretch is an event.
+- There can be **up to 52**, one for each week of the year.
+- A name is up to 24 characters and can't be a season's, an event's, a period's or a kind
+  of weather's, in any capitals. It can have spaces: `"Wormhole season"` is fine.
+- February 29 can't be a first or last day.
+
+`configure.bat`'s Seasons step makes them, and so does `configure.py season`. Taking one
+off takes it off every mod on in it; a mod on in nothing else comes off the calendar, and
+the window asks first. Renaming one renames it for its mods too. They are not on the dial
+or the MCM pages, and `status` names the ones on today on its `also today` line.
+
+---
+
+## `SPELLS`
+
+```python
+SPELLS = {
+    "Summer frost": {"in": ("summer",), "chance": 3, "days": (1, 2), "as": "winter"},
+    "Wormhole storm": {"in": ("Wormhole season",), "chance": 10, "days": 2, "as": None},
+}
+```
+
+A spell is a short stretch that starts by chance. See
+[SCHEDULING.md](SCHEDULING.md#seasons-of-your-own-and-spells) for how it is decided.
+
+| Part | Meaning |
+|---|---|
+| `in` | The seasons it can start in: the six, as the config spells them, and yours. Seasons off in your calendar don't count. |
+| `chance` | The percent chance it starts on each of those days, more than 0 and up to 100. Decimals are fine: `0.5`. |
+| `days` | How long it runs: a number, or the fewest and the most, `(1, 2)`. 1 to 6; a week or longer is a season of your own. |
+| `as` | The season it brings, which has to be on in your calendar, or `None` to leave the season as it is. |
+
+A spell that brings a season makes it the season for as long as it lasts: `play.bat` stages
+that season's mods, texture sets and sound, and writes the spell into the file the game
+reads, so the light, the weather and the PDA follow it until its last day. An MCM pin wins
+over it. The mods on during a spell come on whether it brings a season or not.
+
+The Seasons step's **Add a spell...** shows how often a spell comes on average as you set
+it - 3% a day in Polesia's summer is about 4 a year - and `configure.py spell` lists each
+one that way. `status` shows a spell on today on its `season` line.
+
+---
+
 ## `WEATHER_PLACE`
 
 ```python
@@ -398,7 +468,7 @@ of four parts:
 | Part | What it is |
 |---|---|
 | calendar | `CALENDAR` and `NAMES` |
-| events | `EVENTS` and `PERIODS` |
+| events | `OWN_SEASONS`, `SPELLS`, `EVENTS` and `PERIODS` |
 | mods | `TOGGLE_MODS` |
 | textures | `LAYOUT` and `SOUND_SRC` |
 

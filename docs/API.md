@@ -65,7 +65,7 @@ would be a number that is real but inert.
 | `low` / `high` / `now` | after the in-game sky moved it |
 | `sky_shift` | the gap, in whole degrees — negative when the weather is costing you |
 | `source` | `observed` when a station reading was used, `model` when climate normals were |
-| `place` | where the reading is from; modeled, whose climate the model is. nil for the built-in Chornobyl normals. Since 1.9.0 it can be a place the player picked, not only Chornobyl. |
+| `place` | where the reading is from; modeled, whose climate the model is. nil for the built-in Chornobyl normals. Since 2.0.0 it can be a place the player picked, not only Chornobyl. |
 
 Off a 14 / 4 station reading, clear sky reads 14 at mid-afternoon and a storm reads 8.
 
@@ -199,13 +199,13 @@ moves the frequency slider.
   marked = { kind = "memorial", key = "chernobyl" } }
 ```
 
-`today` is text to show, not to parse; since 1.9.0 it reads month first, as above.
+`today` is text to show, not to parse; since 2.0.0 it reads month first, as above.
 
 `season` is one of `spring`, `summer`, `autumn`, `winter`, `winter_snow` and
 `late_winter` (new in 1.8.0); `label` is the name to show, such as "deep winter", or the
-player's own name for the season (1.9.0). Treat an
+player's own name for the season (2.0.0). Treat an
 unknown key as a season rather than an error, since the calendar can grow. A player's own
-calendar (1.9.0) can turn seasons off and move their dates, so do not assume all six
+calendar (2.0.0) can turn seasons off and move their dates, so do not assume all six
 occur, or when; `next` is nil when only one season is on.
 
 `marked` is nil on ordinary days. `kind` is `memorial` or `anniversary`.
