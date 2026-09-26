@@ -426,6 +426,44 @@ print("ABOVE", g.cal.toggle["Winter Overlay"]["above"], "|", g.cal.toggle["Winte
 
 
 @case
+def t_backing_out_of_the_overlap_questions_changes_nothing():
+    """Two seasonal mods share files with the one being added. The first question answered
+    the other mod's way, the second backed out of: nothing may have moved, in memory or in
+    the file a save then writes."""
+    config = ('TOGGLE_MODS = {"Winter Pack": {"when": ("winter",), "above": "Grass Compat"},\n'
+              '               "Base Grass": {"when": ("winter",), "above": "Lonely Mod"}}\n')
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config=config)
+        before = tc.config(d)
+        rc, out = drive(d, r"""
+answers = [False, None]
+asked = []
+def fake(g, name, other, n, seasons, parent=None):
+    asked.append(other)
+    return answers[len(asked) - 1]
+guide.ask_winner = fake
+g.edit("mods")
+dlg = guide.ModDialog(g)
+dlg.query.set("overlay")
+settle()
+dlg.list.selection_set(0)
+dlg.vars["winter"].set(True)
+dlg.ok()
+dlg.win.destroy()
+print("ASKED", asked)
+print("TOGGLE", sorted((n, c["above"]) for n, c in g.cal.toggle.items()))
+g.save_edit()
+""")
+        assert rc == 0, out
+        assert "ASKED ['Winter Pack', 'Base Grass']" in out or \
+            "ASKED ['Base Grass', 'Winter Pack']" in out, out
+        assert "TOGGLE [('Base Grass', 'Lonely Mod'), ('Winter Pack', 'Grass Compat')]" in out, \
+            out
+        assert tc.config(d) == before, "a save after backing out changed the file"
+    return "answered once, backed out of the second: nothing moved, and the file unchanged"
+
+
+@case
 def t_a_seasonal_mod_installs_from_its_archive():
     """The case this was made for: an archive in the GAMMA folder whose name says winter,
     an installer of two parts, and a fix file from its author. Found on the step, installed

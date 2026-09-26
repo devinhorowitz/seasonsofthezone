@@ -1563,17 +1563,19 @@ class ModDialog(object):
             messagebox.showerror(self.win.title(), _("Check at least one season."),
                                  parent=self.win)
             return
-        above = self.above_choices[self.above.current()][0]
+        above, moves = self.above_choices[self.above.current()][0], []
         if above is None:
-            above = settle(g, name, when, parent=self.win)
-            if above is None:
+            got = settle(g, name, when, parent=self.win)
+            if got is None:
                 return
+            above, moves = got
         if ce.loops(cal.toggle, name, above):
             messagebox.showerror(self.win.title(), _("%s already wins over this mod, so this "
                                                      "one can't win over it as well.") % above,
                                  parent=self.win)
             return
         cal.put(name, when, above)
+        move_rivals(cal, name, moves)
         g.kept.pop(name, None)
         self.win.destroy()
         g.render()
@@ -1640,14 +1642,16 @@ def ask_winner(guide, name, other, n, seasons, parent=None):
 
 
 def settle(guide, name, when, parent=None):
-    """The mod `name` wins over, when it is on in `when`: the one the files they share
-    pick, except that for each other seasonal mod on at the same time with files in common
-    the player says which one wins. Returns it, or None when the player backs out. Setting
-    another mod to win moves that mod, not this one."""
+    """(the mod `name` wins over, the mods to set to win over it), when it is on in `when`:
+    the one the files they share pick, except that for each other seasonal mod on at the
+    same time with files in common the player says which one wins. None when the player
+    backs out. Nothing is changed here: the caller sets `name` and then moves those mods,
+    with move_rivals(), once it has everything it needs - so backing out of a later
+    question, or a refusal after, leaves the setup as it was."""
     cal, inst = guide.cal, guide.inst
     auto = ce.anchor_for(inst, name, when, cal.toggle, cal)
     above, rivals = auto[0] or "", auto[2]
-    beat = []
+    beat, moves = [], []
     for other, n, both in rivals:
         c = cal.toggle[other]
         if c["above"] == name:
@@ -1660,13 +1664,21 @@ def settle(guide, name, when, parent=None):
             return None
         if mine:
             beat.append(other)
-        elif not ce.loops(cal.toggle, other, name):
-            cal.put(other, c["when"], name)
+        else:
+            moves.append(other)
     if beat:
         # just above the one that is highest in MO2's list, it wins over all of them
         order = {m: i for i, m in enumerate(inst.names)}
         above = min(beat, key=lambda m: order.get(m, len(order)))
-    return above
+    return above, moves
+
+
+def move_rivals(cal, name, moves):
+    """Set each of `moves` to win over `name`, as settle() found, where that makes no
+    loop."""
+    for other in moves:
+        if other in cal.toggle and not ce.loops(cal.toggle, other, name):
+            cal.put(other, cal.toggle[other]["when"], name)
 
 
 class InstallDialog(object):
@@ -1857,10 +1869,11 @@ class InstallDialog(object):
         """The mod is in place: make it seasonal, asking which mod wins where it overlaps
         another seasonal mod on at the same time."""
         g = self.g
-        above = settle(g, name, when)
-        if above is None:
-            above = ce.anchor_for(g.inst, name, when, g.cal.toggle)[0] or ""
+        got = settle(g, name, when)
+        above, moves = got if got is not None else (
+            ce.anchor_for(g.inst, name, when, g.cal.toggle)[0] or "", [])
         g.cal.put(name, when, above)
+        move_rivals(g.cal, name, moves)
         g.kept.pop(name, None)
         g.render()
 
