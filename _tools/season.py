@@ -1756,6 +1756,73 @@ def spells_a_year(spec, where):
     return total
 
 
+def days_on(name, base, own=None, events=None, spells=None):
+    """The days of 2026, a year without February 29, that `name` is on: a base period on
+    the days `base(day)` names it, a season of the player's own or an event on the days it
+    covers, and a spell on every day it can run - from each day it can start on, for as
+    long as it can last. None for a kind of weather, which can come any day."""
+    own = OWN_SEASONS if own is None else own
+    events = EVENTS if events is None else events
+    spells = SPELLS if spells is None else spells
+    if name in WEATHER_NAMES:
+        return None
+    year = [datetime.date(2026, 1, 1) + datetime.timedelta(days=i) for i in range(365)]
+    if name in own:
+        return {d for d in year if _in_window(d, *own[name])}
+    if name in events:
+        return {d for d in year if event_on(d, events[name])}
+    if name in spells:
+        spec = spells[name]
+        start = spec["in"]
+        start = {start} if isinstance(start, str) else set(start)
+        most = spell_days(spec)[1]
+        out = set()
+        for d in year:
+            if base(d) in start or any(o in start and _in_window(d, *w)
+                                       for o, w in own.items()):
+                out.update((d + datetime.timedelta(days=k)).replace(year=2026)
+                           for k in range(most))
+        return out
+    return {d for d in year if base(d) == name}
+
+
+def meet(when, other, days, bases, spells=None):
+    """The names in `when` or `other` that mark the times a mod on in `when` and one on in
+    `other` are both on: for each pair that meets, the shorter of the two. The same kind of
+    weather meets itself only. A spell that brings a season meets that season's mods, and
+    not those of the base periods it takes the place of. `days(name)` is as days_on, and
+    `bases` the base periods: the seasons and PERIODS."""
+    spells = SPELLS if spells is None else spells
+    cache = {}
+
+    def on(p):
+        if p not in cache:
+            cache[p] = days(p)
+        return cache[p]
+
+    out = set()
+    for p in when:
+        for q in other:
+            if p == q:
+                out.add(p)
+                continue
+            brought = None
+            for s, b in ((p, q), (q, p)):
+                spec = spells.get(s)
+                if isinstance(spec, dict) and spec.get("as") and b in bases:
+                    brought = s if b == spec["as"] else False
+                    break
+            if brought is not None:
+                if brought:
+                    out.add(brought)
+                continue
+            a, b = on(p), on(q)
+            if a is None or b is None or not (a & b):
+                continue
+            out.add(p if len(a) <= len(b) else q)
+    return out
+
+
 def calendar_table(mapping="pheno", calendar=None):
     """(season, month, day) for each season that is on: CALENDAR when the config has one,
     else Polesia's dates, or the meteorological ones with --mapping met."""
@@ -2702,6 +2769,19 @@ def shadow_check(force=False):
 
     ours = set(TOGGLE_MODS) | {SOUND_MOD, SOTZ}
     index = {l[1:]: i for i, l in enumerate(body)}
+    bases = set(SEASONS) | set(PERIODS)
+    base_of, days_of = {}, {}
+
+    def base_period(d):
+        if d not in base_of:
+            base_of[d] = season_for(d)
+        return base_of[d]
+
+    def days(name):
+        if name not in days_of:
+            days_of[name] = days_on(name, base_period)
+        return days_of[name]
+
     shadowed, dormant, notes = [], {}, []
     for name, cfg in TOGGLE_MODS.items():
         base = os.path.join(MODS, name, "gamedata")
@@ -2721,7 +2801,8 @@ def shadow_check(force=False):
                 continue
             eg = hits[0].replace(os.sep, "/")
             if other in TOGGLE_MODS:
-                shared = set(_when(cfg)) & set(_when(TOGGLE_MODS[other]))
+                # by the dates, so a season of one's own meets the season it falls in
+                shared = meet(_when(cfg), _when(TOGGLE_MODS[other]), days, bases)
                 # set to win over this one, itself or through the mods it wins over:
                 # the overlap is the intent
                 if shared and name not in wins_over(other):

@@ -95,6 +95,16 @@ def fail(*lines):
     raise SystemExit(1)
 
 
+def stopped_lines(gone):
+    """What a removal says of the mods it took off the calendar, on in nothing else."""
+    if not gone:
+        return []
+    return [ngettext("stopped switching %s, on in nothing else; play.bat leaves it as it is "
+                     "in MO2",
+                     "stopped switching %s, on in nothing else; play.bat leaves them as they "
+                     "are in MO2", len(gone)) % ce.few(gone, 6)]
+
+
 def decimal(text):
     """A number as typed, with a decimal point or a decimal comma, "0,5" as 0.5; anything
     but a finite number is a ValueError."""
@@ -495,9 +505,11 @@ def cmd_season(a):
         fail(_("You have no season called \"%(name)s\". %(command)s shows yours.")
              % {"name": name, "command": season.command("configure.py", "season")})
     if a.remove:
+        spells = cal.spells_only_in(have)
         gone = cal.take_own(have)
-        save(cal, [_("removed season %s") % have] + (
-            [_("stopped switching %s, on in nothing else") % ce.few(gone, 6)] if gone else []))
+        save(cal, [_("removed season %s") % have]
+             + [_("removed spell %s, which could start only in it") % s for s in spells]
+             + stopped_lines(gone))
         return
     if a.rename:
         new = a.rename.strip()
@@ -587,8 +599,7 @@ def cmd_spell(a):
              % {"name": name, "command": season.command("configure.py", "spell")})
     if a.remove:
         gone = cal.take_spell(have)
-        save(cal, [_("removed spell %s") % have] + (
-            [_("stopped switching %s, on in nothing else") % ce.few(gone, 6)] if gone else []))
+        save(cal, [_("removed spell %s") % have] + stopped_lines(gone))
         return
     if a.rename:
         new = a.rename.strip()
@@ -2879,14 +2890,19 @@ def remove_spell(root, cal, name):
         text = (_("Remove %(spell)s? These mods are on during it:\n\n%(mods)s\n\nIt comes off "
                   "each of them.") % {"spell": name, "mods": "\n".join(users)})
         if only:
-            text += " " + (
-                _("%s is on in nothing else, so play.bat stops switching it.") if len(only) == 1
-                else _("%s are on in nothing else, so play.bat stops switching them.")
-            ) % ce.few(only, 6)
+            text += " " + only_words(only)
         if not messagebox.askyesno(_("Remove %s") % name, text, parent=root):
             return False
     cal.take_spell(name)
     return True
+
+
+def only_words(only):
+    """What a removal in the window says of the mods it takes off the calendar."""
+    return (_("%s is on in nothing else, so play.bat stops switching it and leaves it as it "
+              "is in MO2.") if len(only) == 1 else
+            _("%s are on in nothing else, so play.bat stops switching them and leaves them as "
+              "they are in MO2.")) % ce.few(only, 6)
 
 
 def remove_own_season(root, cal, name):
@@ -2896,23 +2912,22 @@ def remove_own_season(root, cal, name):
     from tkinter import messagebox
     users = cal.users_of(name)
     spells = cal.spells_only_in(name)
+    # the mods that go: on in it, or during a spell that goes with it, and nothing else
+    going = set([name] + spells)
+    only = [u for u, c in cal.toggle.items()
+            if c["when"] and all(p in going for p in c["when"])]
     if users or spells:
         if users:
-            only = [u for u in users if all(p == name for p in cal.toggle[u]["when"])]
             text = (_("Remove %(season)s? These mods are on in it:\n\n%(mods)s\n\nIt comes off "
                       "each of them.") % {"season": name, "mods": "\n".join(users)})
-            if only:
-                text += " " + (
-                    _("%s is on in nothing else, so play.bat stops switching it.")
-                    if len(only) == 1 else
-                    _("%s are on in nothing else, so play.bat stops switching them.")
-                ) % ce.few(only, 6)
         else:
             text = _("Remove %s?") % name
         if spells:
             text += "\n\n" + (_("%s can start only in it, so it goes too.") if len(spells) == 1
                               else _("%s can start only in it, so they go too.")
                               ) % ce.few(spells, 6)
+        if only:
+            text += " " + only_words(only)
         if not messagebox.askyesno(_("Remove %s") % name, text, parent=root):
             return False
     cal.take_own(name)

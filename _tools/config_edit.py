@@ -953,52 +953,15 @@ class Calendar(object):
 
     def days(self, name):
         """The days of a year (2026, which has no February 29) that `name` is on, by this
-        calendar: a season or period between its start and the next one's, a season of the
-        player's own or an event on the days it covers. None for a kind of weather, which
-        can come any day."""
-        if name in season.WEATHER_NAMES:
-            return None
-        year = [datetime.date(2026, 1, 1) + datetime.timedelta(days=i) for i in range(365)]
-        if name in self.own:
-            return {d for d in year if season._in_window(d, *self.own[name])}
-        if name in self.events:
-            return {d for d in year if season.event_on(d, self.events[name])}
-        starts = sorted([(md, s) for s, md in self.dates.items()]
-                        + [(tuple(md), p) for p, md in self.periods.items()
-                           if season._is_day(md)])
-        if not starts or name not in [s for _, s in starts]:
-            return set()
-        on, out = starts[-1][1], set()          # the year starts in the last one to start
-        for d in year:
-            for md, s in starts:
-                if (d.month, d.day) == md:
-                    on = s
-            if on == name:
-                out.add(d)
-        return out
+        calendar, as season.days_on counts them. None for a kind of weather, which can come
+        any day."""
+        return season.days_on(name, self.base, self.own, self.events, self.spells)
 
     def together(self, when, other):
         """The names in `when` or `other` that mark the times a mod on in `when` and one on
-        in `other` are both on: for each pair that meets, the shorter of the two. The same
-        kind of weather meets itself only."""
-        cache = {}
-
-        def days(p):
-            if p not in cache:
-                cache[p] = self.days(p)
-            return cache[p]
-
-        out = set()
-        for p in when:
-            for q in other:
-                if p == q:
-                    out.add(p)
-                    continue
-                a, b = days(p), days(q)
-                if a is None or b is None or not (a & b):
-                    continue
-                out.add(p if len(a) <= len(b) else q)
-        return out
+        in `other` are both on, as season.meet finds them."""
+        return season.meet(when, other, self.days, set(season.SEASONS) | set(self.periods),
+                           self.spells)
 
     def put_own(self, name, win, was=None):
         """Add a season of the player's own, or change one. `was` is the name it had, when
@@ -1008,19 +971,29 @@ class Calendar(object):
             self._bad_own.pop(was, None)
             for c in self.toggle.values():
                 c["when"] = [name if p == was else p for p in c["when"]]
+            # and the spells that can start in it start in the new name
+            for s, spec in list(self.spells.items()):
+                if was in spec["in"]:
+                    self.spells[s] = dict(spec, **{"in": tuple(
+                        name if p == was else p for p in spec["in"])})
         self._bad_own.pop(name, None)
         self.own[name] = norm_event(win)
+
+    def base(self, day):
+        """The season or period on `day` by this calendar, or None when it has neither."""
+        starts = sorted([(md, s) for s, md in self.dates.items()]
+                        + [(tuple(md), p) for p, md in self.periods.items()
+                           if season._is_day(md)])
+        now = starts[-1][1] if starts else None     # the year starts in the last to start
+        for md, s in starts:
+            if md <= (day.month, day.day):
+                now = s
+        return now
 
     def where(self, day):
         """What a spell can start in on `day` by this calendar: the season or period then,
         and the player's own seasons that cover it."""
-        starts = sorted([(md, s) for s, md in self.dates.items()]
-                        + [(tuple(md), p) for p, md in self.periods.items()
-                           if season._is_day(md)])
-        now = starts[-1][1] if starts else None
-        for md, s in starts:
-            if md <= (day.month, day.day):
-                now = s
+        now = self.base(day)
         return ([now] if now else []) + [o for o, w in self.own.items()
                                          if season._in_window(day, *w)]
 

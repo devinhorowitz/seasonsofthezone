@@ -366,11 +366,39 @@ def t_a_spell_in_the_command_line_and_the_list():
         assert rc == 0, out
         assert tg.table(d)["TOGGLE_MODS"]["Lonely Mod"]["when"] == ("Frost",)
         rc, out = tc.run(d, "spell", "Frost", "--remove")
-        assert rc == 0 and "stopped switching Lonely Mod, on in nothing else" in out, out
+        assert rc == 0 and "stopped switching Lonely Mod, on in nothing else; play.bat " \
+            "leaves it as it is in MO2" in out, out
         ns = tg.table(d)
         assert ns["SPELLS"] == {} and "Lonely Mod" not in ns["TOGGLE_MODS"], ns
         tc.accepted(d)
-    return "added, refused at 7 days, used, renamed with its mod, removed with it"
+        # a season of one's own taken off takes the spells that start only in it, and says so
+        for args in (("season", "Wormhole season", "08-01", "08-31"),
+                     ("spell", "Storm", "--in", "Wormhole season", "--chance", "3"),
+                     ("add", "Lonely Mod", "--when", "Storm")):
+            rc, out = tc.run(d, *args)
+            assert rc == 0, out
+        rc, out = tc.run(d, "season", "Wormhole season", "--remove")
+        assert rc == 0 and "removed spell Storm, which could start only in it" in out \
+            and "stopped switching Lonely Mod, on in nothing else; play.bat leaves it as it " \
+            "is in MO2" in out, out
+        assert tg.table(d)["SPELLS"] == {}, tg.table(d)
+    config = ('OWN_SEASONS = {"Wormhole season": ((8, 1), (8, 31))}\n'
+              'SPELLS = {"Storm": {"in": ("Wormhole season",), "chance": 3, "days": 1}}\n'
+              'TOGGLE_MODS = {"Lonely Mod": {"when": ("Storm",), "above": "Base Grass"}}\n')
+    with tempfile.TemporaryDirectory() as d:
+        tg.sandbox(d, config=config)
+        rc, out = tg.drive(d, r"""
+asked = []
+messagebox.askyesno = lambda *a, **k: asked.append(a[1]) or True
+print("TAKEN", cf.remove_own_season(root, g.cal, "Wormhole season"), g.cal.spells,
+      sorted(g.cal.toggle))
+print("ASKED", asked)
+""")
+        assert rc == 0 and "TAKEN True {} []" in out, out
+        assert "Storm can start only in it, so it goes too. Lonely Mod is on in nothing " \
+            "else, so play.bat stops switching it and leaves it as it is in MO2." in out, out
+    return "added, refused at 7 days, used, renamed with its mod, removed with it; a season " \
+        "of one's own removed with its spell and the spell's mod, each said"
 
 
 @case
@@ -491,6 +519,57 @@ print("ASKED", asked)
         assert rc == 0, out
         assert "ASKED [('Winter Overlay', 'Winter Pack', 1, 'First frost')]" in out, out
     return "asked whose file, in First frost"
+
+
+@case
+def t_a_mod_during_a_spell_meets_what_the_spell_runs_in():
+    """A spell that brings winter meets the winter mods and not the summer ones it takes the
+    place of; one that leaves the season meets the mods of the days it can run. The window
+    asks, and status notes, whose file the game uses; renaming the season of one's own a
+    spell starts in renames it in the spell."""
+    config = ('OWN_SEASONS = {"Wormhole season": ((8, 1), (8, 31))}\n'
+              'SPELLS = {"Frost": {"in": ("summer",), "chance": 3, "days": (1, 2), '
+              '"as": "winter"},\n'
+              '          "Storm": {"in": ("Wormhole season",), "chance": 3, "days": 1}}\n')
+    with tempfile.TemporaryDirectory() as d:
+        tg.sandbox(d, config=config + 'TOGGLE_MODS = {"Winter Pack": {"when": ("winter",), '
+                                      '"above": "Grass Compat"}}\n')
+        rc, out = tg.drive(d, r"""
+cal = g.cal
+print("MEET", sorted(cal.together(["Frost"], ["winter"])),
+      sorted(cal.together(["Frost"], ["summer"])),
+      sorted(cal.together(["Storm"], ["summer"])),
+      sorted(cal.together(["Storm"], ["winter"])),
+      sorted(cal.together(["Storm"], ["Frost"])))
+asked = []
+guide.ask_winner = lambda g, name, other, n, seasons, parent=None: (
+    asked.append((name, other, n, seasons)) or True)
+g.edit("mods")
+dlg = guide.ModDialog(g)
+dlg.query.set("overlay")
+settle()
+dlg.list.selection_set(0)
+dlg.vars["Frost"].set(True)
+dlg.ok()
+print("ASKED", asked)
+""")
+        assert rc == 0, out
+        assert "MEET ['Frost'] [] ['Storm'] [] ['Storm']" in out, out
+        assert "ASKED [('Winter Overlay', 'Winter Pack', 1, 'Frost')]" in out, out
+    for when, noted in (("Frost", True), ("Storm", False)):
+        with tempfile.TemporaryDirectory() as d:
+            tc.install(d, config=config + (
+                'TOGGLE_MODS = {"Winter Overlay": {"when": (%r,), "above": "Base Grass"},\n'
+                '               "Winter Pack": {"when": ("winter",), "above": "Grass Compat"}}\n'
+                % when))
+            rc, out = tc.run(d, "status", tool="season.py")
+            assert rc == 0 and ("\"Winter Overlay\" wins 1 of Winter Pack" in out) == noted, out
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=config)
+        rc, out = tc.run(d, "season", "Wormhole season", "--rename", "Rostok wormhole")
+        assert rc == 0, out
+        assert tg.table(d)["SPELLS"]["Storm"]["in"] == ("Rostok wormhole",), tg.table(d)
+    return "Frost meets winter, not summer; Storm meets summer; asked, noted; renamed with it"
 
 
 if __name__ == "__main__":
