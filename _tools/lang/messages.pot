@@ -137,6 +137,23 @@ msgstr ""
 
 #: lang.py
 #, python-format
+msgctxt "the last two in a list"
+msgid "%(rest)s and %(last)s"
+msgstr ""
+
+#: lang.py
+#, python-format
+msgctxt "the last two in a list of choices"
+msgid "%(rest)s or %(last)s"
+msgstr ""
+
+#: lang.py
+msgctxt "between words in a list"
+msgid ", "
+msgstr ""
+
+#: lang.py
+#, python-format
 msgctxt "a date in full: September 26, 2026"
 msgid "%(month)s %(day)d, %(year)d"
 msgstr ""

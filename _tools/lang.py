@@ -480,6 +480,24 @@ def day(m, d):
                     "%(month)s %(day)d") % {"month": month(m), "day": d}
 
 
+def and_list(words):
+    """Words in a list the way a sentence runs them: "a", "a and b", "a, b and c"."""
+    return _join(list(words), pgettext("the last two in a list", "%(rest)s and %(last)s"))
+
+
+def or_list(words):
+    """"a", "a or b", "a, b or c"."""
+    return _join(list(words), pgettext("the last two in a list of choices",
+                                       "%(rest)s or %(last)s"))
+
+
+def _join(words, last_two):
+    if len(words) < 2:
+        return "".join(words)
+    comma = pgettext("between words in a list", ", ")
+    return last_two % {"rest": comma.join(words[:-1]), "last": words[-1]}
+
+
 def date_long(when):
     """A date in full: "September 26, 2026"."""
     return pgettext("a date in full: September 26, 2026",
