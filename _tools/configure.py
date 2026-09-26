@@ -940,7 +940,9 @@ def credit(parent, pieces):
     from tkinter import ttk
     line = ttk.Frame(parent)
     for i, (text, url) in enumerate(pieces):
-        lab = ttk.Label(line, text=_(text) % SITE, foreground="#1f5f99", cursor="hand2")
+        # only a piece with the site in it is filled in: a % in another is a percent sign
+        said = _(text) % SITE if "%(" in text else _(text)
+        lab = ttk.Label(line, text=said, foreground="#1f5f99", cursor="hand2")
         lab.pack(side="left", padx=(0 if i == 0 else 4, 0))
         lab.bind("<Button-1>", lambda e, u=url: webbrowser.open(u))
     return line
@@ -3191,12 +3193,12 @@ file is kept as seasons_config.py.bak.
 
 
 def main():
-    ap = argparse.ArgumentParser(
+    ap = lang.parser(
         description=_("Set up Seasons of the Zone. With no command, opens the window."),
-        epilog=usage(), formatter_class=argparse.RawDescriptionHelpFormatter)
+        epilog=usage(), formatter_class=lang.RawHelpAsWritten)
     ap.add_argument("--advanced", action="store_true",
                     help=_("open the tabbed editor rather than the guided setup"))
-    sub = ap.add_subparsers(dest="cmd", metavar="command")
+    sub = ap.add_subparsers(dest="cmd", metavar="command", parser_class=lang.parser)
     sub.add_parser("list", help=_("show the seasonal mods, events and calendar"))
     p = sub.add_parser("add", help=_("make a mod seasonal, or change when it is on"))
     p.add_argument("mod", help=_("the mod as MO2's mod list names it, in quotes if it has "

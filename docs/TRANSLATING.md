@@ -20,9 +20,11 @@ The words are in `_tools\lang\`:
 | `ru.po` | The Russian translation: every string, each with an empty translation to fill in. |
 | `language.txt` | The language picked in the window's switch. Not shipped; yours. |
 
-A `.po` file is plain text, UTF-8, in the format of gettext, so any text editor works, and
-so do tools made for it, like [Poedit](https://poedit.net/) (free). Each string looks like
-this:
+A `.po` file is plain text in the format of gettext, so any text editor works, and so do
+tools made for it, like [Poedit](https://poedit.net/) (free). UTF-8 is best; a file in
+another encoding is read as its header's `charset` says, and written back as UTF-8 when
+the tools bring it up to date. Your own comments, lines starting `# `, are kept. Each
+string looks like this:
 
 ```
 #: guide.py
@@ -87,8 +89,10 @@ has them), then clear the translations. The codes that follow the game's languag
 
 A few things stay English: the lines `play.bat` and `configure.bat` print without Python -
 when Python or the tools are missing, the folder is the wrong one, or MO2 has no entry by
-the name `play.bat` starts - and what is written into files: `seasons_config.py`'s
-comments, logs.
+the name `play.bat` starts; Python's own words in a command's `--help` and its errors
+(`usage:`, `options:`, "invalid choice"); the names and descriptions of the presets that
+come with the tools; and what is written into files: `seasons_config.py`'s comments,
+logs.
 
 ---
 

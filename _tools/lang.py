@@ -20,15 +20,24 @@ here, so one that didn't stands out.
 build_messages.py collects the strings into lang/messages.pot and brings each .po up to
 date with it; docs/TRANSLATING.md is how to translate.
 """
+import argparse
+import codecs
 import io
 import os
 import re
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FOLDER = os.path.join(HERE, "lang")
 CHOICE = os.path.join(FOLDER, "language.txt")
 ENGLISH = "en"
 PSEUDO = "qps"
+# a language's name in itself, for a translation whose header doesn't give it
+NAMES = {"ru": "\u0420\u0443\u0441\u0441\u043a\u0438\u0439",
+         "uk": "\u0423\u043a\u0440\u0430\u0457\u043d\u0441\u044c\u043a\u0430",
+         "pl": "Polski", "fr": "Fran\u00e7ais", "de": "Deutsch", "es": "Espa\u00f1ol",
+         "it": "Italiano", "cs": "\u010ce\u0161tina",
+         "pt_BR": "Portugu\u00eas (Brasil)", "tr": "T\u00fcrk\u00e7e"}
 # the game's names for its languages (configs/localization.ltx), and ours
 GAME_CODES = {"eng": "en", "rus": "ru", "ukr": "uk", "pol": "pl", "fra": "fr", "ger": "de",
               "deu": "de", "spa": "es", "ita": "it", "cze": "cs", "ptb": "pt_BR",
@@ -53,8 +62,23 @@ def _unquote(text):
 def read_po(path):
     """[(context, msgid, msgid_plural, [msgstr, ...], flags, obsolete)] for every entry of a
     .po file, the header (msgid "") included. Comments other than flags are left out."""
-    with io.open(path, encoding="utf-8-sig") as f:
-        return read_po_lines(f, os.path.basename(path))
+    return read_po_lines(po_text_of(path).splitlines(), os.path.basename(path))
+
+
+def po_text_of(path):
+    """A .po file's text, in the charset its header names - UTF-8 when it names none, or
+    one Python doesn't know. A letter that isn't in it is a ValueError."""
+    with io.open(path, "rb") as f:
+        data = f.read()
+    if data.startswith(codecs.BOM_UTF8):
+        return data[3:].decode("utf-8")
+    m = re.search(br"charset=([A-Za-z0-9_.:-]+)", data[:4096])
+    enc = m.group(1).decode("ascii") if m else "utf-8"
+    try:
+        codecs.lookup(enc)
+    except LookupError:
+        enc = "utf-8"
+    return data.decode(enc)
 
 
 def read_po_lines(lines, name="<lines>"):
@@ -65,17 +89,21 @@ def read_po_lines(lines, name="<lines>"):
     def done():
         cur = state["cur"]
         if cur and "msgid" in cur:
+            # msgstr[n] by its number: a form not written yet is empty, not skipped
+            forms = [k for k in cur if isinstance(k, int)]
             strs = ([cur["msgstr"]] if "msgstr" in cur else
-                    [cur[k] for k in sorted(k for k in cur if isinstance(k, int))])
+                    [cur.get(i, "") for i in range(max(forms) + 1)] if forms else [])
             entries.append((cur.get("msgctxt"), cur["msgid"], cur.get("msgid_plural"), strs,
                             cur["flags"], cur["obsolete"]))
         state["cur"], state["key"] = None, None
 
     for raw in lines:
-        line = raw.rstrip("\r\n")
+        line = raw.rstrip("\r\n").lstrip()
         obsolete = line.startswith("#~")
         if obsolete:
             line = line[2:].lstrip()
+            if line.startswith(("|", "#")):
+                continue                # msgmerge's previous msgid, or a comment, kept old
         if not line.strip():
             done()
             continue
@@ -266,7 +294,7 @@ class Catalog(object):
         m = re.search(r"nplurals\s*=\s*(\d+)\s*;\s*plural\s*=\s*([^;]+);?", forms)
         if m:
             self.nplurals, self.plural = int(m.group(1)), plural_rule(m.group(2))
-        self.name = head.get("X-Language-Name") or code
+        self.name = head.get("X-Language-Name") or NAMES.get(code) or code
         self.dropped = []           # translations whose placeholders don't match the English
         for ctx, msgid, plural, strs, flags, obsolete in entries:
             if not msgid or obsolete or "fuzzy" in flags or not any(strs):
@@ -336,8 +364,17 @@ def load(code):
         return None
     try:
         return Catalog(code, read_po(path))
-    except (OSError, ValueError, UnicodeDecodeError):
+    except (OSError, ValueError) as e:
+        # said once, and in English, since the translation is what can't be read
+        if path not in _unread:
+            _unread.add(path)
+            sys.stderr.write("  lang/%s can't be read (%s), so the tools show English. "
+                             "py _tools\\build_messages.py --check says more.\n"
+                             % (os.path.basename(path), e))
         return None
+
+
+_unread = set()
 
 
 def available():
@@ -371,10 +408,11 @@ def saved_choice():
     theirs = os.path.join(gamma_root(), "_tools", "lang", "language.txt")
     for path in (CHOICE, theirs):
         try:
-            got = io.open(path, encoding="utf-8").read().strip()
-        except OSError:
+            got = io.open(path, encoding="utf-8-sig", errors="replace").read().strip()
+        except (OSError, ValueError):
             continue
-        if got:
+        # a file saved in another encoding, or with other words in it, is no choice
+        if re.match(r"^[A-Za-z]{2,3}(?:_[A-Za-z]{2,4})?$", got):
             return got
     return None
 
@@ -404,12 +442,14 @@ def _mo2(root):
 
 def game_language(root=None):
     """The language the game shows, as our code, from the configs/localization.ltx that
-    wins among MO2's enabled mods - a translation mod sets it there - or None when none
-    has one, which is English: the game's own is packed, and English."""
+    wins: in MO2's overwrite folder, where the game's own Options menu saves it, else among
+    MO2's enabled mods, where a translation mod sets it; or None when none has one, which
+    is English: the game's own is packed, and English."""
     root = root or gamma_root()
     mods, enabled = _mo2(root)
-    places = [os.path.join(mods, m, "gamedata", "configs", "localization.ltx")
-              for m in enabled] if mods else []
+    places = [os.path.join(root, "overwrite", "gamedata", "configs", "localization.ltx")]
+    places += [os.path.join(mods, m, "gamedata", "configs", "localization.ltx")
+               for m in enabled] if mods else []
     for p in places:
         if os.path.isfile(p):
             break
@@ -494,6 +534,25 @@ def npgettext(context, singular, plural, n):
     cat = _cat()
     got = cat.nget(context, singular, plural, n) if cat is not None else None
     return got or (singular if english_plural(n) == 0 else plural)
+
+
+class HelpAsWritten(argparse.HelpFormatter):
+    """--help with each help as written. argparse fills %(default)s and the like into every
+    help itself, so a percent sign in a translation would stop --help; none of ours uses
+    that, and each is filled in before argparse sees it."""
+
+    def _expand_help(self, action):
+        return self._get_help_string(action)
+
+
+class RawHelpAsWritten(HelpAsWritten, argparse.RawDescriptionHelpFormatter):
+    pass
+
+
+def parser(**kw):
+    """An ArgumentParser that shows each help as written, its commands' too."""
+    kw.setdefault("formatter_class", HelpAsWritten)
+    return argparse.ArgumentParser(**kw)
 
 
 # --- words every tool needs ---------------------------------------------------------------

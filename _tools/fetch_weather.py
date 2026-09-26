@@ -20,7 +20,6 @@ exits 0. Without a usable file the game falls back to climate normals and says s
   python fetch_weather.py --offline    do nothing, for testing the fallback
   python fetch_weather.py --show       print what the game would read
 """
-import argparse
 import datetime
 import io
 import json
@@ -31,6 +30,7 @@ import unicodedata
 import urllib.parse
 import urllib.request
 
+import lang
 from lang import _, ngettext, pgettext
 
 # what it says can be in any language, and play.bat's window or a pipe may not take it
@@ -391,7 +391,7 @@ def show():
 
 
 def main():
-    ap = argparse.ArgumentParser(
+    ap = lang.parser(
         description=_("Fetch the day's weather for the place set in configure.bat "
                       "(Chornobyl by default); play.bat runs this."))
     ap.add_argument("--force", action="store_true",

@@ -654,7 +654,11 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: season.py
-msgid "the name can't contain a line break or a tab."
+msgid "the name can't contain , ; [ ] = or a line break."
+msgstr ""
+
+#: season.py
+msgid "the name has letters the game can't show. Use English or Cyrillic letters."
 msgstr ""
 
 #: season.py
@@ -685,10 +689,6 @@ msgstr ""
 
 #: season.py
 msgid "give the spell a name in quotes, like \"Summer frost\"."
-msgstr ""
-
-#: season.py
-msgid "the name has letters the game can't show. Use English or Cyrillic letters."
 msgstr ""
 
 #: season.py
@@ -1309,10 +1309,9 @@ msgstr ""
 #. play.bat's console window shows it; keep its lines about this long
 #: season.py
 msgid ""
-"season.py stopped with an error - read the lines above. Seasonal mods and\n"
-"textures stay as they were after the last launch; light and weather still\n"
-"follow the season. Press a key to start the game anyway, or close this\n"
-"window to fix it first."
+"season.py stopped with an error - the lines above say why, and what it did\n"
+"before it stopped. Light and weather still follow the season. Press a key to\n"
+"start the game anyway, or close this window to fix it first."
 msgstr ""
 
 #: season.py
@@ -1513,11 +1512,6 @@ msgstr ""
 #: season.py
 #, python-format
 msgid "%(mod)s is on only in %(seasons)s, which your calendar has off, so it never switches on."
-msgstr ""
-
-#: season.py
-#, python-format
-msgid "%s share one checkbox in MCM, so unchecking it keeps all of them disabled in that season."
 msgstr ""
 
 #: season.py
@@ -1748,6 +1742,11 @@ msgstr ""
 msgid "nothing to do"
 msgstr ""
 
+#: season.py
+#, python-format
+msgid "Stopped: %s. Run play.bat again."
+msgstr ""
+
 #. why a mod wins over the one it does; said after that one's name
 #: config_edit.py
 #, python-format
@@ -1828,7 +1827,7 @@ msgstr ""
 msgid "Nothing to save."
 msgstr ""
 
-#: config_edit.py
+#: config_edit.py configure.py
 msgid "Not saved, because play.bat would refuse the result:"
 msgstr ""
 
@@ -2196,6 +2195,13 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: configure.py
+#, python-format
+msgid "stopped switching %s, on in nothing else; play.bat leaves it as it is in MO2"
+msgid_plural "stopped switching %s, on in nothing else; play.bat leaves them as they are in MO2"
+msgstr[0] ""
+msgstr[1] ""
+
+#: configure.py
 msgid "seasons_config.py can't be edited here, so nothing was changed:"
 msgstr ""
 
@@ -2487,6 +2493,11 @@ msgid "\"%s\" is already taken by a season, a period or a kind of weather. Pick 
 msgstr ""
 
 #: configure.py
+#, python-format
+msgid "\"%s\" is already the name of a season of your own or a spell. Pick another name."
+msgstr ""
+
+#: configure.py
 msgid "A rule can't also take a first and last day. Give dates with --between, like --between 12-01 02-28."
 msgstr ""
 
@@ -2532,7 +2543,7 @@ msgstr ""
 
 #: configure.py
 #, python-format
-msgid "stopped switching %s, on in nothing else"
+msgid "removed spell %s, which could start only in it"
 msgstr ""
 
 #: configure.py
@@ -2556,6 +2567,11 @@ msgstr ""
 
 #: configure.py
 msgid "Dates are month-day, like 08-01."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "You have a spell called \"%s\" already."
 msgstr ""
 
 #: configure.py
@@ -2641,11 +2657,6 @@ msgstr ""
 #: configure.py
 #, python-format
 msgid "%s can't be used as it is. Fix it first with --in, --chance or --days."
-msgstr ""
-
-#: configure.py
-#, python-format
-msgid "You have a spell called \"%s\" already."
 msgstr ""
 
 #: configure.py
@@ -3903,6 +3914,11 @@ msgid "You have a season called %s already."
 msgstr ""
 
 #: configure.py
+#, python-format
+msgid "You have a spell called %s already."
+msgstr ""
+
+#: configure.py
 msgid "A spell"
 msgstr ""
 
@@ -3951,11 +3967,6 @@ msgstr ""
 
 #: configure.py
 #, python-format
-msgid "You have a spell called %s already."
-msgstr ""
-
-#: configure.py
-#, python-format
 msgid ""
 "Remove %(spell)s? These mods are on during it:\n"
 "\n"
@@ -3966,17 +3977,17 @@ msgstr ""
 
 #: configure.py
 #, python-format
-msgid "%s is on in nothing else, so play.bat stops switching it."
-msgstr ""
-
-#: configure.py
-#, python-format
-msgid "%s are on in nothing else, so play.bat stops switching them."
-msgstr ""
-
-#: configure.py
-#, python-format
 msgid "Remove %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s is on in nothing else, so play.bat stops switching it and leaves it as it is in MO2."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s are on in nothing else, so play.bat stops switching them and leaves them as they are in MO2."
 msgstr ""
 
 #: configure.py

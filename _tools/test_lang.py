@@ -368,6 +368,75 @@ if box is not None:
     return "hidden with no translation and with an empty one; with one string, shown and used"
 
 
+@case
+def t_what_translators_and_their_tools_write_is_read():
+    """msgmerge's #~| lines, an indented line, a file in windows-1251 that says so, a plural
+    form not written yet, a language.txt saved with a BOM or as UTF-16, the language set in
+    the game's own Options, and a % in a --help translation: each read as meant, where each
+    once dropped the whole language, shifted the forms, crashed or went unseen. An update of
+    the file keeps the translator's comments and the form's place, and writes UTF-8."""
+    ru = RU_HEAD + r'''"Content-Type: text/plain; charset=CP1251\n"
+
+# a translator's note
+msgid "Save"
+msgstr "Сохранить"
+
+#, python-format
+msgid "%d mod"
+msgid_plural "%d mods"
+msgstr[0] "%d мод"
+msgstr[2] "%d модов"
+
+msgid "Two lines"
+msgstr ""
+    "Две строки"
+
+#~| msgid "Gone before"
+#~ msgid "Gone"
+#~ msgstr "Ушло"
+'''
+    with Folder({}) as d:
+        io.open(os.path.join(d, "ru.po"), "wb").write(ru.encode("cp1251"))
+        assert lang.use("ru") == "ru"
+        got = [lang._("Save"), lang._("Two lines")] + [
+            lang.ngettext("%d mod", "%d mods", n) % n for n in (1, 2, 5)]
+        assert got == ["Сохранить", "Две строки", "1 мод", "2 mods", "5 модов"], got
+        entries = bm.read_entries(os.path.join(HERE, "lang", "messages.pot"))
+        entries[(None, "Save")] = {"plural": None, "files": [], "notes": []}
+        entries[(None, "%d mod")] = {"plural": "%d mods", "files": [], "notes": []}
+        text = bm.po_text(os.path.join(d, "ru.po"), entries)
+        assert "charset=UTF-8" in text and "# a translator's note\nmsgid \"Save\"" in text, \
+            text[:1500]
+        assert 'msgstr[1] ""\nmsgstr[2] "%d модов"' in text, text
+        io.open(os.path.join(d, "ru.po"), "wb").write(b"msgid \"x\"\nnonsense\n")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            assert lang.use("ru") == "en" and lang.use("ru") == "en"
+        assert err.getvalue().count("lang/ru.po can't be read") == 1, err.getvalue()
+        for data, want in ((b"\xef\xbb\xbfru\r\n", "ru"), ("ru".encode("utf-16"), None),
+                           (b"\xff\xfe\x00", None), (b"no such thing", None)):
+            io.open(os.path.join(d, "language.txt"), "wb").write(data)
+            assert lang.saved_choice() == want, (data, lang.saved_choice())
+    with tempfile.TemporaryDirectory() as g:
+        io.open(os.path.join(g, "ModOrganizer.ini"), "w", encoding="utf-8").write(
+            "[General]\nselected_profile=@ByteArray(Default)\n")
+        os.makedirs(os.path.join(g, "profiles", "Default"))
+        io.open(os.path.join(g, "profiles", "Default", "modlist.txt"), "w",
+                encoding="utf-8").write("+English Text\n")
+        for where, code in ((("mods", "English Text"), "eng"), (("overwrite",), "rus")):
+            p = os.path.join(g, *where + ("gamedata", "configs"))
+            os.makedirs(p)
+            io.open(os.path.join(p, "localization.ltx"), "w", encoding="cp1251").write(
+                "[string_table]\nlanguage = %s\n" % code)
+        assert lang.game_language(g) == "ru", lang.game_language(g)
+    ap = lang.parser(prog="x")
+    sub = ap.add_subparsers(dest="cmd", parser_class=lang.parser)
+    sub.add_parser("y").add_argument("--z", help="100% of it, at %(nothing)s")
+    help_text = sub.choices["y"].format_help()
+    assert "100% of it, at %(nothing)s" in help_text, help_text
+    return "each read; the note and the form kept, UTF-8 written; one note for an unreadable file"
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     failed = 0

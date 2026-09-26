@@ -158,8 +158,9 @@ def quoted(s):
     return '""\n' + "\n".join('"%s"' % p for p in pieces)
 
 
-def entry_text(ctx, msgid, plural, strs, flags=(), files=(), notes=(), obsolete=False):
-    lines = ["#. " + n for n in notes]
+def entry_text(ctx, msgid, plural, strs, flags=(), files=(), notes=(), obsolete=False,
+               mine=()):
+    lines = list(mine) + ["#. " + n for n in notes]
     if files:
         lines.append("#: " + " ".join(files))
     if flags:
@@ -201,8 +202,12 @@ def po_text(path, entries, also=()):
     .po files whose translations fill in what `path` leaves empty: the one a new version of
     the tools ships, under a translator's own."""
     have = lang.read_po(path)
+    text = lang.po_text_of(path)
+    mine = translator_notes(text)
     head = next((e for e in have if e[1] == "" and e[0] is None and not e[5]), None)
     header = head[3][0] if head and head[3] else HEADER
+    # it is written back as UTF-8, whatever it was read as
+    header = re.sub(r"(charset=)[A-Za-z0-9_.:-]+", r"\1UTF-8", header)
     m = re.search(r"nplurals\s*=\s*(\d+)", header)
     nplurals = int(m.group(1)) if m else 2
     old = {(e[0], e[1]): e for e in have if e[1] != "" or e[0] is not None}
@@ -212,7 +217,7 @@ def po_text(path, entries, also=()):
             if (e[1] and not e[5] and "fuzzy" not in e[4] and any(e[3])
                     and not (key in old and any(old[key][3]))):
                 old[key] = e
-    top = [l.rstrip("\n") for l in io.open(path, encoding="utf-8-sig")]
+    top = text.splitlines()
     comments = []
     for l in top:
         if l.startswith("# ") or l == "#":
@@ -231,11 +236,40 @@ def po_text(path, entries, also=()):
             strs = (strs + [""] * nplurals)[:nplurals]
         else:
             strs = strs[:1] or [""]
-        out += [entry_text(ctx, msgid, e["plural"], strs, flags, e["files"], e["notes"]), ""]
+        out += [entry_text(ctx, msgid, e["plural"], strs, flags, e["files"], e["notes"],
+                           mine=mine.get(key, ())), ""]
     for (ctx, msgid), e in old.items():
         if any(e[3]):
-            out += [entry_text(ctx, msgid, e[2], e[3], obsolete=True), ""]
+            out += [entry_text(ctx, msgid, e[2], e[3], obsolete=True,
+                               mine=mine.get((ctx, msgid), ())), ""]
     return "\n".join(out)
+
+
+def translator_notes(text):
+    """{(context, msgid): its translator's comment lines} in a .po file's text: the lines
+    of "# " or a "#" alone above an entry, which msgmerge and Poedit keep, and so does
+    po_text()."""
+    out, block = {}, []
+
+    def done():
+        lines = [l for l in block if l == "#" or l.startswith("# ")]
+        if not lines:
+            return
+        try:
+            got = lang.read_po_lines(block)
+        except ValueError:
+            return
+        if got and (got[0][1] or got[0][0] is not None):       # not the header's
+            out[(got[0][0], got[0][1])] = lines
+
+    for line in text.splitlines():
+        if line.strip():
+            block.append(line)
+        else:
+            done()
+            block = []
+    done()
+    return out
 
 
 def read_entries(pot):
@@ -382,7 +416,7 @@ def main(argv):
                             "python _tools/build_messages.py")
         for path in po_files():
             try:
-                if io.open(path, encoding="utf-8-sig").read() != po_text(path, entries):
+                if lang.po_text_of(path) != po_text(path, entries):
                     problems.append("lang/%s is out of date with the tools. Run python "
                                     "_tools/build_messages.py" % os.path.basename(path))
             except ValueError as e:
@@ -401,7 +435,11 @@ def main(argv):
     os.makedirs(lang.FOLDER, exist_ok=True)
     write(POT, pot)
     for path in po_files():
-        write(path, po_text(path, entries))
+        try:
+            write(path, po_text(path, entries))
+        except ValueError as e:
+            print("  %-10s left as it is: %s" % (os.path.basename(path), e))
+            continue
         cat = lang.Catalog(os.path.basename(path)[:-3], lang.read_po(path))
         print("  %-10s %d of %d translated" % (os.path.basename(path), len(cat), len(entries)))
     print("%d string(s) in lang/messages.pot" % len(entries))

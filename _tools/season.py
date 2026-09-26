@@ -30,7 +30,6 @@ What is installed is identified by hashing the mod folder against the archive's 
 never by a stored note. The archive side is cached (_baseline/season-archive-hashes.json,
 keyed on the archive's size and mtime); the live folder is hashed on every run.
 """
-import argparse
 import ast
 import datetime
 import hashlib
@@ -2922,7 +2921,7 @@ def _row(label, value):
 
 
 def main():
-    ap = argparse.ArgumentParser(
+    ap = lang.parser(
         description=_("Stage today's season for Seasons of the Zone (play.bat runs apply)."))
     ap.add_argument("cmd", choices=["status", "apply", "whowins", "dial", "say"],
                     # translators: status, apply, whowins, dial and say are typed; keep them
