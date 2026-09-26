@@ -1818,9 +1818,11 @@ def dial_state(mapping="pheno", calendar=None, names=None):
         return "none"
 
 
-def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None):
+def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None, staged=False):
     """Write configs/season_calendar.ltx for the game, and draw the dial a custom calendar
-    needs. Returns (dial state, a sentence to show or None)."""
+    needs. Returns (dial state, a sentence to show or None). The spell in the file is the
+    one play.bat last staged, so the game keeps to what is staged: it stays as it is unless
+    `staged` says this run has just staged today's season, spell or not."""
     table = calendar_table(mapping, calendar)
     named = custom_names(names)
     path = _calendar_path()
@@ -1866,12 +1868,16 @@ def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None):
         for s in SEASONS:
             if s in named:
                 lines.append("name_%s = %s" % (s, named[s]))
-    # the spell that brings a season today, for the game to follow while its dates last;
-    # an MCM pin still wins over it in game, as it does here
-    brings, spell = spell_season(datetime.date.today())
-    if spell:
-        lines += ["", "[spell]", "season = %s" % brings, "name = %s" % spell[0],
-                  "first = %s" % spell[1].isoformat(), "last = %s" % spell[2].isoformat()]
+    if staged:
+        # the spell that brings a season today, for the game to follow while its dates
+        # last; an MCM pin still wins over it in game, as it does here
+        brings, spell = spell_season(datetime.date.today())
+        if spell:
+            lines += ["", "[spell]", "season = %s" % brings, "name = %s" % spell[0],
+                      "first = %s" % spell[1].isoformat(),
+                      "last = %s" % spell[2].isoformat()]
+    else:
+        lines += _staged_spell(path)
     body = "\r\n".join(lines) + "\r\n"
     try:
         old = io.open(path, encoding="cp1251", errors="replace", newline="").read()
@@ -1884,6 +1890,21 @@ def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None):
             return None, _("%(file)s could not be written (%(error)s)") % {
                 "file": os.path.basename(path), "error": e}
     return state, note
+
+
+def _staged_spell(path):
+    """The [spell] section of the calendar file as it stands, as lines, or []."""
+    try:
+        old = io.open(path, encoding="cp1251", errors="replace").read().splitlines()
+    except OSError:
+        return []
+    out, keep = [], False
+    for line in old:
+        if line.strip().startswith("["):
+            keep = line.strip().lower() == "[spell]"
+        if keep and line.strip():
+            out.append(line.rstrip())
+    return [""] + out if out else []
 
 
 def base_table(mapping="pheno"):
@@ -2858,6 +2879,9 @@ def main():
         print("  - " + _("MCM pins %s, which your calendar has off, so the date decides.")
               % season_label(prefs["mode"]))
     if writing:
+        # the dates and names go to the game now, as configure.bat sends them; today's spell
+        # only once what it brings is staged (send_spell), so a run that stops - MO2 open,
+        # a failed copy - leaves the game on what is staged
         dial, note = write_calendar(a.mapping)
     else:
         dial = dial_state(a.mapping)
@@ -2975,6 +2999,12 @@ def main():
                  + ("   " + _("(copied: %s)") % ", ".join(copied) if copied else ""))
         print()
 
+        def send_spell():
+            """Hand the game today's spell, now that its season is staged."""
+            state, why = write_calendar(a.mapping, redraw=False, staged=True)
+            if state is None and dial is not None:
+                print("  - " + why)
+
         def say_skipped():
             mods, sets = len(SKIPPED), len(sets_skipped)
             if mods and sets:
@@ -3037,6 +3067,7 @@ def main():
                 write_staged(staged_texture_season(installed) if not stage_tex else want,
                              stage_tex)
                 write_mod_panel(active, prefs)
+                send_spell()
             return
         if not tex_ok:
             # translators: a texture set, restaged: "Tex Mod (summer) -> autumn"
@@ -3135,6 +3166,7 @@ def main():
         # after the toggles, so the panel reports the mod list as it now stands
         write_staged(staged_texture_season(installed) if not stage_tex else want, stage_tex)
         write_mod_panel(active, prefs)
+        send_spell()
         # each restaged texture set adds "textures"; say it once
         words = {"textures": pgettext("staged", "textures"),
                  "soundscape": pgettext("staged", "soundscape"),

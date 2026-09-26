@@ -206,6 +206,48 @@ def t_a_spell_brings_its_season_to_play_bat_and_the_game():
 
 
 @case
+def t_the_game_hears_of_a_spell_only_once_it_is_staged():
+    """On a spell's first day, configure.bat's calendar send and a play.bat stopped by an
+    open MO2 leave the spell out of the file the game reads, so a game started from MO2
+    stays on what is staged. The play.bat that stages it hands it over, and a later send
+    keeps it."""
+    here, other = now_season(), other_season()
+    config = ('SPELLS = {"Cold snap": {"in": (%r,), "chance": 100, "days": 1, "as": %r}}\n'
+              'TOGGLE_MODS = {\n'
+              '    "Map Pack": {"when": (%r,), "above": "Lonely Mod"},\n'
+              '    "Winter Maps": {"when": (%r,), "above": "Map Pack"},\n'
+              '}\n' % (here, other, here, other))
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=config)
+        ltx, _ = tc.with_mod(d)
+        modlist = os.path.join(d, "profiles", "Default", "modlist.txt")
+        before = io.open(modlist, encoding="utf-8").read()
+        rc, out = tc.run(d, "dial", tool="season.py")
+        assert rc == 0 and "[spell]" not in io.open(ltx, encoding="cp1251").read(), out
+        busy = os.path.join(d, "busy.py")
+        io.open(busy, "w", encoding="utf-8").write(
+            "import sys\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "import season\n"
+            "season.running = lambda: ['modorganizer.exe']\n"
+            "sys.argv = ['season.py', 'apply']\n"
+            "season.main()\n")
+        r = subprocess.run([sys.executable, "-B", busy, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        out = r.stdout + r.stderr
+        assert r.returncode == 1 and "Close modorganizer.exe first. Nothing was changed." \
+            in out, out
+        text = io.open(ltx, encoding="cp1251").read()
+        assert "[spell]" not in text, text
+        assert io.open(modlist, encoding="utf-8").read() == before
+        rc, out = tc.run(d, "apply", tool="season.py")
+        assert rc == 0 and "[spell]" in io.open(ltx, encoding="cp1251").read(), out
+        rc, out = tc.run(d, "dial", tool="season.py")
+        assert rc == 0 and "name = Cold snap" in io.open(ltx, encoding="cp1251").read(), out
+    return "not sent by configure.bat or a stopped play.bat; sent once staged, then kept"
+
+
+@case
 def t_spells_are_the_same_on_every_run_and_as_likely_as_they_say():
     """The same date gives the same spells in two processes with different hash seeds; over
     60 years a 3%% spell starts about 3%% of its days, runs 1 or 2 days, and starts only in
