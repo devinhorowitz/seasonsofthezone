@@ -391,6 +391,118 @@ print("ON", g.current())
     return "found by name, given by coordinates (a comma for the point too), 95 refused"
 
 
+@case
+def t_an_overlap_in_a_season_is_asked_not_picked():
+    """A mod made seasonal where another seasonal mod on at the same time ships some of the
+    same files: the player says whose the game uses, and that decides which one wins over
+    the other."""
+    got = {}
+    for answer in (True, False):
+        with tempfile.TemporaryDirectory() as d:
+            sandbox(d, config='TOGGLE_MODS = {"Winter Pack": {"when": ("winter",), '
+                              '"above": "Grass Compat"}}\n')
+            rc, out = drive(d, r"""
+asked = []
+def fake(g, name, other, n, seasons, parent=None):
+    asked.append((name, other, n, seasons))
+    return %s
+guide.ask_winner = fake
+g.edit("mods")
+dlg = guide.ModDialog(g)
+dlg.query.set("overlay")
+settle()
+dlg.list.selection_set(0)
+dlg.vars["winter"].set(True)
+dlg.ok()
+print("ASKED", asked)
+print("ABOVE", g.cal.toggle["Winter Overlay"]["above"], "|", g.cal.toggle["Winter Pack"]["above"])
+""" % answer)
+            assert rc == 0, out
+            assert "ASKED [('Winter Overlay', 'Winter Pack', 1, 'winter')]" in out, out
+            got[answer] = [l for l in out.splitlines() if l.startswith("ABOVE")][0]
+    assert got[True] == "ABOVE Winter Pack | Grass Compat", got
+    assert got[False].endswith("| Winter Overlay"), got
+    return "asked whose files; Winter Overlay's puts it over Winter Pack, Winter Pack's the other way"
+
+
+@case
+def t_a_seasonal_mod_installs_from_its_archive():
+    """The case this was made for: an archive in the GAMMA folder whose name says winter,
+    an installer of two parts, and a fix file from its author. Found on the step, installed
+    with one part and the fix, made seasonal in winter, set to win over the seasonal mod it
+    recolors - then saved, and placed by season.py."""
+    import test_mod_install as tm
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config='TOGGLE_MODS = {"Winter Pack": {"when": ("winter",), '
+                          '"above": "Grass Compat"}}\n')
+        top = "Winter Recolor 1.2"
+        xml = tm.fomod_xml([("Parts", [tm.group_xml("Parts", "SelectAtLeastOne", [
+            tm.plugin_xml("Grass", [("folder", "gamedata\\textures\\grass",
+                                     "gamedata\\textures\\grass")]),
+            tm.plugin_xml("Ground", [("folder", "gamedata\\textures\\terrain",
+                                      "gamedata\\textures\\terrain")])])])])
+        tm.make(os.path.join(d, "Winter Recolor 1.2.7z"), {
+            top + "/fomod/ModuleConfig.xml": xml.encode("utf-8"),
+            top + "/gamedata/textures/grass/a.dds": b"recolor a",
+            top + "/gamedata/textures/grass/b.dds": b"recolor b",
+            top + "/gamedata/textures/terrain/t.dds": b"recolor t"})
+        io.open(os.path.join(d, "b.dds"), "wb").write(b"the author's fix")
+        rc, out = drive(d, r"""
+import os
+from tkinter import filedialog
+gamma = os.path.dirname(sys.argv[1])
+filedialog.askopenfilename = lambda **k: os.path.join(gamma, "b.dds")
+asked = []
+guide.ask_winner = lambda g, name, other, n, seasons, parent=None: (
+    asked.append((name, other, n, seasons)) or True)
+g.edit("mods")
+print("FOUND", [x for x in texts(g.page) if x.startswith("Winter Recolor")])
+dlg = guide.InstallDialog(g, os.path.join(gamma, "Winter Recolor 1.2.7z"))
+for _ in range(300):
+    settle(1)
+    if dlg.win is not None:
+        break
+print("GUESS", sorted(s for s, v in dlg.seasons.items() if v.get()))
+dlg.name.set("Winter Recolor")
+names = {p["id"]: p["name"] for p in dlg.pkg.fomod.plugins()}
+for pid, (var, value) in dlg.chosen.items():
+    if names[pid] == "Ground":
+        var.set(False)
+dlg.add_extra()
+print("EXTRA", [(os.path.basename(a), b) for a, b in dlg.extra])
+dlg.go()
+for _ in range(600):
+    settle(1)
+    if "Winter Recolor" in g.cal.toggle:
+        break
+c = g.cal.toggle["Winter Recolor"]
+print("SEASONAL", c["when"], c["above"], asked)
+print("ROW", [x for x in texts(g.page) if x.startswith("new: ")])
+g.save_edit()
+print("SAVED", said[-1][0])
+""")
+        assert rc == 0, out
+        assert "FOUND ['Winter Recolor 1.2.7z']" in out, out
+        assert "GUESS ['late_winter', 'winter', 'winter_snow']" in out, out
+        assert "EXTRA [('b.dds', 'gamedata/textures/grass/b.dds')]" in out, out
+        assert ("SEASONAL ['winter', 'winter_snow', 'late_winter'] Winter Pack "
+                "[('Winter Recolor', 'Winter Pack', 2, 'winter')]") in out, out
+        assert "ROW [\"new: play.bat adds it to MO2's mod list\"]" in out, out
+        assert "SAVED showinfo" in out, out
+        mod = os.path.join(d, "mods", "Winter Recolor")
+        grass = os.path.join(mod, "gamedata", "textures", "grass")
+        assert open(os.path.join(grass, "b.dds"), "rb").read() == b"the author's fix"
+        assert open(os.path.join(grass, "a.dds"), "rb").read() == b"recolor a"
+        assert not os.path.exists(os.path.join(mod, "gamedata", "textures", "terrain"))
+        assert os.path.isfile(os.path.join(mod, "meta.ini"))
+        assert table(d)["TOGGLE_MODS"]["Winter Recolor"]["above"] == "Winter Pack"
+        tc.accepted(d)
+        rc, out = tc.run(d, "apply", "--dry-run", "--season", "winter", tool="season.py")
+        assert rc == 0 and "Winter Recolor" in out, out
+    return ("found, one part of two and the fix installed, winter guessed from its name, set "
+            "over the mod it recolors; saved and placed")
+
+
 if __name__ == "__main__":
     print("  the guided setup")
     bad = 0

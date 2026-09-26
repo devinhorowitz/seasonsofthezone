@@ -256,7 +256,11 @@ and off the rest of the year.
 1. **Start** from the GAMMA example - the seasonal mods these tools were made with, for the
    ones you have installed - from a preset of your own, or from nothing.
 2. **Seasonal mods**: a checklist. **Change...** sets when one is on; **Add another
-   mod...** makes any other mod seasonal.
+   mod...** makes any other mod seasonal; **Install one from an archive...** installs a
+   mod you've downloaded and makes it seasonal in one go, with its installer's options and
+   any fix file from its author. Archives in your GAMMA and downloads folders whose names
+   say a season are listed there, ready to install. When two seasonal mods on at the same
+   time ship the same files, it asks whose the game should use.
 3. **Seasons**: Polesia's dates, another calendar, or your own, with the year dial as the
    game will draw it, and names of your own if you like.
 4. **Weather**: Chornobyl, or a place you look up.

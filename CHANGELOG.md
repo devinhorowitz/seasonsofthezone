@@ -11,6 +11,12 @@
   today, and which MO2 entry `play.bat` starts. After that it opens to a summary, with a
   Change button for each part. Nothing needs editing by hand, and copying files into the
   GAMMA folder is no longer a step.
+- **Install a seasonal mod from its archive.** On the Seasonal mods step, it installs a
+  mod you've downloaded into MO2's mods folder - its installer's options as checkboxes, a
+  fix file from its author put where its name says - and makes it seasonal. Archives in the
+  GAMMA and downloads folders whose names say a season are listed there to install. When a
+  seasonal mod shares files with another one on at the same time, the setup asks whose the
+  game should use, instead of picking quietly.
 - **The advanced editor, a button away,** for everything the steps leave out: a window
   that lists your mods as MO2 does, separators and all, and makes events and sets which
   mod wins over which, working out the one each has to win over from the files they

@@ -34,6 +34,20 @@ The setup goes in steps, and nothing is written until the Review step's **Save**
 2. **Seasonal mods**: a checklist. **Change...** sets when one is on, and under **More
    options** its events, its kinds of weather, and the mod it wins over. **Add another
    mod...** makes any other mod seasonal. Texture sets and the ambient sound are here too.
+
+   **Install one from an archive...** installs a mod you've downloaded into MO2's mods
+   folder and makes it seasonal. An installer's options become checkboxes; one that asks
+   questions depending on other answers is left to MO2 (Install a new mod from archive),
+   after which the mod can be added here. **Add a file...** puts a fix from the mod's
+   author where the mod has a file of that name - the CConV1.5.dds that Colorful Autumn's
+   author posted goes to its `gamedata\textures\ccon`, say. Archives in your GAMMA and
+   downloads folders whose names say a season are listed on the step, with an Install
+   button. MO2's mod list isn't touched: MO2 finds the new folder by itself, and `play.bat`
+   puts it in the list just above the mod it wins over.
+
+   When a seasonal mod ships files that another seasonal mod on at the same time ships
+   too - a recolor and the set it recolors - the setup asks whose the game should use,
+   and sets which one wins over the other from the answer.
 3. **Seasons**: Polesia's dates, another calendar that comes with the tool, or your own,
    and names of your own, with the year dial as the game will draw it. See
    [`CALENDAR`](#calendar) and [`NAMES`](#names).

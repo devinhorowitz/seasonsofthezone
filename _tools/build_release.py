@@ -58,6 +58,7 @@ TOOL_FILES = [
     "fetch_weather.py",
     "guide.py",
     "installer.py",
+    "mod_install.py",
     "build_season_dial.py",
     "build_season_headers.py",
     "build_seasons_ltx.py",

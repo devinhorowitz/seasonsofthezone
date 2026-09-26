@@ -5,6 +5,11 @@ weather, a review, and how to play - on one copy of seasons_config.py held in me
 the review saves. Once there is a setup, the window opens to a summary instead, and each
 Change there opens one step on its own and saves from it.
 
+A seasonal mod can be installed from its archive on the Seasonal mods step: simple
+installer options become checkboxes, a fix file from its author goes where its name says,
+and when it shares files with another seasonal mod on in the same season, the player is
+asked which one's the game should use. mod_install.py does the archive side.
+
 What the steps leave out - making events, periods, and fine control of which mod wins over
 which - is in the tabbed editor, configure.App, a button away on every page.
 """
@@ -436,16 +441,57 @@ class Guide(object):
                 ttk.Button(grid, text="Change...", command=lambda n=name:
                            ModDialog(self, n)).grid(row=row, column=2, padx=(14, 0))
                 if name not in self.inst.names:
-                    ttk.Label(grid, text="not in MO2's mod list", foreground=cf.RED).grid(
+                    new = os.path.isdir(os.path.join(season.MODS, name))
+                    ttk.Label(grid, text="new: play.bat adds it to MO2's mod list" if new
+                              else "not in MO2's mod list",
+                              foreground=cf.GREY if new else cf.RED).grid(
                         row=row, column=3, sticky="w", padx=(10, 0))
                 row += 1
         grid.columnconfigure(1, weight=1)
-        ttk.Button(box, text="Add another mod...", command=lambda: ModDialog(self)).pack(
-            anchor="w", pady=(10, 0))
+        row = ttk.Frame(box)
+        row.pack(anchor="w", pady=(10, 0))
+        self.button(row, "Add another mod...", lambda: ModDialog(self), pad=0)
+        self.button(row, "Install one from an archive...", self.pick_archive)
+        self.found_archives(box)
         self.mods_extras(box)
         self.mods_count = ttk.Label(box, text="", foreground=cf.GREY)
         self.mods_count.pack(anchor="w", pady=(12, 0))
         self.count_mods()
+
+    def found_archives(self, box):
+        """Archives in the GAMMA and downloads folders whose names say a season, not yet
+        installed: one click from being seasonal mods."""
+        mi = archives()
+        if mi is None:
+            return
+        try:
+            found = mi.found(self.gamma, set(os.listdir(season.MODS)))
+        except OSError:
+            return
+        if not found:
+            return
+        self.subhead("Found in your GAMMA folder, not installed yet", parent=box)
+        for f in found:
+            line = self.ttk.Frame(box)
+            line.pack(anchor="w", fill="x", pady=1)
+            self.ttk.Label(line, text=os.path.basename(f["path"])).pack(side="left")
+            self.ttk.Label(line, text="  %s" % cf.when_text(f["seasons"], self.cal),
+                           foreground=cf.GREY).pack(side="left")
+            self.button(line, "Install...", lambda a=f["path"]: InstallDialog(self, a),
+                        pad=12)
+
+    def pick_archive(self):
+        from tkinter import filedialog, messagebox
+        if archives() is None:
+            messagebox.showerror(cf.TITLE, "_tools\\mod_install.py is missing. Copy _tools "
+                                 "from the mod's folder again.", parent=self.root)
+            return
+        path = filedialog.askopenfilename(
+            parent=self.root, title="Install a mod from its archive",
+            initialdir=self.gamma, filetypes=[("Mod archives", "*.7z *.zip *.rar"),
+                                              ("All files", "*.*")])
+        if path:
+            InstallDialog(self, path)
 
     def mods_extras(self, box):
         """Texture sets swapped from their archives, and the ambient sound: the parts of a
@@ -1287,7 +1333,9 @@ class ModDialog(object):
             return
         above = self.above_choices[self.above.current()][0]
         if above is None:
-            above = ce.anchor_for(g.inst, name, when, cal.toggle)[0] or ""
+            above = settle(g, name, when, parent=self.win)
+            if above is None:
+                return
         if ce.loops(cal.toggle, name, above):
             messagebox.showerror(self.win.title(), "%s already wins over this mod, so this "
                                  "one can't win over it as well." % above, parent=self.win)
@@ -1296,3 +1344,271 @@ class ModDialog(object):
         g.kept.pop(name, None)
         self.win.destroy()
         g.render()
+
+
+def archives():
+    """mod_install, or None for a _tools from before it."""
+    try:
+        import mod_install
+        return mod_install
+    except ImportError:
+        return None
+
+
+def ask_winner(guide, name, other, n, seasons, parent=None):
+    """Two seasonal mods on at once share files: whose should the game use? True for
+    `name`'s, False for `other`'s, None when the player backs out."""
+    tk, ttk = guide.tk, guide.ttk
+    win, f = cf.dialog(parent or guide.root, "Which one wins?")
+    guide.para(("%s and %s are both on in %s, and ship %d of the same file%s. Whose should "
+                "the game use while both are on?") % (name, other, seasons, n,
+                                                      "" if n == 1 else "s"),
+               parent=f, wrap=520)
+    pick = tk.StringVar(value="mine")
+    ttk.Radiobutton(f, text="%s's" % name, value="mine", variable=pick).pack(anchor="w",
+                                                                            pady=(10, 0))
+    guide.para("Right for a recolor, a fix or an add-on made for the other one.", parent=f,
+               color=cf.GREY, pad=(0, 0), indent=24, wrap=520)
+    ttk.Radiobutton(f, text="%s's" % other, value="theirs", variable=pick).pack(
+        anchor="w", pady=(6, 0))
+    said = {}
+
+    def ok():
+        said["pick"] = pick.get()
+        win.destroy()
+
+    cf.button_row(f, ("OK", ok), ("Cancel", win.destroy))
+    win.bind("<Return>", lambda e: ok())
+    cf.present(win, parent or guide.root)
+    (parent or guide.root).wait_window(win)
+    if parent is not None and parent.winfo_exists():
+        parent.grab_set()                   # the dialog it was asked from holds input again
+    return None if "pick" not in said else said["pick"] == "mine"
+
+
+def settle(guide, name, when, parent=None):
+    """The mod `name` wins over, when it is on in `when`: the one the files they share
+    pick, except that for each other seasonal mod on at the same time with files in common
+    the player says which one wins. Returns it, or None when the player backs out. Setting
+    another mod to win moves that mod, not this one."""
+    cal, inst = guide.cal, guide.inst
+    auto = ce.anchor_for(inst, name, when, cal.toggle)
+    above, rivals = auto[0] or "", auto[2]
+    beat = []
+    for other, n, both in rivals:
+        c = cal.toggle[other]
+        if c["above"] == name:
+            continue                        # already set to win over this one
+        if name in cal.toggle and cal.toggle[name]["above"] == other:
+            beat.append(other)              # already set to lose to this one
+            continue
+        mine = ask_winner(guide, name, other, n, cf.when_text(both, cal), parent)
+        if mine is None:
+            return None
+        if mine:
+            beat.append(other)
+        elif not ce.loops(cal.toggle, other, name):
+            cal.put(other, c["when"], name)
+    if beat:
+        # just above the one that is highest in MO2's list, it wins over all of them
+        order = {m: i for i, m in enumerate(inst.names)}
+        above = min(beat, key=lambda m: order.get(m, len(order)))
+    return above
+
+
+class InstallDialog(object):
+    """Install a mod from its archive and make it seasonal, in one go: its installer's
+    options as checkboxes, a fix file from its author, its seasons. The archive is read
+    in the background; installing shows how far it has got."""
+
+    def __init__(self, guide, archive):
+        mi = archives()
+        self.g, self.mi, self.archive = guide, mi, archive
+        self.pkg, self.win = None, None
+        # a big solid archive takes a second or more to read its installer from
+        guide.root.configure(cursor="watch")
+        guide.in_background(lambda: mi.Package(archive), self.read)
+
+    def read(self, pkg, error):
+        from tkinter import messagebox
+        g = self.g
+        g.root.configure(cursor="")
+        if error is not None:
+            messagebox.showerror("Install", str(error) if isinstance(
+                error, self.mi.ArchiveError) else "%s can't be read: %s" % (
+                os.path.basename(self.archive), error), parent=g.root)
+            return
+        if pkg.problem:
+            messagebox.showinfo("Install", "%s\n\n%s" % (os.path.basename(self.archive),
+                                                          pkg.problem), parent=g.root)
+            return
+        self.pkg = pkg
+        self.build()
+
+    def build(self):
+        g, pkg = self.g, self.pkg
+        tk, ttk = g.tk, g.ttk
+        win, f = cf.dialog(g.root, "Install %s" % os.path.basename(self.archive))
+        self.win = win
+        row = ttk.Frame(f)
+        row.pack(fill="x")
+        ttk.Label(row, text="Install it as").pack(side="left")
+        self.name = tk.StringVar(value=pkg.name)
+        ttk.Entry(row, textvariable=self.name, width=72).pack(side="left", padx=(8, 0))
+        if pkg.about:
+            g.para(pkg.about, parent=f, color=cf.GREY, wrap=620)
+        self.chosen = {}
+        if pkg.fomod:
+            chosen = pkg.fomod.default()
+            for step in pkg.fomod.steps:
+                for group in step["groups"]:
+                    plugins = [p for p in group["plugins"] if p["files"]]
+                    if not plugins:
+                        continue
+                    ttk.Label(f, text=group["name"], style="Head.TLabel").pack(
+                        anchor="w", pady=(12, 2))
+                    one = group["type"] in ("SelectExactlyOne", "SelectAtMostOne")
+                    radio = tk.StringVar(value=next((p["id"] for p in plugins
+                                                     if p["id"] in chosen), ""))
+                    for p in plugins:
+                        if one:
+                            ttk.Radiobutton(f, text=p["name"], value=p["id"],
+                                            variable=radio).pack(anchor="w")
+                            self.chosen[p["id"]] = (radio, p["id"])
+                        else:
+                            v = tk.BooleanVar(value=p["id"] in chosen)
+                            ttk.Checkbutton(f, text=p["name"], variable=v,
+                                            state="disabled" if p["type"] == "NotUsable"
+                                            else "normal").pack(anchor="w")
+                            self.chosen[p["id"]] = (v, None)
+                        if p["description"]:
+                            g.para(p["description"], parent=f, color=cf.GREY, pad=(0, 0),
+                                   indent=24, wrap=620)
+        ttk.Label(f, text="Fix files from the author", style="Head.TLabel").pack(
+            anchor="w", pady=(12, 2))
+        self.extra = []
+        self.extra_box = ttk.Frame(f)
+        self.extra_box.pack(anchor="w", fill="x")
+        row = ttk.Frame(f)
+        row.pack(anchor="w", pady=(2, 0))
+        g.button(row, "Add a file...", self.add_extra, pad=0)
+        ttk.Label(row, text="a file the author says to drop into the mod; it goes where the "
+                  "mod has a file of that name", foreground=cf.GREY).pack(side="left",
+                                                                          padx=(10, 0))
+        ttk.Label(f, text="On in these seasons", style="Head.TLabel").pack(anchor="w",
+                                                                           pady=(12, 2))
+        guess = set(self.mi.seasons_in(pkg.name) or self.mi.seasons_in(
+            os.path.basename(self.archive)))
+        grid = ttk.Frame(f)
+        grid.pack(anchor="w")
+        wins = ce.season_windows(g.cal.dates)
+        self.seasons = {}
+        for i, s in enumerate(season.SEASONS):
+            v = tk.BooleanVar(value=s in guess)
+            self.seasons[s] = v
+            ttk.Checkbutton(grid, text=cf.title(s, g.cal), variable=v).grid(
+                row=i // 2, column=(i % 2) * 2, sticky="w", pady=1)
+            ttk.Label(grid, text=wins.get(s, "off in your calendar"),
+                      foreground=cf.GREY).grid(row=i // 2, column=(i % 2) * 2 + 1,
+                                               sticky="w", padx=(8, 24))
+        self.bar = ttk.Progressbar(f, mode="determinate", length=560)
+        self.msg = ttk.Label(f, text="", foreground=cf.GREY, wraplength=620, justify="left")
+        self.msg.pack(anchor="w", pady=(12, 0))
+        self.buttons = cf.button_row(f, ("Install", self.go), ("Cancel", win.destroy))
+        self.show_size()
+        win.bind("<Return>", lambda e: self.go())
+        cf.present(win, g.root)
+
+    def choice(self):
+        """The installer options checked, as plugin ids."""
+        out = set()
+        for pid, (var, value) in self.chosen.items():
+            if value is None and var.get():
+                out.add(pid)
+            elif value is not None and var.get() == value:
+                out.add(pid)
+        return out if self.pkg.fomod else None
+
+    def show_size(self):
+        size = self.pkg.size(self.choice())
+        self.msg.configure(text="About %s, into mods\\%s." % (
+            megabytes(size), self.name.get().strip() or "?"), foreground=cf.GREY)
+
+    def add_extra(self):
+        from tkinter import filedialog, messagebox
+        path = filedialog.askopenfilename(parent=self.win, title="A fix file from the "
+                                          "author", initialdir=os.path.dirname(self.archive))
+        if not path:
+            return
+        dests = [d for _, d in self.pkg.files(self.choice())]
+        dest = self.mi.place(path, dests)
+        if not dest:
+            messagebox.showerror("Install", "This install has no file called %s, or more "
+                                 "than one, so there's no telling where it goes. Check "
+                                 "the options above, or put it in the mod by hand after."
+                                 % os.path.basename(path), parent=self.win)
+            return
+        self.extra = [(p, d) for p, d in self.extra if d != dest] + [(path, dest)]
+        for w in self.extra_box.winfo_children():
+            w.destroy()
+        for p, d in self.extra:
+            self.g.ttk.Label(self.extra_box, text="%s  goes to  %s" % (
+                os.path.basename(p), d.replace("/", "\\"))).pack(anchor="w")
+
+    def go(self):
+        from tkinter import messagebox
+        g = self.g
+        name = self.name.get().strip()
+        when = [s for s, v in self.seasons.items() if v.get()]
+        problems = self.pkg.fomod.problems(self.choice()) if self.pkg.fomod else []
+        if not when:
+            problems.append("Check at least one season.")
+        if problems:
+            messagebox.showerror("Install", "\n".join(problems), parent=self.win)
+            return
+        for b in self.buttons:
+            b.configure(state="disabled")
+        self.bar.pack(anchor="w", pady=(10, 0), before=self.msg)
+        self.msg.configure(text="Installing...", foreground=cf.GREY)
+        state = {"done": 0, "total": self.pkg.size(self.choice()) or 1}
+
+        def progress(done, total):
+            state["done"], state["total"] = done, total or 1
+
+        def tick():
+            if not self.win.winfo_exists():
+                return
+            self.bar.configure(maximum=state["total"], value=state["done"])
+            if "over" not in state:
+                self.win.after(200, tick)
+
+        def done(folder, error):
+            state["over"] = True
+            if error is not None:
+                for b in self.buttons:
+                    b.configure(state="normal")
+                self.bar.pack_forget()
+                self.msg.configure(text=str(error), foreground=cf.RED)
+                return
+            self.win.destroy()
+            self.adopt(name, when)
+
+        choice = self.choice()
+        g.in_background(lambda: self.mi.install(self.pkg, name, choice, self.extra, progress),
+                        done)
+        tick()
+
+    def adopt(self, name, when):
+        """The mod is in place: make it seasonal, asking which mod wins where it overlaps
+        another seasonal mod on at the same time."""
+        g = self.g
+        above = settle(g, name, when)
+        if above is None:
+            above = ce.anchor_for(g.inst, name, when, g.cal.toggle)[0] or ""
+        g.cal.put(name, when, above)
+        g.kept.pop(name, None)
+        g.render()
+
+
+def megabytes(n):
+    return "%.1f GB" % (n / 1e9) if n >= 1e9 else "%d MB" % max(1, round(n / 1e6))
