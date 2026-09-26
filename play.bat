@@ -67,8 +67,10 @@ REM  `python` is not, and a bare `python` on a fresh Windows can open the Store.
 set "PY=python"
 where py >nul 2>&1 && set "PY=py -3"
 
+REM  The lines shown on every launch come from season.py, in the player's language: a
+REM  batch file can't read a translation. The English after || is for when Python can't.
 echo.
-echo  Checking the season...
+%PY% "_tools\season.py" say checking 2>nul || echo  Checking the season...
 REM  The real weather, for the forecast page and the freezing, thaw and heat days. This
 REM  asks Open-Meteo (open-meteo.com, CC BY 4.0) about the place set in configure.bat,
 REM  Chornobyl by default: its coordinates, no account, no key, and nothing
@@ -79,14 +81,16 @@ REM  temperature from the place's climate instead, so the error is never fatal.
 %PY% "_tools\season.py" apply
 if errorlevel 1 (
     echo.
-    echo  season.py stopped with an error - read the lines above. Seasonal mods and
-    echo  textures stay as they were after the last launch; light and weather still
-    echo  follow the season. Press a key to start the game anyway, or close this
-    echo  window to fix it first.
+    %PY% "_tools\season.py" say stopped 2>nul || (
+        echo  season.py stopped with an error - read the lines above. Seasonal mods and
+        echo  textures stay as they were after the last launch; light and weather still
+        echo  follow the season. Press a key to start the game anyway, or close this
+        echo  window to fix it first.
+    )
     echo.
     pause
 )
 
 echo.
-echo  Starting Anomaly...
+%PY% "_tools\season.py" say starting 2>nul || echo  Starting Anomaly...
 start "" "%~dp0ModOrganizer.exe" "moshortcut://:%SHORTCUT%"
