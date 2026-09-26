@@ -120,9 +120,33 @@ class Plan(object):
                 state = "same"
             elif os.path.dirname(rel) == PRESETS and saved_by_player(old):
                 state = "kept"
+            elif os.path.dirname(rel) == LANG and rel.endswith(".po"):
+                state, data = self.translation(rel, data)
             else:
                 state = "updated"
             self.files.append((rel, data, state))
+
+    def translation(self, rel, data):
+        """(state, bytes) for a translation the GAMMA folder has already: "updated" to the
+        one that comes with the tools when it translates nothing of its own; "merged" when
+        it does - their translations kept, the new strings added, the shipped translations
+        filling in what theirs leaves out; "unread", left as it is, when it can't be read."""
+        import lang
+        mine, shipped = os.path.join(self.gamma, rel), os.path.join(self.source, rel)
+
+        def translated(path):
+            return {(e[0], e[1]): e[3] for e in lang.read_po(path)
+                    if e[1] and not e[5] and "fuzzy" not in e[4] and any(e[3])}
+        try:
+            theirs = translated(mine)
+        except (OSError, ValueError, UnicodeDecodeError):
+            return "unread", data
+        ours = translated(shipped)
+        if not any(ours.get(k) != v for k, v in theirs.items()):
+            return "updated", data
+        import build_messages
+        entries = build_messages.read_entries(os.path.join(self.source, LANG, "messages.pot"))
+        return "merged", build_messages.po_text(mine, entries, also=[shipped]).encode("utf-8")
 
     def keep_entry(self, data, old_bat):
         """The new play.bat's bytes, set to start the entry the old one started."""
@@ -140,8 +164,8 @@ class Plan(object):
         return sum(1 for f in self.files if f[2] == state)
 
     def todo(self):
-        """The files to write: the new and the updated."""
-        return [f for f in self.files if f[2] in ("new", "updated")]
+        """The files to write: the new, the updated and the merged."""
+        return [f for f in self.files if f[2] in ("new", "updated", "merged")]
 
     def update(self):
         """Were the tools there before?"""
@@ -168,14 +192,20 @@ class Plan(object):
     def counts(self):
         """"Files: 2 new, 5 updated, 17 the same.", leaving out what there is none of."""
         parts = []
-        for state in ("new", "updated", "same", "kept"):
+        for state in ("new", "updated", "merged", "same", "kept", "unread"):
             n = self.count(state)
             if n:
                 parts.append({"new": ngettext("%d new", "%d new", n),
                               "updated": ngettext("%d updated", "%d updated", n),
+                              "merged": ngettext("%d of your translations brought up to date",
+                                                 "%d of your translations brought up to date",
+                                                 n),
                               "same": ngettext("%d the same", "%d the same", n),
                               "kept": ngettext("%d of your presets kept",
-                                               "%d of your presets kept", n)}[state] % n)
+                                               "%d of your presets kept", n),
+                              "unread": ngettext("%d of your translations left as it is",
+                                                 "%d of your translations left as they are",
+                                                 n)}[state] % n)
         comma = pgettext("between words in a list", ", ")
         # translators: %s is a list of counts of files: "2 new, 5 updated, 17 the same"
         return _("Files: %s.") % comma.join(parts)
@@ -211,11 +241,15 @@ def write(path, data):
 
 
 def put(plan):
-    """Write the new and updated files. Returns (the files written, None), or (those
-    written before it stopped, what stopped it)."""
+    """Write the new, updated and merged files; a merged translation's file as it was is
+    kept beside it as .bak first. Returns (the files written, None), or (those written
+    before it stopped, what stopped it)."""
     done = []
-    for rel, data, __ in plan.todo():
+    for rel, data, state in plan.todo():
         try:
+            if state == "merged":
+                there = os.path.join(plan.gamma, rel)
+                write(there + ".bak", read(there))
             write(os.path.join(plan.gamma, rel), data)
         except OSError as e:
             return done, _("Couldn't write %(file)s: %(error)s.") % {
@@ -261,7 +295,10 @@ def state_word(state):
     """What an install does with a file, as the console lists it: new, updated, kept."""
     return {"new": pgettext("a file the install copies", "new"),
             "updated": pgettext("a file the install copies", "updated"),
-            "kept": pgettext("a file the install leaves as it is", "kept")}.get(state, state)
+            "merged": pgettext("a translation the install brings up to date", "merged"),
+            "kept": pgettext("a file the install leaves as it is", "kept"),
+            "unread": pgettext("a file the install leaves as it is", "kept")}.get(state,
+                                                                                  state)
 
 
 def console(plan):
@@ -277,6 +314,10 @@ def console(plan):
         say(_("The tools in your GAMMA folder, %(gamma)s, are up to date (%(here)s).") % v
             if plan.here else
             _("The tools in your GAMMA folder, %s, are up to date.") % plan.gamma)
+        for rel, __, state in plan.files:
+            if state == "unread":
+                say("  %-8s %s" % (state_word(state), _(
+                    "%s - yours, left as it is: it can't be read") % rel))
         return
     if plan.update():
         say({"same": _("Updating the tools in your GAMMA folder, %(gamma)s: %(here)s there "
@@ -292,6 +333,13 @@ def console(plan):
         if state == "kept":
             say("  %-8s %s" % (state_word(state), _("%s - yours, not the one that comes with "
                                                     "the tools") % rel))
+        elif state == "merged":
+            say("  %-8s %s" % (state_word(state), _(
+                "%(file)s - your translations kept, the new strings added; the file as it "
+                "was is %(file)s.bak") % {"file": rel}))
+        elif state == "unread":
+            say("  %-8s %s" % (state_word(state), _(
+                "%s - yours, left as it is: it can't be read") % rel))
         elif state != "same":
             say("  %-8s %s" % (state_word(state), rel))
     say(plan.counts())

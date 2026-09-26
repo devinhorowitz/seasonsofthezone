@@ -66,7 +66,9 @@ py _tools\configure.py list
 `SEASONS_LANG=qps` is a test language: it marks every string that can be translated as
 `‹...›` and changes its letters, so text that can't be translated yet stands out.
 
-**After a new version** of the tools, bring the file up to date:
+**After a new version** of the tools, installing it keeps your translations: it brings
+your `ru.po` up to date with the new strings and keeps the file as it was beside it, as
+`ru.po.bak`. To do the same by hand, where you translate:
 
 ```
 py _tools\build_messages.py

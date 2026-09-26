@@ -53,6 +53,12 @@ def _unquote(text):
 def read_po(path):
     """[(context, msgid, msgid_plural, [msgstr, ...], flags, obsolete)] for every entry of a
     .po file, the header (msgid "") included. Comments other than flags are left out."""
+    with io.open(path, encoding="utf-8-sig") as f:
+        return read_po_lines(f, os.path.basename(path))
+
+
+def read_po_lines(lines, name="<lines>"):
+    """read_po() for the lines of a .po file already read."""
     entries = []
     state = {"cur": None, "key": None, "flags": []}
 
@@ -65,7 +71,7 @@ def read_po(path):
                             cur["flags"], cur["obsolete"]))
         state["cur"], state["key"] = None, None
 
-    for raw in io.open(path, encoding="utf-8-sig"):
+    for raw in lines:
         line = raw.rstrip("\r\n")
         obsolete = line.startswith("#~")
         if obsolete:
@@ -95,7 +101,7 @@ def read_po(path):
         if line.startswith('"') and cur is not None and state["key"] is not None:
             cur[state["key"]] += _unquote(line)
             continue
-        raise ValueError("%s: can't read this line: %s" % (os.path.basename(path), line[:60]))
+        raise ValueError("%s: can't read this line: %s" % (name, line[:60]))
     done()
     return entries
 

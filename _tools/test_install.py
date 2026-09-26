@@ -316,6 +316,42 @@ def t_a_first_install_puts_the_tools_in_the_gamma_folder():
 
 
 @case
+def t_an_update_keeps_a_translator_s_work():
+    """ru.po in the GAMMA folder, filled in there by a translator: an update brings it up
+    to date - their translations kept, the shipped ones filling in the rest - and keeps the
+    file as it was beside it. One that can't be read is left alone; one with nothing of its
+    own is updated; the language picked stays."""
+    ru = os.path.join("_tools", "lang", "ru.po")
+    with tempfile.TemporaryDirectory() as d:
+        root, mod = gamma(d)
+        install(mod, "--yes")
+        mine = read(root, ru).decode("utf-8").replace(
+            'msgid "Save"\nmsgstr ""', 'msgid "Save"\nmsgstr "Сохранить"', 1)
+        assert "Сохранить" in mine, "the test's ru.po has no Save to translate"
+        put(root, ru, mine.encode("utf-8"))
+        put(root, os.path.join("_tools", "lang", "language.txt"), b"ru\n")
+        shipped = read(mod, ru).decode("utf-8").replace(
+            'msgid "Close"\nmsgstr ""', 'msgid "Close"\nmsgstr "Закрыть"', 1)
+        put(mod, ru, shipped.encode("utf-8"))
+        rc, out = install(mod, "--yes")
+        assert rc == 0 and "merged" in out and "ru.po.bak" in out, out
+        after = read(root, ru).decode("utf-8")
+        assert 'msgid "Save"\nmsgstr "Сохранить"' in after, "their translation is gone"
+        assert 'msgid "Close"\nmsgstr "Закрыть"' in after, "the shipped one didn't come in"
+        assert read(root, ru + ".bak").decode("utf-8") == mine
+        assert read(root, os.path.join("_tools", "lang", "language.txt")) == b"ru\n"
+        put(root, ru, b'msgid "broken\n')
+        rc, out = install(mod, "--yes")
+        assert rc == 0 and "can't be read" in out and read(root, ru) == b'msgid "broken\n', out
+        put(root, ru, read(mod, ru).replace(b'msgstr "\xd0\x97', b'msgstr "\xd0\x97', 1))
+        put(mod, ru, (shipped + "\n").encode("utf-8"))
+        rc, out = install(mod, "--yes")
+        assert rc == 0 and read(root, ru) == read(mod, ru) and "merged" not in out, out
+    return "their Save kept and the shipped Close added, the old file as .bak; a broken one " \
+           "left alone; one with nothing of its own updated"
+
+
+@case
 def t_an_update_keeps_what_is_the_player_s():
     """Tools copied by hand before there was an installer, the player's settings, backups
     and presets beside them, and play.bat set to another of MO2's entries. The tools now

@@ -5097,6 +5097,13 @@ msgstr[1] ""
 
 #: installer.py
 #, python-format
+msgid "%d of your translations brought up to date"
+msgid_plural "%d of your translations brought up to date"
+msgstr[0] ""
+msgstr[1] ""
+
+#: installer.py
+#, python-format
 msgid "%d the same"
 msgid_plural "%d the same"
 msgstr[0] ""
@@ -5106,6 +5113,13 @@ msgstr[1] ""
 #, python-format
 msgid "%d of your presets kept"
 msgid_plural "%d of your presets kept"
+msgstr[0] ""
+msgstr[1] ""
+
+#: installer.py
+#, python-format
+msgid "%d of your translations left as it is"
+msgid_plural "%d of your translations left as they are"
 msgstr[0] ""
 msgstr[1] ""
 
@@ -5148,6 +5162,11 @@ msgid "updated"
 msgstr ""
 
 #: installer.py
+msgctxt "a translation the install brings up to date"
+msgid "merged"
+msgstr ""
+
+#: installer.py
 msgctxt "a file the install leaves as it is"
 msgid "kept"
 msgstr ""
@@ -5173,6 +5192,11 @@ msgstr ""
 #: installer.py
 #, python-format
 msgid "The tools in your GAMMA folder, %s, are up to date."
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "%s - yours, left as it is: it can't be read"
 msgstr ""
 
 #: installer.py
@@ -5203,6 +5227,11 @@ msgstr ""
 #: installer.py
 #, python-format
 msgid "%s - yours, not the one that comes with the tools"
+msgstr ""
+
+#: installer.py
+#, python-format
+msgid "%(file)s - your translations kept, the new strings added; the file as it was is %(file)s.bak"
 msgstr ""
 
 #: installer.py
@@ -5393,6 +5422,11 @@ msgstr ""
 msgid "%s isn't a .7z, .zip or .rar."
 msgstr ""
 
+#: mod_install.py
+#, python-format
+msgid "%s isn't a place inside a mod's folder."
+msgstr ""
+
 #. %s is the name of a group of options in a mod's installer
 #: mod_install.py
 #, python-format
@@ -5460,11 +5494,6 @@ msgid "It has gamedata folders in %(n)d places (%(places)s) and no installer to 
 msgid_plural "It has gamedata folders in %(n)d places (%(places)s) and no installer to choose between them. Install it with MO2 - Install a new mod from archive - then add it here."
 msgstr[0] ""
 msgstr[1] ""
-
-#: mod_install.py
-#, python-format
-msgid "%s isn't a place inside a mod's folder."
-msgstr ""
 
 #: mod_install.py
 msgid "Give the mod a name."

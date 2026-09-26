@@ -27,7 +27,6 @@ sys.path.insert(0, HERE)
 sys.dont_write_bytecode = True
 import lang                                                     # noqa: E402
 
-sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 # the tools a player runs, in the order their strings go in the file
 SOURCES = ("lang.py", "season.py", "config_edit.py", "configure.py", "guide.py",
            "installer.py", "mod_install.py", "fetch_weather.py")
@@ -196,15 +195,23 @@ def pot_text(entries):
     return "\n".join(out)
 
 
-def po_text(path, entries):
+def po_text(path, entries, also=()):
     """A .po file brought up to date with `entries`: its header and what is translated in
-    it kept, new strings empty, strings gone kept at the end as obsolete."""
+    it kept, new strings empty, strings gone kept at the end as obsolete. `also` is other
+    .po files whose translations fill in what `path` leaves empty: the one a new version of
+    the tools ships, under a translator's own."""
     have = lang.read_po(path)
     head = next((e for e in have if e[1] == "" and e[0] is None and not e[5]), None)
     header = head[3][0] if head and head[3] else HEADER
     m = re.search(r"nplurals\s*=\s*(\d+)", header)
     nplurals = int(m.group(1)) if m else 2
     old = {(e[0], e[1]): e for e in have if e[1] != "" or e[0] is not None}
+    for other in also:
+        for e in lang.read_po(other):
+            key = (e[0], e[1])
+            if (e[1] and not e[5] and "fuzzy" not in e[4] and any(e[3])
+                    and not (key in old and any(old[key][3]))):
+                old[key] = e
     top = [l.rstrip("\n") for l in io.open(path, encoding="utf-8-sig")]
     comments = []
     for l in top:
@@ -229,6 +236,33 @@ def po_text(path, entries):
         if any(e[3]):
             out += [entry_text(ctx, msgid, e[2], e[3], obsolete=True), ""]
     return "\n".join(out)
+
+
+def read_entries(pot):
+    """{(ctx, msgid): {"plural", "files", "notes"}} from a messages.pot, as extract() makes
+    them from the tools: what po_text() brings a translation up to date with where the
+    tools' source isn't at hand, as when the installer updates a translation."""
+    entries, block = {}, []
+
+    def done():
+        # read_po leaves the comments out, and the files and notes are in them
+        head = [l for l in block if l.startswith("#")]
+        for ctx, msgid, plural, strs, flags, obsolete in lang.read_po_lines(block):
+            if msgid and not obsolete:
+                entries[(ctx, msgid)] = {
+                    "plural": plural,
+                    "files": [f for l in head if l.startswith("#: ") for f in l[3:].split()],
+                    "notes": [l[3:] for l in head if l.startswith("#. ")]}
+
+    for raw in io.open(pot, encoding="utf-8-sig"):
+        line = raw.rstrip("\r\n")
+        if line.strip():
+            block.append(line)
+        else:
+            done()
+            block = []
+    done()
+    return entries
 
 
 def po_files():
@@ -375,4 +409,5 @@ def main(argv):
 
 
 if __name__ == "__main__":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.exit(main(sys.argv[1:]))
