@@ -299,15 +299,23 @@ def fetch(place=DEFAULT):
 
 
 def to_rows(payload):
+    """A row for each day open-meteo has values for. The last of the 16 days can come back
+    null, the far edge of its forecast, and is left out; with no day left it is an error."""
     d = payload["daily"]
     rows = []
     for i, day in enumerate(d["time"]):
+        high, low = d["temperature_2m_max"][i], d["temperature_2m_min"][i]
+        code = d["weather_code"][i]
+        if high is None or low is None or code is None:
+            continue
         rows.append({
             "date": day,
-            "high": float(d["temperature_2m_max"][i]),
-            "low": float(d["temperature_2m_min"][i]),
-            "cycle": code_to_cycle(int(d["weather_code"][i])),
+            "high": float(high),
+            "low": float(low),
+            "cycle": code_to_cycle(int(code)),
         })
+    if not rows:
+        raise ValueError("no day has values")
     return rows
 
 

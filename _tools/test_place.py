@@ -195,6 +195,36 @@ fw.main()
 
 
 @case
+def t_a_day_without_values_is_left_out():
+    # open-meteo's 16th day can come back null; that day alone is dropped
+    edge = r'''
+import sys
+sys.argv = ["x"]
+DAYS = {"time": ["2026-09-25", "2026-09-26", "2026-09-27"],
+        "temperature_2m_max": [18.4, 19.0, None], "temperature_2m_min": [7.5, -1.0, None],
+        "weather_code": [2, 61, None]}
+def edge(url, timeout=12):
+    if "/v1/forecast" in url:
+        return {"daily": DAYS}
+    return fake_get(url, timeout)
+fw.get = edge
+'''
+    with tempfile.TemporaryDirectory() as d:
+        ltx = sandbox(d)
+        rc, out = drive(d, FAKE_WEB + edge + "fw.main()\n", env=ONLINE)
+        assert rc == 0 and "unavailable" not in out, out
+        s = sections(ltx)
+        assert s["forecast"] == {"2026-09-25": "18.4, 7.5, partly",
+                                 "2026-09-26": "19.0, -1.0, rain"}, s.get("forecast")
+        assert s["weather"]["date"] == "2026-09-25", s["weather"]
+        # a forecast with no day at all is a failed fetch, not a crash
+        rc, out = drive(d, FAKE_WEB + edge + 'DAYS["temperature_2m_max"] = [None] * 3\n'
+                        'sys.argv = ["x", "--force"]\nfw.main()\n', env=ONLINE)
+        assert rc == 0 and "weather unavailable (ValueError)" in out, out
+    return "2 of 3 days kept when the last is null; a forecast of nulls reads as unavailable"
+
+
+@case
 def t_the_game_models_the_place_s_own_climate():
     def ini_with(secs):
         def make(lua, name):
