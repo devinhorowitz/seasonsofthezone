@@ -210,12 +210,16 @@ def main():
         # the button strip declares four ids into one file, so it is written by hand
         button_strip().save(os.path.join(TEXDIR, "ui_sotz_btn.dds"), "DDS")
         print("  ui_sotz_btn.dds")
-        # The ecologists' emblem, taken from the faction banner G.A.M.M.A. UI already
-        # ships. The whole 383x179 region is a shield on the left and an empty name
-        # plate on the right, and using it whole put a large black box on the page.
-        body += ('\t<file name="ui\\ui_actor_menu_factions">\n'
-                 '\t\t<texture id="sotz_eco_mark" x="8" y="952" width="112" '
-                 'height="112" />\n\t</file>\n')
+        # The forecast factions' emblems, taken from the faction banners G.A.M.M.A. UI
+        # already ships. Each 383x179 region is a shield on the left and an empty name
+        # plate on the right, and using one whole put a large black box on the page. Each
+        # crop holds its shield 5 px from the left and 21 px from the top.
+        body += '\t<file name="ui\\ui_actor_menu_factions">\n'
+        for idn, x, y in (("sotz_eco_mark", 8, 952), ("sotz_csky_mark", 10, 762),
+                          ("sotz_isg_mark", 643, 380)):
+            body += ('\t\t<texture id="%s" x="%d" y="%d" width="112" height="112" />\n'
+                     % (idn, x, y))
+        body += '\t</file>\n'
         body += '\t<file name="ui_sotz_btn">\n'
         for i, suf in enumerate(("e", "h", "t", "d")):
             body += ('\t\t<texture id="sotz_btn_%s" x="%d" y="0" width="16" '

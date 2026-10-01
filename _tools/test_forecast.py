@@ -29,7 +29,7 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
           weather="storm", now_minute=600, have_weather=True, hide_global=False,
           surge_obj_override=None, stock=False, period=6, elapsed_h=1.0,
           in_level=True, planner_globals=None, calls=None, storage=(),
-          occurrence=None, wx_exact=False, tail=None, disk=None):
+          occurrence=None, wx_exact=False, tail=None, disk=None, faction=None):
     """A sandbox with the engine bindings the script reaches for.
 
     stock=True builds base Anomaly's weather manager instead of Atmospherics' planner:
@@ -43,6 +43,8 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
     as a third value - the way a case reaches the script's file-locals.
     `disk` is level_weathers.script as MO2 serves it, which is all the main menu reads:
     its text for a loose copy, None for the base game's packed one, False for none.
+    `standing` is the ecologists' goodwill, every other faction's being 0, or a dict of
+    goodwill by community id; `faction` is MCM's forecast_faction, None for its default.
     """
     lua = LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
@@ -72,11 +74,15 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
     # No actor is the main menu, which is where MCM is usually opened from.
     g.db = lua.table_from({"actor": lua.table_from({"id": lambda self: 0})}) if in_level \
         else lua.table_from({})
-    g.relation_registry = lua.table_from({
-        "community_goodwill": (lambda faction, aid:
-                               standing if faction == "ecolog" else 0)
-        if standing is not None else (lambda faction, aid: None),
-    })
+    if isinstance(standing, dict):
+        g.relation_registry = lua.table_from({
+            "community_goodwill": lambda community, aid: standing.get(community)})
+    else:
+        g.relation_registry = lua.table_from({
+            "community_goodwill": (lambda community, aid:
+                                   standing if community == "ecolog" else 0)
+            if standing is not None else (lambda community, aid: None),
+        })
     opts = {"alife/event/emission_frequency": freq,
             "alife/event/psi_storm_frequency": psi_freq,
             # base Anomaly reads each cycle's length from here, in hours
@@ -116,7 +122,7 @@ def build(standing, surge_left, psi_left, freq=24, psi_freq=48, forecast_on=True
     g.psi_storm_manager = lua.table_from(pm)
 
     mcm_vals = {"forecast": forecast_on, "forecast_coarse": coarse,
-                "forecast_exact": exact, "wx_exact": wx_exact}
+                "forecast_exact": exact, "wx_exact": wx_exact, "forecast_faction": faction}
     g.ui_mcm = lua.table_from({
         "get": lambda p: mcm_vals.get(str(p).split("/")[-1]),
     })
@@ -382,6 +388,61 @@ def t_no_standing():
     assert field(fc, "tier") == "locked", field(fc, "tier")
     assert field(fc, "standing") is None
     return "unreadable goodwill -> locked, standing nil"
+
+
+def t_faction_picked():
+    # whose goodwill buys the forecast: MCM's pick, or the best of the three; a pick the
+    # script doesn't know reads as the ecologists, the default
+    gw = {"ecolog": 100, "csky": 750, "isg": 300}
+    got = {}
+    for pick in (None, "ecolog", "csky", "isg", "best", "freedom"):
+        _, g = build(standing=gw, surge_left=HOUR, psi_left=HOUR, faction=pick)
+        fc = field(g.forecast_page(), "forecast")
+        got[pick] = (field(fc, "faction"), field(fc, "tier"), field(fc, "standing"))
+    want = {None: ("ecolog", "locked", 100), "ecolog": ("ecolog", "locked", 100),
+            "csky": ("csky", "exact", 750), "isg": ("isg", "coarse", 300),
+            "best": ("csky", "exact", 750), "freedom": ("ecolog", "locked", 100)}
+    assert got == want, got
+    # the best of the three passes over a faction it can't read; none read is locked
+    _, g = build(standing={"ecolog": None, "csky": None, "isg": 250}, surge_left=HOUR,
+                 psi_left=HOUR, faction="best")
+    fc = field(g.forecast_page(), "forecast")
+    assert (field(fc, "faction"), field(fc, "tier")) == ("isg", "coarse"), fc
+    _, g = build(standing={}, surge_left=HOUR, psi_left=HOUR, faction="best")
+    fc = field(g.forecast_page(), "forecast")
+    assert (field(fc, "faction"), field(fc, "tier"), field(fc, "standing")) == \
+        ("ecolog", "locked", None), fc
+    return "each of 6 picks reads its own faction; best skips the unreadable"
+
+
+def t_each_faction_says_so_once():
+    # the unlock comes in the voice of the faction that unlocked it, once per faction,
+    # and the save carries who has spoken
+    lua, g = build(standing={"ecolog": 300, "csky": 300, "isg": 0}, surge_left=HOUR,
+                   psi_left=HOUR)
+    pick = {"v": "ecolog"}
+    vals = {"forecast": True, "forecast_coarse": 200, "forecast_exact": 700}
+    g.ui_mcm = lua.table_from({"get": lambda p: pick["v"] if str(p).endswith(
+        "forecast_faction") else vals.get(str(p).split("/")[-1])})
+    sent = []
+    g.news_manager = lua.table_from({
+        "send_tip": lambda actor, msg, timeout, sender, *a: sent.append(sender)})
+    for v in ("ecolog", "ecolog", "csky", "csky", "isg", "ecolog", "best"):
+        pick["v"] = v
+        g.eco_access_tick()
+    assert sent == ["sotz_sakharov", "sotz_lebedev"], sent
+    saved = lua.table_from({})
+    g.save_state(saved)
+    told = saved["sotz_eco_told"]
+    assert (told["ecolog"], told["csky"], told["isg"]) == (True, True, None), told
+    # a save from before the pick: its true is the ecologists having spoken
+    g.load_state(lua.table_from({"sotz_eco_told": True}))
+    pick["v"] = "csky"
+    g.eco_access_tick()
+    pick["v"] = "ecolog"
+    g.eco_access_tick()
+    assert sent == ["sotz_sakharov", "sotz_lebedev", "sotz_lebedev"], sent
+    return "Sakharov, then Lebedev, each once; isg below the line silent; an old save read"
 
 
 
@@ -833,6 +894,8 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("band edges", t_band_edges), ("no manager", t_no_manager),
              ("mcm off", t_mcm_off), ("thresholds move", t_thresholds_move),
              ("no standing", t_no_standing),
+             ("faction picked", t_faction_picked),
+             ("faction's word", t_each_faction_says_so_once),
              ("weather plan", t_weather_plan), ("weather absent", t_weather_absent),
              ("weather settled", t_weather_settled), ("weather cap", t_weather_cap),
              ("weather ungated", t_weather_ungated),

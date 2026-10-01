@@ -213,6 +213,8 @@
 	<string id="st_sotz_news_giving_way"><text>$From giving way to $to. $date.</text></string>
 	<string id="st_sotz_news_taken_hold"><text>$Season has taken hold. $date.</text></string>
 	<string id="st_sotz_news_eco_access"><text>Your standing has been noted. From now on the bunker relays will send emission warnings to your PDA's forecast - a rough window, never the hour. Do not mistake that for safety.</text></string>
+	<string id="st_sotz_news_csky_access"><text>Lebedev here. Clear Sky has been reading the Zone's pulse longer than anyone, and you have earned a share. Our network will send emission warnings to your PDA's forecast - a rough window, never the hour. Keep your head down when it says so.</text></string>
+	<string id="st_sotz_news_isg_access"><text>Command has cleared you for our sensor feed. Emission warnings will reach your PDA's forecast - a rough window, never the hour. Treat it as a courtesy, not a guarantee.</text></string>
 
 	<!-- The days the Zone marks: April 26 and December 14, and the four mainline release
 	     dates. Each transmission is "$who: $line". A pool's opens are sent first, one of

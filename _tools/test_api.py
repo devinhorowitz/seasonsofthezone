@@ -250,6 +250,7 @@ def t_blowout_coarse():
     _, g = build(standing=300, surge_left=1 * HOUR)
     b = g.sotz_api.blowout()
     assert F(b, "tier") == "coarse"
+    assert F(b, "faction") == "ecolog", F(b, "faction")
     em = F(b, "emission")
     assert F(em, "seconds") is None, "coarse tier leaked the number"
     assert F(em, "band") == "WITHIN 2 HOURS", F(em, "band")

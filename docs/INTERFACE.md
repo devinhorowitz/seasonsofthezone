@@ -212,9 +212,13 @@ modeled. The °C/°F button and the MCM option are the same setting.
 
 Emissions are scheduled, and the ecologists measure them, so how much the page tells you
 depends on your goodwill with them (`relation_registry.community_goodwill("ecolog", …)`,
--1000 to +1000):
+1000 at friendly). MCM's **Forecast: whose network** can pick Clear Sky or UNISG instead,
+who run instruments of their own, or **Best of the three**, which goes by whichever of
+them thinks most of you. The panel wears that faction's shield, and the first time a
+faction's network opens to you, its leader says so on the PDA: Sakharov, Lebedev or Major
+Hernandez.
 
-| Ecologist goodwill | | What the panel says |
+| Goodwill | | What the panel says |
 |---|---|---|
 | below 200 | **CLASSIFIED** | the faction's emblem and the word |
 | 200 | **LIMITED** | a bracket — `ALL CLEAR` · `8 to 16 hours` · `2 to 8 hours` · `WITHIN 2 HOURS`, and *Rough warnings, never the hour* |

@@ -229,14 +229,20 @@ local function odds_rows(odds)
     return rows
 end
 
--- The ecologists' shield is cut from GAMMA UI's faction sheet. Base Anomaly has no such
--- file, and a missing texture draws as a dark square, so there the panel wears the icon
--- base Anomaly puts on the ecologists' PDA messages, at that icon's own 83x47 shape.
-local function eco_emblem()
+-- The shield of the faction whose network the panel reads, cut from GAMMA UI's faction
+-- sheet. Base Anomaly has no such file, and a missing texture draws as a dark square, so
+-- there the ecologists' panel wears the icon base Anomaly puts on their PDA messages, at
+-- that icon's own 83x47 shape, and Clear Sky's and UNISG's, which have no such icon, none.
+local function eco_emblem(faction)
     local ok, has = pcall(function()
         return getFS():exist("$game_textures$", "ui\\ui_actor_menu_factions.dds")
     end)
-    if ok and has then return "sotz_eco_mark", 1 end
+    if ok and has then
+        if faction == "csky" then return "sotz_csky_mark", 1 end
+        if faction == "isg" then return "sotz_isg_mark", 1 end
+        return "sotz_eco_mark", 1
+    end
+    if faction == "csky" or faction == "isg" then return nil end
     return "ui_inGame2_PD_Ecologist", 83 / 47
 end
 
@@ -333,23 +339,12 @@ function SeasonsForecast:InitControls()
     self.eco_logo = xml:InitStatic("eco_logo", self)
     self.eco_class = xml:InitTextWnd("eco_class", self)
 
-    -- sotz_eco_mark is a SQUARE 112x112 crop of the shield, so it wants the plain
-    -- aspect correction. The 383/179 ratio here was the banner it replaced, and left
-    -- the emblem stretched to twice its width.
+    -- the shield's place as the xml lays it out, for SetEmblem to size each faction's in
     if self.eco_logo then
-        local tex, shape = eco_emblem()
-        local h = self.eco_logo:GetHeight()
-        pcall(function() self.eco_logo:InitTexture(tex) end)
-        if tex ~= "sotz_eco_mark" then
-            -- wide, so sized to the gap before the CLASSIFIED text rather than to the
-            -- shield's height, and centered on the shield's line
-            local p = self.eco_logo:GetWndPos()
-            local text_x = self.eco_class and self.eco_class:GetWndPos().x or (p.x + h)
-            local h2 = math.min(h, math.floor((text_x - p.x - 6) / (shape * aspect())))
-            self.eco_logo:SetWndPos(vector2():set(p.x, p.y + math.floor((h - h2) / 2)))
-            h = h2
-        end
-        self.eco_logo:SetWndSize(vector2():set(h * shape * aspect(), h))
+        local p = self.eco_logo:GetWndPos()
+        self.eco_xy = {p.x, p.y}
+        self.eco_h = self.eco_logo:GetHeight()
+        self:SetEmblem("ecolog")
     end
 
     self.units = xml:Init3tButton("units", self)
@@ -581,7 +576,29 @@ function SeasonsForecast:ShowEcoFrame(on)
     for i = 1, #(self.eco_frame or {}) do
         if self.eco_frame[i] then self.eco_frame[i]:Show(on and true or false) end
     end
-    if self.eco_logo then self.eco_logo:Show(on and true or false) end
+    if self.eco_logo then self.eco_logo:Show((on and self.eco_tex) and true or false) end
+end
+
+-- The shield of the faction whose network the panel reads; redrawn only when that changes,
+-- which "best of the three" can do between two opens. The square shields are 112x112 crops
+-- and want the plain aspect correction. The wide base-game icon is sized to the gap before
+-- the clearance word rather than to the shield's height, and centered on its line.
+function SeasonsForecast:SetEmblem(faction)
+    if not self.eco_logo or self.eco_for == faction then return end
+    self.eco_for = faction
+    local tex, shape = eco_emblem(faction)
+    self.eco_tex = tex
+    if not tex then return end
+    local h, x, y = self.eco_h, self.eco_xy[1], self.eco_xy[2]
+    pcall(function() self.eco_logo:InitTexture(tex) end)
+    if shape ~= 1 then
+        local text_x = self.eco_class and self.eco_class:GetWndPos().x or (x + h)
+        local h2 = math.min(h, math.floor((text_x - x - 6) / (shape * aspect())))
+        y = y + math.floor((h - h2) / 2)
+        h = h2
+    end
+    self.eco_logo:SetWndPos(vector2():set(x, y))
+    self.eco_logo:SetWndSize(vector2():set(h * shape * aspect(), h))
 end
 
 function SeasonsForecast:Head(col, text)
@@ -993,6 +1010,7 @@ function SeasonsForecast:Fill()
     -- their network you are allowed to read, and CLASSIFIED says that in one word where
     -- a dim row said it in none.
     local fc = d.forecast
+    if fc then self:SetEmblem(fc.faction or "ecolog") end
     self:ShowEcoFrame(fc ~= nil)
     -- the right column is the panel alone now, so its head slot is free again
     self:Head(2, "")

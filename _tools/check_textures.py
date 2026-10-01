@@ -49,8 +49,8 @@ FAMILIES = [
 BUTTON_SUFFIXES = ("_e", "_h", "_t", "_d")
 
 # Functions that pick a texture name for InitTexture to use, so the call itself carries a
-# variable. Every name they return is checked. eco_emblem() picks GAMMA's shield when GAMMA
-# UI's faction sheet is installed and base Anomaly's icon when it is not.
+# variable. Every name they return is checked. eco_emblem(faction) picks the faction's
+# shield when GAMMA UI's faction sheet is installed and base Anomaly's icon when it is not.
 PICKERS = ["eco_emblem"]
 
 # Declared by base Anomaly itself, inside its packed configs, where this check cannot look.
@@ -135,7 +135,7 @@ def picked_uses():
         t = io.open(p, encoding="utf-8").read()
         t = re.sub(r"(?m)^\s*--.*$", "", t)
         for fn in PICKERS:
-            m = re.search(r"local function %s\(\)(.*?)\nend" % fn, t, re.S)
+            m = re.search(r"local function %s\([^)]*\)(.*?)\nend" % fn, t, re.S)
             if m:
                 out[fn] = set(re.findall(r'return\s+"([^"]+)"', m.group(1)))
     return out

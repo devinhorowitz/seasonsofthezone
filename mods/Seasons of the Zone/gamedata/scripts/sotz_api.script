@@ -530,11 +530,13 @@ local BRACKET_AT = {
 }
 
 --- Time to the next emission and psi storm, at the resolution the player has earned.
--- @return {tier, standing, need, need_exact,
+-- @return {tier, standing, need, need_exact, faction,
 --          emission = {seconds|band}, psi = {seconds|band}}
 --
+--         faction is the community whose goodwill `standing` is: "ecolog", "csky" or
+--         "isg", as MCM picks, or the best of the three.
 --         tier is "locked", "coarse" or "exact".
---           locked - the ecologists do not share. `seconds` and `band` are both nil, and a
+--           locked - the faction does not share. `seconds` and `band` are both nil, and a
 --                    consumer MUST NOT infer anything from that; showing a blank is the
 --                    point.
 --           coarse - `band` is "ALL CLEAR", "8 to 16 hours", "2 to 8 hours" or
@@ -575,6 +577,7 @@ function blowout()
             standing   = f.standing,
             need       = f.need,
             need_exact = f.need_exact,
+            faction    = f.faction,
             -- `alert` is the field a wearable device wants: one boolean, already gated
             -- by tier, true when an emission is close enough to act on. Re-deriving it
             -- from `seconds` would drift out of step with the page the moment either

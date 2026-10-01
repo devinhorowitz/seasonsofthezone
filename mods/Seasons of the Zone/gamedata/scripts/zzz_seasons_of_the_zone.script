@@ -160,14 +160,43 @@ local function mcm_path(path, default)
     return default
 end
 
--- Ecologist goodwill buying forecast resolution. Faction goodwill runs -1000 (enemy) to
--- +1000 (friend) and starts near zero, so 200 is a few jobs done for them and 700 is a
--- real investment. Both are MCM tracks; these are only the defaults.
+-- Goodwill buying forecast resolution, with the ecologists unless MCM picks another
+-- faction. Goodwill is 1000 at friendly and starts near zero, so 200 is a few jobs done
+-- for them and 700 is a real investment. Both are MCM tracks; these are only the defaults.
 local FORECAST_COARSE = 200
 local FORECAST_EXACT  = 700
 
+-- The factions with a network to read, in the order "best of the three" breaks a tie.
+local FORECAST_FACTIONS = {"ecolog", "csky", "isg"}
+
 local function mcm(key, default)
     return mcm_path(PREFIX .. "main/" .. key, default)
+end
+
+local function goodwill(faction)
+    local ok, v = pcall(function()
+        return relation_registry.community_goodwill(faction, db.actor:id())
+    end)
+    if ok and type(v) == "number" then return v end
+    return nil
+end
+
+-- The standing that buys the forecast, and the faction it is with: the one MCM picks, or
+-- with "best" whichever of the three thinks most of the player. nil when it can't be read.
+function forecast_standing()
+    local pick = tostring(mcm("forecast_faction", "ecolog"))
+    if pick ~= "best" then
+        for _, f in ipairs(FORECAST_FACTIONS) do
+            if f == pick then return goodwill(f), f end
+        end
+        return goodwill("ecolog"), "ecolog"
+    end
+    local best, from
+    for _, f in ipairs(FORECAST_FACTIONS) do
+        local v = goodwill(f)
+        if v and (best == nil or v > best) then best, from = v, f end
+    end
+    return best, from or "ecolog"
 end
 
 -- The preset chosen for a season; neutral's lives on the main page.
@@ -1199,10 +1228,11 @@ end
 -- load, and repeated loads are normal here.
 arte_done = {}                 -- module-scope: save_state/load_state reach it
 
--- Whether the ecologists have already told the player their network is open. Persisted,
--- because standing drifts either side of a threshold and an announcement that repeats
--- every time it crosses back is worse than one that never came.
-eco_told = false
+-- The factions that have already told the player their network is open, by community id.
+-- Persisted, because standing drifts either side of a threshold and an announcement that
+-- repeats every time it crosses back is worse than one that never came. One per faction,
+-- so picking another faction in MCM brings its own word once.
+eco_told = {}
 local ARTE_PASSES = 5          -- see the note in anniversary_artefacts
 
 -- Count every artefact the simulation knows about. alife():iterate_objects, never a
@@ -1383,29 +1413,32 @@ local function remembrance_tick()
 end
 
 
--- Crossing the first ecologist threshold is worth hearing about. Without this the
--- feature unlocks in a menu the player was not looking at, which is the same as it not
--- unlocking at all until they happen to check.
+-- Crossing the first threshold is worth hearing about. Without this the feature unlocks
+-- in a menu the player was not looking at, which is the same as it not unlocking at all
+-- until they happen to check.
 --
--- Sakharov because he is the ecologist the player already knows and the mod already ships
--- his portrait for the remembrance transmissions. Once per save: eco_told persists.
-function eco_access_tick()
-    if eco_told then return end
-    if not mcm("forecast", true) then return end
+-- Each faction's own voice: Sakharov for the ecologists, whom the player already knows and
+-- whose portrait the remembrance transmissions use; Lebedev for Clear Sky; Major Hernandez
+-- for UNISG. Once per faction per save: eco_told persists.
+local ACCESS_NEWS = {
+    ecolog = {"st_sotz_news_eco_access",  "sotz_sakharov"},
+    csky   = {"st_sotz_news_csky_access", "sotz_lebedev"},
+    isg    = {"st_sotz_news_isg_access",  "sotz_hernandez"},
+}
 
-    local ok, st = pcall(function()
-        return relation_registry.community_goodwill("ecolog", db.actor:id())
-    end)
-    if not (ok and type(st) == "number") then return end
+function eco_access_tick()
+    if not mcm("forecast", true) then return end
+    local st, faction = forecast_standing()
+    if not st or eco_told[faction] then return end
     if st < mcm("forecast_coarse", FORECAST_COARSE) then return end
 
-    eco_told = true
+    eco_told[faction] = true
+    local news = ACCESS_NEWS[faction] or ACCESS_NEWS.ecolog
     pcall(function()
         -- the LIMITED tier: a bracket like "2 to 8 hours" on the Forecast page
-        news_manager.send_tip(db.actor, sotz_text.text("st_sotz_news_eco_access"),
-            nil, "sotz_sakharov", 16000)
+        news_manager.send_tip(db.actor, sotz_text.text(news[1]), nil, news[2], 16000)
     end)
-    say("ecologist access granted at standing " .. tostring(st))
+    say(faction .. " forecast access granted at standing " .. tostring(st))
 end
 
 local function actor_on_update()
@@ -1525,12 +1558,19 @@ function save_state(m_data)
         if v and k:sub(1, #today) == today then keep[k] = true end
     end
     m_data.sotz_arte_done = keep
-    m_data.sotz_eco_told = eco_told and true or false
+    m_data.sotz_eco_told = eco_told
 end
 
 function load_state(m_data)
     arte_done = m_data.sotz_arte_done or {}
-    eco_told = m_data.sotz_eco_told and true or false
+    local told = m_data.sotz_eco_told
+    if told == true then
+        eco_told = {ecolog = true}            -- a save from before the faction could be picked
+    elseif type(told) == "table" then
+        eco_told = told
+    else
+        eco_told = {}
+    end
 end
 
 -- --- data for the PDA page ---------------------------------------------------------------
@@ -1859,17 +1899,9 @@ function forecast_page()
     -- which is no answer at all.
     --
     -- The live reading is worth having; the question is how much of it you have earned.
-    -- The ecologists are the faction that actually measures this, so the resolution is
-    -- bought with standing among them rather than with a detector. Below the first
-    -- threshold the page says so and names the number, because a locked thing the player
-    -- cannot see is not something they can play towards.
-    local function standing()
-        local ok, v = pcall(function()
-            return relation_registry.community_goodwill("ecolog", db.actor:id())
-        end)
-        if ok and type(v) == "number" then return v end
-        return nil
-    end
+    -- The ecologists are the faction that measures this, so the resolution is bought with
+    -- standing among them rather than with a detector - or with Clear Sky or UNISG, who run
+    -- instruments of their own, when MCM says so (forecast_standing).
 
     -- Both managers compute the next event as _delta minus the time since the last, which
     -- is what CSurgeManager:new_surge_time and its psi-storm twin do internally. Read the
@@ -1948,14 +1980,15 @@ function forecast_page()
     local ALERT_SECONDS = 2 * 3600
 
     if mcm("forecast", true) then
-        local st   = standing()
+        local st, faction = forecast_standing()
         local need = mcm("forecast_coarse", FORECAST_COARSE)
         local full = mcm("forecast_exact",  FORECAST_EXACT)
         local tier = "locked"
         if st then
             if st >= full then tier = "exact" elseif st >= need then tier = "coarse" end
         end
-        out.forecast = {tier = tier, standing = st, need = need, need_exact = full}
+        out.forecast = {tier = tier, standing = st, need = need, need_exact = full,
+                        faction = faction}
 
         -- Read ALWAYS, expose by tier. Computing only when the tier allowed it meant a
         -- locked page and an unreachable surge manager produced identical nils, so there

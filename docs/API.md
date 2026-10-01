@@ -180,14 +180,15 @@ Cycle names are `clear`, `partly`, `cloudy`, `foggy`, `rain`, and `storm` under 
 ## `blowout()`
 
 ```lua
-{ tier = "coarse", standing = 240, need = 200, need_exact = 700,
+{ tier = "coarse", standing = 240, need = 200, need_exact = 700, faction = "ecolog",
   emission = { band = "2 to 8 hours",   fraction = 0.20, alert = false },
   psi      = { band = "WITHIN 2 HOURS", fraction = 0.06, alert = true } }
 ```
 
 At CLEARED, each part has `seconds` instead of `band`.
 
-Resolution depends on the player's standing with the ecologists — see
+Resolution depends on the player's standing with the ecologists, or with the faction MCM
+picks instead; `faction` says which: `"ecolog"`, `"csky"` or `"isg"`. See
 [INTERFACE.md](INTERFACE.md#the-ecologist-forecast).
 
 | `tier` | `seconds` | `band` | `fraction` |

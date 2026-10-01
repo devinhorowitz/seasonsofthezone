@@ -209,22 +209,40 @@
 		<text>Fahrenheit</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast">
-		<text>Ecologist emission forecast</text>
+		<text>Emission forecast</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_desc">
-		<text>Show the next emission and psi storm on the PDA's Forecast page. The more goodwill you have with the ecologists, the more exact it is - they take the readings.</text>
+		<text>Show the next emission and psi storm on the PDA's Forecast page. The more goodwill you have with the faction picked below, the more exact it is - they take the readings.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_faction">
+		<text>Forecast: whose network</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_faction_desc">
+		<text>Whose goodwill buys the forecast. The ecologists take the readings, and Clear Sky and UNISG run instruments of their own. Best of the three goes by whichever of them thinks most of you.</text>
+	</string>
+	<string id="seasons_zone_main_forecast_faction_lst_ecolog">
+		<text>Ecologists</text>
+	</string>
+	<string id="seasons_zone_main_forecast_faction_lst_csky">
+		<text>Clear Sky</text>
+	</string>
+	<string id="seasons_zone_main_forecast_faction_lst_isg">
+		<text>UNISG</text>
+	</string>
+	<string id="seasons_zone_main_forecast_faction_lst_best">
+		<text>Best of the three</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_coarse">
 		<text>Forecast: goodwill for a warning</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_coarse_desc">
-		<text>Ecologist goodwill needed before they warn you at all. At this level the page gives a bracket (within 2 hours, 2 to 8, 8 to 16, or all clear) and never the hour.</text>
+		<text>Goodwill needed before they warn you at all. At this level the page gives a bracket (within 2 hours, 2 to 8, 8 to 16, or all clear) and never the hour.</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_exact">
 		<text>Forecast: goodwill for the hour</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_forecast_exact_desc">
-		<text>Ecologist goodwill needed before they give you the time. Goodwill runs to 1000 at friendly, so 700 is a real investment.</text>
+		<text>Goodwill needed before they give you the time. Goodwill runs to 1000 at friendly, so 700 is a real investment.</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_wx_exact">
 		<text>Exact weather forecast</text>
