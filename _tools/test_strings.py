@@ -930,11 +930,14 @@ def translation_problems(folder, eng):
     Russian plural rule, a count without its _few form. A table may leave ids out: the game
     shows the English for those."""
     out, have, filled = [], {}, filled_keys()
+    lang = os.path.basename(folder)
     for p in sorted(glob.glob(os.path.join(folder, "*.xml"))):
         entries, bad = read_table(open(p, "rb").read(), os.path.basename(p))
         out += bad
-        have.update(entries)
-    lang = os.path.basename(folder)
+        for sid, _ in entries:
+            if sid in have:
+                out.append("%s: %s is there twice, and the game reads only one" % (lang, sid))
+            have[sid] = _
     for sid, t in sorted(have.items()):
         if sid not in eng:
             if not (sid.endswith("_few") and sid[:-4] + "_many" in eng):
@@ -977,17 +980,19 @@ def t_a_translation_fits_the_english_table():
     ok = translation_problems(d, eng)
     assert not ok, ok
     bad = (good.replace("$day $month $year", "$day $month $year $moon")
-           + '<string id="st_sotz_no_such_id"><text>х</text></string>\n')
+           + '<string id="st_sotz_no_such_id"><text>х</text></string>\n'
+           + '<string id="st_sotz_plural_rule"><text>ru</text></string>\n')
     few = [l for l in good.split("\n") if "_few" in l]
     bad = bad.replace(few[0] + "\n", "")
     with open(os.path.join(d, "st_seasons_of_the_zone.xml"), "wb") as f:
         f.write((head + bad + "</string_table>\n").encode("cp1251"))
     got = translation_problems(d, eng)
-    assert len(got) == 3 and any("$moon" in g for g in got) and any(
-        "no_such_id" in g for g in got) and any("_few is missing" in g for g in got), got
+    assert len(got) == 4 and any("$moon" in g for g in got) and any(
+        "no_such_id" in g for g in got) and any("_few is missing" in g for g in got) and any(
+        "st_sotz_plural_rule is there twice" in g for g in got), got
     return ("%d language folder(s) beside eng, all fit; a partial Russian table passes, and "
-            "an unknown id, a stray $placeholder and a missing _few are each caught"
-            % len(langs))
+            "an unknown id, a stray $placeholder, a missing _few and an id twice are each "
+            "caught" % len(langs))
 
 
 @case

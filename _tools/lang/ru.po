@@ -6482,3 +6482,131 @@ msgstr "%(place)s %(date)s: макс. %(high).1f, мин. %(low).1f, %(sky)s"
 #, python-format
 msgid "Also looked up %s's climate, for days without a reading."
 msgstr "Также загружен климат для места %s — на дни без данных."
+
+#. a season's name on the year dial, the picture in MCM and on the PDA
+#: build_season_dial.py
+msgctxt "the year dial: a season"
+msgid "Spring"
+msgstr "Весна"
+
+#: build_season_dial.py
+msgctxt "the year dial: a season"
+msgid "Summer"
+msgstr "Лето"
+
+#: build_season_dial.py
+msgctxt "the year dial: a season"
+msgid "Autumn"
+msgstr "Осень"
+
+#: build_season_dial.py
+msgctxt "the year dial: a season"
+msgid "Winter"
+msgstr "Зима"
+
+#: build_season_dial.py
+msgctxt "the year dial: a season"
+msgid "Deep Winter"
+msgstr "Разгар зимы"
+
+#: build_season_dial.py
+msgctxt "the year dial: a season"
+msgid "Late Winter"
+msgstr "Поздняя зима"
+
+#. two short lines under a season's name on the year dial
+#: build_season_dial.py
+msgctxt "the year dial: under a season"
+msgid "thaw, mud,"
+msgstr "оттепель, грязь,"
+
+#: build_season_dial.py
+msgctxt "the year dial: under a season"
+msgid "bare trees"
+msgstr "голые деревья"
+
+#: build_season_dial.py
+msgctxt "the year dial: under a season"
+msgid "new leaves,"
+msgstr "молодая листва,"
+
+#: build_season_dial.py
+msgctxt "the year dial: under a season"
+msgid "showers"
+msgstr "дожди"
+
+#: build_season_dial.py
+msgctxt "the year dial: under a season"
+msgid "dry, still,"
+msgstr "сухо, безветренно,"
+
+#: build_season_dial.py
+msgctxt "the year dial: under a season"
+msgid "hard sun"
+msgstr "палящее солнце"
+
+#: build_season_dial.py
+msgctxt "the year dial: under a season"
+msgid "fog, low sun,"
+msgstr "туман,"
+
+#: build_season_dial.py
+msgctxt "the year dial: under a season"
+msgid "amber light"
+msgstr "янтарный свет"
+
+#: build_season_dial.py
+msgctxt "the year dial: under a season"
+msgid "first snows,"
+msgstr "первый снег,"
+
+#: build_season_dial.py
+msgctxt "the year dial: under a season"
+msgid "bare ground"
+msgstr "голая земля"
+
+#: build_season_dial.py
+msgctxt "the year dial: under a season"
+msgid "snow cover,"
+msgstr "снежный покров,"
+
+#: build_season_dial.py
+msgctxt "the year dial: under a season"
+msgid "ice fog"
+msgstr "ледяной туман"
+
+#. how long a season lasts, under its name on the year dial
+#: build_season_dial.py
+#, python-format
+msgctxt "the year dial"
+msgid "%d day"
+msgid_plural "%d days"
+msgstr[0] "%d день"
+msgstr[1] "%d дня"
+msgstr[2] "%d дней"
+
+#. the barometer's face, low pressure to high, as an aneroid's reads
+#: build_chart_parts.py
+msgctxt "the barometer's face"
+msgid "STORMY"
+msgstr "БУРЯ"
+
+#: build_chart_parts.py
+msgctxt "the barometer's face"
+msgid "RAIN"
+msgstr "ДОЖДЬ"
+
+#: build_chart_parts.py
+msgctxt "the barometer's face"
+msgid "CHANGE"
+msgstr "ПЕРЕМЕННО"
+
+#: build_chart_parts.py
+msgctxt "the barometer's face"
+msgid "FAIR"
+msgstr "ЯСНО"
+
+#: build_chart_parts.py
+msgctxt "the barometer's face"
+msgid "DRY"
+msgstr "СУШЬ"

@@ -11,12 +11,17 @@ A calendar of the player's own, or names of their own for the seasons, gets its 
 drawn by season.py through write_set() as ui_seasons_dial_cNN.dds, so the shipped set is
 never touched.
 
+The words are the tools' translations, in the language in use: the shipped set is drawn
+once for each language in SETS, and the game shows the one its text table names
+(st_sotz_dial_set); season.py draws a player's own set in the game's language.
+
 Usage:
-  python build_season_dial.py --preview        one PNG for today
-  python build_season_dial.py --all            the full set of hand positions
+  python build_season_dial.py --preview [--lang ru]   one PNG for today
+  python build_season_dial.py --all                   every shipped set, all positions
 """
 import argparse
 import datetime
+import functools
 import io
 import math
 import os
@@ -24,6 +29,9 @@ import tempfile
 import re
 
 from PIL import Image, ImageDraw, ImageFont
+
+import lang
+from lang import npgettext, pgettext
 
 MOD = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                    "mods", "Seasons of the Zone")
@@ -33,15 +41,45 @@ SCRATCH = os.path.join(tempfile.gettempdir(), "seasons_of_the_zone")
 
 BOUNDS = [(3, 5, "late_winter"), (4, 15, "spring"), (5, 20, "summer"), (9, 15, "autumn"),
           (11, 1, "winter"), (12, 1, "winter_snow")]
-THEMES = {
-    "late_winter": ("thaw, mud,", "bare trees"),
-    "spring": ("new leaves,", "showers"),
-    "summer": ("dry, still,", "hard sun"),
-    "autumn": ("fog, low sun,", "amber light"),
-    "winter": ("first snows,", "bare ground"),
-    "winter_snow": ("snow cover,", "ice fog"),
-}
-LABEL = {"winter_snow": "Deep Winter", "late_winter": "Late Winter"}
+# the shipped sets: (language, the textures' names up to the number)
+SETS = (("en", "ui_seasons_dial_"), ("ru", "ui_seasons_dial_ru_"))
+
+
+def label(s):
+    """A season's name as the dial writes it, in the language in use."""
+    return {
+        # translators: a season's name on the year dial, the picture in MCM and on the PDA
+        "spring": pgettext("the year dial: a season", "Spring"),
+        "summer": pgettext("the year dial: a season", "Summer"),
+        "autumn": pgettext("the year dial: a season", "Autumn"),
+        "winter": pgettext("the year dial: a season", "Winter"),
+        "winter_snow": pgettext("the year dial: a season", "Deep Winter"),
+        "late_winter": pgettext("the year dial: a season", "Late Winter")}.get(
+            s, s.capitalize())
+
+
+def themes(s):
+    """The two short lines under a season's name, in the language in use."""
+    return {
+        # a line too long for its season's arc is drawn smaller, or left out
+        # translators: two short lines under a season's name on the year dial
+        "late_winter": (pgettext("the year dial: under a season", "thaw, mud,"),
+                        pgettext("the year dial: under a season", "bare trees")),
+        "spring": (pgettext("the year dial: under a season", "new leaves,"),
+                   pgettext("the year dial: under a season", "showers")),
+        "summer": (pgettext("the year dial: under a season", "dry, still,"),
+                   pgettext("the year dial: under a season", "hard sun")),
+        "autumn": (pgettext("the year dial: under a season", "fog, low sun,"),
+                   pgettext("the year dial: under a season", "amber light")),
+        "winter": (pgettext("the year dial: under a season", "first snows,"),
+                   pgettext("the year dial: under a season", "bare ground")),
+        "winter_snow": (pgettext("the year dial: under a season", "snow cover,"),
+                        pgettext("the year dial: under a season", "ice fog"))}[s]
+
+
+def days_text(n):
+    # translators: how long a season lasts, under its name on the year dial
+    return npgettext("the year dial", "%d day", "%d days", n) % n
 
 SIZE = 512
 CX = CY = SIZE // 2
@@ -56,6 +94,7 @@ FONTS = [r"C:\Windows\Fonts\seguisb.ttf", r"C:\Windows\Fonts\segoeui.ttf",
          r"C:\Windows\Fonts\calibrib.ttf", r"C:\Windows\Fonts\arial.ttf"]
 
 
+@functools.lru_cache(maxsize=None)
 def font(sz):
     for f in FONTS:
         if os.path.isfile(f):
@@ -165,6 +204,34 @@ def radial_text(im, txt, fnt, col, deg, radius):
                               int(round(y - tile.height / 2.0))))
 
 
+def room(dr, text, fnt, x, y, a0, a1):
+    """The least room, in px, that a line drawn centered on (x, y) leaves to the ring's
+    edges and to the ends of its arc, from a0 to a1 degrees: below 0 it runs over."""
+    left, top, right, bottom = dr.textbbox((0, 0), text, font=fnt)
+    x0 = x - (right - left) / 2.0
+    least = None
+    for px in (x0 + left, x0 + right):
+        for py in (y + top, y + bottom):
+            rad = math.hypot(px - CX, py - CY)
+            into = (math.degrees(math.atan2(py - CY, px - CX)) + 90.0 - a0) % 360.0
+            span = a1 - a0
+            along = (min(into, span - into) if into <= span
+                     else -min(into - span, 360.0 - into))
+            got = min(rad - R_IN, R_OUT - rad, math.radians(along) * rad)
+            least = got if least is None else min(least, got)
+    return least
+
+
+def theme_font(dr, lines, x, y, a0, a1):
+    """The font for the two lines under a season's name on the arc from a0 to a1: the
+    largest that keeps both inside it, or None when even the smallest runs over."""
+    for size in (14, 13, 12):
+        f = font(size)
+        if all(room(dr, t, f, x, y + dy, a0, a1) >= 0 for t, dy in zip(lines, (-5, 10))):
+            return f
+    return None
+
+
 def fit(dr, text, avail, sizes):
     """(text, font) at the largest of `sizes` that fits `avail`; at the smallest, a name
     that still does not fit is shortened, with an ellipsis."""
@@ -239,34 +306,38 @@ def render(date, cols, bounds=None, names=None):
         mid = (a0 + a1) / 2.0
         is_cur = (s == cur)
         x, y = polar(mid, R_LABEL)
-        disp = names.get(s) or LABEL.get(s, s.capitalize())
+        disp = names.get(s) or label(s)
         name = disp.upper() if is_cur else disp
+        span = days_text(days)
         narrow = (a1 - a0) < 46.0
         nc = (255, 255, 255, 255) if is_cur else (240, 244, 240, 240)
         tc = (246, 249, 246, 240) if is_cur else (224, 230, 224, 215)
         # A long name on a short arc shrinks to fit the chord it sits on: "LATE WINTER"
-        # at full size runs out of its 41 days. Past a half circle the chord is no limit.
+        # at full size runs out of its 41 days, and "ПОЗДНЯЯ ЗИМА" needs 12px. Past a
+        # half circle the chord is no limit.
         avail = 2 * R_LABEL * math.sin(math.radians(min(a1 - a0, 180.0)) / 2) - 10
         f_n, size = f_name, 21
-        while dr.textbbox((0, 0), name, font=f_n)[2] > avail and size > 14:
+        while dr.textbbox((0, 0), name, font=f_n)[2] > avail and size > 12:
             size -= 1
             f_n = font(size)
         if (dr.textbbox((0, 0), name, font=f_n)[2] > avail
-                or (narrow and dr.textbbox((0, 0), "%d days" % days, font=f_days)[2] > avail)):
+                or (narrow and dr.textbbox((0, 0), span, font=f_days)[2] > avail)):
             # A season of a player's own can be two weeks long, too short to hold its
             # name across it: the name runs along the radius instead, and the days go.
             text, f_r = fit(dr, name, R_OUT - R_IN - 14, range(17, 10, -1))
             radial_text(im, text, f_r, nc, mid, (R_OUT + R_IN) / 2.0)
             continue
-        # a 30-day arc has no room for the theme lines
-        if narrow:
+        # a 30-day arc has no room for the theme lines, and a longer one none for lines
+        # that run over it, as another language's can: smaller, or left out
+        f_t = None if narrow else theme_font(dr, themes(s), x, y, a0, a1)
+        if f_t is None:
             rows = ((name, f_n, nc, -16),
-                    ("%d days" % days, f_days, tc, 8))
+                    (span, f_days, tc, 8))
         else:
             rows = ((name, f_n, nc, -28),
-                    (THEMES[s][0], f_theme, tc, -5),
-                    (THEMES[s][1], f_theme, tc, 10),
-                    ("%d days" % days, f_days, tc, 26))
+                    (themes(s)[0], f_t, tc, -5),
+                    (themes(s)[1], f_t, tc, 10),
+                    (span, f_days, tc, 26))
         for txt, fnt, col, dy in rows:
             w = dr.textbbox((0, 0), txt, font=fnt)
             dr.text((x - (w[2] - w[0]) / 2, y + dy), txt, font=fnt, fill=col)
@@ -274,8 +345,7 @@ def render(date, cols, bounds=None, names=None):
     # center: the season name, above the hub. The date is live text in the MCM row
     # above the dial, not baked in.
     # 200px is the inner circle's width at the top of the line: "DEEP WINTER" is 197
-    ctr, f_big = fit(dr, (names.get(cur) or LABEL.get(cur, cur.capitalize())).upper(), 200,
-                     range(31, 13, -1))
+    ctr, f_big = fit(dr, (names.get(cur) or label(cur)).upper(), 200, range(31, 13, -1))
     w = dr.textbbox((0, 0), ctr, font=f_big)
     dr.text((CX - (w[2] - w[0]) / 2, CY - 68), ctr, font=f_big,
             fill=(255, 255, 255, 250))
@@ -347,6 +417,8 @@ def main():
     ap.add_argument("--preview", action="store_true")
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--date", default=None)
+    ap.add_argument("--lang", default=None,
+                    help="the preview's language; with --all, draw only that language's set")
     a = ap.parse_args()
 
     cols = season_colors()
@@ -358,19 +430,24 @@ def main():
              else datetime.date.today())
         out = os.path.join(SCRATCH, "dial_preview.png")
         os.makedirs(SCRATCH, exist_ok=True)
-        dial = render(d, cols)
+        with lang.speaking(a.lang or lang.ENGLISH):
+            dial = render(d, cols)
         bg = Image.new("RGBA", dial.size, (17, 30, 19, 255))   # roughly the MCM panel
         Image.alpha_composite(bg, dial).save(out)
         print("  preview -> %s  (%s)" % (out, d))
         return
 
-    write_set(BOUNDS, TEXDIR, "ui_seasons_dial_")
-    print("  each %.0f KB, total %.1f MB"
-          % (os.path.getsize(os.path.join(TEXDIR, "ui_seasons_dial_00.dds")) / 1024.0,
-             sum(os.path.getsize(os.path.join(TEXDIR, f))
-                 for f in os.listdir(TEXDIR) if f.startswith("ui_seasons_dial_")
-                 and not f.startswith("ui_seasons_dial_c"))
-             / 1048576.0))
+    for code, prefix in SETS:
+        if a.lang and code != a.lang:
+            continue
+        with lang.speaking(code) as got:
+            if got != code:
+                raise SystemExit("  no %s translation in lang/ to draw %s with"
+                                 % (code, prefix))
+            write_set(BOUNDS, TEXDIR, prefix)
+        drawn = [f for f in os.listdir(TEXDIR) if re.match(re.escape(prefix) + r"\d\d\.dds$", f)]
+        print("  %s: %d dials, %.1f MB" % (prefix, len(drawn), sum(
+            os.path.getsize(os.path.join(TEXDIR, f)) for f in drawn) / 1048576.0))
 
 
 if __name__ == "__main__":

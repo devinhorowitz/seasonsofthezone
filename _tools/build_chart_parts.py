@@ -20,6 +20,9 @@ import tempfile
 
 from PIL import Image, ImageDraw, ImageFont
 
+import lang
+from lang import pgettext
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOD = os.path.join(os.path.dirname(HERE), "mods", "Seasons of the Zone")
 TEXDIR = os.path.join(MOD, "gamedata", "textures")
@@ -42,8 +45,21 @@ def font(sz):
 # What an aneroid barometer actually says on its face. The gauge already reasons in these
 # terms - the bands are storm, change and fair - so labelling it this way costs nothing
 # and turns an unlabelled arc into a dial you can read a value off.
-FACE_WORDS = [(0.07, "STORMY"), (0.26, "RAIN"), (0.50, "CHANGE"),
-              (0.74, "FAIR"), (0.93, "DRY")]
+FACE_AT = (0.07, 0.26, 0.50, 0.74, 0.93)
+# the face drawn in each language: (language, file, the texture id the page asks for)
+FACES = (("en", "ui_sotz_gauge_face", "sotz_gauge_face"),
+         ("ru", "ui_sotz_gauge_face_ru", "sotz_gauge_face_ru"))
+
+
+def face_words():
+    """[(where on the face, word)] in the language in use."""
+    return list(zip(FACE_AT, (
+        # translators: the barometer's face, low pressure to high, as an aneroid's reads
+        pgettext("the barometer's face", "STORMY"),
+        pgettext("the barometer's face", "RAIN"),
+        pgettext("the barometer's face", "CHANGE"),
+        pgettext("the barometer's face", "FAIR"),
+        pgettext("the barometer's face", "DRY"))))
 AMBER = (238, 196, 112, 255)
 
 SIZE = 384
@@ -119,7 +135,7 @@ def gauge_face():
 
     # the words, set inside the ticks and centred on their own gradation
     f = font(int(15 * s))
-    for frac, word in FACE_WORDS:
+    for frac, word in face_words():
         a = A_START + span * frac
         px, py = polar(cx, cy, a, (R_TICK - 44) * s)
         bb = dr.textbbox((0, 0), word, font=f)
@@ -194,8 +210,12 @@ def main():
     ap.add_argument("--write", action="store_true")
     a = ap.parse_args()
 
-    items = [("ui_sotz_px", "sotz_px", 8, white_block()),
-             ("ui_sotz_gauge_face", "sotz_gauge_face", SIZE, gauge_face())]
+    items = [("ui_sotz_px", "sotz_px", 8, white_block())]
+    for code, stem, idn in FACES:
+        with lang.speaking(code) as got:
+            if got != code:
+                raise SystemExit("  no %s translation in lang/ to draw %s with" % (code, stem))
+            items.append((stem, idn, SIZE, gauge_face()))
     for cycle, f in sorted(CYCLE_AT.items()):
         items.append(("ui_sotz_needle_" + cycle, "sotz_needle_" + cycle, SIZE,
                       needle(f)))

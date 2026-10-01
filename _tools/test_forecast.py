@@ -12,7 +12,7 @@ import atexit
 import shutil
 import tempfile
 from lua_runtime import LuaRuntime, NAME as LUA_NAME
-from test_strings import install, translator
+from test_strings import install, table, translator
 
 import os
 SRC = (os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -936,6 +936,37 @@ def t_countdown_text():
     return "in 5 hours, in an hour, in 45 minutes, any moment"
 
 
+def t_barometer_language():
+    """The barometer's face carries words, so there is one per language: each shipped face
+    is what build_chart_parts.py draws in its language, and the page shows the one the
+    game's text table names, English's when it names none or names one not on disk."""
+    import build_chart_parts as c
+    import lang
+    from PIL import Image, ImageChops
+    for code, stem, idn in c.FACES:
+        with lang.speaking(code) as got:
+            assert got == code, "no %s translation to draw %s with" % (code, stem)
+            drawn = c.gauge_face().convert("RGBA")
+        shipped = Image.open(os.path.join(c.TEXDIR, stem + ".dds")).convert("RGBA")
+        assert ImageChops.difference(shipped, drawn).getbbox() is None, \
+            "%s.dds is not what the code draws in %s" % (stem, code)
+    russian = dict(table("eng"), **table("rus"))     # a missing id falls back to English
+    named = russian.get("st_sotz_gauge_face")
+    assert ("ru", "ui_" + str(named), named) in c.FACES, \
+        "the Russian table names %r, which build_chart_parts.py doesn't draw" % named
+    got = []
+    for strings, on_disk in ((russian, True), (russian, False), (table("eng"), True), ({}, True)):
+        def setup(lua, g, strings=strings, on_disk=on_disk):
+            g.game["translate_string"] = lambda s: strings.get(s, s)
+            g.getFS = lambda: lua.table_from({"exist": lambda self, alias, name: on_disk and (
+                alias, name) == ("$game_textures$", "ui_%s.dds" % named)})
+        _, _, fx = expose("ui_seasons_forecast.script", ["gauge_face"], setup)
+        got.append(fx.gauge_face())
+    assert got == [named, "sotz_gauge_face", "sotz_gauge_face", "sotz_gauge_face"], got
+    return ("%d faces as drawn; %s in Russian, English's when not on disk, in English "
+            "and with no table" % (len(c.FACES), named))
+
+
 for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("exact tier", t_exact), ("bands scale", t_bands_scale),
              ("band edges", t_band_edges), ("no manager", t_no_manager),
@@ -963,7 +994,8 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("exact mode", t_forecast_exact_mode),
              ("stock odds", t_stock_odds),
              ("stock odds rows", t_stock_odds_rows),
-             ("countdown text", t_countdown_text)):
+             ("countdown text", t_countdown_text),
+             ("barometer words", t_barometer_language)):
     case(n, f)
 
 if __name__ == "__main__":

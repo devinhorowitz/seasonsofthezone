@@ -69,6 +69,19 @@ local function wx_tex(cycle)
     return WX_GLYPH[tostring(cycle or "")] or WX_GLYPH.cloudy
 end
 
+-- The barometer's face with its words in the game's language: the text table names it
+-- (st_sotz_gauge_face), and English's is shown for a language that names none, or names
+-- one whose file isn't there.
+local faces = {}
+local function gauge_face()
+    local id = game.translate_string("st_sotz_gauge_face")
+    if faces[id] == nil then
+        faces[id] = id:match("^sotz_gauge_face_%w+$") ~= nil
+            and getFS():exist("$game_textures$", "ui_" .. id .. ".dds") and true or false
+    end
+    return faces[id] and id or "sotz_gauge_face"
+end
+
 -- Ribbon colors. Cold and dark for the weather that keeps you indoors, pale and warm
 -- for the weather that does not, so the strip reads as a mood before it reads as data.
 local CYCLE_RGB = {
@@ -862,7 +875,7 @@ function SeasonsForecast:Fill()
     -- The face is one image for every cycle; only the needle moves, which is what lets
     -- it be nudged without the bands moving with it.
     if self.gauge then
-        local okg = pcall(function() self.gauge:InitTexture("sotz_gauge_face") end)
+        local okg = pcall(function() self.gauge:InitTexture(gauge_face()) end)
         if not okg then say("gauge face failed") end
     end
     if self.needle then

@@ -22,6 +22,7 @@ date with it; docs/TRANSLATING.md is how to translate.
 """
 import argparse
 import codecs
+import contextlib
 import io
 import os
 import re
@@ -563,6 +564,19 @@ def language():
     if _code is None:
         use()
     return _code
+
+
+@contextlib.contextmanager
+def speaking(code):
+    """The tools' words in `code` for a while, and the window's language again after: for
+    what is drawn for the game, which shows its own language whatever the window's is."""
+    global _catalog, _code
+    was = (_catalog, _code)
+    use(code)
+    try:
+        yield _code
+    finally:
+        _catalog, _code = was
 
 
 def _cat():

@@ -29,7 +29,8 @@ import lang                                                     # noqa: E402
 
 # the tools a player runs, in the order their strings go in the file
 SOURCES = ("lang.py", "season.py", "config_edit.py", "configure.py", "guide.py",
-           "installer.py", "mod_install.py", "fetch_weather.py")
+           "installer.py", "mod_install.py", "fetch_weather.py", "build_season_dial.py",
+           "build_chart_parts.py")
 POT = os.path.join(lang.FOLDER, "messages.pot")
 CALLS = {"_": ("msgid",), "N_": ("msgid",), "pgettext": ("ctx", "msgid"),
          "ngettext": ("msgid", "plural"), "npgettext": ("ctx", "msgid", "plural")}

@@ -963,7 +963,20 @@ function dial_texture()
         end
     end
     return string.format(DIAL == "custom" and "ui_seasons_dial_c%02d.dds"
-                         or "ui_seasons_dial_%02d.dds", best or 0)
+                         or shipped_dial() .. "%02d.dds", best or 0)
+end
+
+-- The shipped set in the game's language: the text table names it (st_sotz_dial_set),
+-- and English's is shown for a language that names none, or names one not there. A
+-- calendar of the player's own has the set play.bat drew for it, in the game's language.
+local dial_sets = {}
+function shipped_dial()
+    local set = game.translate_string("st_sotz_dial_set")
+    if dial_sets[set] == nil then
+        dial_sets[set] = set:match("^ui_seasons_dial_%w+_$") ~= nil
+            and getFS():exist("$game_textures$", set .. "00.dds") and true or false
+    end
+    return dial_sets[set] and set or "ui_seasons_dial_"
 end
 
 

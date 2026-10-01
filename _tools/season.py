@@ -2169,14 +2169,27 @@ def calendar_text(mapping="pheno"):
     return _("your own: %s") % parts
 
 
+def dial_language():
+    """The language the dial is drawn in: the game's, which the game shows it in whatever
+    the window's is; English when the tools have no translation for it."""
+    code = lang.game_language()
+    if code and code != lang.ENGLISH and lang.load(code) is not None:
+        return code
+    return lang.ENGLISH
+
+
 def _signature(table, names=None):
-    """What a redrawn dial depends on: the dates and names, and the arc colors and drawing
-    code, so a mod update that changes either redraws it too."""
+    """What a redrawn dial depends on: the dates and names, the arc colors and drawing
+    code, so a mod update that changes either redraws it too, and the language its words
+    are in, with that language's translation."""
     h = hashlib.md5(",".join("%s=%d-%d" % t for t in sorted(table)).encode("utf-8"))
     h.update(repr(sorted(custom_names(names).items())).encode("utf-8"))
+    code = dial_language()
+    h.update(code.encode("utf-8"))
     for p in (os.path.join(MODS, SOTZ, "gamedata", "configs", "seasons_of_the_zone.ltx"),
               os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           "build_season_dial.py")):
+                           "build_season_dial.py")) + (
+            (lang.po_path(code),) if code != lang.ENGLISH else ()):
         try:
             h.update(io.open(p, "rb").read())
         except OSError:
@@ -2257,11 +2270,12 @@ def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None, stag
         if state == "stale" and redraw:
             try:
                 import build_season_dial
-                build_season_dial.write_set(
-                    [(m, d, s) for s, m, d in table], tex, DIAL_PREFIX,
-                    os.path.join(MODS, SOTZ, "gamedata", "configs",
-                                 "seasons_of_the_zone.ltx"), quiet=True,
-                    names=named)
+                with lang.speaking(dial_language()):
+                    build_season_dial.write_set(
+                        [(m, d, s) for s, m, d in table], tex, DIAL_PREFIX,
+                        os.path.join(MODS, SOTZ, "gamedata", "configs",
+                                     "seasons_of_the_zone.ltx"), quiet=True,
+                        names=named)
                 state = "custom"
             except Exception as e:                  # the dial is a nicety; staging goes on
                 state, note = "none", _("the dial could not be drawn (%s)") % e

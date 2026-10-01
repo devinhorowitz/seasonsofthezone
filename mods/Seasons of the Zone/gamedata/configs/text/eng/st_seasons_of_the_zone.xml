@@ -29,6 +29,13 @@
 
 	<string id="st_sotz_plural_rule"><text>en</text></string>
 
+	<!-- The pictures with words drawn in, in this language: the year dial's set, by its
+	     name up to the number, and the barometer's face. _tools/build_season_dial.py and
+	     build_chart_parts.py draw them from the tools' translation; a language with none
+	     of its own leaves these out and shows English's. -->
+	<string id="st_sotz_dial_set"><text>ui_seasons_dial_</text></string>
+	<string id="st_sotz_gauge_face"><text>sotz_gauge_face</text></string>
+
 	<!-- Dates. A month has a form of its own ("September", "Sep") and the form it takes
 	     inside a date, which a language that declines month names needs. -->
 	<string id="st_sotz_date"><text>$month $day, $year</text></string>

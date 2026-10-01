@@ -27,7 +27,7 @@ import tempfile
 from lua_runtime import LuaRuntime, NAME as LUA_NAME
 
 from check_layout import CALENDAR, read as read_layout
-from test_strings import install, translator
+from test_strings import install, table, translator
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(ROOT, "mods", "Seasons of the Zone", "gamedata", "scripts")
@@ -139,11 +139,13 @@ TABLE = read_ltx(CFG_PATH)
 
 
 def build(year=2026, month=9, day=22, calendar=None, mcm=None, staged=None, drawn=True,
-          mods=None):
+          mods=None, strings=None, sets=()):
     """`calendar` is season_calendar.ltx: its [calendar] section as {key: value string},
     or the whole file as text. `mcm` is the saved MCM values, {path: value}; `staged` the
     [staged] section of season_staged.ltx; `drawn` whether the dials drawn for a calendar
-    of the player's own are on disk; `mods` season_mods.ltx, {section: {key: value}}."""
+    of the player's own are on disk; `mods` season_mods.ltx, {section: {key: value}};
+    `strings` the game's text, {id: text}, English's unless given; `sets` the shipped dial
+    sets on disk besides English's, by their name up to the number."""
     lua = LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
     lua.execute(PRELUDE)
@@ -169,7 +171,7 @@ def build(year=2026, month=9, day=22, calendar=None, mcm=None, staged=None, draw
     g.psi_storm_manager = lua.table_from({})
     g.game = lua.table_from({"get_game_time": lambda: lua.table_from({
         "diffSec": lambda self, other: 0, "get": lambda self, *a: year})})
-    install(lua, g)
+    install(lua, g, strings)
     files = {}
     if calendar is not None:
         path = os.path.join(TMP, "calendar_%d.ltx" % next(SERIAL))
@@ -178,6 +180,8 @@ def build(year=2026, month=9, day=22, calendar=None, mcm=None, staged=None, draw
         files[("$game_config$", "season_calendar.ltx")] = path
     if drawn:
         files[("$game_textures$", "ui_seasons_dial_c00.dds")] = os.path.join(TMP, "drawn")
+    for s in sets:
+        files[("$game_textures$", s + "00.dds")] = os.path.join(TMP, "shipped")
     g.getFS = lambda: lua.table_from({
         "exist": lambda self, alias, name: (alias, name) in files,
         "update_path": lambda self, alias, name: files.get(
@@ -809,6 +813,34 @@ def t_the_dial_follows_the_calendar():
     assert re.match(r"ui_seasons_dial_\d\d\.dds$", tex), \
         "without a calendar the dial is %s, not one of the shipped set" % tex
     return "%d dates on the redrawn set, each lit for its season; none when hidden" % checked
+
+
+@case
+def t_the_shipped_dial_is_in_the_game_s_language():
+    """A game in Russian shows the set its text table names, and the set is on disk. A
+    language whose table names none, or names one that isn't there, shows English's; a
+    calendar of the player's own shows the set play.bat drew for it, in any language."""
+    import build_season_dial as b
+    russian = dict(table("eng"), **table("rus"))     # a missing id falls back to English
+    named = russian.get("st_sotz_dial_set")
+    assert (("ru", named) in b.SETS and os.path.isfile(os.path.join(
+        os.path.dirname(SCRIPTS), "textures", named + "00.dds"))), \
+        "the Russian table names %r, which build_season_dial.py doesn't ship" % named
+    got = []
+    for strings, sets, calendar in ((russian, (named,), None),
+                                    (table("eng"), (named,), None),
+                                    (dict(russian, st_sotz_dial_set="ui_seasons_dial_zz_"),
+                                     (named,), None),
+                                    ({}, (named,), None),
+                                    (russian, (named,), OWN)):
+        _, g = build(2026, 7, 1, calendar=calendar, strings=strings, sets=sets)
+        tex = g.zzz_seasons_of_the_zone.dial_texture()
+        assert re.match(r"ui_seasons_dial_\w*?\d\d\.dds$", tex), tex
+        got.append(tex[:-len("00.dds")])
+    assert got == [named, "ui_seasons_dial_", "ui_seasons_dial_", "ui_seasons_dial_",
+                   "ui_seasons_dial_c"], got
+    return ("%s in Russian; English's in English, for a set not on disk and with no "
+            "table; the drawn one for a calendar of your own" % named)
 
 
 @case

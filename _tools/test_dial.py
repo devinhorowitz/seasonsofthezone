@@ -12,6 +12,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.dont_write_bytecode = True
 import build_season_dial as b                                   # noqa: E402
+import lang                                                     # noqa: E402
 import season                                                   # noqa: E402
 from PIL import Image, ImageChops, ImageDraw                    # noqa: E402
 
@@ -26,20 +27,61 @@ def case(fn):
 
 
 @case
-def t_the_shipped_set_is_what_the_code_draws():
-    """Redrawn today, the shipped dials come out pixel for pixel. Position 16 is the one
-    that moved a day, when round() halving to even gave way to the floor Lua uses."""
+def t_the_shipped_sets_are_what_the_code_draws():
+    """Redrawn today, each shipped set comes out pixel for pixel in its language. English's
+    position 16 is the one that moved a day, when round() halving to even gave way to the
+    floor Lua uses; the Russian set was drawn after, so all of it is checked."""
     cols = b.season_colors()
+    same = 0
     with tempfile.TemporaryDirectory() as d:
-        for i, day in b.positions():
-            if i == 16:
-                continue
-            p = os.path.join(d, "%02d.dds" % i)
-            b.save_dds(b.render(day, cols), p)
-            shipped = Image.open(os.path.join(TEX, "ui_seasons_dial_%02d.dds" % i)).convert("RGBA")
-            diff = ImageChops.difference(shipped, Image.open(p).convert("RGBA")).getbbox()
-            assert diff is None, "position %d differs in %s" % (i, diff)
-    return "31 of 32 identical; 16 drawn a day later on purpose"
+        for code, prefix in b.SETS:
+            with lang.speaking(code) as got:
+                assert got == code, "no %s translation to draw %s with" % (code, prefix)
+                for i, day in b.positions():
+                    if code == "en" and i == 16:
+                        continue
+                    p = os.path.join(d, "%s%02d.dds" % (code, i))
+                    b.save_dds(b.render(day, cols), p)
+                    shipped = Image.open(os.path.join(TEX, "%s%02d.dds" % (prefix, i)))
+                    diff = ImageChops.difference(shipped.convert("RGBA"),
+                                                 Image.open(p).convert("RGBA")).getbbox()
+                    assert diff is None, "%s position %d differs in %s" % (code, i, diff)
+                    same += 1
+    assert same == 32 * len(b.SETS) - 1, same
+    return "%d of %d identical, English and Russian; English's 16 a day later on purpose" % (
+        same, 32 * len(b.SETS))
+
+
+@case
+def t_the_dial_says_its_words_in_the_language_in_use():
+    """The names, the lines under them and the days come from the translation, Russian's
+    three forms for a count included; English when the language has none of them."""
+    with lang.speaking("ru"):
+        ru = [b.label("late_winter"), b.themes("autumn"), b.days_text(41), b.days_text(94),
+              b.days_text(118)]
+    with lang.speaking("en"):
+        en = [b.label("late_winter"), b.themes("autumn"), b.days_text(41), b.days_text(94),
+              b.days_text(118)]
+    assert ru == ["Поздняя зима", ("туман,", "янтарный свет"), "41 день", "94 дня",
+                  "118 дней"], ru
+    assert en == ["Late Winter", ("fog, low sun,", "amber light"), "41 days", "94 days",
+                  "118 days"], en
+    return "Поздняя зима, 41 день, 94 дня, 118 дней; Late Winter, 41 days in English"
+
+
+@case
+def t_lines_too_long_for_their_arc_shrink_or_go():
+    """The two lines under a season's name stay inside its arc: at full size when they
+    fit, smaller when that is enough, left out when it is not. Polesia's autumn, the
+    tightest arc that has them."""
+    dr = ImageDraw.Draw(Image.new("RGBA", (512, 512)))
+    a0, a1 = [(s0, s1) for s0, s1, s, _ in b.arcs(b.YEAR) if s == "autumn"][0]
+    x, y = b.polar((a0 + a1) / 2.0, b.R_LABEL)
+    sizes = [getattr(b.theme_font(dr, lines, x, y, a0, a1), "size", None)
+             for lines in (("fog, low sun,", "amber light"), ("туман,", "янтарный свет"),
+                           ("туман, низкое солнце,", "янтарный свет"))]
+    assert sizes == [14, 12, None], sizes
+    return "English at 14px, туман / янтарный свет at 12px, a 21-letter line left out"
 
 
 @case

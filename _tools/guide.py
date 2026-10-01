@@ -1557,6 +1557,7 @@ class DialView(object):
                               justify="center")
         self.text.pack(pady=(6, 0))
         self.photo, self.bsd = None, None
+        self.lang = season.dial_language()      # the game's, as the game will show it
         try:
             import build_season_dial
             from PIL import Image, ImageTk
@@ -1582,7 +1583,8 @@ class DialView(object):
                             else today.day)
         bounds = sorted((m, d, s) for s, (m, d) in dates.items())
         __, at = self.bsd.shown(day, bounds)
-        im = self.bsd.render(at, self.cols, bounds, dict(names))
+        with lang.speaking(self.lang):
+            im = self.bsd.render(at, self.cols, bounds, dict(names))
         im = self.Image.alpha_composite(self.Image.new("RGBA", im.size, self.PANEL), im)
         self.photo = self.ImageTk.PhotoImage(im.resize((self.PX, self.PX),
                                                        self.Image.LANCZOS))

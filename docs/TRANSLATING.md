@@ -136,10 +136,18 @@ What to keep:
   fills a slot about as wide as "Partly cloudy", so a shorter word, or a short form, fits
   best.
 
+**Pictures with words in them.** The year dial and the barometer's face are pictures with
+their words drawn in: the dial's season names, the lines under them and the day counts,
+and the barometer's STORMY / RAIN / CHANGE / FAIR / DRY. Those words are in the tools'
+translation, under "the year dial" and "the barometer's face". Once a language is in
+their `SETS` and `FACES`, `_tools\build_season_dial.py --all --lang <code>` and
+`_tools\build_chart_parts.py --write` draw its pictures, and its
+`st_seasons_of_the_zone.xml` names them in `st_sotz_dial_set` and `st_sotz_gauge_face`.
+A table without those two ids shows the English pictures. A calendar of the player's own
+gets its dial drawn by `play.bat`, in the game's language.
+
 What stays English for now:
 
-- Words drawn into textures: the year dial's season names, its lines under each season and
-  its day counts, and the barometer's STORMY / RAIN / CHANGE / FAIR / DRY.
 - `ui_mcm_seasons_mods.xml`, which `season.py` writes for your own seasonal mods, into
   `text\eng\`.
 - The words other mods read from the API, like the emission warning's bands.
@@ -147,5 +155,5 @@ What stays English for now:
 `_tools\test_strings.py`, in the source on GitHub (it needs `py -m pip install lupa`),
 checks that every id the scripts use is in the English tables,
 that no script puts English on the screen itself, and, for each language folder beside
-`eng`, that its ids are English ones, its `$placeholders` are ones the game fills, and,
-under the Russian rule, that every count has its `_few` form.
+`eng`, that its ids are English ones, none of them twice, its `$placeholders` are ones the
+game fills, and, under the Russian rule, that every count has its `_few` form.

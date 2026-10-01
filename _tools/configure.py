@@ -2202,6 +2202,7 @@ class App(object):
         self.dial_text.pack(pady=(6, 0))
         ttk.Label(box, text=_("Drag to see another day."), foreground=GREY).pack()
         self._dial_job, self._dial_photo, self._bsd = None, None, None
+        self._dial_lang = season.dial_language()    # the game's, as the game will show it
         try:
             import build_season_dial
             from PIL import Image, ImageTk
@@ -2249,7 +2250,8 @@ class App(object):
             return
         bounds = sorted((m, d, s) for s, (m, d) in dates.items())
         at = self._bsd.shown(day, bounds)[1]
-        im = self._bsd.render(at, self._cols, bounds, dict(self.cal.names))
+        with lang.speaking(self._dial_lang):
+            im = self._bsd.render(at, self._cols, bounds, dict(self.cal.names))
         im = self._Image.alpha_composite(self._Image.new("RGBA", im.size, self.PANEL), im)
         self._dial_photo = self._ImageTk.PhotoImage(
             im.resize((self.DIAL_PX, self.DIAL_PX), self._Image.LANCZOS))

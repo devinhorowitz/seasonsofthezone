@@ -20,9 +20,10 @@
   thunderstorms in summer, more rain and fog in autumn, more overcast in the winters, more
   fog in the thaw. Your Atmospherics weights stay the base.
 - **Russian.** The setup, the advanced editor, `play.bat` and the commands are in Russian
-  too, and so are the PDA's pages and messages and the MCM pages. The setup starts in the
-  game's language, with a switch for the other one; the game's text follows the game's own
-  language setting. Words drawn into textures, like the year dial's, stay English.
+  too, and so are the PDA's pages and messages, the MCM pages, the year dial and the
+  barometer. The setup starts in the game's language, with a switch for the other one; the
+  game's text and pictures follow the game's own language setting, and a dial drawn for a
+  calendar of your own is drawn in it.
 - **The setup installs py7zr and rarfile itself.** A texture set or a mod's archive that
   needs one shows an Install button on the Seasonal mods step, `.rar` included, and says
   when WinRAR or 7-Zip is missing too. `play.bat`'s message points there, and says to type

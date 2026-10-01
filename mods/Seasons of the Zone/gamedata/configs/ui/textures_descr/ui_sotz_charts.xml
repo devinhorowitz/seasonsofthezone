@@ -5,6 +5,9 @@
 	<file name="ui_sotz_gauge_face">
 		<texture id="sotz_gauge_face" x="0" y="0" width="384" height="384" />
 	</file>
+	<file name="ui_sotz_gauge_face_ru">
+		<texture id="sotz_gauge_face_ru" x="0" y="0" width="384" height="384" />
+	</file>
 	<file name="ui_sotz_needle_clear">
 		<texture id="sotz_needle_clear" x="0" y="0" width="384" height="384" />
 	</file>

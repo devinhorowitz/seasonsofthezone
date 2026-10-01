@@ -23,6 +23,12 @@
 
 	<string id="st_sotz_plural_rule"><text>ru</text></string>
 
+	<!-- Картинки с надписями на этом языке: циферблат года (имя файлов без номера)
+	     и шкала барометра. Их рисуют _tools/build_season_dial.py и
+	     build_chart_parts.py по переводу инструментов. -->
+	<string id="st_sotz_dial_set"><text>ui_seasons_dial_ru_</text></string>
+	<string id="st_sotz_gauge_face"><text>sotz_gauge_face_ru</text></string>
+
 	<!-- Даты. У месяца есть форма сама по себе («Сентябрь», «Сен») и форма внутри даты,
 	     в родительном падеже («сентября», «сен»). -->
 	<string id="st_sotz_date"><text>$day $month $year</text></string>
