@@ -76,6 +76,25 @@ def _find_unrar():
     return found or "UnRAR"
 
 
+def point_rarfile(rarfile):
+    """Point rarfile at the tool there is, 7-Zip as its 7-Zip and UnRAR or WinRAR's Rar as
+    its UnRAR, and check that it runs: False when neither is installed. Handed 7z.exe as
+    UnRAR, rarfile ran 7-Zip with UnRAR's switches, and a .rar failed with only 7-Zip in."""
+    tool = _find_unrar()
+    if os.path.splitext(os.path.basename(tool))[0].lower() == "7z":
+        rarfile.SEVENZIP_TOOL = tool
+    else:
+        rarfile.UNRAR_TOOL = tool
+    try:
+        try:
+            rarfile.tool_setup(force=True)
+        except TypeError:                       # a rarfile from before force=
+            rarfile.tool_setup()
+    except rarfile.RarCannotExec:
+        return False
+    return True
+
+
 def _mo2_ini(key, default=None):
     """A value from the portable ModOrganizer.ini, as MO2 meant it: MO2 writes paths as
     key=@ByteArray(D:\\\\ANOMALY), and a name outside ASCII in escapes (lang.qt_value)."""
@@ -2741,7 +2760,9 @@ def _extract_options(archive, wanted, dest):
             import py7zr
         except ImportError:
             raise SystemExit("  " + _("Texture sets in a .7z archive need the py7zr package. "
-                                      "Install it with:")
+                                      "configure.bat can install it: click Install py7zr on "
+                                      "its Seasonal mods step. Or type this in Command Prompt, "
+                                      "not in Python:")
                              + "\n    %s -m pip install py7zr\n  " % _python()
                              + _("No texture has been changed."))
         try:
@@ -2759,11 +2780,15 @@ def _extract_options(archive, wanted, dest):
             import rarfile
         except ImportError:
             raise SystemExit("  " + _("Texture sets in a .rar archive need the rarfile "
-                                      "package, and WinRAR or 7-Zip installed. Install rarfile "
-                                      "with:")
+                                      "package, and WinRAR or 7-Zip installed. configure.bat "
+                                      "can install rarfile: click Install rarfile on its "
+                                      "Seasonal mods step. Or type this in Command Prompt, not "
+                                      "in Python:")
                              + "\n    %s -m pip install rarfile\n  " % _python()
                              + _("No texture has been changed."))
-        rarfile.UNRAR_TOOL = _find_unrar()
+        if not point_rarfile(rarfile):
+            raise SystemExit("  " + _("Texture sets in a .rar archive need WinRAR or 7-Zip "
+                                      "installed.") + "\n  " + _("No texture has been changed."))
         try:
             with rarfile.RarFile(src) as z:
                 names = [i.filename for i in z.infolist()

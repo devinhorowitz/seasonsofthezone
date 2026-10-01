@@ -174,10 +174,11 @@ of the mod that writes to your save.
 - **Mod App Creator**, for the PDA app. MCM's Main page shows in red if it's missing.
 - **Python 3**, for `play.bat` and `configure.bat` only. The python.org installer is
   enough.
-- For some things only: `py -m pip install py7zr` to open a `.7z` - an optional `LAYOUT`
-  texture set's, or a mod's installed from the setup - and `rarfile` plus WinRAR or 7-Zip
-  for a `.rar`; `py -m pip install pillow` to draw the year dial for a calendar of your
-  own.
+- For some things only: the py7zr package to open a `.7z` - an optional `LAYOUT` texture
+  set's, or a mod's installed from the setup - and rarfile plus WinRAR or 7-Zip for a
+  `.rar`. The setup offers to install either package when it is needed. By hand, type
+  `py -m pip install py7zr` (or `rarfile`) in Command Prompt, not in Python.
+  `py -m pip install pillow` draws the year dial for a calendar of your own.
 
 ### Outside GAMMA
 

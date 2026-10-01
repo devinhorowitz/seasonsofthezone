@@ -19,8 +19,9 @@ screenshots is `C:\GAMMA`; yours is wherever `ModOrganizer.exe` is.
 - **The seasonal mods you want switched**, installed in MO2 like any other mod. The
   README's [Mods that work well this way](../README.md#mods-that-work-well-this-way) lists
   the ones these tools were made with. You can also install them from the setup later.
-- Only for texture sets swapped from a `.7z`, like the GAMMA example's grass: run
-  `py -m pip install py7zr` once. The setup says so if it's missing.
+- Only for texture sets swapped from a `.7z` or `.rar`, like the GAMMA example's grass:
+  the py7zr or rarfile package, which the setup offers to install when one is needed. A
+  `.rar` also needs WinRAR or 7-Zip.
 
 The in-game part - the light and weather, the marked days, the PDA app and MCM - needs only
 step 1. Steps 2 to 4 add real-world weather and the mods that switch with the seasons.

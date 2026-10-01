@@ -893,6 +893,60 @@ def t_an_archive_that_cant_be_read_is_said():
 
 
 @case
+def t_what_an_archive_lacks_is_named():
+    # the setup offers to install py7zr or rarfile, so it must know which one; WinRAR or
+    # 7-Zip it can only name, since pip can't install them
+    with tempfile.TemporaryDirectory() as d:
+        real = make(os.path.join(d, "Winter Real.7z"), {"gamedata/a.dds": b"a"})
+        saved = sys.modules.get("py7zr")
+        sys.modules["py7zr"] = None                # as if it were not installed
+        try:
+            mi.Package(real)
+            raise AssertionError("a .7z was read without py7zr")
+        except mi.MissingPackage as e:
+            assert e.package == "py7zr", e.package
+        finally:
+            if saved is None:
+                del sys.modules["py7zr"]
+            else:
+                sys.modules["py7zr"] = saved
+    spec, tool = mi.importlib.util.find_spec, mi.unrar_found
+    try:
+        mi.importlib.util.find_spec = lambda name: None
+        mi.unrar_found = lambda: False
+        got = [mi.lacks("a.7z"), mi.lacks("b.RAR"), mi.lacks("c.zip")]
+        assert got == [("py7zr", False), ("rarfile", True), (None, False)], got
+        mi.importlib.util.find_spec = lambda name: object()
+        mi.unrar_found = lambda: True
+        assert mi.lacks("a.7z") == mi.lacks("b.rar") == (None, False)
+    finally:
+        mi.importlib.util.find_spec, mi.unrar_found = spec, tool
+    # rarfile is pointed at the tool that is there, as what it is
+    import types
+
+    class Cannot(Exception):
+        pass
+
+    fake = types.SimpleNamespace(UNRAR_TOOL="unrar", SEVENZIP_TOOL="7z", RarCannotExec=Cannot,
+                                 tool_setup=lambda force=False: None)
+    found = mi.season._find_unrar
+    try:
+        mi.season._find_unrar = lambda: r"C:\Program Files\7-Zip\7z.exe"
+        assert mi.season.point_rarfile(fake) is True
+        assert fake.SEVENZIP_TOOL.endswith("7z.exe") and fake.UNRAR_TOOL == "unrar", fake
+        mi.season._find_unrar = lambda: r"C:\Program Files\WinRAR\UnRAR.exe"
+        assert mi.season.point_rarfile(fake) and fake.UNRAR_TOOL.endswith("UnRAR.exe"), fake
+
+        def cannot(force=False):
+            raise Cannot()
+        fake.tool_setup = cannot
+        assert mi.season.point_rarfile(fake) is False
+    finally:
+        mi.season._find_unrar = found
+    return "py7zr named for a .7z, rarfile and the tool for a .rar; 7-Zip set up as 7-Zip"
+
+
+@case
 def t_the_real_colorful_autumn_archive():
     """The archive this was made for, read where the player put it. Nothing is unpacked
     but its installer."""

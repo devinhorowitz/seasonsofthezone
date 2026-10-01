@@ -625,6 +625,43 @@ print("EDITOR", caution in texts(app.root))
     return "on the step, for a new mod in the dialog and not an old one, in the editor, on add"
 
 
+@case
+def t_a_texture_set_s_missing_package_is_offered():
+    """A texture set swapped from a .rar, on a machine without rarfile or a tool to unpack it:
+    the step says which, offers the package, and is drawn again once it is in."""
+    cfg = ('LAYOUT = {"Base Grass": {"archive": "Grass Sets.rar", "options": '
+           '{"summer": ["Summer"], "winter": ["Winter"]}}}\n')
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config=cfg)
+        os.makedirs(os.path.join(d, "downloads"))
+        io.open(os.path.join(d, "downloads", "Grass Sets.rar"), "wb").write(b"not read")
+        rc, out = drive(d, r"""
+import mod_install as mi
+from tkinter import ttk
+state = {"in": False}
+mi.lacks = lambda path: (None, False) if state["in"] else ("rarfile", True)
+asked = []
+def pip(p):
+    asked.append(p)
+    state["in"] = True
+    return True, "Successfully installed " + p
+mi.pip_install = pip
+g.edit("mods")
+settle()
+print("BEFORE", [t for t in texts(g.body) if "rarfile" in t or "7-Zip" in t])
+[b for b in widgets(g.body) if isinstance(b, ttk.Button)
+ and str(b.cget("text")) == "Install rarfile"][0].invoke()
+settle(60)
+print("ASKED", asked)
+print("AFTER", [t for t in texts(g.body) if "rarfile" in t or "7-Zip" in t])
+""")
+        assert rc == 0, out
+        assert ("BEFORE ['Swapping it needs rarfile, a Python package.', 'Install rarfile', "
+                "'Swapping it also needs WinRAR or 7-Zip installed.']") in out, out
+        assert "ASKED ['rarfile']" in out and "AFTER []" in out, out
+    return "rarfile and the tool named; the package installed from its button; redrawn clean"
+
+
 if __name__ == "__main__":
     print("  the guided setup")
     bad = 0

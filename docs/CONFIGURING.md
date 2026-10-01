@@ -281,7 +281,7 @@ LAYOUT = {
 | Field | Meaning |
 |---|---|
 | *key* | The installed mod folder whose contents are replaced. |
-| `archive` | Filename in `downloads/`. `.7z` needs `py -m pip install py7zr`; `.rar` needs `rarfile` plus WinRAR or 7-Zip. |
+| `archive` | Filename in `downloads/`. A `.7z` needs the py7zr package, a `.rar` the rarfile package plus WinRAR or 7-Zip; the setup offers to install either package. |
 | `options` | Season → folder names inside the archive, applied in order (later ones win). |
 
 Gigabytes are copied on a season change, so use `TOGGLE_MODS` wherever a mod can be

@@ -12,10 +12,14 @@ MO2's installer. MO2's mod list is not touched: MO2 lists a new folder in mods\\
 and play.bat puts a seasonal mod in the list.
 """
 import contextlib
+import importlib
+import importlib.util
 import io
 import os
 import re
 import shutil
+import subprocess
+import sys
 import tempfile
 import time
 import xml.etree.ElementTree as ET
@@ -52,6 +56,45 @@ WORD = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+")
 
 class ArchiveError(Exception):
     """Why an archive can't be read or installed, in words for the player."""
+
+
+class MissingPackage(ArchiveError):
+    """An archive needs a Python package that isn't installed; .package is its name, for
+    pip_install."""
+
+    def __init__(self, text, package):
+        ArchiveError.__init__(self, text)
+        self.package = package
+
+
+PACKAGES = {".7z": "py7zr", ".rar": "rarfile"}
+
+
+def unrar_found():
+    """Whether WinRAR or 7-Zip is here to unpack a .rar with."""
+    tool = season._find_unrar()
+    return os.path.isfile(tool) or shutil.which(tool) is not None
+
+
+def lacks(path):
+    """What reading the archive at `path` needs that this machine doesn't have: (the Python
+    package pip can install, or None; True for a .rar with neither WinRAR nor 7-Zip, which
+    pip can't)."""
+    ext = os.path.splitext(path)[1].lower()
+    package = PACKAGES.get(ext)
+    if package and importlib.util.find_spec(package) is not None:
+        package = None
+    return package, ext == ".rar" and not unrar_found()
+
+
+def pip_install(package):
+    """Install a Python package with pip, for the Python running this: (it went in, the last
+    lines pip said)."""
+    r = subprocess.run([sys.executable, "-m", "pip", "install", package],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    importlib.invalidate_caches()
+    tail = "\n".join((r.stdout + r.stderr).strip().splitlines()[-8:])
+    return r.returncode == 0 and importlib.util.find_spec(package) is not None, tail
 
 
 # --- which archives -----------------------------------------------------------------------
@@ -177,8 +220,8 @@ def _py7zr():
         import py7zr
     except ImportError:
         # translators: %s is the command that installs it
-        raise ArchiveError(_("Opening a .7z needs py7zr, a Python package: %s")
-                           % (season._python() + " -m pip install py7zr"))
+        raise MissingPackage(_("Opening a .7z needs py7zr, a Python package: %s")
+                             % (season._python() + " -m pip install py7zr"), "py7zr")
     return py7zr
 
 
@@ -189,17 +232,10 @@ def _rarfile():
         import rarfile
     except ImportError:
         # translators: %s is the command that installs it
-        raise ArchiveError(_("Opening a .rar needs rarfile, a Python package: %s. It also "
-                             "needs WinRAR or 7-Zip installed.")
-                           % (season._python() + " -m pip install rarfile"))
-    tool = season._find_unrar()
-    if os.path.splitext(os.path.basename(tool))[0].lower() == "7z":
-        rarfile.SEVENZIP_TOOL = tool
-    else:
-        rarfile.UNRAR_TOOL = tool
-    try:
-        rarfile.tool_setup()
-    except rarfile.RarCannotExec:
+        raise MissingPackage(_("Opening a .rar needs rarfile, a Python package: %s. It also "
+                               "needs WinRAR or 7-Zip installed.")
+                             % (season._python() + " -m pip install rarfile"), "rarfile")
+    if not season.point_rarfile(rarfile):
         raise ArchiveError(_("Opening a .rar needs WinRAR or 7-Zip installed. Install either "
                              "one, then try again."))
     return rarfile

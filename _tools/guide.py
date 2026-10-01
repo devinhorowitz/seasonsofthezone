@@ -14,7 +14,6 @@ What the steps leave out - making events, periods, and fine control of which mod
 which - is in the tabbed editor, configure.App, a button away on every page.
 """
 import datetime
-import importlib.util
 import io
 import json
 import os
@@ -593,6 +592,31 @@ class Guide(object):
         if path:
             InstallDialog(self, path)
 
+    def install_package(self, package, why=None, then=None):
+        """Offer to install a Python package an archive needs, py7zr or rarfile, with the
+        Python running this window. Once it is in: `then()`, else the step drawn again."""
+        from tkinter import messagebox
+        mi = archives()
+        ask = _("Install it now? This runs:\n\n    %s") % (
+            season._python() + " -m pip install " + package)
+        if not messagebox.askyesno(_(cf.TITLE), (why + "\n\n" if why else "") + ask,
+                                   parent=self.root):
+            return
+        self.root.configure(cursor="watch")
+
+        def done(result, error):
+            self.root.configure(cursor="")
+            ok, said = result if result else (False, str(error))
+            if not ok:
+                # translators: %(package)s is py7zr or rarfile; %(said)s is pip's own words
+                messagebox.showerror(_(cf.TITLE), _("pip could not install %(package)s. pip "
+                                                    "said:\n\n%(said)s")
+                                     % {"package": package, "said": said}, parent=self.root)
+                return
+            (then or self.render)()
+
+        self.in_background(lambda: mi.pip_install(package), done)
+
     def mods_extras(self, box):
         """Texture sets swapped from their archives, and the ambient sound: the parts of a
         setup that aren't a mod switched on or off."""
@@ -617,11 +641,21 @@ class Guide(object):
                 self.para(_("Its archive, %s, isn't in MO2's downloads folder, so it can't be "
                             "swapped.") % archive, parent=box, color=cf.RED, pad=(0, 0),
                           indent=24)
-            elif archive.lower().endswith(".7z") and not importlib.util.find_spec("py7zr"):
-                # translators: %s is the command that installs it
-                self.para(_("Swapping it needs py7zr, a Python package: %s")
-                          % "py -m pip install py7zr", parent=box, color=cf.AMBER, pad=(0, 0),
-                          indent=24)
+                continue
+            package, tool = (archives().lacks(archive) if archives()
+                             else (None, False))
+            if package:
+                line = ttk.Frame(box)
+                line.pack(anchor="w", fill="x")
+                # translators: %s is the name of a Python package, py7zr or rarfile
+                self.para(_("Swapping it needs %s, a Python package.") % package, parent=line,
+                          color=cf.AMBER, pad=(0, 0), indent=24).pack_configure(side="left")
+                # translators: %s is the name of a Python package, py7zr or rarfile
+                self.button(line, _("Install %s") % package,
+                            lambda p=package: self.install_package(p), pad=12)
+            if tool:
+                self.para(_("Swapping it also needs WinRAR or 7-Zip installed."), parent=box,
+                          color=cf.AMBER, pad=(0, 0), indent=24)
         if src:
             var = tk.BooleanVar(value=bool(self.cal.sound_src))
             ttk.Checkbutton(box, text=_("Ambient sound follows the season, from %s") % src,
@@ -1818,6 +1852,12 @@ class InstallDialog(object):
         g = self.g
         g.root.configure(cursor="")
         if error is not None:
+            if isinstance(error, self.mi.MissingPackage):
+                # read it again once the package is in
+                g.install_package(error.package, why=str(error), then=lambda: (
+                    g.root.configure(cursor="watch"),
+                    g.in_background(lambda: self.mi.Package(self.archive), self.read)))
+                return
             if isinstance(error, self.mi.ArchiveError):
                 text = str(error)
             else:

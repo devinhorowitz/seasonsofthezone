@@ -1113,7 +1113,7 @@ msgid "The folder \"%s\" in the archive has no gamedata folder. Check the option
 msgstr ""
 
 #: season.py
-msgid "Texture sets in a .7z archive need the py7zr package. Install it with:"
+msgid "Texture sets in a .7z archive need the py7zr package. configure.bat can install it: click Install py7zr on its Seasonal mods step. Or type this in Command Prompt, not in Python:"
 msgstr ""
 
 #: season.py
@@ -1126,7 +1126,11 @@ msgid "%(archive)s could not be read as a .7z: %(error)s"
 msgstr ""
 
 #: season.py
-msgid "Texture sets in a .rar archive need the rarfile package, and WinRAR or 7-Zip installed. Install rarfile with:"
+msgid "Texture sets in a .rar archive need the rarfile package, and WinRAR or 7-Zip installed. configure.bat can install rarfile: click Install rarfile on its Seasonal mods step. Or type this in Command Prompt, not in Python:"
+msgstr ""
+
+#: season.py
+msgid "Texture sets in a .rar archive need WinRAR or 7-Zip installed."
 msgstr ""
 
 #: season.py
@@ -5026,6 +5030,23 @@ msgid "All files"
 msgstr ""
 
 #: guide.py
+#, python-format
+msgid ""
+"Install it now? This runs:\n"
+"\n"
+"    %s"
+msgstr ""
+
+#. %(package)s is py7zr or rarfile; %(said)s is pip's own words
+#: guide.py
+#, python-format
+msgid ""
+"pip could not install %(package)s. pip said:\n"
+"\n"
+"%(said)s"
+msgstr ""
+
+#: guide.py
 msgid "Texture sets and ambient sound"
 msgstr ""
 
@@ -5039,10 +5060,21 @@ msgstr ""
 msgid "Its archive, %s, isn't in MO2's downloads folder, so it can't be swapped."
 msgstr ""
 
-#. %s is the command that installs it
+#. %s is the name of a Python package, py7zr or rarfile
 #: guide.py
 #, python-format
-msgid "Swapping it needs py7zr, a Python package: %s"
+msgid "Swapping it needs %s, a Python package."
+msgstr ""
+
+#. %s is the name of a Python package, py7zr or rarfile
+#. %s is the archive's file name
+#: guide.py
+#, python-format
+msgid "Install %s"
+msgstr ""
+
+#: guide.py
+msgid "Swapping it also needs WinRAR or 7-Zip installed."
 msgstr ""
 
 #: guide.py
@@ -5498,12 +5530,6 @@ msgstr ""
 #: guide.py
 msgctxt "dialog title"
 msgid "Install"
-msgstr ""
-
-#. %s is the archive's file name
-#: guide.py
-#, python-format
-msgid "Install %s"
 msgstr ""
 
 #. followed by a box with the name of the mod's folder
