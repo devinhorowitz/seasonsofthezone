@@ -1605,7 +1605,8 @@ def write_mod_panel(active, prefs=None):
     for r in rows:
         seas = seasons_english(r["seasons"])
         mb = ("{:,.1f}".format(r["mb"]) if r["mb"] < 10 else "{:,.0f}".format(r["mb"]))
-        desc = ("%s. %s %s, %s MB. Uncheck to leave it out of this season."
+        desc = ("%s. %s %s, %s MB. Uncheck to leave it out of this season, from the next "
+                "start with play.bat."
                 % (cap_first(seas), "{:,}".format(r["files"]),
                    "file" if r["files"] == 1 else "files", mb))
         caption = r["caption"]

@@ -16,6 +16,11 @@ That is the part that works out of the box. Underneath it is a scheduler, and th
 seasons are the calendar it ships with — see
 **[the calendar underneath](#the-calendar-underneath)**.
 
+It ships no textures. The snow, the leaves and the grass in the pictures are other mods,
+INVERNO and C-Consciousness among them, which you install and pick in the setup; Seasons
+of the Zone switches them on in their seasons and off the rest of the year. The Zone can
+also keep [its own date by the game's clock](#the-games-own-clock) instead of the real one.
+
 *More of the interface: [docs/INTERFACE.md](docs/INTERFACE.md)*
 
 ---
@@ -440,6 +445,14 @@ a fresh install.
 | Winter loading screens | `winter`, `winter_snow`, `late_winter` | Wins over your loading-screen mod. |
 | Winter PDA maps | `winter`, `winter_snow`, `late_winter` | Wins over every mod that ships map textures, INVERNO included. |
 | Swamp / ground fog | `late_winter`, `spring`, `autumn` | |
+| Colorful Autumn (a C-Consciousness and Boreal forest ground recolor) | `autumn` | A recolor of C-Consciousness's autumn set, so it wins over that set. |
+| Flora Optimize | `spring` / `summer` / `autumn` / the three winters | Four sets like C-Consciousness's, one entry each; Dead for the winters. |
+| Grizzly's Overgrown | `spring`, `summer` | |
+| Frozen grass for C-Consciousness | `winter`, `winter_snow` | |
+| Snow footsteps (INVERNO's base sounds) | `winter_snow` | Snow underfoot. Must win over every footstep mod, Dark Signal's included. |
+| Screen Space Shaders' ICE water | `winter_snow` | Frozen rivers and pools. Its `gamemtl.xr` is what makes ice sound like ice; without it, as when your footstep mod's table wins, frozen water sounds like water. |
+
+The last six come from players' own setups.
 
 If MO2 can mount it as a folder, it can be seasonal: footstep audio, menu art, a flower pack.
 
@@ -453,7 +466,8 @@ joins the rotation. Make a mod like that seasonal only on purpose.
 
 A mod you keep on all year can still follow the season through its own MCM options: a
 cold-weather mod's winter mode on in the winter seasons and on freezing days, say, and
-off the rest of the year. `play.bat` sets each option before the game starts, in MCM's own
+off the rest of the year. Cold System's winter mode, `cold_system/winter`, is the example
+below. `play.bat` sets each option before the game starts, in MCM's own
 saved options; the mod doesn't need to know about this one. **Add an MCM setting...** on
 the Seasonal mods step finds an option by a word of its name, or from a command prompt:
 

@@ -282,7 +282,7 @@
 	<!-- Main page: the calendar -->
 	<string id="ui_mcm_seasons_zone_today"><text>Today is $date.</text></string>
 	<string id="ui_mcm_seasons_zone_today_game"><text>The Zone's date is $date, by the game's clock.</text></string>
-	<string id="ui_mcm_seasons_zone_pinned"><text>Pinned to $pinned - the calendar reads $season.</text></string>
+	<string id="ui_mcm_seasons_zone_pinned"><text>Pinned to $pinned - the calendar reads $season. The seasonal mods follow the pin from the next start with play.bat.</text></string>
 	<string id="ui_mcm_seasons_zone_spell"><text>$name brings $spell until $ends - the calendar reads $season.</text></string>
 
 	<!-- The preset lists: the built-in grade, and the mod's own presets. The rest are

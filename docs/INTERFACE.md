@@ -36,6 +36,11 @@ Below the dial:
   everything: the seasonal atmosphere changes within five seconds, and the seasonal mods
   and soundscape follow the next time you start with `play.bat`, since it switches them
   before the game starts.
+- **Calendar runs on** — the real date, or the game's clock: the Zone keeps its own date,
+  the in-game date sped up by **Zone days per game day** from the day the game starts. The
+  game writes that date to `appdata\seasons_clock.txt` as it saves and loads, and
+  `play.bat` switches the seasonal mods by it at the next launch. See the README's
+  [The game's own clock](../README.md#the-games-own-clock).
 - **Transition length (days)** — the blend window centered on each boundary. 0 switches on
   the date.
 - **Intensity** — 0 is GAMMA's stock look, 1 the full season.

@@ -63,9 +63,7 @@ Beside the radiation sensor, in exactly its pattern:
 ```lua
 local blowout_sensor = wd_sensor_blowout.new({
     group = "d_watch_blowout",
-    enabled = function()
-        return is_sensor_ready() and d_watch_config.has_sensor("blowout")
-    end,
+    enabled = is_sensor_ready,
     on_blink = function()
         bulbs.anomaly.set_on(true)          -- or its own bulb, if you would rather
         anomaly_led.set_on(true)
@@ -77,8 +75,10 @@ local blowout_sensor = wd_sensor_blowout.new({
 })
 ```
 
-…then `blowout_sensor.update()` alongside the others in `update_sensors`, and
-`sensors = { blowout = true }` on whichever tier should carry it.
+…then `blowout_sensor.update()` alongside the others in `update_sensors`. Every watch
+carries its sensors, so it needs no more than that. The Vektor's tiers list theirs
+instead: there, add `blowout = true` to the `sensors` of the tiers that should carry it,
+and check `d_vektor_config.has_sensor("blowout")` in `enabled`.
 
 ---
 
