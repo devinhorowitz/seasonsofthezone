@@ -1,5 +1,48 @@
 # Changelog
 
+## 2.1.0 — 2026-09-30
+
+- **The seasons can run on the game's own clock.** MCM's new **Calendar runs on** picks the
+  real date, as before, or the game's clock: the Zone keeps its own date, the in-game date
+  sped up by **Zone days per game day** from the day the game starts, so a night's sleep
+  moves it on. The light, weather, marked days, spells, PDA and MCM follow it at once. The
+  game writes the date to `appdata\seasons_clock.txt` as it saves and loads, and `play.bat`
+  switches the seasonal mods by it at the next launch; nothing goes into your saves. The
+  real weather is set aside then, since it is of another day: the temperature comes from
+  the place's climate on the Zone's date.
+- **The forecast can come from Clear Sky or UNISG.** MCM's **Forecast: whose network** picks
+  whose goodwill buys the emission forecast: the ecologists, as before, Clear Sky, UNISG, or
+  the best of the three. The Forecast page wears that faction's shield, and the first time a
+  faction's network opens to you, its leader says so on the PDA. `sotz_api.blowout()` gives
+  the faction.
+- **Weather odds can follow the season.** Off by default, MCM's **Weather odds follow the
+  season** tips Atmospherics 2.69's odds for each sky by the season: more clear days and
+  thunderstorms in summer, more rain and fog in autumn, more overcast in the winters, more
+  fog in the thaw. Your Atmospherics weights stay the base.
+- **The setup installs py7zr and rarfile itself.** A texture set or a mod's archive that
+  needs one shows an Install button on the Seasonal mods step, `.rar` included, and says
+  when WinRAR or 7-Zip is missing too. `play.bat`'s message points there, and says to type
+  the command in Command Prompt, not in Python.
+- The setup also looks for seasonal archives in the downloads folder MO2's settings name,
+  and its archive picker opens there.
+- `sotz_api.season()` gives the date the seasons run on and its clock.
+- MCM's pinned read-out and each seasonal mod's checkbox say they take effect at the next
+  start with `play.bat`.
+- The README says up front that the mod ships no textures, and its list of mods that work
+  well adds six from players' setups.
+- Fixed: the real weather stopped updating. Open-Meteo can return no values for the last
+  of its 16 days, and every launch said "weather unavailable (TypeError)". That day is now
+  left out.
+- Fixed: an MO2 profile named in Cyrillic, or with a parenthesis in its name, stopped
+  `play.bat` and the setup with "This does not look like a Mod Organizer install". MO2's
+  settings are now read as MO2 writes them. When the profile MO2 names isn't there,
+  `play.bat` now lists the ones that are.
+- Fixed: under Atmospherics 2.69's day planner the marked days' weather never reached the
+  sky: the plan's next segment brought its own. The plan itself is now held for the day,
+  so the Forecast page shows the clear day or the storm too.
+- Fixed: a `.rar` texture set failed on a PC with 7-Zip and no WinRAR.
+- Fixed: the Wearable Devices doc wired the watch to a function it doesn't have.
+
 ## 2.0.0 — 2026-09-26
 
 - **Seasons of your own.** Name a stretch of the year, a week or longer, and put mods on in
