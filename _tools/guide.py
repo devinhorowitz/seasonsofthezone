@@ -158,11 +158,11 @@ def seasons_words(cal):
         return _("Polesia's dates; %s") % names if names else _("Polesia's dates")
     if match and names:
         # translators: %(calendar)s is the name of a calendar that comes with the tool
-        return _("the %(calendar)s calendar; %(names)s") % {"calendar": match[0],
-                                                            "names": names}
+        return _("the %(calendar)s calendar; %(names)s") % {
+            "calendar": ce.preset_title(match[0]), "names": names}
     if match:
         # translators: %s is the name of a calendar that comes with the tool
-        return _("the %s calendar") % match[0]
+        return _("the %s calendar") % ce.preset_title(match[0])
     return _("your own dates; %s") % names if names else _("your own dates")
 
 
@@ -182,7 +182,7 @@ def setup_words(cal):
     return ngettext("%(n)d seasonal mod, %(seasons)s, weather from %(place)s.",
                     "%(n)d seasonal mods, %(seasons)s, weather from %(place)s.", n) % {
         "n": n, "seasons": seasons_words(cal),
-        "place": (cal.place or ce.DEFAULT_PLACE)["name"]}
+        "place": season.place_name(cal.place)}
 
 
 def parts_words(preset):
@@ -757,8 +757,9 @@ class Guide(object):
         self.cal_var = tk.StringVar(value=match[0] if match else "own")
         self.cal_dates = {n: d for n, __, d in presets}
         for name, about, dates in presets:
-            ttk.Radiobutton(left, text=_("%s  (recommended)") % name if dates == ce.polesia()
-                            else name, value=name, variable=self.cal_var,
+            shown = ce.preset_title(name)
+            ttk.Radiobutton(left, text=_("%s  (recommended)") % shown if dates == ce.polesia()
+                            else shown, value=name, variable=self.cal_var,
                             command=self.pick_calendar).pack(anchor="w", pady=(6, 0))
             self.para(dates_words(dates), parent=left, color=cf.GREY, pad=(0, 0), indent=24,
                       wrap=560)
@@ -1201,7 +1202,8 @@ class Guide(object):
             self.check_label.configure(foreground="#000000", text=_(
                 "Today in %(place)s: high %(high).0f°C (%(high_f).0f°F), low %(low).0f°C "
                 "(%(low_f).0f°F), %(sky)s.") % {
-                    "place": place["name"], "high": t["high"], "high_f": t["high"] * 9 / 5 + 32,
+                    "place": season.place_name(place), "high": t["high"],
+                    "high_f": t["high"] * 9 / 5 + 32,
                     "low": t["low"], "low_f": t["low"] * 9 / 5 + 32,
                     "sky": cf.sky_words(t["cycle"])})
             self.check_credit.pack(anchor="w", after=self.check_label)
@@ -1656,7 +1658,7 @@ class ModDialog(object):
                 ttk.Checkbutton(self.more_box, text="%s  (%s)" % (
                     p, cf.spell_words(cal, cal.spells[p])), variable=v).pack(anchor="w")
         ttk.Label(self.more_box, text=_("And on these kinds of weather at %s")
-                  % (cal.place or ce.DEFAULT_PLACE)["name"],
+                  % season.place_name(cal.place),
                   style="Head.TLabel").pack(anchor="w", pady=(10, 2))
         for p in season.WEATHER_NAMES:
             v = tk.BooleanVar(value=p in when)

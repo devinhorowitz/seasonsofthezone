@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="windows-1251"?>
+
+<string_table>
+
+	<!-- The name in MCM's addon list. MCM builds this as opt_str_menu .. tree_id, i.e.
+	     "ui_mcm_menu_" .. "seasons_zone" (ui_mcm.script:124). NOT "ui_mcm_seasons_zone" -
+	     that spelling showed the raw key in the sidebar. -->
+	<string id="ui_mcm_menu_seasons_zone">
+		<text>Seasons of the Zone</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone">
+		<text>Seasons of the Zone</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_desc_top">
+		<text>Свет, листва, туман, ветер, влажность и снегопад следуют за реальной датой от сезона к сезону и меняются прямо во время игры. Сезонов шесть, как в календаре Полесья, если в configure.bat не заданы свои. Текстуры земли и травы так не могут: движок загружает их один раз, поэтому play.bat подменяет их до запуска игры.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_enabled">
+		<text>Включить сезонную атмосферу</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_enabled_desc">
+		<text>Если выключить, мод сразу вернёт управление: цветокоррекция станет нейтральной, а листва, туман, ветер и влажность вернутся к вашим настройкам Screen Space Shaders.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_mode">
+		<text>Сезон</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_mode_desc">
+		<text>Режим «Авто» следует сегодняшней реальной дате. Выбор конкретного сезона закрепляет его независимо от календаря. Закрепление сразу меняет свет, туман, ветер, влажность и снегопад, но не текстуры земли: их выбирают при запуске. Чтобы сменилась и земля, выберите сезон, выйдите из игры и запустите её через play.bat.</text>
+	</string>
+	<!-- List items are looked up as "<option path>_lst_<value>" with NO ui_mcm_
+	     prefix - ui_mcm.script:1465 builds it from the path directly. The prefixed
+	     spelling rendered the raw key in the dropdown. -->
+	<string id="seasons_zone_main_mode_lst_auto">
+		<text>Авто (реальная дата)</text>
+	</string>
+	<string id="seasons_zone_main_mode_lst_spring">
+		<text>Весна</text>
+	</string>
+	<string id="seasons_zone_main_mode_lst_summer">
+		<text>Лето</text>
+	</string>
+	<string id="seasons_zone_main_mode_lst_autumn">
+		<text>Осень</text>
+	</string>
+	<string id="seasons_zone_main_mode_lst_winter_snow">
+		<text>Разгар зимы (снежный покров)</text>
+	</string>
+	<string id="seasons_zone_main_mode_lst_winter">
+		<text>Зима (первый снег)</text>
+	</string>
+	<string id="seasons_zone_main_mode_lst_late_winter">
+		<text>Поздняя зима (оттепель)</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_clock">
+		<text>Календарь идёт</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_clock_desc">
+		<text>По реальной дате: в Зоне осень, когда осень в Чернобыле. По часам игры: у Зоны своя дата, которая отсчитывается от дня начала игры, так что, проспав ночь, вы сдвинете её вперёд. Игра записывает эту дату при сохранении и загрузке, и при следующем запуске play.bat переключает по ней сезонные моды. В этом режиме реальная погода не используется, а температура берётся по климату места на дату Зоны.</text>
+	</string>
+	<string id="seasons_zone_main_clock_lst_real">
+		<text>По реальной дате</text>
+	</string>
+	<string id="seasons_zone_main_clock_lst_game">
+		<text>По часам игры</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_clock_speed">
+		<text>Дней Зоны за игровой день</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_clock_speed_desc">
+		<text>Для календаря по часам игры: сколько дней Зоны проходит за один игровой день, считая от дня начала игры. При 1 дата Зоны совпадает с игровой датой; при 7 за каждый игровой день проходит неделя.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_blend_days">
+		<text>Длительность перехода (дни)</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_blend_days_desc">
+		<text>За сколько дней один сезон переходит в следующий. Дата смены приходится на середину перехода, так что при 14 он идёт неделю до неё и неделю после. 0 — резкое переключение.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_intensity">
+		<text>Интенсивность</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_intensity_desc">
+		<text>Насколько сильно сдвигать картинку к сезону. 1 — полный сезонный вид, 0 — нейтральная основа.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_do_grade">
+		<text>Управлять цветом и светом</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_do_grade_desc">
+		<text>Цветокоррекция, насыщенность, экспозиция, яркость солнца и неба, тонмаппинг, солнечные лучи. Выключите, если предпочитаете cfg_load.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_do_flora">
+		<text>Управлять листвой</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_do_flora_desc">
+		<text>Насколько блестят трава и деревья и сколько солнечного света проходит сквозь листву — много у тонкой весенней зелени, почти ноль у голых зимних ветвей.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_do_fog">
+		<text>Управлять туманом</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_do_fog_desc">
+		<text>Высота и плотность тумана, его окраска солнцем и рассеяние. Самый туманный сезон здесь — осень, самый ясный — лето.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_do_wind">
+		<text>Управлять ветром</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_do_wind_desc">
+		<text>Как колышутся трава и деревья. Весна самая ветреная, лето самое безветренное, а зимние ветви скорее жёсткие, чем вялые.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_do_wet">
+		<text>Управлять влажностью</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_do_wet_desc">
+		<text>Как быстро поверхности намокают и как быстро сохнут. Весной после оттепели всё остаётся мокрым; летом сохнет быстро, так что мокро только во время дождя. Сама форма луж зашита в шейдеры и не может следовать сезону.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_wx_season">
+		<text>Шансы погоды зависят от сезона</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_wx_season_desc">
+		<text>С Atmospherics 2.69 сезон смещает шансы каждого типа погоды, плавно на стыке сезонов, как и свет: летом больше ясных дней и гроз, осенью — дождя и тумана, в зимние сезоны — пасмурной погоды, в оттепель — тумана. Ваши веса в Atmospherics остаются основой, которую он смещает. У погоды базовой игры нет шансов, которые можно было бы сместить.</text>
+	</string>
+
+	<!-- The per-mod checkboxes on the season pages are GENERATED into
+	     ui_mcm_seasons_mods.xml by _tools/season.py, one pair per installed seasonal mod,
+	     because their ids are not known until the folders are scanned. -->
+	<string id="ui_mcm_seasons_zone_rem_ann_weather">
+		<text>Годовщины: Зона бушует</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_ann_weather_desc">
+		<text>Весь день погода склоняется к грозам, а не держится спокойной. В два дня памяти всё наоборот.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_ann_artefacts">
+		<text>Годовщины: урожай артефактов</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_ann_artefacts_desc">
+		<text>В этот день на каждой посещённой вами локации появляются дополнительные артефакты — через собственный спавнер Dynamic Anomalies Overhaul. Они остаются в сохранении, как и любые другие появившиеся артефакты. Нужен этот мод; без него этот параметр ничего не делает.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_anniversary">
+		<text>Годовщины: сообщения КПК</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_anniversary_desc">
+		<text>20 марта, 22 августа, 2 октября и 20 ноября — даты выхода четырёх основных игр серии. Сообщения КПК в такой день: одно вскоре после загрузки, затем ещё по одному раз в 8–20 минут. Гроза и артефакты — два параметра ниже.</text>
+	</string>
+	<string id="pda_btn_forecast">
+		<text>Прогноз</text>
+	</string>
+	<string id="pda_btn_seasons">
+		<text>Год</text>
+	</string>
+	<string id="pda_app_seasons">
+		<text>Сезоны</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_weather">
+		<text>Дни памяти: ясное небо</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_weather_desc">
+		<text>26 апреля и 14 декабря. Весь день небо остаётся ясным. 26 апреля — День памяти жертв Чернобыльской катастрофы, 14 декабря — День ликвидатора. Сам сезон при этом не меняется.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_messages">
+		<text>Дни памяти: сообщения КПК</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_rem_messages_desc">
+		<text>Сообщения КПК в каждый из двух дней: одно вскоре после загрузки, затем ещё по одному раз в 8–20 минут. Больше ничего не объявляется.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_stage_textures">
+		<text>Менять текстуры по сезону</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_stage_textures_desc">
+		<text>Главный переключатель сезонных модов и наборов текстур, которые play.bat меняет при запуске. Выключено: play.bat отключает все сезонные моды и оставляет наборы текстур как есть, какой бы ни была дата. Свет, цвет, листва, туман, ветер, влажность и снегопад по-прежнему следуют календарю. Вступает в силу при следующем запуске через play.bat.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_stage_sound">
+		<text>Сезонные фоновые звуки</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_stage_sound_desc">
+		<text>Глушит звуковые каналы, которые не подходят сезону: насекомых под снегом, живность замёрзшего болота. Весной пропадают ночные сверчки; летом звучит всё; осенью пропадают дневные насекомые и болотные птицы; зимой замолкают все насекомые; в разгар зимы — ещё и дневные птицы; поздней зимой болотные птицы возвращаются, хотя насекомые всё ещё молчат. Вороны и совы намеренно звучат круглый год. Ветер, грозы и звуки в помещениях никогда не затрагиваются. Если выключить, фоновые звуки весь год остаются прежними. Вступает в силу при следующем запуске через play.bat.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_notify">
+		<text>Сообщать о смене сезона</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_notify_desc">
+		<text>Показывать короткое сообщение на экране, когда сезон меняется во время игры.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_pda_greeting">
+		<text>Сообщение КПК при загрузке</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_pda_greeting_desc">
+		<text>Как только вы окажетесь в игровом мире, КПК сообщит сезон, реальную дату и сколько осталось до следующего сезона. Если сезон закреплён, сообщается только сезон.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_pda_delay">
+		<text>Задержка сообщения КПК (сек.)</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_pda_delay_desc">
+		<text>Через сколько секунд после загрузки приходит сообщение. Если задержка слишком короткая, сообщение затеряется за экраном загрузки раньше, чем вы его увидите.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_desc_cal_unavailable">
+		<text>Календарь сезонов недоступен — основной скрипт не загрузился. Поищите в логе игры ошибку от zzz_seasons_of_the_zone.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_page_main"><text>Основное</text></string>
+	<string id="ui_mcm_seasons_zone_page_spring"><text>Весна</text></string>
+	<string id="ui_mcm_seasons_zone_page_summer"><text>Лето</text></string>
+	<string id="ui_mcm_seasons_zone_page_autumn"><text>Осень</text></string>
+	<string id="ui_mcm_seasons_zone_page_winter"><text>Зима</text></string>
+	<string id="ui_mcm_seasons_zone_page_winter_snow"><text>Разгар зимы</text></string>
+	<string id="ui_mcm_seasons_zone_page_late_winter"><text>Поздняя зима</text></string>
+	<string id="ui_mcm_seasons_zone_preset"><text>Пресет цветокоррекции</text></string>
+	<string id="ui_mcm_seasons_zone_preset_desc"><text>Какой пресет цветокоррекции использует этот сезон. «Встроенный» — собственная цветокоррекция мода для этого сезона; остальные — пресеты cfg_load в appdata: ваши, Atmospherics и этого мода. Меняется только цветокоррекция; вступает в силу после нажатия «Применить».</text></string>
+	<string id="ui_mcm_seasons_zone_preset_neutral"><text>Нейтральный пресет (интенсивность 0)</text></string>
+	<string id="ui_mcm_seasons_zone_preset_neutral_desc"><text>Пресет цветокоррекции для нейтральной основы — того, что видно при интенсивности 0. Меняется только цветокоррекция; вступает в силу после нажатия «Применить».</text></string>
+	<string id="ui_mcm_seasons_zone_units">
+		<text>Единицы температуры</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_units_desc">
+		<text>Цельсий или Фаренгейт — на странице «Прогноз» в КПК и для модов, которые берут температуру у этого мода. Кнопка единиц на той странице меняет эту же настройку.</text>
+	</string>
+	<string id="seasons_zone_main_units_lst_celsius">
+		<text>Цельсий</text>
+	</string>
+	<string id="seasons_zone_main_units_lst_fahrenheit">
+		<text>Фаренгейт</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast">
+		<text>Прогноз выбросов</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_desc">
+		<text>Показывать следующий выброс и пси-шторм на странице «Прогноз» в КПК. Чем выше ваша репутация у выбранной ниже группировки, тем точнее прогноз: показания снимают они.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_faction">
+		<text>Прогноз: чья сеть</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_faction_desc">
+		<text>Чья репутация открывает доступ к прогнозу. Показания снимают учёные, а у «Чистого неба» и ИИГ есть собственные приборы. «Лучшая из трёх» ориентируется на ту группировку, которая ценит вас больше всех.</text>
+	</string>
+	<string id="seasons_zone_main_forecast_faction_lst_ecolog">
+		<text>Учёные</text>
+	</string>
+	<string id="seasons_zone_main_forecast_faction_lst_csky">
+		<text>«Чистое небо»</text>
+	</string>
+	<string id="seasons_zone_main_forecast_faction_lst_isg">
+		<text>ИИГ</text>
+	</string>
+	<string id="seasons_zone_main_forecast_faction_lst_best">
+		<text>Лучшая из трёх</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_coarse">
+		<text>Прогноз: репутация для предупреждения</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_coarse_desc">
+		<text>Репутация, с которой вас вообще начинают предупреждать. На этом уровне страница даёт промежуток (менее 2 часов, 2–8, 8–16 или «не ожидается»), но никогда не точный час.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_exact">
+		<text>Прогноз: репутация для точного часа</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_forecast_exact_desc">
+		<text>Репутация, с которой вам называют точное время. При дружеских отношениях репутация достигает 1000, так что 700 — уже серьёзное вложение.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_wx_exact">
+		<text>Точный прогноз погоды</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_wx_exact_desc">
+		<text>Выключено: погода подаётся как прогноз синоптика. Время округлено и может ошибаться на час-два, примерно один прогноз из десяти неверен (тем реже, чем ближе смена), и у каждого указана его вероятность. Включено: страница в точности показывает дневной план Atmospherics. У погоды базовой игры, которую использует GAMMA, плана нет, а её шансы для следующей погоды точны в любом случае.</text>
+	</string>
+
+	<!-- The rows the pages build as they open. $name is a value the game fills in, as in
+	     st_seasons_of_the_zone.xml, which says how they work. -->
+
+	<!-- Main page: whether what the PDA app needs is here -->
+	<string id="ui_mcm_seasons_zone_status_mac"><text>КПК: приложение «Сезоны» запускается из меню Mod App Creator.</text></string>
+	<string id="ui_mcm_seasons_zone_status_no_mac"><text>Mod App Creator не найден. Приложение КПК «Сезоны» запускается из его меню — установите Mod App Creator, чтобы открыть приложение.</text></string>
+	<string id="ui_mcm_seasons_zone_status_plan"><text>Погода: дневной планировщик Atmospherics. Прогноз охватывает все предстоящие смены погоды.</text></string>
+	<string id="ui_mcm_seasons_zone_status_stock"><text>Погода: планировщик базовой игры, который использует GAMMA. Прогноз показывает текущую погоду, время её смены и шансы для следующей — её планировщик выбирает случайно, когда приходит время. Atmospherics 2.69 планирует весь день заранее.</text></string>
+	<string id="ui_mcm_seasons_zone_status_none"><text>Менеджер погоды не найден, поэтому страница «Прогноз» не может показать погоду. Всё остальное в моде работает.</text></string>
+
+	<!-- Main page: the calendar -->
+	<string id="ui_mcm_seasons_zone_today"><text>Сегодня $date.</text></string>
+	<string id="ui_mcm_seasons_zone_today_game"><text>Дата Зоны по часам игры: $date.</text></string>
+	<string id="ui_mcm_seasons_zone_pinned"><text>Сезон закреплён: $pinned, а по календарю — $season. Сезонные моды последуют за ним со следующего запуска через play.bat.</text></string>
+	<string id="ui_mcm_seasons_zone_spell"><text>$name: $spell до $ends, а по календарю — $season.</text></string>
+
+	<!-- The preset lists: the built-in grade, and the mod's own presets. The rest are
+	     files in appdata and go by their names. -->
+	<string id="seasons_zone_preset_lst_builtin"><text>Встроенный</text></string>
+	<string id="seasons_zone_preset_lst_seasons_spring"><text>Сезоны: весна</text></string>
+	<string id="seasons_zone_preset_lst_seasons_summer"><text>Сезоны: лето</text></string>
+	<string id="seasons_zone_preset_lst_seasons_autumn"><text>Сезоны: осень</text></string>
+	<string id="seasons_zone_preset_lst_seasons_winter"><text>Сезоны: зима</text></string>
+	<string id="seasons_zone_preset_lst_seasons_deepwinter"><text>Сезоны: разгар зимы</text></string>
+	<string id="seasons_zone_preset_lst_seasons_latewinter"><text>Сезоны: поздняя зима</text></string>
+	<string id="seasons_zone_preset_lst_seasons_neutral"><text>Сезоны: нейтральный</text></string>
+
+	<!-- A season page's read-out of the values it resolves to. The labels sit in columns
+	     the game spaces out, so each is a word or two on its own. -->
+	<string id="ui_mcm_seasons_zone_ro_grade"><text>цветокоррекция</text></string>
+	<string id="ui_mcm_seasons_zone_ro_from"><text>(источник — $preset)</text></string>
+	<string id="ui_mcm_seasons_zone_ro_builtin"><text>встроенные значения</text></string>
+	<string id="ui_mcm_seasons_zone_ro_saturation"><text>насыщенность</text></string>
+	<string id="ui_mcm_seasons_zone_ro_gamma"><text>гамма</text></string>
+	<string id="ui_mcm_seasons_zone_ro_exposure"><text>экспозиция</text></string>
+	<string id="ui_mcm_seasons_zone_ro_sun"><text>солнце</text></string>
+	<string id="ui_mcm_seasons_zone_ro_sky"><text>небо</text></string>
+	<string id="ui_mcm_seasons_zone_ro_sunshafts"><text>лучи</text></string>
+	<string id="ui_mcm_seasons_zone_ro_tonemap"><text>тонмаппинг</text></string>
+	<string id="ui_mcm_seasons_zone_ro_hud"><text>HUD</text></string>
+	<string id="ui_mcm_seasons_zone_ro_fog"><text>туман</text></string>
+	<string id="ui_mcm_seasons_zone_ro_wetness"><text>влажность</text></string>
+	<string id="ui_mcm_seasons_zone_ro_wind_grass"><text>ветер в траве</text></string>
+	<string id="ui_mcm_seasons_zone_ro_trees"><text>деревья</text></string>
+
+	<!-- A season page's seasonal mods. Each mod's own label and hover text are written
+	     into ui_mcm_seasons_mods.xml by _tools/season.py at every launch. -->
+	<string id="ui_mcm_seasons_zone_mods_unstaged"><text>Запустите игру один раз через play.bat, чтобы здесь появился список сезонных модов.</text></string>
+	<string id="ui_mcm_seasons_zone_mods_none"><text>Для этого сезона нет сезонных модов.</text></string>
+	<string id="ui_mcm_seasons_zone_mods_listed"><text>Сезонные моды для этого сезона — снимите флажок, чтобы исключить мод:</text></string>
+</string_table>

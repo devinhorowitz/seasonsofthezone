@@ -944,7 +944,7 @@ def cmd_preset(a):
                                     "   " + _("(can't be used; %s says why)") % "preset show"
                                     if problems else ""))
             if p and p["about"]:
-                print("  %-26s %s" % ("", p["about"]))
+                print("  %-26s %s" % ("", ce.preset_about(p)))
         return
     if not a.name:
         fail(_("Name the preset, in quotes if it has spaces."))
@@ -982,7 +982,7 @@ def cmd_preset(a):
     have = ce.preset_parts(p)
     if a.action == "show":
         if p["about"]:
-            print("  " + p["about"])
+            print("  " + ce.preset_about(p))
         print("  " + _("holds: %s") % parts_text(have))
         if "calendar" in have:
             for l in calendar_lines(p["calendar"] or ce.polesia()):
@@ -1582,7 +1582,7 @@ class App(object):
                                                                           pady=(6, 0))
 
         box = ttk.LabelFrame(self.side, text=_("And on these kinds of weather at %s")
-                             % (self.cal.place or ce.DEFAULT_PLACE)["name"],
+                             % season.place_name(self.cal.place),
                              padding=8)
         box.pack(fill="x", pady=(8, 0))
         # the kinds of weather go by the names the config gives them, which are typed
@@ -2192,10 +2192,12 @@ class App(object):
         self.dial_day = tk.IntVar(value=self.today_in_dial_year())
         row = ttk.Frame(box)
         row.pack(fill="x", pady=(8, 0))
+        # the button first, at the width its word needs; the slider takes the rest
+        ttk.Button(row, text=_("Today"), command=self.dial_today).pack(side="right",
+                                                                       padx=(8, 0))
         ttk.Scale(row, from_=1, to=365, orient="horizontal", variable=self.dial_day,
-                  length=220, command=lambda v: self.dial_later()).pack(side="left")
-        ttk.Button(row, text=_("Today"), width=7, command=self.dial_today).pack(
-            side="left", padx=(8, 0))
+                  length=100, command=lambda v: self.dial_later()).pack(
+            side="left", fill="x", expand=True)
         self.dial_text = ttk.Label(box, text="", justify="center", wraplength=self.DIAL_PX)
         self.dial_text.pack(pady=(6, 0))
         ttk.Label(box, text=_("Drag to see another day."), foreground=GREY).pack()
@@ -2642,7 +2644,8 @@ class App(object):
             self.place_check.configure(foreground="#000000", text=_(
                 "Today in %(place)s: high %(high).0f\u00b0C (%(high_f).0f\u00b0F), low "
                 "%(low).0f\u00b0C (%(low_f).0f\u00b0F), %(sky)s.") % {
-                    "place": place["name"], "high": t["high"], "high_f": t["high"] * 9 / 5 + 32,
+                    "place": season.place_name(place), "high": t["high"],
+                    "high_f": t["high"] * 9 / 5 + 32,
                     "low": t["low"], "low_f": t["low"] * 9 / 5 + 32,
                     "sky": sky_words(t["cycle"])})
             self.place_check_credit.pack(anchor="w", after=self.place_check)
@@ -2789,8 +2792,9 @@ class App(object):
         box = tk.Listbox(body, height=12, width=28, exportselection=False,
                          activestyle="dotbox")
         box.grid(row=0, column=0, rowspan=4, sticky="ns")
-        for n in files:
-            box.insert("end", n)
+        names = list(files)
+        for n in names:
+            box.insert("end", ce.preset_title(n))
         about = ttk.Label(body, text="", wraplength=400, justify="left")
         about.grid(row=0, column=1, sticky="nw", padx=(14, 0))
         pick = {p: tk.BooleanVar(value=True) for p in ce.PARTS}
@@ -2815,7 +2819,7 @@ class App(object):
             sel = box.curselection()
             if not sel:
                 return
-            name = box.get(sel[0])
+            name = names[sel[0]]
             if held.get("name") != name:
                 p, problems = ce.read_preset(files[name])
                 held.update(name=name, preset=p, problems=problems)
@@ -2824,7 +2828,7 @@ class App(object):
                     b.configure(state="normal" if part in have else "disabled")
                     pick[part].set(part in have)
             p, problems = held["preset"], held["problems"]
-            about.configure(text=(p["about"] if p and p["about"] else name))
+            about.configure(text=ce.preset_about(p) or ce.preset_title(name))
             parts = [x for x in ce.PARTS if pick[x].get() and p and x in ce.preset_parts(p)]
             lines, losses = (ce.preset_effect(self.cal, self.inst, p, parts)
                              if p and not problems and parts else ([], []))
@@ -2850,7 +2854,8 @@ class App(object):
             self.reload_seasons()
             self.changed()
             messagebox.showinfo(_("Load preset"), "\n".join(
-                [_("Loaded %s. It is not saved yet.") % held["name"], ""] + said
+                [_("Loaded %s. It is not saved yet.") % ce.preset_title(held["name"]), ""]
+                + said
                 # translators: Save is the button at the bottom of the window
                 + ["", _("Click Save to keep it, or close without saving to leave your setup "
                          "as it was.")]), parent=self.root)

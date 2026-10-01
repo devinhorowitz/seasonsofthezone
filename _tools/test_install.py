@@ -22,8 +22,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
 sys.dont_write_bytecode = True
+import build_messages as bm                                     # noqa: E402
 import build_release                                            # noqa: E402
 import installer                                                # noqa: E402
+import lang                                                     # noqa: E402
 
 VERSION = installer.version_of(os.path.join(HERE, "season.py"))
 NAME = "SeasonsOfTheZone"           # MO2's default name for the mod: the zip's
@@ -100,6 +102,18 @@ def shipped(mod):
                   + [os.path.join("_tools", "lang", f)
                      for f in os.listdir(os.path.join(tools, "lang"))]
                   + ["configure.bat", "play.bat"])
+
+
+def untranslated(path):
+    """A .po file with every translation taken out but the header's, as bytes: for a case
+    that fills in its own, whatever the shipped translation has."""
+    out = []
+    for ctx, msgid, plural, strs, flags, obsolete in lang.read_po(path):
+        if not obsolete:
+            head = not msgid and ctx is None
+            out += [bm.entry_text(ctx, msgid, plural, strs if head else [""] * len(strs)),
+                    ""]
+    return "\n".join(out).encode("utf-8")
 
 
 def read(folder, rel):
@@ -324,6 +338,7 @@ def t_an_update_keeps_a_translator_s_work():
     ru = os.path.join("_tools", "lang", "ru.po")
     with tempfile.TemporaryDirectory() as d:
         root, mod = gamma(d)
+        put(mod, ru, untranslated(os.path.join(mod, ru)))
         install(mod, "--yes")
         mine = read(root, ru).decode("utf-8").replace(
             'msgid "Save"\nmsgstr ""', 'msgid "Save"\nmsgstr "Сохранить"', 1)

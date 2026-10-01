@@ -19,6 +19,10 @@
   season** tips Atmospherics 2.69's odds for each sky by the season: more clear days and
   thunderstorms in summer, more rain and fog in autumn, more overcast in the winters, more
   fog in the thaw. Your Atmospherics weights stay the base.
+- **Russian.** The setup, the advanced editor, `play.bat` and the commands are in Russian
+  too, and so are the PDA's pages and messages and the MCM pages. The setup starts in the
+  game's language, with a switch for the other one; the game's text follows the game's own
+  language setting. Words drawn into textures, like the year dial's, stay English.
 - **The setup installs py7zr and rarfile itself.** A texture set or a mod's archive that
   needs one shows an Install button on the Seasonal mods step, `.rar` included, and says
   when WinRAR or 7-Zip is missing too. `play.bat`'s message points there, and says to type
@@ -41,6 +45,8 @@
   sky: the plan's next segment brought its own. The plan itself is now held for the day,
   so the Forecast page shows the clear day or the storm too.
 - Fixed: a `.rar` texture set failed on a PC with 7-Zip and no WinRAR.
+- Fixed: a translation was left out, and shown in English, when a plural's first form used
+  a count the English singular leaves out, as Russian's must for 21 and 31.
 - Fixed: the Wearable Devices doc wired the watch to a function it doesn't have.
 
 ## 2.0.0 — 2026-09-26

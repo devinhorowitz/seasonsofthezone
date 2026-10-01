@@ -21,6 +21,9 @@ INVERNO and C-Consciousness among them, which you install and pick in the setup;
 of the Zone switches them on in their seasons and off the rest of the year. The Zone can
 also keep [its own date by the game's clock](#the-games-own-clock) instead of the real one.
 
+The setup, the PDA, MCM and the messages in game are in English and Russian.
+[docs/TRANSLATING.md](docs/TRANSLATING.md) says how to add another language.
+
 *More of the interface: [docs/INTERFACE.md](docs/INTERFACE.md)*
 
 ---

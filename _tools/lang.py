@@ -265,14 +265,13 @@ def fills(text, *english):
     """Does `text` fill in with values like those the code gives the English: a tuple of
     their kinds, or a dict of their names? The code leaves a string with no placeholder
     and no %% alone, so any text fills in for that."""
-    found = []
-    for e in english:
-        found = [(m.group(1), m.group(2)) for m in _HOLDER.finditer(e)]
-        if found:
-            break
+    each = [[(m.group(1), m.group(2)) for m in _HOLDER.finditer(e)] for e in english]
+    found = next((f for f in each if f), [])
     if not found:
         return True
-    names = {n: _STAND_IN.get(c, "x") for n, c in found if n is not None}
+    # a plural's forms are filled from one dict, so it has the names of both English forms:
+    # Russian's first form, for 21 as well as 1, needs a count the English singular leaves out
+    names = {n: _STAND_IN.get(c, "x") for f in each for n, c in f if n is not None}
     values = names or tuple(_STAND_IN.get(c, "x") for n, c in found if c != "%")
     try:
         text % values

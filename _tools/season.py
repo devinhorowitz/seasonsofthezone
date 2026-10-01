@@ -1063,6 +1063,14 @@ PLACE_CHARS = 24            # the longest place name the PDA's Forecast page has
 DEFAULT_PLACE = {"name": "Chornobyl", "lat": 51.2763, "lon": 30.2219}
 
 
+def place_name(place=None):
+    """A place's name as the tools show it: Chornobyl's in their language. The name the
+    weather file and the PDA get is the config's."""
+    p = place or DEFAULT_PLACE
+    # translators: where the real weather comes from unless the player picks another place
+    return _("Chornobyl") if p == DEFAULT_PLACE else p["name"]
+
+
 def place_words(place=None):
     """Where the weather comes from, in words: "Kyiv (50.45 N, 30.52 E)"."""
     p = place or DEFAULT_PLACE
@@ -1072,7 +1080,7 @@ def place_words(place=None):
             _("%(name)s (%(lat).2f N, %(lon).2f W)") if north else
             _("%(name)s (%(lat).2f S, %(lon).2f E)") if east else
             _("%(name)s (%(lat).2f S, %(lon).2f W)"))
-    return text % {"name": p["name"], "lat": abs(p["lat"]), "lon": abs(p["lon"])}
+    return text % {"name": place_name(p), "lat": abs(p["lat"]), "lon": abs(p["lon"])}
 
 
 def weather_place():

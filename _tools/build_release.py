@@ -641,9 +641,7 @@ def write_presets(td):
     # of whoever loads it
     data = ce.preset_from(cal, [p for p in ce.parts_with_content(cal) if p != "calendar"])
     data["shipped"] = True
-    data["about"] = ("The setup these tools were made on: GAMMA's seasonal texture sets, "
-                     "each on the calendar, and the ambience mod the soundscape comes from. "
-                     "Mods you don't have are left out when it loads.")
+    data["about"] = ce.GAMMA_EXAMPLE_ABOUT         # English; the windows show it translated
     io.open(os.path.join(out, "GAMMA example.json"), "w", encoding="utf-8",
             newline="\n").write(ce.preset_json(data) + "\n")
     p, problems = ce.read_preset(os.path.join(out, "GAMMA example.json"))

@@ -1414,6 +1414,38 @@ PART_TEXT = {"calendar": N_("calendar and season names"),
              "mods": N_("seasonal mods and MCM settings"),
              "textures": N_("texture sets and ambient sound")}
 PRESET_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.,'()-]{0,39}$")
+# The presets that come with the tool, as the windows show them. Their files keep the
+# English names, which the commands take.
+SHIPPED_NAMES = {
+    # translators: a calendar that comes with the tool
+    "Polesia": N_("Polesia"), "Meteorological": N_("Meteorological"),
+    # translators: a calendar that comes with the tool
+    "Two seasons": N_("Two seasons"), "Southern hemisphere": N_("Southern hemisphere"),
+    "GAMMA example": N_("The GAMMA example")}
+# what they say of themselves, in their files and the build, so it shows translated
+GAMMA_EXAMPLE_ABOUT = N_("The setup these tools were made on: GAMMA's seasonal texture sets, "
+                         "each on the calendar, and the ambience mod the soundscape comes "
+                         "from. Mods you don't have are left out when it loads.")
+SHIPPED_ABOUT = (
+    N_("The Zone's own year, the default: six seasons on the days the land around "
+       "Chornobyl turns, under their usual names."),
+    N_("Ukraine's meteorological seasons: each starts on the first of a month."),
+    N_("Polesia's year turned halfway around, for a summer that comes at Christmas."),
+    N_("Summer from May 1 and deep winter from November 15, nothing between."),
+    GAMMA_EXAMPLE_ABOUT)
+
+
+def preset_title(name):
+    """A preset's name as the windows show it: one that comes with the tool in their
+    language."""
+    return _(SHIPPED_NAMES[name]) if name in SHIPPED_NAMES else name
+
+
+def preset_about(p):
+    """What a preset says of itself: one that comes with the tool in the player's
+    language."""
+    about = (p or {}).get("about") or ""
+    return _(about) if (p or {}).get("shipped") and about in SHIPPED_ABOUT else about
 
 
 def preset_files():

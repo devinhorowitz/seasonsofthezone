@@ -3,8 +3,8 @@
 Seasons of the Zone has two sets of words: the **tools'** - `configure.bat`'s window, the
 commands, the lines `play.bat` prints - and the **game's** - the PDA's Seasons app and
 Forecast page, MCM, and the messages in game. Both come from translation files, so a
-translation needs no code. Nothing is translated yet. A Russian file for the tools comes
-with every string ready to fill in.
+translation needs no code. Russian is done for both: the tools' `ru.po` and the game's
+`text\rus\` tables. Another language starts from those.
 
 A translation can be done a piece at a time: anything not translated yet shows in English.
 
@@ -17,7 +17,7 @@ The words are in `_tools\lang\`:
 | File | What it is |
 |---|---|
 | `messages.pot` | Every string the tools show, made from the code. Don't edit it. |
-| `ru.po` | The Russian translation: every string, each with an empty translation to fill in. |
+| `ru.po` | The Russian translation. |
 | `language.txt` | The language picked in the window's switch. Not shipped; yours. |
 
 A `.po` file is plain text in the format of gettext, so any text editor works, and so do

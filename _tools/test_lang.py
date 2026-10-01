@@ -1,7 +1,8 @@
 """The translation layer: lang.py reading a translator's .po file, build_messages.py keeping
 the files in step with the tools, and the language switch in configure.bat's window.
 
-Nothing is translated yet, so each case brings its own small Russian file.
+Each case brings its own small Russian file, so the shipped translation can change without
+them.
 
   python _tools/test_lang.py
 """
@@ -16,6 +17,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.dont_write_bytecode = True
 import build_messages as bm                                     # noqa: E402
+import config_edit as ce                                        # noqa: E402
 import lang                                                     # noqa: E402
 import test_guide as tg                                         # noqa: E402
 
@@ -186,6 +188,62 @@ msgstr "на 100%% уверен"
         assert len(said) == 5 and all("can't be filled in" in s for s in said), said
     return ("5 unfit translations - 3 with lost or added placeholders, 2 with a stray % - "
             "left out and reported; reordered and dropped names, and %% as written, kept")
+
+
+@case
+def t_a_form_may_use_a_name_only_the_other_english_form_has():
+    """Russian's first form is for 21 and 31 as well as 1, so it needs the count where the
+    English singular can leave it out. The code fills both forms from one dict, so a name
+    from either English form fits; a stray % still doesn't."""
+    ru = RU_HEAD + r'''
+msgid "It is %(season)s. The mod is off."
+msgid_plural "It is %(season)s. The %(off)d mods are off."
+msgstr[0] "Сейчас %(season)s. Выключен %(off)d мод."
+msgstr[1] "Сейчас %(season)s. Выключены %(off)d мода."
+msgstr[2] "Сейчас %(season)s. Выключено %(off)d модов."
+
+msgid "%(mod)s is off."
+msgid_plural "%(mod)s and %(off)d more are off."
+msgstr[0] "%(mod)s и ещё %(off)d выключены - на 100%"
+msgstr[1] "%(mod)s и ещё %(off)d выключены."
+msgstr[2] "%(mod)s и ещё %(off)d выключены."
+'''
+    with Folder({"ru.po": ru}) as d:
+        lang.use("ru")
+        got = [lang.ngettext("It is %(season)s. The mod is off.",
+                             "It is %(season)s. The %(off)d mods are off.", n)
+               % {"season": "зима", "off": n} for n in (1, 3, 5, 21)]
+        assert got == ["Сейчас зима. Выключен 1 мод.", "Сейчас зима. Выключены 3 мода.",
+                       "Сейчас зима. Выключено 5 модов.", "Сейчас зима. Выключен 21 мод."], got
+        said = bm.fit_problems(os.path.join(d, "ru.po"))
+        assert len(said) == 1 and "%(mod)s is off." in said[0], said
+    return "the count in the first form kept for 1 and 21; the stray % left out"
+
+
+@case
+def t_the_presets_that_come_with_the_tool_are_shown_translated():
+    """Each preset the tool ships has its name and what it says of itself marked for
+    translators, so the windows show them in the player's language; the files keep the
+    English, which the commands take. A preset of the player's shows as it is."""
+    shipped = {}
+    for name, path in ce.preset_files().items():
+        p, problems = ce.read_preset(path)
+        if p and not problems and p["shipped"]:
+            shipped[name] = p
+    assert len(shipped) == 4, sorted(shipped)       # the GAMMA example is the build's
+    unmarked = sorted(n for n, p in shipped.items()
+                      if n not in ce.SHIPPED_NAMES or p["about"] not in ce.SHIPPED_ABOUT)
+    assert not unmarked, "not marked for translators: %s" % unmarked
+    two = shipped["Two seasons"]
+    ru = RU_HEAD + '\nmsgid "Two seasons"\nmsgstr "Два сезона"\n\nmsgid "%s"\nmsgstr "%s"\n' % (
+        two["about"], "Лето с 1 мая и разгар зимы с 15 ноября, между ними ничего.")
+    with Folder({"ru.po": ru}):
+        lang.use("ru")
+        got = [ce.preset_title("Two seasons"), ce.preset_about(two), ce.preset_title("Mine"),
+               ce.preset_about(dict(two, shipped=False))]
+    assert got == ["Два сезона", "Лето с 1 мая и разгар зимы с 15 ноября, между ними ничего.",
+                   "Mine", two["about"]], got
+    return "4 shipped presets' names and words marked; shown in Russian; a player's as it is"
 
 
 @case

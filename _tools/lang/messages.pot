@@ -507,6 +507,11 @@ msgctxt "season"
 msgid "late winter"
 msgstr ""
 
+#. where the real weather comes from unless the player picks another place
+#: season.py
+msgid "Chornobyl"
+msgstr ""
+
 #. a place and where it is: N north, S south, E east, W west
 #: season.py
 #, python-format
@@ -2015,6 +2020,50 @@ msgstr ""
 
 #: config_edit.py
 msgid "texture sets and ambient sound"
+msgstr ""
+
+#. a calendar that comes with the tool
+#: config_edit.py
+msgid "Polesia"
+msgstr ""
+
+#. a calendar that comes with the tool
+#: config_edit.py
+msgid "Meteorological"
+msgstr ""
+
+#. a calendar that comes with the tool
+#: config_edit.py
+msgid "Two seasons"
+msgstr ""
+
+#. a calendar that comes with the tool
+#: config_edit.py
+msgid "Southern hemisphere"
+msgstr ""
+
+#: config_edit.py guide.py
+msgid "The GAMMA example"
+msgstr ""
+
+#: config_edit.py
+msgid "The setup these tools were made on: GAMMA's seasonal texture sets, each on the calendar, and the ambience mod the soundscape comes from. Mods you don't have are left out when it loads."
+msgstr ""
+
+#: config_edit.py
+msgid "The Zone's own year, the default: six seasons on the days the land around Chornobyl turns, under their usual names."
+msgstr ""
+
+#: config_edit.py
+msgid "Ukraine's meteorological seasons: each starts on the first of a month."
+msgstr ""
+
+#: config_edit.py
+msgid "Polesia's year turned halfway around, for a summer that comes at Christmas."
+msgstr ""
+
+#: config_edit.py
+msgid "Summer from May 1 and deep winter from November 15, nothing between."
 msgstr ""
 
 #: config_edit.py
@@ -4934,10 +4983,6 @@ msgstr ""
 #: guide.py
 #, python-format
 msgid "Your preset \"%s\""
-msgstr ""
-
-#: guide.py
-msgid "The GAMMA example"
 msgstr ""
 
 #: guide.py
