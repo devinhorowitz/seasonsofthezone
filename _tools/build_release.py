@@ -51,7 +51,8 @@ WEB_BASE = "https://github.com/devinhorowitz/seasonsofthezone/raw/main/"
 MO2_DATA_DIRS = ("appdata", "bin", "db", "gamedata")
 
 # The engine plus the generators for the mod's own content (season table, dial, header
-# bars). luacheck.py and check_mcm_strings.py are general X-Ray tools and stay out.
+# bars, the barometer), whose words build_messages.py reads wherever it runs.
+# luacheck.py and check_mcm_strings.py are general X-Ray tools and stay out.
 TOOL_FILES = [
     "season.py",
     "configure.py",
@@ -65,6 +66,7 @@ TOOL_FILES = [
     "build_season_dial.py",
     "build_season_headers.py",
     "build_seasons_ltx.py",
+    "build_chart_parts.py",
 ]
 # the translations and what they are made from; the language picked in the window stays
 LANG_FILES = (".po", ".pot")
