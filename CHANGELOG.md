@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.1.0 — 2026-09-30
+## 2.1.0 — 2026-10-01
 
 - **The seasons can run on the game's own clock.** MCM's new **Calendar runs on** picks the
   real date, as before, or the game's clock: the Zone keeps its own date, the in-game date
