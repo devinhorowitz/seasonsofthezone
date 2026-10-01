@@ -21,6 +21,7 @@ import time
 import xml.etree.ElementTree as ET
 import zipfile
 
+import lang
 import season
 from lang import _, N_, ngettext, pgettext
 
@@ -98,16 +99,28 @@ def installed_from(meta_ini):
     return re.split(r"[\\/]", v)[-1].strip() or None
 
 
-def found(gamma, folders):
-    """Archives (.7z, .zip, .rar) sitting directly in `gamma` or in gamma\\downloads whose
-    names say a season, and that aren't installed: [{"path", "name", "seasons"}], name
-    being the file name without its extension. Installed means a mod folder in `folders`
-    (names of folders in mods/) whose meta.ini has installationFile naming that file (by
-    base name, any folder), or a folder named like the archive without its extension.
+def downloads_folder(gamma):
+    """MO2's downloads folder: gamma\\downloads, unless MO2's settings moved it. A moved one
+    is in [Settings] download_directory, often as %BASE_DIR%/..., the base being gamma
+    unless base_directory says otherwise."""
+    base = lang.mo2_setting(gamma, "base_directory", "Settings") or gamma
+    d = lang.mo2_setting(gamma, "download_directory", "Settings")
+    if not d:
+        return os.path.join(base, "downloads")
+    return os.path.normpath(d.replace("%BASE_DIR%", base))
 
-    An archive in both places is listed once, from the GAMMA folder."""
+
+def found(gamma, folders):
+    """Archives (.7z, .zip, .rar) sitting directly in `gamma`, in gamma\\downloads or in
+    the downloads folder MO2's settings name, whose names say a season, and that aren't
+    installed: [{"path", "name", "seasons"}], name being the file name without its
+    extension. Installed means a mod folder in `folders` (names of folders in mods/) whose
+    meta.ini has installationFile naming that file (by base name, any folder), or a folder
+    named like the archive without its extension.
+
+    An archive in more than one of those places is listed once, from the first."""
     out = {}
-    for where in (gamma, os.path.join(gamma, "downloads")):
+    for where in (gamma, os.path.join(gamma, "downloads"), downloads_folder(gamma)):
         try:
             names = os.listdir(where)
         except OSError:

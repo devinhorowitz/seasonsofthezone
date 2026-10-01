@@ -227,6 +227,45 @@ def t_the_language_is_the_one_asked_for_else_the_game_s():
 
 
 @case
+def t_mo2_s_settings_are_read_as_mo2_meant_them():
+    """What Qt writes in ModOrganizer.ini, read back: a profile named in Cyrillic, one with
+    parentheses, doubled backslashes, a quoted value, Qt 5's escapes and a Qt 6 file in
+    plain UTF-8."""
+    pairs = [
+        (r"@ByteArray(D:\\ANOMALY)", "D:\\ANOMALY"),
+        (r"@ByteArray(NPC \xd0\xbe\xd1\x82 GFY)", "NPC от GFY"),
+        (r"@ByteArray(GAMMA (test))", "GAMMA (test)"),
+        (r"@ByteArray(Caf\xc3\xa9)", "Café"),
+        ('"Anomaly, DX11"', "Anomaly, DX11"),
+        (r"C:/Users/\x41f\x430\x43f\x43a\x430/Downloads", "C:/Users/Папка/Downloads"),
+        (r"\x41f\x61", "Пa"),              # Qt escapes a hex digit after an escape too
+        ("C:/Users/Папка", "C:/Users/Папка"),
+        ("@ByteArray(Папка)", "Папка"),
+        (r'"say \"hi\""', 'say "hi"'),
+    ]
+    bad = [(raw, lang.qt_value(raw), want) for raw, want in pairs
+           if lang.qt_value(raw) != want]
+    assert not bad, bad
+    with tempfile.TemporaryDirectory() as g:
+        io.open(os.path.join(g, "ModOrganizer.ini"), "w", encoding="utf-8").write(
+            "[General]\ngamePath=@ByteArray(E:\\\\Games\\\\Anomaly)\n"
+            "selected_profile=@ByteArray(NPC \\xd0\\xbe\\xd1\\x82 GFY)\n"
+            "[Settings]\ndownload_directory=%BASE_DIR%/downloads2\nselected_profile=wrong\n")
+        assert lang.mo2_setting(g, "selected_profile", "General") == "NPC от GFY"
+        assert lang.mo2_setting(g, "selected_profile") == "NPC от GFY"     # the first line
+        assert lang.mo2_setting(g, "selected_profile", "Settings") == "wrong"
+        assert lang.mo2_setting(g, "gamePath") == "E:\\Games\\Anomaly"
+        assert lang.mo2_setting(g, "missing", default="x") == "x"
+        assert lang.mo2_setting(os.path.join(g, "nowhere"), "gamePath") is None
+        prof = os.path.join(g, "profiles", "NPC от GFY")
+        os.makedirs(prof)
+        io.open(os.path.join(prof, "modlist.txt"), "w", encoding="utf-8").write("+A\n-B\n")
+        assert lang._mo2(g)[1] == ["A"], lang._mo2(g)
+    return ("%d values read back; [General] and [Settings] kept apart; the Cyrillic "
+            "profile's modlist found" % len(pairs))
+
+
+@case
 def t_the_test_language_marks_strings_and_keeps_them_working():
     lang.use("qps")
     try:

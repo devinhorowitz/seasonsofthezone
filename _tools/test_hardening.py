@@ -510,6 +510,40 @@ def t_a_file_that_cant_be_written_stops_apply_in_words():
     return "stopped in words; play.bat's English is season.py's"
 
 
+@case
+def t_a_profile_named_in_another_alphabet():
+    # MO2 keeps the profile's name as UTF-8 bytes in Qt's escapes; read as written, it named
+    # a folder that doesn't exist and play.bat said this was no Mod Organizer install
+    names = {"NPC \\xd0\\xbe\\xd1\\x82 GFY": "NPC от GFY",
+             "GAMMA (test)": "GAMMA (test)"}
+    toggle = cfg(TOGGLE_MODS='{"Winter Pack": {"when": ("winter",), "above": "Base Grass"}}')
+    for written, name in names.items():
+        with tempfile.TemporaryDirectory() as d:
+            tc.install(d, config=toggle)
+            tc.with_mod(d)
+            os.rename(os.path.join(d, "profiles", "Default"), os.path.join(d, "profiles", name))
+            io.open(os.path.join(d, "ModOrganizer.ini"), "w", encoding="utf-8").write(
+                "[General]\r\nselected_profile=@ByteArray(%s)\r\n" % written)
+            rc, out = status(d)
+            assert rc == 0 and "Mod Organizer install" not in out, out
+            assert "Winter Pack" in out and "(today:" in out, out
+            rc, out = status(d, "apply")
+            lines = io.open(os.path.join(d, "profiles", name, "modlist.txt"),
+                            encoding="utf-8").read().splitlines()
+            assert rc == 0 and len(lines) == len(tc.MODS) + 1, (out, lines)
+    # a profile MO2 names that isn't there: the ones that are, and what to do
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=toggle)
+        tc.with_mod(d)
+        io.open(os.path.join(d, "ModOrganizer.ini"), "w", encoding="utf-8").write(
+            "[General]\r\nselected_profile=@ByteArray(Gone)\r\n")
+        rc, out = status(d)
+        assert rc == 2 and "profiles\\Gone\\modlist.txt" in out and ": Default" in out \
+            and "pick the profile you play in" in out and "Open in Explorer" not in out, out
+    return ("a Cyrillic profile and one with parentheses: status reads them, apply writes "
+            "them; a missing one names those there")
+
+
 if __name__ == "__main__":
     print("  breaking the shipped season.py")
     bad = 0

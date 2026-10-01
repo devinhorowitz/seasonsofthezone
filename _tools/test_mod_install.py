@@ -821,6 +821,34 @@ def t_found_lists_seasonal_archives_not_installed():
 
 
 @case
+def t_found_looks_where_mo2_was_told_to_download():
+    # MO2's Paths settings can put downloads anywhere; ModOrganizer.ini says where, in Qt's
+    # escapes, often as %BASE_DIR%/...
+    with tempfile.TemporaryDirectory() as g, tempfile.TemporaryDirectory() as far:
+        cyr = os.path.join(far, "Загрузки")   # "Загрузки"
+        os.makedirs(cyr)
+        open(os.path.join(cyr, "Deep Winter Pack.7z"), "wb").write(b"not read")
+        qt = (cyr.replace("\\", "/").replace("Загрузки",
+                                              "\\x417\\x430\\x433\\x440\\x443\\x437\\x43a\\x438"))
+        ini = os.path.join(g, "ModOrganizer.ini")
+        open(ini, "w", encoding="utf-8").write(
+            "[General]\nselected_profile=@ByteArray(Default)\n"
+            "[Settings]\ndownload_directory=%s\n" % qt)
+        assert mi.downloads_folder(g) == os.path.normpath(cyr), mi.downloads_folder(g)
+        got = mi.found(g, [])
+        assert [a["path"] for a in got] == [os.path.join(cyr, "Deep Winter Pack.7z")], got
+        # relative to the base folder; and with no setting, gamma\downloads as before
+        os.makedirs(os.path.join(g, "dl"))
+        open(os.path.join(g, "dl", "Summer Grass.zip"), "wb").write(b"not read")
+        open(ini, "w", encoding="utf-8").write("[Settings]\ndownload_directory=%BASE_DIR%/dl\n")
+        assert [a["name"] for a in mi.found(g, [])] == ["Summer Grass"], mi.found(g, [])
+        os.remove(ini)
+        assert mi.downloads_folder(g) == os.path.join(g, "downloads")
+        assert mi.found(g, []) == []
+    return "a Cyrillic downloads folder outside GAMMA and a %BASE_DIR% one both searched"
+
+
+@case
 def t_a_rar_installs_like_the_others():
     if not RAR:
         return "WinRAR's Rar.exe isn't here - skipped"

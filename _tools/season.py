@@ -77,20 +77,9 @@ def _find_unrar():
 
 
 def _mo2_ini(key, default=None):
-    """A value from the portable ModOrganizer.ini. MO2 writes paths as
-    key=@ByteArray(D:\\\\ANOMALY) with doubled backslashes."""
-    p = os.path.join(ROOT, "ModOrganizer.ini")
-    if not os.path.isfile(p):
-        return default
-    try:
-        raw = io.open(p, encoding="utf-8", errors="replace").read()
-    except OSError:
-        return default
-    pat = "(?m)^" + re.escape(key) + r"\s*=\s*(?:@ByteArray\()?([^)\r\n]*)\)?\s*$"
-    m = re.search(pat, raw)
-    if not m:
-        return default
-    return m.group(1).strip().replace('\\\\', '\\') or default
+    """A value from the portable ModOrganizer.ini, as MO2 meant it: MO2 writes paths as
+    key=@ByteArray(D:\\\\ANOMALY), and a name outside ASCII in escapes (lang.qt_value)."""
+    return lang.mo2_setting(ROOT, key, None, default)
 
 
 def game_dir():
@@ -3121,14 +3110,28 @@ def _check_install():
 
     print("  " + _("This does not look like a Mod Organizer install."))
     print()
-    looked, expected = _("looked in"), _("expected")
-    width = max(10, len(looked) + 1, len(expected) + 1)
+    looked, expected, here = _("looked in"), _("expected"), _("profiles here")
+    width = max(10, len(looked) + 1, len(expected) + 1, len(here) + 1)
     found, missing = pgettext("a file", "found"), pgettext("a file", "MISSING")
     print("    %-*s: %s" % (width, looked, ROOT))
     print("    %-*s: ModOrganizer.ini        %s"
           % (width, expected, found if os.path.isfile(ini) else missing))
     print("    %s  profiles\\%s\\modlist.txt %s"
           % (" " * width, profile_name(), found if os.path.isfile(modlist) else missing))
+    if os.path.isfile(ini):
+        # the right folder, and MO2's profile isn't in it: name the ones that are
+        try:
+            have = sorted(p for p in os.listdir(os.path.join(ROOT, "profiles"))
+                          if os.path.isfile(os.path.join(ROOT, "profiles", p, "modlist.txt")))
+        except OSError:
+            have = []
+        if have:
+            print("    %-*s: %s" % (width, here, ", ".join(have)))
+        print()
+        _print_lines("  ", _("MO2 says the profile in use is %s, which has no modlist.txt "
+                             "here. Start\nMO2, pick the profile you play in, close MO2 and "
+                             "try again. Nothing has been\nchanged.") % profile_name())
+        raise SystemExit(2)
     print()
     _print_lines("  ", _("The tools run from your GAMMA folder, the one with ModOrganizer.exe. "
                          "To put\nthem there, open configure.bat in the mod's folder: in MO2, "

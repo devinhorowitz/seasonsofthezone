@@ -1362,6 +1362,10 @@ msgid "expected"
 msgstr ""
 
 #: season.py
+msgid "profiles here"
+msgstr ""
+
+#: season.py
 msgctxt "a file"
 msgid "found"
 msgstr ""
@@ -1369,6 +1373,14 @@ msgstr ""
 #: season.py
 msgctxt "a file"
 msgid "MISSING"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid ""
+"MO2 says the profile in use is %s, which has no modlist.txt here. Start\n"
+"MO2, pick the profile you play in, close MO2 and try again. Nothing has been\n"
+"changed."
 msgstr ""
 
 #: season.py
@@ -5067,7 +5079,7 @@ msgid "Install one from an archive..."
 msgstr ""
 
 #: guide.py
-msgid "Found in your GAMMA folder, not installed yet"
+msgid "Found in your GAMMA and downloads folders, not installed yet"
 msgstr ""
 
 #: guide.py

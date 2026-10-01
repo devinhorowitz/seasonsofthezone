@@ -19,7 +19,7 @@ import re
 import subprocess
 import sys
 
-from lang import _, ngettext, pgettext
+from lang import _, ngettext, pgettext, qt_value
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # the folder these tools came in: the mod's folder, or the GAMMA folder once installed
@@ -517,7 +517,7 @@ def mo2_entries(gamma):
             continue
         m = re.match(r"^(\d+)\\title=(.*)$", s)
         if here and m:
-            titles.append((int(m.group(1)), m.group(2).strip()))
+            titles.append((int(m.group(1)), qt_value(m.group(2))))
     return [t for _, t in sorted(titles)]
 
 

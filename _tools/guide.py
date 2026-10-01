@@ -565,7 +565,8 @@ class Guide(object):
             return
         if not found:
             return
-        self.subhead(_("Found in your GAMMA folder, not installed yet"), parent=box)
+        self.subhead(_("Found in your GAMMA and downloads folders, not installed yet"),
+                     parent=box)
         for f in found:
             line = self.ttk.Frame(box)
             line.pack(anchor="w", fill="x", pady=1)
@@ -583,10 +584,12 @@ class Guide(object):
                                              "folder again.") % "_tools\\mod_install.py",
                                  parent=self.root)
             return
+        # where MO2 puts what it downloads, which may not be under GAMMA at all
+        start = archives().downloads_folder(self.gamma)
         path = filedialog.askopenfilename(
             parent=self.root, title=_("Install a mod from its archive"),
-            initialdir=self.gamma, filetypes=[(_("Mod archives"), "*.7z *.zip *.rar"),
-                                              (_("All files"), "*.*")])
+            initialdir=start if os.path.isdir(start) else self.gamma,
+            filetypes=[(_("Mod archives"), "*.7z *.zip *.rar"), (_("All files"), "*.*")])
         if path:
             InstallDialog(self, path)
 

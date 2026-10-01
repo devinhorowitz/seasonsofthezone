@@ -423,15 +423,80 @@ def save_choice(code):
     io.open(CHOICE, "w", encoding="utf-8").write(code + "\n")
 
 
+_QT_ESCAPES = {"a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v",
+               "'": "'", '"': '"', "?": "?", "\\": "\\", ";": ";", ",": ",", "=": "="}
+_HEX = "0123456789abcdefABCDEF"
+
+
+def qt_value(raw):
+    r"""A value from ModOrganizer.ini as MO2 meant it. Qt writes that file: it may quote a
+    value, doubles a backslash, and writes a character outside ASCII as \x and its hex
+    code. @ByteArray(...) holds UTF-8 bytes, which is how MO2 keeps the profile's name and
+    the game's folder: in @ByteArray(NPC \xd0\xbe\xd1\x82 GFY) the middle word is two
+    Cyrillic letters."""
+    s, out, i = raw.strip(), [], 0
+    while i < len(s):
+        c = s[i]
+        if c == '"':                    # quotes only group; Qt drops them
+            i += 1
+            continue
+        if c == "\\" and i + 1 < len(s):
+            n = s[i + 1]
+            j = i + 2
+            if n in "xX":               # as many hex digits as follow, as Qt reads them
+                while j < len(s) and s[j] in _HEX:
+                    j += 1
+                if j > i + 2:
+                    out.append(chr(int(s[i + 2:j], 16)))
+                    i = j
+                    continue
+            elif n in "01234567":
+                j = i + 1
+                while j < len(s) and j < i + 4 and s[j] in "01234567":
+                    j += 1
+                out.append(chr(int(s[i + 1:j], 8)))
+                i = j
+                continue
+            elif n in _QT_ESCAPES:
+                out.append(_QT_ESCAPES[n])
+                i += 2
+                continue
+        out.append(c)
+        i += 1
+    v = "".join(out)
+    if v.startswith("@ByteArray(") and v.endswith(")"):
+        v = v[len("@ByteArray("):-1]
+        try:
+            v = v.encode("latin-1").decode("utf-8")
+        except UnicodeError:
+            pass                        # already text: a file saved as UTF-8 throughout
+    return v
+
+
+def mo2_setting(root, key, section=None, default=None):
+    """`key` from `root`'s ModOrganizer.ini, read back as MO2 meant it: from [`section`]
+    when given, else the first line that sets it. `default` when there is no such line."""
+    try:
+        lines = io.open(os.path.join(root, "ModOrganizer.ini"), encoding="utf-8",
+                        errors="replace").read().splitlines()
+    except OSError:
+        return default
+    here = section is None
+    for line in lines:
+        s = line.strip()
+        if s.startswith("[") and s.endswith("]"):
+            here = section is None or s[1:-1] == section
+            continue
+        if here and "=" in s and s.split("=", 1)[0].strip() == key:
+            return qt_value(s.split("=", 1)[1]).strip() or default
+    return default
+
+
 def _mo2(root):
     """(mods folder, [enabled mods, highest priority first]) of the MO2 this is in."""
-    ini = os.path.join(root, "ModOrganizer.ini")
-    try:
-        text = io.open(ini, encoding="utf-8", errors="replace").read()
-    except OSError:
+    if not os.path.isfile(os.path.join(root, "ModOrganizer.ini")):
         return None, []
-    m = re.search(r"(?m)^selected_profile\s*=\s*(?:@ByteArray\()?([^)\r\n]*)\)?\s*$", text)
-    profile = m.group(1).strip() if m else "Default"
+    profile = mo2_setting(root, "selected_profile", "General", "Default")
     try:
         lines = io.open(os.path.join(root, "profiles", profile, "modlist.txt"),
                         encoding="utf-8", errors="replace").read().splitlines()
