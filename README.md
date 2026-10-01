@@ -597,3 +597,12 @@ seasonal layer.
 
 Built on **Screen Space Shaders** by Ascii1457 and **G.A.M.M.A.** by Grokitach. Seasonal
 texture sets by the I.N.V.E.R.N.O, C Consciousness, PanceRide and Aydin authors.
+
+The weather odds that follow the season, the full-day forecast and the marked days' skies
+work through **W.P.W.M.** (Weighted Probability Weather Manager) by UmYeahNo, the weather
+script that comes with Atmospherics: its weight system (`weather_weights`), its day-plan
+pre-roll (`day_plan`, `roll_day_plan`), its progression matrix, climatology and
+edge-history anti-oscillation, and `record_day_history`, which this mod looks for to know
+it is running. Its source credits PIPNIK and Sickhowl for the progression graph and the day-plan
+pre-roll. Without W.P.W.M. the odds have nothing to tip, and the Forecast page can show
+only when the sky turns and the odds for the next one.
