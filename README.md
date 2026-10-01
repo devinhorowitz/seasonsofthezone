@@ -595,8 +595,9 @@ you install yourself, and the configuration ships empty. INVERNO's `yawm_snowfal
 particles by S.e.m.i.t.o.n.e.) is not shipped in any form; the patcher carries only the
 seasonal layer.
 
-Built on **Screen Space Shaders** by Ascii1457 and **G.A.M.M.A.** by Grokitach. Seasonal
-texture sets by the I.N.V.E.R.N.O, C Consciousness, PanceRide and Aydin authors.
+Built on **Screen Space Shaders** by Ascii1457, **Atmospherics** by Hippobot, whose weathers
+and color grade presets the seasons use, and **G.A.M.M.A.** by Grokitach. Seasonal texture
+sets by the I.N.V.E.R.N.O, C Consciousness, PanceRide and Aydin authors.
 
 The weather odds that follow the season, the full-day forecast and the marked days' skies
 work through **W.P.W.M.** (Weighted Probability Weather Manager) by UmYeahNo, the weather
