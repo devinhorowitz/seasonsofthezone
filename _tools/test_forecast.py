@@ -390,6 +390,53 @@ def t_no_standing():
     return "unreadable goodwill -> locked, standing nil"
 
 
+def t_marked_day_hold():
+    # A marked day holds its cycle. Atmospherics' planner draws only when a plan segment
+    # comes due, and the segment brings its own cycle, so the plan itself is held up to
+    # the real day's end and the sky drawn now; the base game's manager takes a forced
+    # change at its next hour. The real clock is noon: the day has 12 hours, 4320 game
+    # minutes at time factor 6, left to run.
+    noon = ('local real = os.date\n'
+            'os.date = function(fmt, t)\n'
+            '  if fmt == "*t" and t == nil then\n'
+            '    return {year = 2026, month = 3, day = 20, hour = 12, min = 0, sec = 0}\n'
+            '  end\n'
+            '  return real(fmt, t)\n'
+            'end\n')
+    now = 600
+    plan = [(now + 90, "rain"), (now + 400, "cloudy"), (now + 5000, "clear")]
+    lua, g, hold = build(standing=0, surge_left=HOUR, psi_left=HOUR, plan=plan,
+                         weather="partly", now_minute=now, tail="return hold_cycle")
+    lua.execute(noon)
+    # the managers' methods are Lua functions in the game, and the code checks for that
+    method = lua.eval("function(f) return function(self, ...) return f(...) end end")
+    wm = g.level_weathers.get_weather_manager()
+    wm.presets = lua.table_from({"storm": lua.table_from({"w_storm1": True})})
+    wm.abs_schedule_minute = method(lambda: now)
+    drawn = []
+    wm.select_weather = method(lambda at_once: drawn.append(at_once))
+    g.random_key_table = lambda t: list(t.keys())[0]
+    g.level["get_time_factor"] = lambda: 6
+    assert hold("storm") == "ok"
+    cycles = [wm.day_plan[i]["cycle"] for i in range(1, 4)]
+    assert cycles == ["storm", "storm", "clear"], cycles
+    assert (wm.cycle, wm.preset, drawn) == ("storm", "w_storm1", [False]), (wm.cycle, drawn)
+    # the next tick: a segment rolled since is held too, and the sky isn't drawn again
+    wm.day_plan[4] = lua.table_from({"minute": now + 700, "cycle": "rain"})
+    assert hold("storm") == "ok" and wm.day_plan[4]["cycle"] == "storm" and drawn == [False]
+    # the base game's manager: no plan, so the cycle is set and the change forced
+    lua, g, hold = build(standing=0, surge_left=HOUR, psi_left=HOUR, stock=True,
+                         weather="clear", tail="return hold_cycle")
+    method = lua.eval("function(f) return function(self, ...) return f(...) end end")
+    wm = g.level_weathers.get_weather_manager()
+    wm.presets = lua.table_from({"storm": lua.table_from({"w_storm1": True})})
+    forced = []
+    wm.forced_weather_change = method(lambda: forced.append(1))
+    g.random_key_table = lambda t: list(t.keys())[0]
+    assert hold("storm") == "ok" and wm.cycle == "storm" and forced == [1], wm.cycle
+    return "planner: 2 of 3 segments held to the day's end, drawn once; stock: forced"
+
+
 def t_faction_picked():
     # whose goodwill buys the forecast: MCM's pick, or the best of the three; a pick the
     # script doesn't know reads as the ecologists, the default
@@ -894,6 +941,7 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("band edges", t_band_edges), ("no manager", t_no_manager),
              ("mcm off", t_mcm_off), ("thresholds move", t_thresholds_move),
              ("no standing", t_no_standing),
+             ("marked day hold", t_marked_day_hold),
              ("faction picked", t_faction_picked),
              ("faction's word", t_each_faction_says_so_once),
              ("weather plan", t_weather_plan), ("weather absent", t_weather_absent),

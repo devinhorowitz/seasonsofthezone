@@ -1187,11 +1187,22 @@ end
 -- A memorial holds "clear"; an anniversary holds "storm". The two kinds of day pull
 -- in opposite directions on purpose - one goes still, the other goes loud.
 --
--- This goes through Atmospherics' own manager - the accessor surge_manager.script already
--- uses - rather than writing console values, so it does not fight the weather system. The
--- day plan reassigns self.cycle as segments advance, which is why this re-asserts on a
--- tick instead of setting it once; it only writes when the cycle has actually drifted, so
--- a clear day costs nothing.
+-- This goes through the weather manager itself - the accessor surge_manager.script
+-- already uses - rather than writing console values, so it does not fight the weather
+-- system. It re-asserts on a tick instead of setting it once, and only writes when
+-- something has drifted, so a clear day costs nothing.
+--
+-- The base game's manager draws its cycle at the next game hour, and a forced change
+-- makes that draw immediate, so setting the cycle is enough there. Atmospherics' planner
+-- draws only when a segment of its day plan comes due, and that segment brings its own
+-- cycle: setting wm.cycle alone never reached the sky. So there the plan is held - every
+-- segment due before the real day ends takes this cycle, which also keeps the Forecast
+-- page's plan true - and the sky is drawn now, blended, with the planner's own call.
+local function real_seconds_left()
+    local t = os.date("*t")
+    return (23 - t.hour) * 3600 + (59 - t.min) * 60 + (60 - t.sec)
+end
+
 local function hold_cycle(name)
     if not (level_weathers and level_weathers.get_weather_manager) then
         return "Atmospherics not present"
@@ -1199,13 +1210,26 @@ local function hold_cycle(name)
     local ok, err = pcall(function()
         local wm = level_weathers.get_weather_manager()
         if not wm then error("no weather manager") end
+        local planner = type(wm.day_plan) == "table"
+            and type(wm.abs_schedule_minute) == "function"
+        if planner then
+            local tf = 6
+            pcall(function() tf = level.get_time_factor() end)
+            local last = wm:abs_schedule_minute() + real_seconds_left() * tf / 60
+            for i = (wm.day_plan_index or 1), #wm.day_plan do
+                local seg = wm.day_plan[i]
+                if seg and seg.minute and seg.minute <= last then seg.cycle = name end
+            end
+        end
         if wm.cycle == name then return end
         if not (wm.presets and wm.presets[name]) then error("no " .. name .. " cycle") end
         wm.cycle = name
         if random_key_table then
             wm.preset = random_key_table(wm.presets[name])
         end
-        if type(wm.forced_weather_change) == "function" then
+        if planner and type(wm.select_weather) == "function" then
+            wm:select_weather(false)
+        elseif type(wm.forced_weather_change) == "function" then
             wm:forced_weather_change()
         end
     end)
