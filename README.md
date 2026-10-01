@@ -261,6 +261,20 @@ for as long as the forecast it last fetched reaches, 16 days; after that, and wi
 connection at all, the temperature comes from the place's climate, so nothing that reads
 it goes without. If you have no seasonal mods, launch however you like.
 
+### The game's own clock
+
+By default the Zone follows the real date. Set **Calendar runs on** on MCM's Main page to
+**The game's clock** and it keeps its own date instead: the in-game date, so a night's
+sleep moves it on, sped up by **Zone days per game day** from the day the game starts. At 1
+the Zone's date is the in-game date; at 7 a week passes with each in-game day.
+
+The light, weather, marked days, spells, PDA and MCM follow that date at once. The mods
+`play.bat` switches can't change mid-session, so the game writes its date to
+`appdata\seasons_clock.txt` as it saves and loads, and `play.bat` switches by it at the
+next launch: the season of the game you last saved or loaded. Nothing is written into your
+saves. The real weather is set aside while the Zone keeps its own date, since it is of
+another day: the temperature comes from the place's climate on the Zone's date.
+
 ---
 
 ## The MCM pages
@@ -269,7 +283,9 @@ it goes without. If you have no seasonal mods, launch however you like.
 season your calendar has on: seven pages with the default calendar.
 
 - **Main** — the year dial and today's date; the master switch; season (automatic, or
-  pin one — a pin also decides what is staged at the next launch); transition length (0 for a hard switch on the boundary date, 14 by default);
+  pin one — a pin also decides what is staged at the next launch); what the calendar
+  runs on, the real date or [the game's own clock](#the-games-own-clock), and how fast;
+  transition length (0 for a hard switch on the boundary date, 14 by default);
   intensity (0 is GAMMA's stock look, 1 the full season); one switch per layer: color,
   foliage, fog, wind, and wetness; the two launch-time switches, for textures and
   ambient sound; the PDA message.

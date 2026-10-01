@@ -11,6 +11,7 @@ Every case has a control that must move the other way, so a constant would be ca
 """
 import io
 import os
+import re
 import sys
 
 from lua_runtime import LuaRuntime, NAME as LUA_NAME
@@ -363,6 +364,28 @@ def t_tomorrow():
     return "tomorrow read from its own section, no modelled fallback, none from an old file"
 
 
+def t_the_game_s_clock_sets_the_real_weather_aside():
+    # with MCM's calendar on the game's clock, no real reading is of the Zone's day: the
+    # temperature comes from the climate, and there is no tomorrow
+    obs = {"high": 14.5, "low": 7.8, "cycle": "rain", "date": _pinned(9, 15),
+           "place": "Chornobyl",
+           "_next": {"high": 2.0, "low": -4.0, "cycle": "snow", "date": _pinned(9, 16)}}
+    _, g = build(hour=12.0, month=9, observed=obs)
+    assert F(g.sotz_api.temperature(), "source") == "observed"       # the control
+    assert g.sotz_api.tomorrow() is not None
+    lua, g = build(hour=12.0, month=9, observed=obs)
+    vals = {"forecast": True, "forecast_coarse": 200, "forecast_exact": 700,
+            "clock": "game"}
+    g.ui_mcm = lua.table_from({"get": lambda p: vals.get(str(p).split("/")[-1])})
+    t = g.sotz_api.temperature()
+    assert F(t, "source") == "model" and F(t, "place") is None, (F(t, "source"))
+    assert g.sotz_api.tomorrow() is None, "a real tomorrow on the game's clock"
+    s = g.sotz_api.season()
+    assert re.match(r"^\d{4}-\d\d-\d\d$", str(F(s, "date"))) and F(s, "clock") == "real", \
+        (F(s, "date"), F(s, "clock"))           # no level, no clock file: the real date
+    return "observed, then modeled with no tomorrow on the game's clock; season() dates"
+
+
 def t_units_both_shapes():
     """MCM hands a list option back as a string OR as an index, depending.
 
@@ -533,6 +556,7 @@ CASES = [
     ("freezing flags", t_freezing_flags),
     ("mild day", t_no_frost_when_mild),
     ("tomorrow", t_tomorrow),
+    ("game's clock", t_the_game_s_clock_sets_the_real_weather_aside),
     ("units both shapes", t_units_both_shapes),
     ("units convert", t_units_convert),
     ("sky moves the base", t_sky_moves_the_base),

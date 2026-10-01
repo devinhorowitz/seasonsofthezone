@@ -124,7 +124,7 @@ needs `play.bat`. `place` is nil for Chornobyl's. nil for a day that doesn't exi
 ```lua
 { key = "winter", label = "winter", title = "Winter", calendar = "summer",
   pinned = false, spell = { name = "Summer frost", first = "2026-07-14", last = "2026-07-15" },
-  mix = { winter = 1, summer = 0, … }, snow = 0.6 }
+  mix = { winter = 1, summer = 0, … }, snow = 0.6, date = "2026-07-14", clock = "real" }
 ```
 
 The season the world runs now (2.0.0): the one the light and the weather follow. An MCM
@@ -132,7 +132,9 @@ pin's when the player pinned one, a spell's while it lasts, else the calendar's.
 `calendar` is the calendar's own, as `calendar().season` gives it; `spell` is nil without
 one, and with a pin. `mix` is the blend of the days either side of a turn, summing to 1;
 `snow` how much snow the ground has, 0 to 1. A cold- or heat-driven mod keys off `key`,
-`mix` or `snow` rather than the calendar.
+`mix` or `snow` rather than the calendar. `date` is the day the seasons run on, and
+`clock` where it comes from: `"real"`, the real date, or `"game"`, the Zone's own date by
+the game's clock when MCM puts the calendar on it (2.1.0).
 
 ## `weather()`
 

@@ -145,7 +145,7 @@ end
 -- garbage in the game's font outside English and Cyrillic locales, so the month's name
 -- and where it goes are the string table's.
 local function today_text()
-    local t = os.date("*t")
+    local t = zone_today()
     return sotz_text.date(t.month, t.day, t.year)
 end
 
@@ -215,6 +215,156 @@ local function cfg_raw(path, default)
         if ok and v ~= nil then return v end
     end
     return default
+end
+
+-- --- the day the seasons run on --------------------------------------------------------
+--
+-- The real date, as always; or, with MCM's Calendar set to the game's clock, the Zone's
+-- own: the in-game date, run faster by "Zone days per game day" from the day the game
+-- starts. The game writes that date to appdata\seasons_clock.txt as it saves and loads,
+-- which play.bat reads to switch the season's mods, and which stands in for the in-game
+-- date at the main menu, where there is none to read.
+local CLOCK_FILE = "seasons_clock.txt"
+
+-- An MCM value, from ui_mcm while it answers and from the saved options while it can't,
+-- during on_mcm_load
+local function main_option(key, default)
+    local v = mcm_path(PREFIX .. "main/" .. key, nil)
+    if v == nil then v = cfg_raw(PREFIX .. "main/" .. key, default) end
+    return v
+end
+
+function clock_mode()
+    return tostring(main_option("clock", "real")) == "game" and "game" or "real"
+end
+
+function clock_speed()
+    local v = math.floor(tonumber(main_option("clock_speed", 1)) or 1)
+    return math.max(1, math.min(30, v))
+end
+
+-- The in-game date and time, or nil where there is none: at the main menu, and while a
+-- level loads. get_game_time() without a level is unsafe, which is MCM's own guard too.
+local function game_date()
+    local ok, here = pcall(function() return level.present() and db.actor ~= nil end)
+    if not (ok and here) then return nil end
+    local ok2, Y, M, D, h, mi = pcall(function()
+        local y, mo, d, hh, mm, s, ms = 0, 0, 0, 0, 0, 0, 0
+        return game.get_game_time():get(y, mo, d, hh, mm, s, ms)
+    end)
+    if ok2 and type(Y) == "number" and Y > 0 then return Y, M, D, h or 0, mi or 0 end
+    return nil
+end
+
+-- The day the game starts, from alife.ltx: October 26, 2018 in GAMMA, the 25th in Anomaly.
+local function game_start()
+    local ok, v = pcall(function() return system_ini():r_string_ex("alife", "start_date") end)
+    local d, m, y = tostring(ok and v or ""):match("(%d+)%.(%d+)%.(%d+)")
+    if d then return tonumber(y), tonumber(m), tonumber(d) end
+    return 2018, 10, 26
+end
+
+-- Game minutes from midnight on the day the game began to the in-game Y-M-D h:mi. The
+-- days are counted noon to noon, which no daylight-saving hour can tip.
+local function game_minutes(Y, M, D, h, mi)
+    local sy, sm, sd = game_start()
+    local t0 = os.time({year = sy, month = sm, day = sd, hour = 12})
+    local t = os.time({year = Y, month = M, day = D, hour = 12})
+    return math.floor((t - t0) / 86400 + 0.5) * 1440 + h * 60 + mi
+end
+
+-- The Zone's date for an in-game date: the same at speed 1, else the start date plus the
+-- game days since its midnight times the speed.
+local function zone_from_game(Y, M, D, h, mi, speed)
+    if speed <= 1 then return Y, M, D end
+    local sy, sm, sd = game_start()
+    local days = math.floor(math.max(0, game_minutes(Y, M, D, h, mi)) * speed / 1440)
+    local t = os.date("*t", os.time({year = sy, month = sm, day = sd, hour = 12}) + days * 86400)
+    return t.year, t.month, t.day
+end
+
+local function clock_path()
+    local ok, p = pcall(function() return getFS():update_path("$app_data_root$", CLOCK_FILE) end)
+    return ok and p or nil
+end
+
+-- The Zone's date the game last wrote, for the main menu
+local function read_clock()
+    local p = clock_path()
+    if not p then return nil end
+    local ok, text = pcall(function()
+        local f = io.open(p, "r")
+        if not f then return nil end
+        local s = f:read("*a")
+        f:close()
+        return s
+    end)
+    local y, m, d = tostring(ok and text or ""):match("zone%s*=%s*(%d%d%d%d)%-(%d%d)%-(%d%d)")
+    if y then return tonumber(y), tonumber(m), tonumber(d) end
+    return nil
+end
+
+-- The day the seasons run on, as os.date("*t") gives a day, with its day of the year in
+-- yday, "YYYY-MM-DD" in iso and the clock it came from in clock: "real" or "game".
+function zone_today()
+    if clock_mode() == "game" then
+        local Y, M, D, h, mi = game_date()
+        local zy, zm, zd
+        if Y then
+            zy, zm, zd = zone_from_game(Y, M, D, h, mi, clock_speed())
+        else
+            zy, zm, zd = read_clock()
+        end
+        if zy then
+            local t = os.date("*t", os.time({year = zy, month = zm, day = zd, hour = 12}))
+            t.iso = string.format("%04d-%02d-%02d", zy, zm, zd)
+            t.clock = "game"
+            return t
+        end
+    end
+    local t = os.date("*t")
+    t.yday = tonumber(os.date("%j"))
+    t.iso = os.date("%Y-%m-%d")
+    t.clock = "real"
+    return t
+end
+
+-- Game minutes until the day the seasons run on ends: real midnight at the game's time
+-- factor, or the Zone's day turning.
+function day_left_game_minutes()
+    if clock_mode() == "game" then
+        local Y, M, D, h, mi = game_date()
+        if Y then
+            local span = 1440 / clock_speed()
+            return span - (math.max(0, game_minutes(Y, M, D, h, mi)) % span)
+        end
+    end
+    local tf = 6
+    pcall(function() tf = level.get_time_factor() end)
+    local t = os.date("*t")
+    return ((23 - t.hour) * 3600 + (59 - t.min) * 60 + (60 - t.sec)) * tf / 60
+end
+
+-- What play.bat reads: the Zone's date, written as the game saves and loads. Only with
+-- the game's clock on, and never a save edit: the file sits beside the saves.
+function write_clock()
+    if clock_mode() ~= "game" then return false end
+    local Y, M, D, h, mi = game_date()
+    if not Y then return false end
+    local speed = clock_speed()
+    local zy, zm, zd = zone_from_game(Y, M, D, h, mi, speed)
+    local p = clock_path()
+    if not p then return false end
+    local ok = pcall(function()
+        local f = io.open(p, "w")
+        if not f then error("can't write " .. p) end
+        f:write("; Seasons of the Zone: the Zone's date when the game last saved or loaded.\n"
+                .. "; play.bat reads it to switch the season's mods. Delete it at will.\n"
+                .. string.format("zone = %04d-%02d-%02d\ngame = %04d-%02d-%02d %02d:%02d\n"
+                                 .. "speed = %d\n", zy, zm, zd, Y, M, D, h, mi, speed))
+        f:close()
+    end)
+    return ok
 end
 
 local function q(name)
@@ -431,7 +581,7 @@ end
 -- launch on a later day without play.bat, is back on the calendar.
 local function spell_today()
     if not SPELL then return nil end
-    local today = os.date("%Y-%m-%d")
+    local today = zone_today().iso
     if today >= SPELL.first and today <= SPELL.last then return SPELL end
     return nil
 end
@@ -673,9 +823,9 @@ end
 -- would overlap: the first boundary listed won, the blend jumped by half a season in a
 -- day, and on a season's first day the weight could sit with the one two back.
 local function resolve(blend_days)
-    local now  = os.date("*t")
+    local now  = zone_today()
     local year = now.year
-    local doy  = tonumber(os.date("%j"))
+    local doy  = now.yday
     local len  = doy_of(12, 31, year)
 
     if blend_days > 0 then
@@ -781,8 +931,8 @@ end
 -- is one, else the calendar's; with the calendar's own, whether a pin holds, the spell
 -- running, and the names to show.
 function season_now()
-    local now = os.date("*t")
-    local cal = season_at(tonumber(os.date("%j")), now.year)
+    local now = zone_today()
+    local cal = season_at(now.yday, now.year)
     local mode = season_mode()
     local key = (mode ~= "auto") and mode or cal
     local pin = pinned() ~= "auto"
@@ -798,8 +948,8 @@ end
 -- calendar of the player's own has no dial drawn for it.
 function dial_texture()
     if DIAL == "none" then return nil end
-    local year = os.date("*t").year
-    local doy  = tonumber(os.date("%j"))
+    local now  = zone_today()
+    local year, doy = now.year, now.yday
     local yl   = doy_of(12, 31, DIAL_YEAR)
     local want = season_at(doy, year)
 
@@ -820,8 +970,8 @@ end
 -- Rows for the MCM panel: today's date, and a line when a pin or a spell has the season
 -- differ from the calendar's. Touches no game state, so it is safe at the main menu.
 function calendar_rows()
-    local year = os.date("*t").year
-    local doy  = tonumber(os.date("%j"))
+    local now  = zone_today()
+    local year, doy = now.year, now.yday
 
     local cur = BOUNDS[#BOUNDS].season          -- before the first boundary = winter
     for _, b in ipairs(BOUNDS) do
@@ -834,7 +984,9 @@ function calendar_rows()
 
     -- `live` is what apply() last pushed, so this cannot disagree with the world. It is
     -- nil until the mod has run once.
-    rows[#rows + 1] = {text = sotz_text.text("ui_mcm_seasons_zone_today", {date = today}),
+    rows[#rows + 1] = {text = sotz_text.text(now.clock == "game"
+                                                 and "ui_mcm_seasons_zone_today_game"
+                                                 or "ui_mcm_seasons_zone_today", {date = today}),
                        current = false}
 
     if live and live.spell and live.season ~= cur then
@@ -1026,8 +1178,8 @@ end
 -- Days until the next season starts, and which one. A boundary on today wraps to a full
 -- year, so the first day of autumn reports winter, not autumn.
 local function days_to_next()
-    local year = os.date("*t").year
-    local doy  = tonumber(os.date("%j"))
+    local now  = zone_today()
+    local year, doy = now.year, now.yday
     local len  = doy_of(12, 31, year)
     local best, name
     for _, b in ipairs(BOUNDS) do
@@ -1109,9 +1261,9 @@ end
 -- Deliberately no reward, no drop, no map marker. The day is carried by the sky going
 -- quiet and the PDA carrying the day.
 --
--- The date is read with os.date(), the same real-world clock the seasons use. The in-game
--- clock runs at time_factor 10 and its calendar drifts from the real one permanently, so
--- nothing here is tied to an in-game hour.
+-- The day is the one the seasons run on (zone_today): the real date, or the Zone's own
+-- when MCM puts the calendar on the game's clock. Nothing here is tied to an in-game
+-- hour.
 
 local REM_MS  = 5000          -- how often the day is re-checked; cheap either way
 local next_rem = 0
@@ -1178,7 +1330,7 @@ local REMEMBRANCE = {
 }
 
 local function remembrance_today()
-    local t = os.date("*t")
+    local t = zone_today()
     return REMEMBRANCE[t.month * 100 + t.day]
 end
 
@@ -1196,13 +1348,8 @@ end
 -- makes that draw immediate, so setting the cycle is enough there. Atmospherics' planner
 -- draws only when a segment of its day plan comes due, and that segment brings its own
 -- cycle: setting wm.cycle alone never reached the sky. So there the plan is held - every
--- segment due before the real day ends takes this cycle, which also keeps the Forecast
--- page's plan true - and the sky is drawn now, blended, with the planner's own call.
-local function real_seconds_left()
-    local t = os.date("*t")
-    return (23 - t.hour) * 3600 + (59 - t.min) * 60 + (60 - t.sec)
-end
-
+-- segment due before the day ends takes this cycle, which also keeps the Forecast page's
+-- plan true - and the sky is drawn now, blended, with the planner's own call.
 local function hold_cycle(name)
     if not (level_weathers and level_weathers.get_weather_manager) then
         return "Atmospherics not present"
@@ -1213,9 +1360,7 @@ local function hold_cycle(name)
         local planner = type(wm.day_plan) == "table"
             and type(wm.abs_schedule_minute) == "function"
         if planner then
-            local tf = 6
-            pcall(function() tf = level.get_time_factor() end)
-            local last = wm:abs_schedule_minute() + real_seconds_left() * tf / 60
+            local last = wm:abs_schedule_minute() + day_left_game_minutes()
             for i = (wm.day_plan_index or 1), #wm.day_plan do
                 local seg = wm.day_plan[i]
                 if seg and seg.minute and seg.minute <= last then seg.cycle = name end
@@ -1279,7 +1424,7 @@ local function anniversary_artefacts()
     local okl, lvl = pcall(function() return level.name() end)
     if not (okl and lvl) then return "no level" end
 
-    local key = os.date("%Y-%m-%d") .. "|" .. lvl
+    local key = zone_today().iso .. "|" .. lvl
     if arte_done[key] then return nil end
     arte_done[key] = true
 
@@ -1540,6 +1685,8 @@ local function actor_on_first_update()
         return
     end
     apply(true)
+    -- the loaded game's day, for the next play.bat, when the calendar runs on its clock
+    if write_clock() then say("the Zone's date is " .. zone_today().iso) end
 
     -- The staged textures and the running season can disagree (a pinned season, or a
     -- launch without staging). Say so. season.py stages by the date, so that is what they
@@ -1552,7 +1699,7 @@ local function actor_on_first_update()
         local on = (staged:r_string_ex("staged", "staging") or "on") ~= "off"
         local mode = season_mode()
         local running = (mode ~= "auto") and mode
-                        or season_at(tonumber(os.date("%j")), os.date("*t").year)
+                        or season_at(zone_today().yday, zone_today().year)
         local a_season = false
         for _, k in ipairs(SEASON_KEYS) do
             if k == s then a_season = true end
@@ -1577,12 +1724,13 @@ end
 -- The artefact latch rides in the save. Only today's keys are kept, so the table does
 -- not grow for the life of a playthrough.
 function save_state(m_data)
-    local today, keep = os.date("%Y-%m-%d"), {}
+    local today, keep = zone_today().iso, {}
     for k, v in pairs(arte_done) do
         if v and k:sub(1, #today) == today then keep[k] = true end
     end
     m_data.sotz_arte_done = keep
     m_data.sotz_eco_told = eco_told
+    write_clock()                         -- the saved game's day, for the next play.bat
 end
 
 function load_state(m_data)
@@ -1610,18 +1758,18 @@ end
 
 -- Days from today to (m, d), looking forward and wrapping the year end.
 local function days_until(m, d)
-    local now  = os.date("*t")
+    local now  = zone_today()
     local year = now.year
-    local doy  = tonumber(os.date("%j"))
+    local doy  = now.yday
     local tgt  = doy_of(m, d, year)
     if tgt >= doy then return tgt - doy end
     return (doy_of(12, 31, year) - doy) + doy_of(m, d, year + 1)
 end
 
 function calendar_page()
-    local now  = os.date("*t")
+    local now  = zone_today()
     local year = now.year
-    local doy  = tonumber(os.date("%j"))
+    local doy  = now.yday
     local cur  = season_at(doy, year)
 
     local out = {
@@ -1907,7 +2055,7 @@ function forecast_page()
     -- the same accent strip the calendar page wears, so the two read as one mod rather
     -- than two addons that happen to be installed together
     pcall(function()
-        local cur = season_at(tonumber(os.date("%j")), os.date("*t").year)
+        local cur = season_at(zone_today().yday, zone_today().year)
         out.season = cur
         out.bar    = "ui_season_hdr_" .. tostring(cur)
     end)

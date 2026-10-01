@@ -1475,6 +1475,14 @@ msgid "date"
 msgstr ""
 
 #: season.py
+msgid "(the Zone's date, by the game's clock)"
+msgstr ""
+
+#: season.py
+msgid "(the game's clock has no date saved yet, so the real date)"
+msgstr ""
+
+#: season.py
 msgid "(forced with --season)"
 msgstr ""
 

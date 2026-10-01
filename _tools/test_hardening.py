@@ -544,6 +544,50 @@ def t_a_profile_named_in_another_alphabet():
             "them; a missing one names those there")
 
 
+@case
+def t_the_game_s_clock_stages_the_zone_s_season():
+    # With MCM's calendar on the game's clock, play.bat goes by the Zone's date the game
+    # last wrote to appdata, not the real one; with none written yet, by the real date,
+    # and says so. The Zone's date is put in a season the real date isn't in.
+    import datetime
+    sys.path.insert(0, HERE)
+    import season
+    real = datetime.date.today()
+    zone = datetime.date(2018, 7, 1) if season.season_for(real) == "winter_snow" \
+        else datetime.date(2018, 12, 15)
+    want = season.season_label(season.season_for(zone))
+    toggle = cfg(TOGGLE_MODS='{"Winter Pack": {"when": ("%s",), "above": "Base Grass"}}'
+                 % season.season_for(zone))
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=toggle)
+        tc.with_mod(d)
+        game = os.path.join(d, "ANOMALY")
+        io.open(os.path.join(d, "ModOrganizer.ini"), "a", encoding="utf-8").write(
+            "gamePath=@ByteArray(%s)\r\n" % game.replace("\\", "\\\\"))
+        store = os.path.join(d, "overwrite", "gamedata", "configs", "axr_options.ltx")
+        os.makedirs(os.path.dirname(store))
+        io.open(store, "w", encoding="cp1251").write(
+            "[mcm]\nseasons_zone/main/clock = game\n")
+        os.makedirs(os.path.join(game, "appdata"))
+        rc, out = status(d)
+        assert rc == 0 and real.isoformat() in out and "no date saved yet" in out, out
+        io.open(os.path.join(game, "appdata", "seasons_clock.txt"), "w").write(
+            "; written by the game\nzone = %s\ngame = 2018-11-02 14:31\nspeed = 7\n"
+            % zone.isoformat())
+        rc, out = status(d)
+        assert rc == 0 and "%s   (the Zone's date, by the game's clock)" % zone.isoformat() \
+            in out, out
+        line = [l for l in out.splitlines() if l.strip().startswith("season ")]
+        assert line and want in line[0], (want, line)
+        assert "Winter Pack" in out and "(today: on)" in out, out
+        # on the real date again: the file is left alone and the real date decides
+        io.open(store, "w", encoding="cp1251").write("[mcm]\nseasons_zone/main/clock = real\n")
+        rc, out = status(d)
+        assert rc == 0 and real.isoformat() in out and "game's clock" not in out, out
+    return "no date yet: the real one, said; the Zone's %s: %s staged; real again" % (
+        zone.isoformat(), want)
+
+
 if __name__ == "__main__":
     print("  breaking the shipped season.py")
     bad = 0

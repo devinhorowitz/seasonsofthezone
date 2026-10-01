@@ -111,6 +111,30 @@ def profile_name():
 
 APPDATA = os.path.join(game_dir(), "appdata")
 
+# With MCM's calendar on the game's clock, the game writes the Zone's date here as it saves
+# and loads; play.bat switches by it. CLOCK is the clock this run goes by: "real", "game",
+# or "none" for the game's clock with no date written yet, which goes by the real date.
+CLOCK_FILE = "seasons_clock.txt"
+CLOCK = "real"
+
+
+def clock_today(prefs=None):
+    """The day the seasons run on, and its clock: (the real date, "real"); with MCM's
+    calendar on the game's clock, (the Zone's date the game last wrote, "game"), or, with
+    none written yet, (the real date, "none")."""
+    prefs = read_prefs() if prefs is None else prefs
+    if prefs.get("clock") != "game":
+        return datetime.date.today(), "real"
+    try:
+        text = io.open(os.path.join(APPDATA, CLOCK_FILE), encoding="utf-8",
+                       errors="replace").read()
+        m = re.search(r"(?m)^\s*zone\s*=\s*(\d{4})-(\d\d)-(\d\d)\s*$", text)
+        if m:
+            return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))), "game"
+    except (OSError, ValueError):
+        pass
+    return datetime.date.today(), "none"
+
 CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS", "CALENDAR",
                 "NAMES", "WEATHER_PLACE", "OWN_SEASONS", "SPELLS", "MCM_SETTINGS")
 
@@ -1160,8 +1184,9 @@ def seasons_english(seasons):
 def read_prefs():
     """The MCM choices, from MCM's store. Global switches are seasons_zone/main/<id>; a
     per-season mod hold is seasons_zone/<season>/mod_<slug>. Returns {"stage_textures",
-    "stage_sound", "off": {season: set(slug)}}. No file yet means defaults."""
-    out = {"stage_textures": True, "stage_sound": True, "mode": "auto",
+    "stage_sound", "mode", "clock", "off": {season: set(slug)}}. No file yet means
+    defaults."""
+    out = {"stage_textures": True, "stage_sound": True, "mode": "auto", "clock": "real",
            "off": {s: set() for s in SEASONS}}
     p = _axr_options()
     if not p:
@@ -1179,6 +1204,8 @@ def read_prefs():
         off = v.lower() in ("false", "off", "0", "no")
         if page == "main" and o == "mode":
             out["mode"] = v.strip().lower()
+        elif page == "main" and o == "clock":
+            out["clock"] = "game" if v.strip().lower() == "game" else "real"
         elif page == "main" and o == "stage_textures":
             out["stage_textures"] = not off
         elif page == "main" and o == "stage_sound":
@@ -2190,11 +2217,12 @@ def dial_state(mapping="pheno", calendar=None, names=None):
         return "none"
 
 
-def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None, staged=False):
+def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None, staged=False,
+                   today=None):
     """Write configs/season_calendar.ltx for the game, and draw the dial a custom calendar
     needs. Returns (dial state, a sentence to show or None). The spell in the file is the
     one play.bat last staged, so the game keeps to what is staged: it stays as it is unless
-    `staged` says this run has just staged today's season, spell or not."""
+    `staged` says this run has just staged `today`'s season, spell or not."""
     table = calendar_table(mapping, calendar)
     named = custom_names(names)
     path = _calendar_path()
@@ -2243,7 +2271,7 @@ def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None, stag
     if staged:
         # the spell that brings a season today, for the game to follow while its dates
         # last; an MCM pin still wins over it in game, as it does here
-        brings, spell = spell_season(datetime.date.today())
+        brings, spell = spell_season(today or datetime.date.today())
         if spell:
             lines += ["", "[spell]", "season = %s" % brings, "name = %s" % spell[0],
                       "first = %s" % spell[1].isoformat(),
@@ -2531,7 +2559,11 @@ def weather_flags():
     climbs above zero by afternoon, and "heat" one that reaches 28 C. Each behaves exactly
     like an event: it overlays whatever season is running rather than replacing it, so a
     freezing day in autumn is still autumn.
+
+    None on the game's clock: the real weather is not the Zone's day's.
     """
+    if CLOCK == "game":
+        return []
     path = os.path.join(MODS, SOTZ, "gamedata", "configs", "season_weather.ltx")
     if not os.path.exists(path):
         return []
@@ -3252,8 +3284,11 @@ def main():
         raise SystemExit(0 if state else 1)
     _check_mod_state()
 
-    today = datetime.date.today()
+    global CLOCK
     prefs = read_prefs()
+    # the real date, or, with MCM's calendar on the game's clock, the Zone's date the game
+    # last wrote; everything below goes by it
+    today, CLOCK = clock_today(prefs)
 
     # MCM offers "automatic, or pin one" and the in-engine layers honor it, so the
     # staged layers follow it too - otherwise pinning a season gives you its light
@@ -3265,8 +3300,8 @@ def main():
     # a spell brings its season unless the season is fixed: by --season or an MCM pin
     brings, spell = spell_season(today) if not (a.season or pinned) else (None, None)
     want = a.season or pinned or brings or season_for(today, a.mapping)
-    # A pin or --season fixes the BASE period; events still resolve by real date,
-    # so pinning summer in December does not cancel a Christmas event.
+    # A pin or --season fixes the BASE period; events still resolve by the date, so
+    # pinning summer in December does not cancel a Christmas event.
     active = active_for(today, a.mapping, base=want)
     tmp = os.path.join(ROOT, "_staging", "season-%d" % os.getpid())    # per process
     if a.no_textures:
@@ -3275,7 +3310,10 @@ def main():
     writing = (a.cmd == "apply") and not a.dry_run
     title = cap_first(season_label(want))
 
-    _row(pgettext("report", "date"), today.isoformat())
+    _row(pgettext("report", "date"), today.isoformat() + (
+        "   " + _("(the Zone's date, by the game's clock)") if CLOCK == "game" else
+        "   " + _("(the game's clock has no date saved yet, so the real date)")
+        if CLOCK == "none" else ""))
     _row(pgettext("report", "calendar"), calendar_text(a.mapping))
     why = ("   " + _("(forced with --season)") if a.season else
            "   " + _("(pinned in MCM)") if pinned else
@@ -3422,7 +3460,7 @@ def main():
 
         def send_spell():
             """Hand the game today's spell, now that its season is staged."""
-            state, why = write_calendar(a.mapping, redraw=False, staged=True)
+            state, why = write_calendar(a.mapping, redraw=False, staged=True, today=today)
             if state is None and dial is not None:
                 print("  - " + why)
 

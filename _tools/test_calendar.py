@@ -1254,6 +1254,72 @@ def t_the_window_previews_the_dial_the_game_shows():
     return "%d days, two calendars: the window and the game agree" % checked
 
 
+def clock_world(lua, g, game=None, clock_file=None, start="26.10.2018"):
+    """The engine as the game's clock reads it: `game` the in-game (Y, M, D, h, mi) with a
+    level loaded, None for the main menu; `clock_file` where seasons_clock.txt is."""
+    g.level["present"] = (lambda: True) if game else (lambda: False)
+    if game:
+        g.game["get_game_time"] = lambda: lua.table_from({
+            "diffSec": lambda self, other: 0,
+            "get": lambda self, *a: tuple(game) + (0, 0)})
+    g.system_ini = lambda: lua.table_from({
+        "r_string_ex": lambda self, s, k: start if (s, k) == ("alife", "start_date") else None})
+    path = clock_file or os.path.join(TMP, "no clock", "seasons_clock.txt")
+    g.getFS = lambda: lua.table_from({
+        "exist": lambda self, alias, name: False,
+        "update_path": lambda self, alias, name: path if name == "seasons_clock.txt"
+        else os.path.join(TMP, "missing", name)})
+
+
+@case
+def t_the_game_s_clock_runs_the_season():
+    """MCM's calendar on the game's clock: the season follows the in-game date, run faster
+    by the speed from the day the game starts; at the main menu, the date the game last
+    wrote. September 22 is autumn by the real date the cases are pinned to."""
+    lua, g = build(2026, 9, 22)
+    z = g.zzz_seasons_of_the_zone
+    t = z.zone_today()
+    assert (t.iso, t.clock, z.season_now().calendar) == ("2026-09-22", "real", "autumn")
+    assert z.write_clock() is False, "the real date wrote a clock file"
+
+    mcm = {"seasons_zone/main/clock": "game"}
+    lua, g = build(2026, 9, 22, mcm=mcm)
+    z = g.zzz_seasons_of_the_zone
+    clock_world(lua, g, game=(2018, 12, 5, 14, 30))
+    t = z.zone_today()
+    assert (t.iso, t.clock, t.yday) == ("2018-12-05", "game", 339), (t.iso, t.clock, t.yday)
+    assert z.season_now().calendar == "winter_snow", z.season_now().calendar
+    assert z.day_left_game_minutes() == 1440 - (14 * 60 + 30), z.day_left_game_minutes()
+    # Liquidators' Day falls on the Zone's December 14, not the real one
+    clock_world(lua, g, game=(2018, 12, 14, 9, 0))
+    marked = [m for m in g.zzz_seasons_of_the_zone.calendar_page().days.values()
+              if m.today]
+    assert [(m.month, m.day) for m in marked] == [(12, 14)], [(m.month, m.day) for m in marked]
+
+    # at 7 Zone days a game day, October 28 noon is 2.5 days in: the 17th day, November 12
+    mcm["seasons_zone/main/clock_speed"] = 7
+    lua, g = build(2026, 9, 22, mcm=mcm)
+    z = g.zzz_seasons_of_the_zone
+    path = os.path.join(TMP, "clock_%d.txt" % next(SERIAL))
+    clock_world(lua, g, game=(2018, 10, 28, 12, 0), clock_file=path)
+    t = z.zone_today()
+    assert (t.iso, z.season_now().calendar) == ("2018-11-12", "winter"), t.iso
+    assert abs(z.day_left_game_minutes() - (1440 / 7 - (3600 % (1440 / 7)))) < 1e-6
+    assert z.write_clock() is True
+    text = io.open(path, encoding="utf-8").read()
+    assert "zone = 2018-11-12" in text and "game = 2018-10-28 12:00" in text \
+        and "speed = 7" in text, text
+    # the main menu reads what the game wrote; with nothing written, the real date
+    clock_world(lua, g, clock_file=path)
+    t = z.zone_today()
+    assert (t.iso, t.clock) == ("2018-11-12", "game"), (t.iso, t.clock)
+    clock_world(lua, g)
+    t = z.zone_today()
+    assert (t.iso, t.clock) == ("2026-09-22", "real"), (t.iso, t.clock)
+    return ("real Sept 22 autumn; game Dec 5 deep winter, Dec 14 marked; speed 7 Nov 12 "
+            "winter, written and read back at the menu")
+
+
 if __name__ == "__main__":
     print("  running the shipped calendar page under %s" % LUA_NAME)
     bad = 0

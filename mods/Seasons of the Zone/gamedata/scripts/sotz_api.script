@@ -266,12 +266,25 @@ local function place_normals()
     return nil
 end
 
--- The mean high and low on month m, day `days`, or today when m is nil
+-- With MCM's calendar on the game's clock the seasons run on the Zone's own date, which no
+-- real reading is of: the temperature is then the place's climate on that date.
+local function on_game_clock()
+    local ok, v = pcall(function() return zzz_seasons_of_the_zone.clock_mode() end)
+    return ok and v == "game"
+end
+
+-- The mean high and low on month m, day `days`, or on the day the seasons run on when m
+-- is nil
 local function month_normals(table_, m, days)
     local normals = table_ or NORMALS
     if not m then
-        m = os.date("*t").month
-        days = tonumber(os.date("%d")) or 15
+        local ok, t = pcall(function() return zzz_seasons_of_the_zone.zone_today() end)
+        if ok and type(t) == "table" and t.month then
+            m, days = t.month, t.day
+        else
+            m = os.date("*t").month
+            days = tonumber(os.date("%d")) or 15
+        end
     end
     -- slide toward the neighboring month across the month, so 31 Jan is nearly February
     local span = 30.0
@@ -338,8 +351,8 @@ end
 function temperature()
     return cached("temperature", function()
         -- The base: the real Zone's reading when there is one, climate normals for the
-        -- region when there is not.
-        local obs = observed()
+        -- region when there is not, or when the seasons run on the game's clock.
+        local obs = (not on_game_clock()) and observed() or nil
         local own = not obs and place_normals() or nil
         local base_high, base_low
         if obs then
@@ -436,6 +449,8 @@ end
 -- label, which is not a forecast of anything.
 function tomorrow()
     return cached("tomorrow", function()
+        -- the real forecast is of the real date, not the Zone's
+        if on_game_clock() then return nil end
         local ok, out = pcall(function()
             local ini = ini_file("season_weather.ltx")
             if not ini then return nil end
@@ -621,7 +636,10 @@ end
 --- The season the world runs now: an MCM pin's or a spell's when there is one, else the
 -- calendar's - the one the light and the weather follow.
 -- @return {key, label, title, calendar, pinned, spell = {name, first, last} or nil,
---          mix = {season = weight}, snow = 0..1}
+--          mix = {season = weight}, snow = 0..1, date = "YYYY-MM-DD", clock}
+--
+--         date is the day the seasons run on, and clock where it comes from: "real", the
+--         real date, or "game", the Zone's own date by the game's clock (MCM's choice).
 function season()
     return cached("season", function()
         local z = zzz_seasons_of_the_zone
@@ -629,6 +647,7 @@ function season()
         if not now then return nil end
         local mix = {}
         for k, v in pairs(z.season_mix()) do mix[k] = v end
+        local day = z.zone_today()
         return {
             key      = now.key,
             label    = now.label,
@@ -638,6 +657,8 @@ function season()
             spell    = now.spell,
             mix      = mix,
             snow     = z.snow_factor(),
+            date     = day.iso,
+            clock    = day.clock,
         }
     end)
 end

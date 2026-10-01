@@ -55,6 +55,24 @@
 		<text>Late winter (the thaw)</text>
 	</string>
 
+	<string id="ui_mcm_seasons_zone_clock">
+		<text>Calendar runs on</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_clock_desc">
+		<text>The real date: the Zone is in autumn when Chornobyl is. The game's clock: the Zone keeps its own date, from the day the game starts, so a night's sleep moves it on. The game notes that date as it saves and loads, and play.bat switches the season's mods by it at the next launch. The real weather is set aside then, and the temperature comes from the place's climate on the Zone's date.</text>
+	</string>
+	<string id="seasons_zone_main_clock_lst_real">
+		<text>The real date</text>
+	</string>
+	<string id="seasons_zone_main_clock_lst_game">
+		<text>The game's clock</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_clock_speed">
+		<text>Zone days per game day</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_clock_speed_desc">
+		<text>With the calendar on the game's clock, how many of the Zone's days pass in one in-game day, counted from the day the game starts. At 1 the Zone's date is the in-game date; at 7 a week passes with each in-game day.</text>
+	</string>
 	<string id="ui_mcm_seasons_zone_blend_days">
 		<text>Transition length (days)</text>
 	</string>
@@ -263,6 +281,7 @@
 
 	<!-- Main page: the calendar -->
 	<string id="ui_mcm_seasons_zone_today"><text>Today is $date.</text></string>
+	<string id="ui_mcm_seasons_zone_today_game"><text>The Zone's date is $date, by the game's clock.</text></string>
 	<string id="ui_mcm_seasons_zone_pinned"><text>Pinned to $pinned - the calendar reads $season.</text></string>
 	<string id="ui_mcm_seasons_zone_spell"><text>$name brings $spell until $ends - the calendar reads $season.</text></string>
 

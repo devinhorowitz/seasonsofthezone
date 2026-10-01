@@ -311,7 +311,13 @@ NOT_SHOWN = {
         # hold_cycle(), anniversary_artefacts() and reach(), each only ever logged
         "Atmospherics not present", "Dynamic Anomalies Overhaul not present", "no level",
         "seeded %s on %s over %s passes (artefacts %s -> %s)", "seeded artefacts on ",
-        " (count unavailable)", "no-getter(n=%d %s)"},
+        " (count unavailable)", "no-getter(n=%d %s)",
+        # the game's clock: alife.ltx's section, and the file play.bat reads, written to
+        # appdata, never shown
+        "alife", "zone%s*=%s*(%d%d%d%d)%-(%d%d)%-(%d%d)",
+        "; Seasons of the Zone: the Zone's date when the game last saved or loaded.\\n",
+        "; play.bat reads it to switch the season's mods. Delete it at will.\\n",
+        "zone = %04d-%02d-%02d\\ngame = %04d-%02d-%02d %02d:%02d\\n", "speed = %d\\n"},
     # the default place's name in the weather file, compared to show the table's instead
     "ui_seasons_forecast.script": {"Chornobyl"},
 }

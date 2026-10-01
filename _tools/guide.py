@@ -119,7 +119,8 @@ def on_today(cal, prefs=None):
     season, the texture switch ("off": every seasonal mod stays off) and the mods unchecked
     for a season. Weather days are left out: they come with play.bat's fetch."""
     prefs = season.read_prefs() if prefs is None else prefs
-    today = datetime.date.today()
+    # the real date, or the Zone's when MCM's calendar runs on the game's clock
+    today = season.clock_today(prefs)[0]
     now = season_on(today, cal.dates)
     pinned = prefs["mode"] if prefs["mode"] in cal.dates else None
     names = ({e for e, spec in cal.events.items() if season.event_on(today, spec)}

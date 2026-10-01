@@ -148,6 +148,12 @@ local function page_main()
         modes[#modes + 1] = {s, shown(s, "seasons_zone_main_mode_lst_" .. s)}
     end
     add({id = "mode", type = "list", val = 0, def = "auto", no_str = true, content = modes})
+    -- the day the calendar runs on: the real date, or the game's own clock, run faster
+    add({id = "clock", type = "list", val = 0, def = "real", content = {
+        {"real", "real"},
+        {"game", "game"},
+    }})
+    add({id = "clock_speed", type = "track", val = 2, min = 1, max = 30, step = 1, def = 1})
     add({id = "blend_days", type = "track", val = 2, min = 0, max = 30, step = 1, def = 14})
     add({id = "intensity", type = "track", val = 2, min = 0.0, max = 1.0, step = 0.05, def = 1.0})
     -- neutral is the intensity-0 baseline, not a season, so its preset lives here

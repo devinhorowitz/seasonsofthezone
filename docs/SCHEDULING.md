@@ -247,6 +247,6 @@ different date's answer without waiting for it, pin the base period:
 py _tools\season.py status --season winter
 ```
 
-A pin fixes the **base** period only. Events still resolve against the real date, so
+A pin fixes the **base** period only. Events still resolve against the date, so
 pinning summer in December does not cancel a Christmas event — which is usually what you
 want when you are testing one layer and not the other.
