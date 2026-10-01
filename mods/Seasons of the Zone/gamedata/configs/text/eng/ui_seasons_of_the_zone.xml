@@ -121,6 +121,12 @@
 	<string id="ui_mcm_seasons_zone_do_wet_desc">
 		<text>How fast surfaces take on water and how fast they dry. Spring stays wet from the thaw; summer dries quickly, so it is wet only while it rains. Puddle shape itself is baked into the shaders and cannot follow the season.</text>
 	</string>
+	<string id="ui_mcm_seasons_zone_wx_season">
+		<text>Weather odds follow the season</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_wx_season_desc">
+		<text>With Atmospherics 2.69, the season tips its odds for each sky, blended across a turn like the light: summer brings more clear days and thunderstorms, autumn more rain and fog, the winters more overcast, the thaw more fog. Your Atmospherics weights stay the base it tips. The base game's weather has no odds to tip.</text>
+	</string>
 
 	<!-- The per-mod checkboxes on the season pages are GENERATED into
 	     ui_mcm_seasons_mods.xml by _tools/season.py, one pair per installed seasonal mod,

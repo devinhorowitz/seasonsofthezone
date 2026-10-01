@@ -166,6 +166,8 @@ local function page_main()
     add({id = "do_fog",   type = "check", val = 1, def = true})
     add({id = "do_wind",  type = "check", val = 1, def = true})
     add({id = "do_wet",   type = "check", val = 1, def = true})
+    -- tips Atmospherics' odds for each sky by the season; off, its own odds stand
+    add({id = "wx_season", type = "check", val = 1, def = false})
 
     add({id = "line2", type = "line"})
     -- what play.bat switches at launch; each seasonal mod's checkbox is on a season page

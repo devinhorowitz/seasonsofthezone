@@ -1320,6 +1320,38 @@ def t_the_game_s_clock_runs_the_season():
             "winter, written and read back at the menu")
 
 
+@case
+def t_the_season_tips_atmospherics_odds():
+    """With MCM's wx_season on, the season scales Atmospherics' weight for each sky: October
+    10 is autumn through, so rain x1.4 and clear x0.7. When Atmospherics fills the table
+    from its MCM again, those are the player's new weights; off, theirs come back."""
+    mcm = {"seasons_zone/main/wx_season": True}
+    lua, g = build(2026, 10, 10, mcm=mcm)
+    base = {"clear": 1.67, "partly": 1.67, "cloudy": 1.67, "rain": 1.67, "storm": 1.66,
+            "foggy": 1.66}
+    ww = lua.table_from(dict(base))
+    g.level_weathers = lua.table_from({"weather_weights": ww})
+    z = g.zzz_seasons_of_the_zone
+    z.weather_tilt_tick()
+    got = {c: round(ww[c], 4) for c in base}
+    want = {"clear": 1.169, "partly": 1.503, "cloudy": 2.171, "rain": 2.338, "storm": 1.328,
+            "foggy": 2.324}
+    assert got == want, got
+    z.weather_tilt_tick()                       # a second tick doesn't tip it twice
+    assert round(ww["rain"], 4) == 2.338, ww["rain"]
+    for c in base:                              # Atmospherics, after an option change
+        ww[c] = 3.0 if c == "rain" else base[c]
+    z.weather_tilt_tick()
+    assert round(ww["rain"], 4) == 4.2 and round(ww["clear"], 4) == 1.169, ww["rain"]
+    mcm["seasons_zone/main/wx_season"] = False
+    z.weather_tilt_tick()
+    assert ww["rain"] == 3.0 and ww["clear"] == 1.67, (ww["rain"], ww["clear"])
+    # the base game's weather: no weights, nothing to do
+    lua, g = build(2026, 10, 10, mcm={"seasons_zone/main/wx_season": True})
+    g.zzz_seasons_of_the_zone.weather_tilt_tick()
+    return "autumn: rain x1.4, clear x0.7, once; the player's change re-based; off restores"
+
+
 if __name__ == "__main__":
     print("  running the shipped calendar page under %s" % LUA_NAME)
     bad = 0

@@ -1610,6 +1610,59 @@ function eco_access_tick()
     say(faction .. " forecast access granted at standing " .. tostring(st))
 end
 
+-- --- weather odds that follow the season ------------------------------------------------
+--
+-- Optional, MCM's wx_season. Atmospherics 2.69's planner rolls its day plan from a weight
+-- for each sky, level_weathers.weather_weights, which its own MCM sets. The season tips
+-- those weights, blended across a turn like the light, after Polesia's climate: summer's
+-- clear days and thunderstorms, autumn's rain and fog, the winters' overcast, the thaw's
+-- fog. Atmospherics fills the table from its MCM again whenever an option changes, so a
+-- value that isn't the one set here is the player's own, and the new base to tip. The base
+-- game's weather has no weights, so there this does nothing.
+local WX_TILT = {
+    spring      = {clear = 0.9, partly = 1.2, cloudy = 1.0, rain = 1.3, storm = 0.8, foggy = 1.1},
+    summer      = {clear = 1.3, partly = 1.2, cloudy = 0.8, rain = 0.8, storm = 1.4, foggy = 0.6},
+    autumn      = {clear = 0.7, partly = 0.9, cloudy = 1.3, rain = 1.4, storm = 0.8, foggy = 1.4},
+    winter      = {clear = 0.8, partly = 0.9, cloudy = 1.5, rain = 1.1, storm = 0.4, foggy = 1.3},
+    winter_snow = {clear = 1.1, partly = 1.0, cloudy = 1.4, rain = 0.8, storm = 0.2, foggy = 1.1},
+    late_winter = {clear = 0.8, partly = 0.9, cloudy = 1.3, rain = 1.2, storm = 0.5, foggy = 1.5},
+}
+local wx_base, wx_set = nil, nil          -- the player's weights, and the ones set here
+
+function weather_tilt_tick()
+    local ww = level_weathers and level_weathers.weather_weights
+    if type(ww) ~= "table" then return end
+    if wx_set then
+        for c, v in pairs(ww) do
+            if v ~= wx_set[c] then wx_base, wx_set = nil, nil; break end
+        end
+    end
+    if not mcm("wx_season", false) then
+        if wx_base then                        -- the player's own back
+            for c, v in pairs(wx_base) do ww[c] = v end
+        end
+        wx_base, wx_set = nil, nil
+        return
+    end
+    if not wx_base then
+        wx_base = {}
+        for c, v in pairs(ww) do wx_base[c] = v end
+    end
+    local ok, mix = pcall(season_mix)
+    if not (ok and type(mix) == "table") then return end
+    wx_set = {}
+    for c, base in pairs(wx_base) do
+        local f, total = 0, 0
+        for s, w in pairs(mix) do
+            local t = WX_TILT[s]
+            f = f + w * ((t and t[c]) or 1)
+            total = total + w
+        end
+        ww[c] = base * ((total > 0) and f / total or 1)
+        wx_set[c] = ww[c]
+    end
+end
+
 local function actor_on_update()
     if not P then return end
     local tg = time_global()
@@ -1618,6 +1671,7 @@ local function actor_on_update()
         next_rem = tg + REM_MS
         remembrance_tick()
         eco_access_tick()
+        weather_tilt_tick()
     end
     if tg >= next_date then
         next_date = tg + DATE_MS

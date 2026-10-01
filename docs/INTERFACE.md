@@ -50,7 +50,11 @@ Below the dial:
 ![Per-layer switches and the switches for launch](images/mcm-main-layers.png)
 
 Then one switch per layer — color and light, foliage, fog, wind, wetness — so a layer you
-would rather tune yourself can be switched off on its own.
+would rather tune yourself can be switched off on its own. **Weather odds follow the
+season**, off by default, tips Atmospherics 2.69's odds for each sky by the season, blended
+across a turn: more clear days and thunderstorms in summer, more rain and fog in autumn,
+more overcast in the winters, more fog in the thaw. Your Atmospherics weights stay the base
+it tips; the base game's weather has no odds to tip.
 
 Below those are the two switches for what `play.bat` changes at launch, which can't
 change mid-session. **Swap textures with the season** is the master switch for seasonal
