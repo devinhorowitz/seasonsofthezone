@@ -453,9 +453,28 @@ a fresh install.
 | Grizzly's Overgrown | `spring`, `summer` | |
 | Frozen grass for C-Consciousness | `winter`, `winter_snow` | |
 | Snow footsteps (INVERNO's base sounds) | `winter_snow` | Snow underfoot. Must win over every footstep mod, Dark Signal's included. |
-| Screen Space Shaders' ICE water | `winter_snow` | Frozen rivers and pools. Its `gamemtl.xr` is what makes ice sound like ice; without it, as when your footstep mod's table wins, frozen water sounds like water. |
+| Screen Space Shaders' ICE water | `winter_snow` | Frozen rivers and pools. Its `gamemtl.xr` is what makes ice sound like ice; without it, as when your footstep mod's table wins, frozen water sounds like water. Your own steps can still splash: see below. |
 
 The last six come from players' own setups.
+
+**Ice under your own feet.** The Modded Exes read `gamedata/materials/material_pairs_*.ltx`
+after `gamemtl.xr`, and some sound mods use that to set the player's steps on water to
+splashes: Oleh's MSIG and MovementSFX ship `material_pairs_actor_collide.ltx`, Dark Signal
+Amplified Footsteps ships `material_pairs_water_collide.ltx`. Then NPCs and mutants walk on
+ice and you splash. The files are read in name order, so one more in the ICE mod's own
+folder, named to come last, puts your steps back to ice, and only while the ice is on.
+Save this as `gamedata/materials/material_pairs_zz_ice_actor_steps.ltx` in the ICE mod:
+
+```ini
+@[creatures\actor@materials\water]
+step_sounds = material\human\step\n_ice_1,material\human\step\n_ice_2,material\human\step\n_ice_3,material\human\step\n_ice_4
+
+@[materials\water_radiation@creatures\actor]
+step_sounds = material\human\step\n_ice_1,material\human\step\n_ice_2,material\human\step\n_ice_3,material\human\step\n_ice_4
+```
+
+The sound names are the ones SSS's ICE module ships; if your ICE mod names its own
+recordings differently, use those.
 
 If MO2 can mount it as a folder, it can be seasonal: footstep audio, menu art, a flower pack.
 

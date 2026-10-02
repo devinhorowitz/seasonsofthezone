@@ -69,8 +69,12 @@ What does matter:
 Each entry in `TOGGLE_MODS` names the mod it wins over, its `above`. On every run
 `season.py` puts the mod just above that one in `modlist.txt` - just below it in MO2's left
 pane - if it is missing or lower, and enables or disables it for the season. If the mod it
-wins over no longer exists (GAMMA renumbers folders between versions), that entry is
-skipped with a warning.
+wins over is no longer in the list, it looks for that mod under a new name: an update
+often renames a mod's folder, because the version is part of it (`Atmospherics 2.69 RC7.2
+SSS24` became `Atmospherics 2.69 RC7.3 hotfix SSS24`). The mod whose name matches up to the
+first word with a digit in it, GAMMA's number aside, is used instead, and `apply` and
+`status` say so until you pick it in `configure.bat`. With no such mod, or more than one,
+the entry is skipped with a warning.
 
 What each wins over on the reference install:
 
@@ -81,8 +85,9 @@ What each wins over on the reference install:
 | Winter PDA Maps | `INVERNO Partly Snowy` | Wins over both INVERNO mods: INVERNO ships its own `textures/ui/ui_global_map.dds` and is on in the same seasons. |
 | PanceRide Summer / Autumn | `388- Aydins …` | Shares no file with 388. It works because 388 wins over Atmospherics, SSS 24 and the Aydin base pack. |
 | Winter Loading Screens | `282- GAMMA Loading Screens` | 132 `textures/intro` files. |
-| Winter Footsteps | `472- Dark Signal Amplified Footsteps Extended` | Wins over all four footstep mods. |
-| Swamp Ground Fog | `Atmospherics 2.69 RC7.2 SSS24` | Shares nothing; it is there only to keep it with the weather mods. |
+| Winter Footsteps | `MovementSFX 2026.09.27 - oleh5230` | Wins over every footstep mod. Oleh's MovementSFX, kept above GAMMA's own sound mods, ships 24 of the same player step sounds. |
+| SSS24 ICE Module | `190- Screen Space Shaders 24` | 15 shared water shaders; above SSS it also wins `gamemtl.xr` over G.A.M.M.A. Footsteps. |
+| Swamp Ground Fog | `Atmospherics 2.69 RC7.3 hotfix SSS24` | Shares nothing; it is there only to keep it with the weather mods. |
 
 **Choosing the mod it wins over.** `configure.bat` picks it from the files the mods share.
 To check by hand, run `py _tools\season.py whowins <path inside gamedata> --for "<the mod>"`
@@ -94,12 +99,13 @@ one. It can't see inside `.db` archives, and it needs the full path:
 **The check.** `above` only keeps a mod just above that one mod. A mod with a higher
 priority that also ships one of the files still wins. `season.py status` tests every file
 of every seasonal mod against every other mod, in the order `apply` leaves them, and
-reports:
+reports the following. A file the other mod ships byte for byte is not counted, since
+nothing is lost to it.
 
 - `! <mod> loses N files to "<other>"` — an enabled mod still wins some of its files. In
   `configure.bat`, make it win over that mod, or disable that mod.
 - `- N disabled mods in MO2 would win some of <mod>'s files if enabled` — on the reference
-  install, Lifestorock's Bleak Fall Redux shares 162 files with INVERNO. Fine until one is
+  install, Lifestorock's Bleak Fall Redux shares 160 files with INVERNO. Fine until one is
   enabled; check with `status` afterwards.
 - `- "<other>" wins N of <mod>'s files in <seasons>` — two seasonal mods that are both on in
   some season overlap. Partly Snowy over INVERNO is intended; the check can't tell intent
