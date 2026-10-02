@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.1.1 — 2026-10-02
+
+- **A seasonal mod keeps working when an update renames the mod it wins over.** Mods put
+  their version in their folder name, so updating one, Atmospherics 2.69 RC7.2 to RC7.3 say,
+  left every seasonal mod set to win over it skipped by `play.bat`. Now `play.bat` uses the
+  mod whose name matches up to its version number, and `status` and `configure.bat` name it
+  until you pick it. A preset, the GAMMA example included, finds the renamed mod the same
+  way.
+- **`status` no longer reports files that are not lost.** A file another mod ships byte for
+  byte, like the ice footstep sounds that SSS's ICE module and INVERNO's footsteps share, no
+  longer counts as lost to it.
+- **README: ice under your own feet.** MSIG, MovementSFX and Dark Signal's footsteps set the
+  player's steps on water back to splashes after the ICE module's table; the README gives a
+  small file that puts them back to ice while the ice is on.
+
 ## 2.1.0 — 2026-10-01
 
 - **The seasons can run on the game's own clock.** MCM's new **Calendar runs on** picks the
