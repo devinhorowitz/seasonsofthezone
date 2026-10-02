@@ -149,6 +149,11 @@ class Install(object):
         """Is `name` a line in MO2's list, a mod or a separator?"""
         return name in self.names or name in self.separators
 
+    def renamed(self, name, skip=()):
+        """The listed mod `name` became when an update renamed its folder, as play.bat sees
+        it (season.renamed), or None."""
+        return season.renamed(name, self.order, skip)
+
     def files(self, name):
         if name not in self._files:
             self._files[name] = mod_files(name)
@@ -1709,7 +1714,9 @@ def apply_preset(cal, inst, preset, parts):
                 said += bring(cal, preset, p, name)
             above = c["above"]
             if not inst.listed(above):
-                above = anchor_for(inst, name, when, dict(toggle, **{name: c}))[0] or above
+                # the same mod renamed by an update first, then the one it shares files with
+                above = (inst.renamed(above, skip=(name,))
+                         or anchor_for(inst, name, when, dict(toggle, **{name: c}))[0] or above)
                 moved.append(_("%(mod)s (now wins over %(other)s)")
                              % {"mod": name, "other": above})
             toggle[name] = {"when": when, "above": above, "extra": []}

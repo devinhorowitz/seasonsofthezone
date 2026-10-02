@@ -1225,6 +1225,9 @@ def read_prefs():
 
 # the seasonal mods apply_toggles() could not place, for the summary line
 SKIPPED = []
+# (seasonal mod, the "above" it names, the renamed mod placed against instead), as _place
+# found them
+RENAMED = []
 
 
 def _find(body, name):
@@ -1233,13 +1236,47 @@ def _find(body, name):
                 None)
 
 
+def name_key(name):
+    """The part of a mod's folder name that an update leaves alone: the words before the
+    first one with a digit in it, without GAMMA's "123- " number, punctuation or case.
+    "Atmospherics 2.69 RC7.2 SSS24" and "Atmospherics 2.69 RC7.3 hotfix SSS24" are both
+    "atmospherics"."""
+    words = []
+    for w in re.sub(r"^\d+[a-z]?-\s*", "", name.strip()).split():
+        if re.search(r"\d", w):
+            break
+        w = re.sub(r"[^\w]", "", w.lower())
+        if w:
+            words.append(w)
+    return " ".join(words)
+
+
+def renamed(name, listed, skip=()):
+    """The mod in `listed`, [(name, enabled)], that `name` became when an update renamed its
+    folder: the one with the same name_key(). Mods carry their version in the folder name,
+    so a seasonal mod set to win over the old name would otherwise be skipped. An enabled
+    mod beats a disabled one; None when nothing fits, or more than one mod does."""
+    key = name_key(name)
+    if len(key) < 3:
+        return None
+    fits = [(on, n) for n, on in listed if n != name and n not in skip and name_key(n) == key]
+    pick = [n for on, n in fits if on] or [n for on, n in fits]
+    return pick[0] if len(pick) == 1 else None
+
+
 def _place(body, name, above, want):
     """Put `name` just above `above` in modlist.txt's lines (a lower line has the higher
     priority) and set it to `want`, "+" or "-", as apply does. Returns (was, now) for a
-    change, None for none, or False when `above` is not in the list."""
+    change, None for none, or False when `above` is not in the list and no mod in it is
+    `above` renamed (see renamed(); a rename it does find goes into RENAMED)."""
     idx, ref = _find(body, name), _find(body, above)
     if ref is None:
-        return False
+        now = renamed(above, [(l[1:], l[:1] == "+") for l in body if l[:1] in ("+", "-")],
+                      skip=(name,))
+        if now is None:
+            return False
+        RENAMED.append((name, above, now))
+        above, ref = now, _find(body, now)
     if idx is None:
         body.insert(ref, want + name)
         return "absent", want
@@ -1283,6 +1320,7 @@ def apply_toggles(active, dry_run=False, prefs=None):
     folders = _mod_folders()
     keys = mod_keys()
     del SKIPPED[:]
+    del RENAMED[:]
     for name, cfg in TOGGLE_MODS.items():
         if name not in folders:
             continue
@@ -1292,7 +1330,14 @@ def apply_toggles(active, dry_run=False, prefs=None):
         on = (bool(set(_when(cfg)) & active_set)
               and prefs["stage_textures"]
               and keys[name] not in prefs["off"].get(base, set()))
+        seen = len(RENAMED)
         got = _place(body, name, cfg["above"], "+" if on else "-")
+        if len(RENAMED) > seen:
+            print("  ~ " + _("%(mod)s now wins over \"%(now)s\": the mod it is set to win over, "
+                             "\"%(was)s\", is not in MO2's mod list, and this looks like the "
+                             "same mod renamed by an update.")
+                  % {"mod": name[:40], "now": RENAMED[-1][2], "was": cfg["above"]})
+            print("    " + _("Pick it in its \"Wins over\" box in configure.bat to keep it."))
         if got is False:
             print("  ! " + _("%(mod)s skipped: the mod it wins over, \"%(above)s\", is not in "
                              "MO2's mod list.") % {"mod": name[:40], "above": cfg["above"]})
@@ -3063,9 +3108,26 @@ def _check_mod_state():
 SHADOW_CACHE = os.path.join(ROOT, "_baseline", "season-shadow-check.json")
 
 
+def _same_file(a, b):
+    """Whether two files hold the same bytes; a file that cannot be read is not the same."""
+    try:
+        if os.path.getsize(a) != os.path.getsize(b):
+            return False
+        with open(a, "rb") as fa, open(b, "rb") as fb:
+            while True:
+                x, y = fa.read(1 << 20), fb.read(1 << 20)
+                if x != y:
+                    return False
+                if not x:
+                    return True
+    except OSError:
+        return False
+
+
 def shadow_check(force=False):
     """Lines about the files of each seasonal mod that a mod above it wins, judged on the
-    order apply leaves MO2's mod list in, not the order it is in now.
+    order apply leaves MO2's mod list in, not the order it is in now. A file the mod above
+    ships byte for byte is not counted: nothing is lost to it.
 
     "!": an enabled mod above ships the file. "-": disabled mods above do, and would win
     it if enabled; or two seasonal mods overlap in a season they share (judged on seasons,
@@ -3124,7 +3186,9 @@ def shadow_check(force=False):
             og = os.path.join(MODS, other, "gamedata")
             if not os.path.isdir(og):
                 continue
-            hits = [rel for rel in rels if os.path.isfile(os.path.join(og, rel))]
+            # a file the other mod ships byte for byte is not lost to it
+            hits = [rel for rel in rels if os.path.isfile(os.path.join(og, rel))
+                    and not _same_file(os.path.join(base, rel), os.path.join(og, rel))]
             if not hits:
                 continue
             eg = hits[0].replace(os.sep, "/")

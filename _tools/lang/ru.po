@@ -645,6 +645,15 @@ msgstr "Список модов MO2 (%s) не начинается со стро
 
 #: season.py
 #, python-format
+msgid "%(mod)s now wins over \"%(now)s\": the mod it is set to win over, \"%(was)s\", is not in MO2's mod list, and this looks like the same mod renamed by an update."
+msgstr "%(mod)s теперь перекрывает «%(now)s»: «%(was)s», который он должен перекрывать, нет в списке модов MO2, и, похоже, это тот же мод, переименованный обновлением."
+
+#: season.py
+msgid "Pick it in its \"Wins over\" box in configure.bat to keep it."
+msgstr "Выберите его в поле «Перекрывает» в configure.bat, чтобы так и осталось."
+
+#: season.py
+#, python-format
 msgid "%(mod)s skipped: the mod it wins over, \"%(above)s\", is not in MO2's mod list."
 msgstr "%(mod)s пропущен: мода \"%(above)s\", который он перекрывает, нет в списке модов MO2."
 
@@ -2542,6 +2551,11 @@ msgstr "перекрывает (не задано)"
 
 #: configure.py
 #, python-format
+msgid "<-- not in MO2's mod list; play.bat uses %s"
+msgstr "<-- нет в списке модов MO2; play.bat использует %s"
+
+#: configure.py
+#, python-format
 msgid "wins over %s"
 msgstr "перекрывает %s"
 
@@ -3652,6 +3666,11 @@ msgid_plural "%(mod)s  (%(n)d shared files)"
 msgstr[0] "%(mod)s  (%(n)d общий файл)"
 msgstr[1] "%(mod)s  (%(n)d общих файла)"
 msgstr[2] "%(mod)s  (%(n)d общих файлов)"
+
+#: configure.py
+#, python-format
+msgid "\"%(was)s\" is not in MO2's mod list, so play.bat uses \"%(now)s\", which looks like the same mod renamed by an update. Pick it in the box above to keep it."
+msgstr "«%(was)s» нет в списке модов MO2, поэтому play.bat использует «%(now)s»: похоже, это тот же мод, переименованный обновлением. Выберите его в поле выше, чтобы так и осталось."
 
 #: configure.py
 #, python-format

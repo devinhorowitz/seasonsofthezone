@@ -638,6 +638,15 @@ msgstr ""
 
 #: season.py
 #, python-format
+msgid "%(mod)s now wins over \"%(now)s\": the mod it is set to win over, \"%(was)s\", is not in MO2's mod list, and this looks like the same mod renamed by an update."
+msgstr ""
+
+#: season.py
+msgid "Pick it in its \"Wins over\" box in configure.bat to keep it."
+msgstr ""
+
+#: season.py
+#, python-format
 msgid "%(mod)s skipped: the mod it wins over, \"%(above)s\", is not in MO2's mod list."
 msgstr ""
 
@@ -2478,6 +2487,11 @@ msgstr ""
 
 #: configure.py
 #, python-format
+msgid "<-- not in MO2's mod list; play.bat uses %s"
+msgstr ""
+
+#: configure.py
+#, python-format
 msgid "wins over %s"
 msgstr ""
 
@@ -3577,6 +3591,11 @@ msgid "%(mod)s  (%(n)d shared file)"
 msgid_plural "%(mod)s  (%(n)d shared files)"
 msgstr[0] ""
 msgstr[1] ""
+
+#: configure.py
+#, python-format
+msgid "\"%(was)s\" is not in MO2's mod list, so play.bat uses \"%(now)s\", which looks like the same mod renamed by an update. Pick it in the box above to keep it."
+msgstr ""
 
 #: configure.py
 #, python-format

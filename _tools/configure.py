@@ -244,7 +244,10 @@ def cmd_list(a):
         if not c["above"]:
             print("  %-*s  %s" % (width, "", _("wins over (none set)")))
         else:
-            mark = "" if inst.listed(c["above"]) else gone
+            now = None if inst.listed(c["above"]) else inst.renamed(c["above"], skip=(name,))
+            mark = ("" if inst.listed(c["above"])
+                    else "   " + _("<-- not in MO2's mod list; play.bat uses %s") % now if now
+                    else gone)
             print("  %-*s  %s%s" % (width, "", _("wins over %s") % c["above"], mark))
     cant = _("can't be used; see below")
     if cal.own or cal._bad_own:
@@ -1660,6 +1663,10 @@ class App(object):
                 choices.append((other, text % {"mod": other, "n": n}))
         if entry["above"] and entry["above"] not in [c[0] for c in choices]:
             choices.append((entry["above"], entry["above"]))
+        now = (self.inst.renamed(entry["above"], skip=(name,))
+               if entry["above"] and not self.inst.listed(entry["above"]) else None)
+        if now and now not in [c[0] for c in choices]:
+            choices.append((now, now))
         combo = ttk.Combobox(box, state="readonly", values=[c[1] for c in choices])
         cur = [i for i, c in enumerate(choices) if c[0] == entry["above"]]
         if cur:
@@ -1668,7 +1675,12 @@ class App(object):
                    lambda e: self.set_anchor(name, choices[combo.current()][0]))
         combo.pack(fill="x")
         above = entry["above"]
-        if not self.inst.listed(above):
+        if not self.inst.listed(above) and now:
+            self.label(_("\"%(was)s\" is not in MO2's mod list, so play.bat uses \"%(now)s\", "
+                         "which looks like the same mod renamed by an update. Pick it in the box "
+                         "above to keep it.") % {"was": above, "now": now}, RED, indent=24,
+                       parent=box).pack(anchor="w", pady=(6, 0))
+        elif not self.inst.listed(above):
             self.label(_("\"%s\" is not in MO2's mod list, so play.bat would skip this mod. "
                          "Pick another in the box above.") % above, RED, indent=24,
                        parent=box).pack(
@@ -1720,6 +1732,8 @@ class App(object):
             self.cal.put(name, when, self.cal.toggle[name]["above"])
         else:
             above = self._anchors.get(name)
+            if above and not self.inst.listed(above):
+                above = self.inst.renamed(above, skip=(name,)) or above
             if not above or not self.inst.listed(above) or ce.loops(self.cal.toggle, name, above):
                 above = ce.anchor_for(self.inst, name, when, self.cal.toggle)[0] or ""
             self.cal.put(name, when, above)
