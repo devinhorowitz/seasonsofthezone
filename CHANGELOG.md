@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.2.0 — 2026-10-03
 
 - **The dice can roll the season at launch.** MCM's Main page has **Roll the season at
   launch** and **Chance per launch**, and `configure.bat` sets the same on its Seasons step,
