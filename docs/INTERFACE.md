@@ -165,7 +165,7 @@ standalone version that works without MAC, see the note at the top of `sotz_pda.
 
 ## The Year — the calendar page
 
-![The Year: the grid with today lit, and the days the Zone marks](images/pda-the-year.png)
+![The Year: the season and why, the grid with a season of your own drawn over its days, what is on now and what is coming](images/pda-the-year.png)
 
 Dates and names. Anything running on the game clock lives on
 [Forecast](#forecast--the-pda-page) instead.
