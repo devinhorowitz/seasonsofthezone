@@ -754,6 +754,116 @@ def cmd_mcm(a):
                 "configure.py", "mcm --find %s" % key.rsplit("/", 1)[-1])}))
 
 
+DICE_KEY = "seasons_zone/main/dice"
+DICE_CHANCE_KEY = "seasons_zone/main/dice_chance"
+
+
+def write_dice(on, chance):
+    """Set MCM's dice in MCM's own file, where the game's MCM page and play.bat both read
+    them: (lines to show, whether they were saved). Not while the game runs, which would
+    save its own over them."""
+    game = [p for p in season.running() if p.startswith("anomaly")]
+    if game:
+        return [_("Not saved: %s is running, and would save its own MCM settings over the "
+                  "dice. Set them on the mod's MCM page instead, or close the game and save "
+                  "again.") % season._and(game)], False
+    season.write_mcm({DICE_KEY: bool(on), DICE_CHANCE_KEY: int(chance)})
+    return [_("The dice: %s.") % season.dice_setting(on, chance),
+            _("play.bat rolls them at each launch from the next one.") if on else
+            _("play.bat runs the calendar's season from the next launch.")], True
+
+
+class Dice(object):
+    """MCM's dice as a window holds them until Save: the switch and the chance per launch,
+    against what MCM's file has. The advanced editor and the guided setup both show them."""
+
+    def __init__(self, tk):
+        prefs = season.read_prefs()
+        self.kept = (prefs["dice"], prefs["dice_chance"])
+        self.on = tk.BooleanVar(value=prefs["dice"])
+        self.chance = tk.StringVar(value=str(prefs["dice_chance"]))
+        self.box = self.note = self.edited = None
+
+    def now(self):
+        """(on, chance), the chance None while what is typed isn't a whole number from 1
+        to 100."""
+        text = self.chance.get().strip()
+        n = int(text) if text.isdigit() else None
+        if n is not None and not 1 <= n <= 100:
+            n = None
+        return bool(self.on.get()), n
+
+    def dirty(self):
+        return self.now() != self.kept
+
+    def build(self, parent, ttk, edited=None, wrap=500):
+        """The switch, the chance and a line saying what they come to, in `parent`.
+        `edited` runs after each change the player makes."""
+        self.edited = edited
+        row = ttk.Frame(parent)
+        row.pack(anchor="w", fill="x", pady=(6, 0))
+        ttk.Checkbutton(row, text=_("Roll the season at launch"), variable=self.on,
+                        command=self.changed).pack(side="left")
+        ttk.Label(row, text=_("Chance per launch:")).pack(side="left", padx=(18, 4))
+        self.box = ttk.Spinbox(row, from_=1, to=100, increment=1, width=5,
+                               textvariable=self.chance, command=self.changed)
+        self.box.pack(side="left")
+        self.box.bind("<KeyRelease>", lambda e: self.changed())
+        ttk.Label(row, text="%").pack(side="left", padx=(2, 0))
+        self.note = ttk.Label(parent, text="", foreground=GREY, wraplength=wrap,
+                              justify="left")
+        self.note.pack(anchor="w", pady=(4, 0))
+        self.show()
+
+    def changed(self):
+        """A click or a key in either box. Switched off, a chance that isn't 1 to 100 goes
+        back to the saved one, since its box can't be typed in then."""
+        on, n = self.now()
+        if not on and n is None:
+            self.chance.set(str(self.kept[1]))
+        self.show()
+        if self.edited:
+            self.edited()
+
+    def show(self):
+        on, n = self.now()
+        self.box.configure(state="normal" if on else "disabled")
+        if n is None:
+            self.note.configure(text=_("The chance is a whole number from 1 to 100."),
+                                foreground=RED)
+        else:
+            self.note.configure(text=season.cap_first(season.dice_setting(on, n)) + ".",
+                                foreground=GREY)
+
+    def save(self):
+        """Write the dice to MCM's file: (lines to show, whether they were saved)."""
+        on, n = self.now()
+        lines, saved = write_dice(on, n)
+        if saved:
+            self.kept = (on, n)
+        return lines, saved
+
+
+def cmd_dice(a):
+    """MCM's dice: shown, switched on or off, or given another chance."""
+    prefs = season.read_prefs()
+    on, chance = prefs["dice"], prefs["dice_chance"]
+    if a.state is None and a.chance is None:
+        print("  " + _("The dice: %s.") % season.dice_setting(on, chance))
+        if not on:
+            print("  " + _("To roll them: %s") % season.command("configure.py",
+                                                               "dice on --chance 25"))
+        return
+    if a.chance is not None and not 1 <= a.chance <= 100:
+        fail(_("The chance is a whole number from 1 to 100; at 100 every launch rolls."))
+    lines, saved = write_dice(on if a.state is None else a.state == "on",
+                              chance if a.chance is None else a.chance)
+    if not saved:
+        fail(*lines)
+    for line in lines:
+        print("  " + line)
+
+
 def cmd_calendar(a):
     cal = loaded()
     # argparse files "summer=5-1" after --off or --on under that option
@@ -1320,6 +1430,8 @@ class App(object):
         self._wrap = 380
         self._names_job, self._bad_rows = None, set()
         self.own = season._own_folders()
+        # MCM's dice live in MCM's own file, not seasons_config.py; held here until Save
+        self.dice = Dice(tk)
         style = ttk.Style(root)
         style.configure("Bad.TCheckbutton", foreground=RED)
         style.configure("Head.TLabel", font=("TkDefaultFont", 11, "bold"))
@@ -2178,6 +2290,14 @@ class App(object):
         self.spell_frame.pack(fill="x", pady=(6, 0))
         ttk.Button(box, text=_("New spell..."), command=lambda: self.new_spell()).pack(
             anchor="w", pady=(6, 0))
+        box = ttk.LabelFrame(f, text=_("The dice"), padding=8)
+        box.pack(fill="x", pady=(12, 0))
+        ttk.Label(box, wraplength=500, justify="left", foreground=GREY, text=_(
+            "At each launch, play.bat can roll the dice: on a hit, the game runs another of "
+            "the seasons that are on, picked at random, until the next launch. A season "
+            "pinned in MCM is never rolled over. Kept in MCM's own settings, so its page in "
+            "the game shows the same.")).pack(anchor="w")
+        self.dice.build(box, ttk, edited=self.update_status)
         box = ttk.LabelFrame(f, text=_("MCM settings"), padding=8)
         box.pack(fill="x", pady=(12, 0))
         ttk.Label(box, wraplength=500, justify="left", foreground=GREY, text=_(
@@ -2686,8 +2806,11 @@ class App(object):
                         % len(self.cal.names))
         if self.cal.place:
             said.append(_("weather from %s") % self.cal.place["name"])
+        on, chance = self.dice.now()
+        if on and chance is not None:
+            said.append(_("the dice at %d%%") % chance)
         self.status.configure(text=comma_list(said))
-        dirty = self.cal.dirty() or bool(self.bad_dates)
+        dirty = self.cal.dirty() or bool(self.bad_dates) or self.dice.dirty()
         self.unsaved.configure(text=_("Unsaved changes") if dirty else "")
         self.root.title(("* " if dirty else "") + _(TITLE))
         self.show_banner()
@@ -2742,6 +2865,13 @@ class App(object):
                     "Give %s a start day first, on the Seasons tab.")
                     % season._and_each(self.bad_dates), parent=self.root)
             return False
+        dice = self.dice.dirty()
+        if dice and self.dice.now()[1] is None:
+            if not quiet:
+                messagebox.showerror(pgettext("window title", "Save"), _(
+                    "Give the dice's chance as a whole number from 1 to 100 first, on the "
+                    "Seasons tab."), parent=self.root)
+            return False
         moved = calendar_moved(self.cal)
         placed = self.cal.place_changed()
         saved, lines = self.cal.save()
@@ -2756,6 +2886,10 @@ class App(object):
                                  % ce.place_text(self.cal.place)] + fetch_now()
             self.root.configure(cursor="")
             lines = lines + ["", _("play.bat applies it the next time it starts the game.")]
+        if saved and dice:
+            # MCM's dice go to MCM's own file; with nothing else to save, only their lines
+            said, saved = self.dice.save()
+            lines = (lines + [""] if self.cal.wrote else []) + said
         if not saved:
             lines = [plain(l) for l in lines]
         if not quiet:
@@ -2897,7 +3031,7 @@ class App(object):
 
     def close(self):
         from tkinter import messagebox
-        if self.cal.dirty() or self.bad_dates:
+        if self.cal.dirty() or self.bad_dates or self.dice.dirty():
             ans = messagebox.askyesnocancel(pgettext("window title", "Close"),
                                             _("Save your changes?"), parent=self.root)
             if ans is None:
@@ -3788,6 +3922,13 @@ def main():
     p.add_argument("--preset", dest="dates", choices=["polesia", "met"],
                    help=argparse.SUPPRESS)          # its name before 2.0's presets
     p.add_argument("--reset", action="store_true", help=_("back to Polesia's dates"))
+    p = sub.add_parser("dice", help=_("show MCM's dice, or switch them on or off: at each "
+                                      "launch, a chance of another season"))
+    p.add_argument("state", nargs="?", choices=["on", "off"],
+                   help=lang.or_list(["on", "off"]))
+    p.add_argument("--chance", type=int, metavar="N",
+                   help=_("the chance in 100 at each launch, 1 to 100; at 100 every launch "
+                          "rolls"))
     p = sub.add_parser("name", help=_("show or change what the seasons are called"))
     p.add_argument("season", nargs="?", help=_("a season, like %(one)s or %(other)s") % {
         "one": "winter", "other": "\"deep winter\""})
@@ -3821,7 +3962,7 @@ def main():
     a = ap.parse_args()
     {"list": cmd_list, "add": cmd_add, "remove": cmd_remove, "event": cmd_event,
      "season": cmd_season, "spell": cmd_spell, "mcm": cmd_mcm, "calendar": cmd_calendar,
-     "name": cmd_name, "preset": cmd_preset, "place": cmd_place,
+     "dice": cmd_dice, "name": cmd_name, "preset": cmd_preset, "place": cmd_place,
      "install": lambda a: __import__("installer").main(a),
      None: lambda a: window(a.advanced)}[a.cmd](a)
 

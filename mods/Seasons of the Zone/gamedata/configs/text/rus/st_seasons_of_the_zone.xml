@@ -212,6 +212,7 @@
 
 	<!-- —водка в  ѕ  при загрузке; $date Ч сегодн€шн€€ дата -->
 	<string id="st_sotz_news_pinned"><text>$Season в «оне.</text></string>
+	<string id="st_sotz_news_rolled"><text>$Season в «оне, по броску костей. ѕо календарю Ч $calendar.</text></string>
 	<string id="st_sotz_news_spell"><text>$Season в «оне ненадолго: $name, по $ends.</text></string>
 	<string id="st_sotz_news_one_season"><text>$Season в «оне. $date.</text></string>
 	<string id="st_sotz_news_next_tomorrow"><text>$Season в «оне. $date. $Next наступит завтра.</text></string>

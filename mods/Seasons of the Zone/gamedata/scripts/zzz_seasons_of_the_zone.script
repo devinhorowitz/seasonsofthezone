@@ -586,11 +586,39 @@ local function spell_today()
     return nil
 end
 
--- The season the game runs when it isn't the calendar's: the MCM pin, else a spell's.
--- "auto" when it is the calendar's. Every layer asks this; pinned() is for saying so.
+-- What MCM's dice rolled for this launch, when play.bat rolled one: {season, draw,
+-- chance, day}. nil when it rolled none. It holds until the next launch through play.bat,
+-- which rolls again or clears it, as it does the staged mods; a launch without play.bat
+-- keeps both. A roll the file gets wrong is left out, with a line in the log.
+local ROLL = (function()
+    local ok, kv = pcall(calendar_file, "roll")
+    if not ok then
+        say("!season_calendar.ltx: its roll could not be read (" .. tostring(kv)
+            .. ") - the calendar decides")
+        return nil
+    end
+    if not kv or not kv.season then return nil end
+    local s, draw, chance = kv.season:lower(), tonumber(kv.draw), tonumber(kv.chance)
+    if not is_on(s) or not draw or not chance then
+        say("!season_calendar.ltx: the roll in it can't be used - the calendar decides")
+        return nil
+    end
+    return {season = s, draw = draw, chance = chance, day = kv.day or ""}
+end)()
+
+-- The roll that holds now: an MCM pin wins over it, as it does over a spell.
+local function rolled()
+    if ROLL and pinned() == "auto" then return ROLL end
+    return nil
+end
+
+-- The season the game runs when it isn't the calendar's: the MCM pin, else what the dice
+-- rolled, else a spell's. "auto" when it is the calendar's. Every layer asks this;
+-- pinned() and rolled() are for saying so.
 local function season_mode()
     local mode = pinned()
     if mode ~= "auto" then return mode end
+    if ROLL then return ROLL.season end
     local sp = spell_today()
     return sp and sp.season or "auto"
 end
@@ -927,17 +955,19 @@ local function season_at(doy, year)
     return cur
 end
 
--- The season the world runs now, for sotz_api.season(): an MCM pin's or a spell's when there
--- is one, else the calendar's; with the calendar's own, whether a pin holds, the spell
--- running, and the names to show.
+-- The season the world runs now, for sotz_api.season(): an MCM pin's, the dice's or a
+-- spell's when there is one, else the calendar's; with the calendar's own, whether a pin or
+-- a roll holds, the spell running, and the names to show.
 function season_now()
     local now = zone_today()
     local cal = season_at(now.yday, now.year)
     local mode = season_mode()
     local key = (mode ~= "auto") and mode or cal
     local pin = pinned() ~= "auto"
-    local sp = (not pin) and spell_today() or nil
-    return {key = key, calendar = cal, pinned = pin, label = name_of(key), title = cap(key),
+    local roll = rolled()
+    local sp = (not pin and not roll) and spell_today() or nil
+    return {key = key, calendar = cal, pinned = pin, rolled = roll ~= nil, label = name_of(key),
+            title = cap(key),
             spell = sp and {name = sp.name, first = sp.first, last = sp.last} or nil}
 end
 
@@ -1008,6 +1038,13 @@ function calendar_rows()
             text = sotz_text.text("ui_mcm_seasons_zone_spell", {
                 name = live.spell.name, ends = sotz_text.date_short(tonumber(m), tonumber(d)),
                 spell = name_of(live.season), Spell = cap(live.season),
+                season = name_of(cur), Season = cap(cur)}),
+            current = true,
+        }
+    elseif live and live.roll and live.season ~= cur then
+        rows[#rows + 1] = {
+            text = sotz_text.text("ui_mcm_seasons_zone_rolled", {
+                rolled = name_of(live.season), Rolled = cap(live.season),
                 season = name_of(cur), Season = cap(cur)}),
             current = true,
         }
@@ -1137,10 +1174,11 @@ local function apply(announce)
         from, to, k = mode, mode, 1.0
     end
 
-    -- the spell, when it is a spell and not the pin that set the season
+    -- the spell, when it is a spell and not the pin or the dice that set the season
+    local roll = rolled()
     local spell = nil
-    if pinned() == "auto" then spell = spell_today() end
-    live = {mode = mode, season = to, spell = spell}
+    if pinned() == "auto" and not roll then spell = spell_today() end
+    live = {mode = mode, season = to, spell = spell, roll = roll}
 
     want = build(from, to, k, intensity, layers)
     local c = get_console()
@@ -1217,13 +1255,21 @@ local function pda_announce()
     -- one whole sentence for each thing the report can say, so a translation can put the
     -- season, the date and the count wherever its language wants them
     local mode = pinned()
+    local roll = rolled()
     local sp = nil
-    if mode == "auto" then sp = spell_today() end
+    if mode == "auto" and not roll then sp = spell_today() end
     local msg
     if mode ~= "auto" then
         -- pinned: no date, which would only contradict the season
         msg = sotz_text.text("st_sotz_news_pinned",
                              {season = name_of(mode), Season = cap(mode)})
+    elseif roll then
+        -- rolled: no date either, and the season the calendar would have had
+        local now = zone_today()
+        local cal = season_at(now.yday, now.year)
+        msg = sotz_text.text("st_sotz_news_rolled", {
+            season = name_of(roll.season), Season = cap(roll.season),
+            calendar = name_of(cal), Calendar = cap(cal)})
     elseif sp then
         local y, m, d = sp.last:match("^(%d+)%-(%d+)%-(%d+)$")
         msg = sotz_text.text("st_sotz_news_spell", {

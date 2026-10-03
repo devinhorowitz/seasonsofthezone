@@ -633,11 +633,12 @@ function climate(month, day)
     return nil
 end
 
---- The season the world runs now: an MCM pin's or a spell's when there is one, else the
--- calendar's - the one the light and the weather follow.
--- @return {key, label, title, calendar, pinned, spell = {name, first, last} or nil,
+--- The season the world runs now: an MCM pin's, MCM's dice's or a spell's when there is
+-- one, else the calendar's - the one the light and the weather follow.
+-- @return {key, label, title, calendar, pinned, rolled, spell = {name, first, last} or nil,
 --          mix = {season = weight}, snow = 0..1, date = "YYYY-MM-DD", clock}
 --
+--         rolled is true when MCM's dice picked the season for this launch.
 --         date is the day the seasons run on, and clock where it comes from: "real", the
 --         real date, or "game", the Zone's own date by the game's clock (MCM's choice).
 function season()
@@ -654,6 +655,7 @@ function season()
             title    = now.title,
             calendar = now.calendar,
             pinned   = now.pinned,
+            rolled   = now.rolled,
             spell    = now.spell,
             mix      = mix,
             snow     = z.snow_factor(),

@@ -607,6 +607,33 @@ msgstr ""
 msgid "%(first)s and %(second)s would both be called \"%(name)s\". Give one of them another name."
 msgstr ""
 
+#: season.py configure.py
+msgid "off"
+msgstr ""
+
+#: season.py
+msgid "every launch rolls another season"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "a %d%% chance at each launch of another season"
+msgstr ""
+
+#: season.py
+msgid "on, but a pinned or forced season is never rolled over"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "drew %d, but the calendar has no other season on"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "drew %(draw)d, over %(chance)d, so the calendar's season"
+msgstr ""
+
 #: season.py
 msgid "added, enabled"
 msgstr ""
@@ -1486,6 +1513,11 @@ msgstr ""
 
 #: season.py
 #, python-format
+msgid "(rolled by MCM's dice: %(draw)d, at or under %(chance)d)"
+msgstr ""
+
+#: season.py
+#, python-format
 msgid "(a spell: %(name)s, %(first)s to %(last)s)"
 msgstr ""
 
@@ -1497,6 +1529,11 @@ msgstr ""
 #: season.py
 msgctxt "report"
 msgid "calendar says"
+msgstr ""
+
+#: season.py
+msgctxt "report"
+msgid "dice"
 msgstr ""
 
 #: season.py
@@ -2541,10 +2578,6 @@ msgid "ambient sound"
 msgstr ""
 
 #: configure.py
-msgid "off"
-msgstr ""
-
-#: configure.py
 msgid "play.bat can't switch anything until these are fixed:"
 msgstr ""
 
@@ -2996,6 +3029,45 @@ msgstr ""
 #: configure.py
 #, python-format
 msgid "MCM's file has no %(option)s yet, so play.bat adds it. Check the name with %(command)s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Not saved: %s is running, and would save its own MCM settings over the dice. Set them on the mod's MCM page instead, or close the game and save again."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "The dice: %s."
+msgstr ""
+
+#: configure.py
+msgid "play.bat rolls them at each launch from the next one."
+msgstr ""
+
+#: configure.py
+msgid "play.bat runs the calendar's season from the next launch."
+msgstr ""
+
+#: configure.py
+msgid "Roll the season at launch"
+msgstr ""
+
+#: configure.py
+msgid "Chance per launch:"
+msgstr ""
+
+#: configure.py
+msgid "The chance is a whole number from 1 to 100."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "To roll them: %s"
+msgstr ""
+
+#: configure.py
+msgid "The chance is a whole number from 1 to 100; at 100 every launch rolls."
 msgstr ""
 
 #: configure.py
@@ -3863,6 +3935,14 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: configure.py guide.py
+msgid "The dice"
+msgstr ""
+
+#: configure.py guide.py
+msgid "At each launch, play.bat can roll the dice: on a hit, the game runs another of the seasons that are on, picked at random, until the next launch. A season pinned in MCM is never rolled over. Kept in MCM's own settings, so its page in the game shows the same."
+msgstr ""
+
+#: configure.py guide.py
 msgid "MCM settings"
 msgstr ""
 
@@ -4112,6 +4192,11 @@ msgid "weather from %s"
 msgstr ""
 
 #: configure.py
+#, python-format
+msgid "the dice at %d%%"
+msgstr ""
+
+#: configure.py
 msgid "Unsaved changes"
 msgstr ""
 
@@ -4142,6 +4227,10 @@ msgstr ""
 #: configure.py
 #, python-format
 msgid "Give %s a start day first, on the Seasons tab."
+msgstr ""
+
+#: configure.py
+msgid "Give the dice's chance as a whole number from 1 to 100 first, on the Seasons tab."
 msgstr ""
 
 #: configure.py guide.py
@@ -4819,6 +4908,14 @@ msgid "back to Polesia's dates"
 msgstr ""
 
 #: configure.py
+msgid "show MCM's dice, or switch them on or off: at each launch, a chance of another season"
+msgstr ""
+
+#: configure.py
+msgid "the chance in 100 at each launch, 1 to 100; at 100 every launch rolls"
+msgstr ""
+
+#: configure.py
 msgid "show or change what the seasons are called"
 msgstr ""
 
@@ -4989,6 +5086,10 @@ msgstr ""
 
 #: guide.py
 msgid "Fix the seasons first:"
+msgstr ""
+
+#: guide.py
+msgid "The dice's chance is a whole number from 1 to 100."
 msgstr ""
 
 #: guide.py

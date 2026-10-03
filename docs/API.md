@@ -123,18 +123,21 @@ needs `play.bat`. `place` is nil for Chornobyl's. nil for a day that doesn't exi
 
 ```lua
 { key = "winter", label = "winter", title = "Winter", calendar = "summer",
-  pinned = false, spell = { name = "Summer frost", first = "2026-07-14", last = "2026-07-15" },
+  pinned = false, rolled = false,
+  spell = { name = "Summer frost", first = "2026-07-14", last = "2026-07-15" },
   mix = { winter = 1, summer = 0, … }, snow = 0.6, date = "2026-07-14", clock = "real" }
 ```
 
 The season the world runs now (2.0.0): the one the light and the weather follow. An MCM
-pin's when the player pinned one, a spell's while it lasts, else the calendar's.
+pin's when the player pinned one, the dice's when they rolled another season at launch
+(2.2.0), a spell's while it lasts, else the calendar's. `rolled` is true while the
+season is the dice's; it lasts until the next launch through `play.bat`, whatever the date.
 `calendar` is the calendar's own, as `calendar().season` gives it; `spell` is nil without
-one, and with a pin. `mix` is the blend of the days either side of a turn, summing to 1;
-`snow` how much snow the ground has, 0 to 1. A cold- or heat-driven mod keys off `key`,
-`mix` or `snow` rather than the calendar. `date` is the day the seasons run on, and
-`clock` where it comes from: `"real"`, the real date, or `"game"`, the Zone's own date by
-the game's clock when MCM puts the calendar on it (2.1.0).
+one, and with a pin or a roll. `mix` is the blend of the days either side of a turn,
+summing to 1; `snow` how much snow the ground has, 0 to 1. A cold- or heat-driven mod
+keys off `key`, `mix` or `snow` rather than the calendar. `date` is the day the seasons
+run on, and `clock` where it comes from: `"real"`, the real date, or `"game"`, the Zone's
+own date by the game's clock when MCM puts the calendar on it (2.1.0).
 
 ## `weather()`
 
@@ -243,8 +246,8 @@ player's own name for the season (2.0.0). Treat an
 unknown key as a season rather than an error, since the calendar can grow. A player's own
 calendar (2.0.0) can turn seasons off and move their dates, so do not assume all six
 occur, or when; `next` is nil when only one season is on. `season` is the calendar's: an
-MCM pin, or a spell that brings another season (2.0.0), changes the light and the weather
-but not `season`. `season()` gives the one they follow.
+MCM pin, a spell that brings another season (2.0.0), or the dice (2.2.0) change the light
+and the weather but not `season`. `season()` gives the one they follow.
 
 `marked` is nil on ordinary days. `kind` is `memorial` or `anniversary`.
 

@@ -99,7 +99,10 @@ are switched before the game starts: `play.bat` runs `season.py apply`, then sta
 
 That is also why a season pinned in MCM reaches the textures and the soundscape only
 at the next launch: `season.py` reads the pin from MCM's store before the game exists.
-`--season` on the command line overrides it.
+`--season` on the command line overrides it. MCM's dice are read the same way and rolled
+there, once per `apply` that writes: a hit stages the rolled season and hands it to the
+game, which follows it until the next `apply`. `status` and `--dry-run` say the chance and
+roll nothing. `SOTZ_DICE_SEED` in the environment makes the draws repeatable, for tests.
 
 ## The MO2 rule
 
@@ -134,7 +137,9 @@ Three files go the other way, written by `season.py` and read by the mod:
 
 They ship empty and are rewritten at every launch. Do not edit them. A fourth,
 `configs/season_calendar.ltx`, holds the calendar and season names; `configure.bat` writes
-it on Save, and `play.bat` at every launch.
+it on Save, and `play.bat` at every launch, adding the season a spell brings under
+`[spell]`, or what the dice rolled under `[roll]`: the season, the draw, the chance and the
+day.
 
 The season pages are built from that list, which is why a mod added to `TOGGLE_MODS`
 appears in the menu by itself.

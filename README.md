@@ -259,8 +259,8 @@ yourself.
 The seasonal atmosphere changes in game, immediately. Terrain and grass textures can't: X-Ray
 loads them from MO2's virtual file system when a level loads and keeps them for the
 session. So seasonal mods have to be switched before the game starts, and that is what
-`play.bat` does, along with the texture sets, the ambient sound, a spell's season and MCM
-settings that follow the season.
+`play.bat` does, along with the texture sets, the ambient sound, a spell's season, MCM
+settings that follow the season, and [the dice](#rolling-the-season).
 
 It isn't needed to play. Started from MO2, everything else goes on by the date: the light
 and weather, the marked days, the PDA and MCM, and the API other mods read. What
@@ -283,6 +283,26 @@ next launch: the season of the game you last saved or loaded. Nothing is written
 saves. The real weather is set aside while the Zone keeps its own date, since it is of
 another day: the temperature comes from the place's climate on the Zone's date.
 
+### Rolling the season
+
+For a Zone that doesn't keep to the calendar, turn on **Roll the season at launch** on
+MCM's Main page, or under **The dice** on `configure.bat`'s Seasons step. Each launch
+through `play.bat` then rolls, and **Chance per launch** sets how often it hits: at 25, the
+default, about one launch in four; at 100, every launch. A hit runs another season your
+calendar has on, picked at random, until the next launch: the light, the weather, the
+seasonal mods, texture sets and sound alike. The PDA and MCM's Main page say what was
+rolled and what the calendar reads. A miss leaves the calendar's season, or a spell's.
+
+A pinned season is never rolled over. A hit sets a spell's season aside, as a pin does,
+though the mods on during the spell still come on, and so do the marked days, events and
+seasons of your own, by the date. Starting from MO2 rolls nothing: the season `play.bat`
+last rolled stays until it runs again. From a command prompt:
+
+```
+py _tools\configure.py dice on --chance 40
+py _tools\configure.py dice off
+```
+
 ---
 
 ## The MCM pages
@@ -291,8 +311,10 @@ another day: the temperature comes from the place's climate on the Zone's date.
 season your calendar has on: seven pages with the default calendar.
 
 - **Main** — the year dial and today's date; the master switch; season (automatic, or
-  pin one — a pin also decides what is staged at the next launch); what the calendar
-  runs on, the real date or [the game's own clock](#the-games-own-clock), and how fast;
+  pin one — a pin also decides what is staged at the next launch);
+  [the dice](#rolling-the-season), a chance at each launch of another season; what the
+  calendar runs on, the real date or [the game's own clock](#the-games-own-clock), and how
+  fast;
   transition length (0 for a hard switch on the boundary date, 14 by default);
   intensity (0 is GAMMA's stock look, 1 the full season); one switch per layer: color,
   foliage, fog, wind, and wetness; the two launch-time switches, for textures and
@@ -365,7 +387,8 @@ year.
 ![The Seasons step: Polesia's calendar and the others, your own dates, and the year dial](docs/images/configure-seasons.png)
 
 Further down the same step, **Add a season of your own...** and **Add a spell...**, with
-how often each spell comes on average.
+how often each spell comes on average, and [the dice](#rolling-the-season), saved to MCM's
+own settings so the game's page shows the same.
 
 ![The Seasons step, further down: seasons of your own, and spells](docs/images/configure-own-seasons.png)
 

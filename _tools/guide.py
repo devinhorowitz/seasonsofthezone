@@ -215,6 +215,7 @@ class Guide(object):
         from tkinter import ttk
         self.tk, self.ttk = tk, ttk
         self.root, self.cal, self.inst = root, cal, inst
+        self.dice = cf.Dice(tk)     # MCM's dice, in MCM's own file; saved with the setup
         self.gamma = season.ROOT
         self.default = shipped_default()
         self.mode, self.step, self.editing = None, 0, None
@@ -399,6 +400,10 @@ class Guide(object):
             messagebox.showerror(_(cf.TITLE), "\n".join([_("Fix the seasons first:")]
                                                      + self.seasons_bad + self.names_bad),
                                  parent=self.root)
+            return False
+        elif key == "seasons" and self.dice.now()[1] is None and not going_back:
+            messagebox.showerror(_(cf.TITLE), _("The dice's chance is a whole number from 1 "
+                                             "to 100."), parent=self.root)
             return False
         elif key == "weather" and self.where.get() == "elsewhere" and not self.cal.place \
                 and not going_back:
@@ -807,6 +812,13 @@ class Guide(object):
         row = ttk.Frame(left)
         row.pack(anchor="w", pady=(6, 0))
         self.button(row, _("Add a spell..."), self.add_spell, pad=0)
+        self.subhead(_("The dice"), parent=left)
+        self.para(_("At each launch, play.bat can roll the dice: on a hit, the game runs "
+                    "another of the seasons that are on, picked at random, until the next "
+                    "launch. A season pinned in MCM is never rolled over. Kept in MCM's own "
+                    "settings, so its page in the game shows the same."),
+                  parent=left, color=cf.GREY, pad=(0, 0), wrap=560)
+        self.dice.build(left, ttk, wrap=560)
         self.show_own()
         self.seasons_bad, self.names_bad = [], []
         self.pick_calendar(keep=True)
@@ -1288,6 +1300,9 @@ class Guide(object):
             rows.append((_("Seasons of your own"), own_words(cal)))
         if cal.spells:
             rows.append((_("Spells"), ce.few(cal.spells, 4)))
+        on, chance = self.dice.now()
+        if chance is not None and (on or self.dice.dirty()):
+            rows.append((_("The dice"), season.dice_setting(on, chance)))
         if cal.mcm:
             rows.append((_("MCM settings"), "%d: %s" % (len(cal.mcm), ce.few(cal.mcm, 3))))
         rows.append((_("Weather from"), ce.place_text(cal.place)))
@@ -1383,6 +1398,10 @@ class Guide(object):
         """Write the setup, and hand what changed to the game: the dial for a calendar or
         names, the weather for a new place. False, with the reason shown, when refused."""
         from tkinter import messagebox
+        if self.dice.dirty() and self.dice.now()[1] is None:
+            messagebox.showerror(pgettext("dialog title", "Save"), _(
+                "The dice's chance is a whole number from 1 to 100."), parent=self.root)
+            return False
         moved, placed = cf.calendar_moved(self.cal), self.cal.place_changed()
         saved, lines = self.cal.save()
         if not saved:
@@ -1401,6 +1420,16 @@ class Guide(object):
                           % ce.place_text(self.cal.place)]
                 extra += cf.fetch_now()
             self.root.configure(cursor="")
+        if self.dice.dirty():
+            # MCM's dice go to MCM's own file; with nothing else saved, only their lines
+            said, saved = self.dice.save()
+            if not self.cal.wrote:
+                lines = []
+            extra += ([""] if lines else []) + said
+            if not saved:
+                messagebox.showerror(pgettext("dialog title", "Save"),
+                                     "\n".join(lines + extra), parent=self.root)
+                return False
         self.saved_lines = lines + extra
         self.applied = self.start_choice = "now"
         self.kept, self.kept_layout = {}, {}
@@ -1421,6 +1450,7 @@ class Guide(object):
         ttk = self.ttk
         self.mode, self.editing = "summary", None
         self.cal = ce.Calendar()
+        self.dice = cf.Dice(self.tk)
         self.kept, self.kept_layout = {}, {}
         self.clear()
         self.heading(_("Seasons of the Zone"))
@@ -1455,6 +1485,8 @@ class Guide(object):
                  (_("Seasons of your own"), own_words(cal) if cal.own else _("none yet"),
                   lambda: self.edit("seasons")),
                  (_("Spells"), ce.few(cal.spells, 3) if cal.spells else _("none yet"),
+                  lambda: self.edit("seasons")),
+                 (_("The dice"), season.dice_setting(*self.dice.kept),
                   lambda: self.edit("seasons")),
                  (_("Weather from"), ce.place_text(cal.place), lambda: self.edit("weather")),
                  (_("Events"),
@@ -1509,7 +1541,7 @@ class Guide(object):
 
     def unsaved(self):
         return (self.mode in ("steps", "edit") and self.current() != "done"
-                and not self.cal.error and self.cal.dirty())
+                and not self.cal.error and (self.cal.dirty() or self.dice.dirty()))
 
     def advanced(self):
         """The tabbed editor, for everything the steps leave out. What the steps changed is
@@ -1527,6 +1559,7 @@ class Guide(object):
         cf.App(top, ce.Calendar(), self.inst)
         self.root.wait_window(top)
         self.root.deiconify()
+        self.dice = cf.Dice(self.tk)        # as the editor left MCM's file
         if is_set_up(ce.Calendar()):
             self.summary()
         else:

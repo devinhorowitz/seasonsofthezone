@@ -38,6 +38,7 @@ import re
 import glob
 import json
 import os
+import random
 import shutil
 import subprocess
 import sys
@@ -116,6 +117,13 @@ APPDATA = os.path.join(game_dir(), "appdata")
 # or "none" for the game's clock with no date written yet, which goes by the real date.
 CLOCK_FILE = "seasons_clock.txt"
 CLOCK = "real"
+
+# MCM's dice. With "Roll the season at launch" on, each apply draws 1 to 100, and a draw at
+# or under the chance runs another season the calendar has on, picked at random, until the
+# next launch; the game reads what was rolled from season_calendar.ltx's [roll]. A seed in
+# SOTZ_DICE_SEED makes the draws repeatable, for the tests.
+DICE_CHANCE = 25            # MCM's default chance, in percent
+DICE_SEED = os.environ.get("SOTZ_DICE_SEED")
 
 
 def clock_today(prefs=None):
@@ -1192,10 +1200,10 @@ def seasons_english(seasons):
 def read_prefs():
     """The MCM choices, from MCM's store. Global switches are seasons_zone/main/<id>; a
     per-season mod hold is seasons_zone/<season>/mod_<slug>. Returns {"stage_textures",
-    "stage_sound", "mode", "clock", "off": {season: set(slug)}}. No file yet means
-    defaults."""
+    "stage_sound", "mode", "clock", "dice", "dice_chance", "off": {season: set(slug)}}. No
+    file yet means defaults."""
     out = {"stage_textures": True, "stage_sound": True, "mode": "auto", "clock": "real",
-           "off": {s: set() for s in SEASONS}}
+           "dice": False, "dice_chance": DICE_CHANCE, "off": {s: set() for s in SEASONS}}
     p = _axr_options()
     if not p:
         return out
@@ -1218,9 +1226,64 @@ def read_prefs():
             out["stage_textures"] = not off
         elif page == "main" and o == "stage_sound":
             out["stage_sound"] = not off
+        elif page == "main" and o == "dice":
+            out["dice"] = not off
+        elif page == "main" and o == "dice_chance":
+            out["dice_chance"] = dice_chance(v)
         elif o.startswith("mod_") and off and page in out["off"]:
             out["off"][page].add(o[4:])       # a mod held for that one season
     return out
+
+
+def dice_chance(v):
+    """MCM's chance as saved, "25" or "25.0", as a whole percent from 1 to 100; the default
+    when it isn't a number."""
+    try:
+        n = int(round(float(str(v).strip())))
+    except ValueError:
+        return DICE_CHANCE
+    return min(100, max(1, n))
+
+
+def roll_season(prefs, on, otherwise, rng=None):
+    """MCM's dice for this launch: (season, draw, chance). With the dice off, (None, None,
+    None). Otherwise a draw of 1 to 100: at or under the chance, a season picked evenly from
+    `on`, the seasons the calendar has on, leaving out `otherwise`, the one that would run
+    without the dice, so a hit always changes the season. A miss, or no other season on,
+    gives (None, draw, chance)."""
+    if not prefs.get("dice"):
+        return None, None, None
+    chance = prefs.get("dice_chance", DICE_CHANCE)
+    if rng is None:
+        rng = random.Random(DICE_SEED) if DICE_SEED else random.SystemRandom()
+    draw = rng.randint(1, 100)
+    pool = [s for s in on if s != otherwise]
+    if draw > chance or not pool:
+        return None, draw, chance
+    return rng.choice(pool), draw, chance
+
+
+def dice_setting(on, chance):
+    """MCM's dice as a setting, in a few words: off, every launch, or a chance."""
+    if not on:
+        return _("off")
+    if chance >= 100:
+        return _("every launch rolls another season")
+    return _("a %d%% chance at each launch of another season") % chance
+
+
+def dice_words(prefs, fixed=False, draw=None):
+    """The report's dice line when no roll changed the season: the setting, or why it
+    didn't roll, or what it drew."""
+    chance = prefs.get("dice_chance", DICE_CHANCE)
+    if fixed:
+        return _("on, but a pinned or forced season is never rolled over")
+    if draw is None:
+        return dice_setting(True, chance)
+    if draw <= chance:
+        return _("drew %d, but the calendar has no other season on") % draw
+    return _("drew %(draw)d, over %(chance)d, so the calendar's season") % {
+        "draw": draw, "chance": chance}
 
 
 # the seasonal mods apply_toggles() could not place, for the summary line
@@ -2285,11 +2348,12 @@ def dial_state(mapping="pheno", calendar=None, names=None):
 
 
 def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None, staged=False,
-                   today=None):
+                   today=None, roll=None):
     """Write configs/season_calendar.ltx for the game, and draw the dial a custom calendar
-    needs. Returns (dial state, a sentence to show or None). The spell in the file is the
-    one play.bat last staged, so the game keeps to what is staged: it stays as it is unless
-    `staged` says this run has just staged `today`'s season, spell or not."""
+    needs. Returns (dial state, a sentence to show or None). The spell and the roll in the
+    file are the ones play.bat last staged, so the game keeps to what is staged: they stay
+    as they are unless `staged` says this run has just staged `today`'s season, spell or
+    not, and `roll`, (season, draw, chance), what MCM's dice rolled for it."""
     table = calendar_table(mapping, calendar)
     named = custom_names(names)
     path = _calendar_path()
@@ -2338,14 +2402,20 @@ def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None, stag
                 lines.append("name_%s = %s" % (s, named[s]))
     if staged:
         # the spell that brings a season today, for the game to follow while its dates
-        # last; an MCM pin still wins over it in game, as it does here
+        # last; an MCM pin still wins over it in game, as it does here. A roll of the dice
+        # fixes the season for the launch, as a pin does, so it leaves the spell out.
         brings, spell = spell_season(today or datetime.date.today())
-        if spell:
+        if spell and not roll:
             lines += ["", "[spell]", "season = %s" % brings, "name = %s" % spell[0],
                       "first = %s" % spell[1].isoformat(),
                       "last = %s" % spell[2].isoformat()]
+        if roll:
+            # what MCM's dice rolled for this launch; the next apply rolls again or clears it
+            lines += ["", "[roll]", "season = %s" % roll[0], "draw = %d" % roll[1],
+                      "chance = %d" % roll[2],
+                      "day = %s" % (today or datetime.date.today()).isoformat()]
     else:
-        lines += _staged_spell(path)
+        lines += _staged_sections(path)
     body = "\r\n".join(lines) + "\r\n"
     try:
         old = io.open(path, encoding="cp1251", errors="replace", newline="").read()
@@ -2360,19 +2430,23 @@ def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None, stag
     return state, note
 
 
-def _staged_spell(path):
-    """The [spell] section of the calendar file as it stands, as lines, or []."""
+def _staged_sections(path, names=("spell", "roll")):
+    """The [spell] and [roll] sections of the calendar file as they stand, as lines, each
+    after a blank one; [] when it has neither."""
     try:
         old = io.open(path, encoding="cp1251", errors="replace").read().splitlines()
     except OSError:
         return []
     out, keep = [], False
     for line in old:
-        if line.strip().startswith("["):
-            keep = line.strip().lower() == "[spell]"
-        if keep and line.strip():
+        s = line.strip()
+        if s.startswith("["):
+            keep = s.lower() in ["[%s]" % n for n in names]
+            if keep:
+                out.append("")
+        if keep and s:
             out.append(line.rstrip())
-    return [""] + out if out else []
+    return out
 
 
 def base_table(mapping="pheno"):
@@ -3384,9 +3458,19 @@ def main():
     on = seasons_on(a.mapping)
     pinned = prefs["mode"] if prefs["mode"] in on else None
     pin_off = prefs["mode"] in SEASONS and prefs["mode"] not in on
-    # a spell brings its season unless the season is fixed: by --season or an MCM pin
-    brings, spell = spell_season(today) if not (a.season or pinned) else (None, None)
-    want = a.season or pinned or brings or season_for(today, a.mapping)
+    writing = (a.cmd == "apply") and not a.dry_run
+    # MCM's dice roll at a launch, so only an apply that writes draws; status and a dry run
+    # say the chance instead. A season fixed by --season or a pin is never rolled over, and
+    # a hit fixes the season the way a pin does, spell or not.
+    rolled, draw, chance = None, None, None
+    if writing and not (a.season or pinned):
+        otherwise = spell_season(today)[0] or season_for(today, a.mapping)
+        rolled, draw, chance = roll_season(prefs, on, otherwise)
+    # a spell brings its season unless the season is fixed: by --season, an MCM pin or the
+    # dice
+    brings, spell = (spell_season(today) if not (a.season or pinned or rolled)
+                     else (None, None))
+    want = a.season or pinned or rolled or brings or season_for(today, a.mapping)
     # A pin or --season fixes the BASE period; events still resolve by the date, so
     # pinning summer in December does not cancel a Christmas event.
     active = active_for(today, a.mapping, base=want)
@@ -3394,7 +3478,6 @@ def main():
     if a.no_textures:
         prefs["stage_textures"] = False
     stage_tex = prefs["stage_textures"]
-    writing = (a.cmd == "apply") and not a.dry_run
     title = cap_first(season_label(want))
 
     _row(pgettext("report", "date"), today.isoformat() + (
@@ -3404,12 +3487,17 @@ def main():
     _row(pgettext("report", "calendar"), calendar_text(a.mapping))
     why = ("   " + _("(forced with --season)") if a.season else
            "   " + _("(pinned in MCM)") if pinned else
+           "   " + _("(rolled by MCM's dice: %(draw)d, at or under %(chance)d)")
+           % {"draw": draw, "chance": chance} if rolled else
            "   " + _("(a spell: %(name)s, %(first)s to %(last)s)")
            % {"name": spell[0], "first": _md(spell[1].month, spell[1].day),
               "last": _md(spell[2].month, spell[2].day)} if spell else "")
     _row(pgettext("report", "season"), season_label(want) + why)
-    if (pinned and not a.season) or spell:
+    if (pinned and not a.season) or spell or rolled:
         _row(pgettext("report", "calendar says"), season_label(season_for(today, a.mapping)))
+    if prefs["dice"] and not rolled:
+        _row(pgettext("report", "dice"), dice_words(prefs, fixed=bool(a.season or pinned),
+                                                    draw=draw))
     # the player's own seasons, spells and events on today; the weather has a line of its own
     also = [n for n in active[1:] if n not in WEATHER_NAMES and not (spell and n == spell[0])]
     if also:
@@ -3546,8 +3634,10 @@ def main():
         print()
 
         def send_spell():
-            """Hand the game today's spell, now that its season is staged."""
-            state, why = write_calendar(a.mapping, redraw=False, staged=True, today=today)
+            """Hand the game today's spell, or what the dice rolled, now that its season is
+            staged."""
+            state, why = write_calendar(a.mapping, redraw=False, staged=True, today=today,
+                                        roll=(rolled, draw, chance) if rolled else None)
             if state is None and dial is not None:
                 print("  - " + why)
 

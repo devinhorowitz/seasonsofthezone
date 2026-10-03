@@ -203,7 +203,9 @@ spell see it on the same days. `configure.bat` says how often each comes on aver
 page doesn't show them.
 
 An MCM pin fixes the season, and a spell doesn't change a pinned season; the mods on
-during it still come on. `season.py status --season` works the same way.
+during it still come on. `season.py status --season` works the same way. So do MCM's
+dice when they roll another season at a launch, until the next one; unlike a spell's, their
+draw is new at every launch. See [CONFIGURING.md](CONFIGURING.md#the-dice).
 
 **MCM settings follow the same names.** An option in `MCM_SETTINGS` takes its value for
 the most specific name on that day - a kind of weather, then a spell, an event, a season of

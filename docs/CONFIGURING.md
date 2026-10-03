@@ -54,7 +54,8 @@ The setup goes in steps, and nothing is written until the Review step's **Save**
    own...** and **Add a spell...** make the two things the calendar can add; see
    [`OWN_SEASONS`](#own_seasons) and [`SPELLS`](#spells). A mod is put on in them in its
    **Change...** dialog on the Seasonal mods step: seasons of your own sit with the six,
-   spells under **More options**.
+   spells under **More options**. Last, **The dice**: MCM's switch and chance for rolling
+   the season at launch; see [The dice](#the-dice).
 4. **Weather**: Chornobyl, or a place you look up. See [`WEATHER_PLACE`](#weather_place).
 5. **Review**: the setup in a few lines, and what `play.bat` will switch today. Anything
    `play.bat` would refuse is listed with a **Fix** button that takes you to it.
@@ -112,6 +113,9 @@ py _tools\configure.py spell                          # your spells, and how oft
 py _tools\configure.py spell "Summer frost" --in summer --chance 3 --days 1 2 --as winter
 py _tools\configure.py spell "Summer frost" --chance 2          # change one part
 py _tools\configure.py spell "Summer frost" --remove
+py _tools\configure.py dice                           # MCM's dice: on or off, and the chance
+py _tools\configure.py dice on --chance 40            # roll at 40% a launch; 100 rolls every one
+py _tools\configure.py dice off
 py _tools\configure.py mcm                            # MCM settings that follow the season
 py _tools\configure.py mcm --find winter              # MCM's options, by a word of the name
 py _tools\configure.py mcm cold_system/winter --in winter "deep winter" --to true --else false
@@ -438,6 +442,27 @@ it - 3% a day in Polesia's summer is about 3 a year - and `configure.py spell` l
 one that way.
 
 ![A spell: where it can start, the chance each day, how long it runs, and the season it brings](images/configure-spell.png) `status` shows a spell on today on its `season` line.
+
+---
+
+## The dice
+
+The dice aren't in `seasons_config.py`. They are two of MCM's own options on the mod's Main
+page, **Roll the season at launch** and **Chance per launch**, which the Seasons step, the
+advanced editor's Seasons tab and `configure.py dice` set in MCM's file, so the game's page
+shows the same. The tools won't set them while the game runs, since it saves its own MCM
+settings over them as it closes; set them on the MCM page then.
+
+At each launch, `play.bat` draws a whole number from 1 to 100. At or under the chance, the
+dice hit: another of the seasons your calendar has on, picked at random, runs until the
+next launch, as an MCM pin would - its mods, texture sets and sound, the light and the
+weather, the PDA's message as the game loads, and MCM's Main page. Over the chance, the
+calendar's season runs, or a spell's. A pinned season, or one forced with `--season`, is
+never rolled over. Unlike a spell's, the draw is new at every launch, so two launches on
+the same day can differ.
+
+`play.bat`'s report gives the draw: on the `season` line for a hit, on a `dice` line for
+a miss. `status` and `--dry-run` give the chance and roll nothing.
 
 ---
 

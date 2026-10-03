@@ -55,6 +55,19 @@
 		<text>Late winter (the thaw)</text>
 	</string>
 
+	<string id="ui_mcm_seasons_zone_dice">
+		<text>Roll the season at launch</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_dice_desc">
+		<text>Each launch through play.bat rolls the dice. On a hit, the Zone runs another of the seasons your calendar has on, picked at random, until the next launch: light, fog, wind, wetness, snowfall, the seasonal mods and texture sets alike. Dated events still come on their days. A pinned season is never rolled over. Takes effect the next time you start with play.bat.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_dice_chance">
+		<text>Chance per launch (%)</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_dice_chance_desc">
+		<text>How often the dice hit. At 25, about one launch in four runs another season; at 100, every launch does.</text>
+	</string>
+
 	<string id="ui_mcm_seasons_zone_clock">
 		<text>Calendar runs on</text>
 	</string>
@@ -289,6 +302,7 @@
 	<string id="ui_mcm_seasons_zone_today"><text>Today is $date.</text></string>
 	<string id="ui_mcm_seasons_zone_today_game"><text>The Zone's date is $date, by the game's clock.</text></string>
 	<string id="ui_mcm_seasons_zone_pinned"><text>Pinned to $pinned - the calendar reads $season. The seasonal mods follow the pin from the next start with play.bat.</text></string>
+	<string id="ui_mcm_seasons_zone_rolled"><text>Rolled $rolled for this launch - the calendar reads $season. The next launch through play.bat rolls again.</text></string>
 	<string id="ui_mcm_seasons_zone_spell"><text>$name brings $spell until $ends - the calendar reads $season.</text></string>
 
 	<!-- The preset lists: the built-in grade, and the mod's own presets. The rest are

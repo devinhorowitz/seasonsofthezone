@@ -36,6 +36,13 @@ Below the dial:
   everything: the seasonal atmosphere changes within five seconds, and the seasonal mods
   and soundscape follow the next time you start with `play.bat`, since it switches them
   before the game starts.
+- **Roll the season at launch** and **Chance per launch (%)** — the dice. Each launch
+  through `play.bat` draws 1 to 100; at or under the chance, another of the seasons your
+  calendar has on, picked at random, runs until the next launch, in every layer and the
+  seasonal mods alike. A pin is never rolled over. Off by default, at 25% when on. While a
+  roll runs, a line above the dial says so: "Rolled winter for this launch - the calendar
+  reads summer. The next launch through play.bat rolls again." See the README's
+  [Rolling the season](../README.md#rolling-the-season).
 - **Calendar runs on** — the real date, or the game's clock: the Zone keeps its own date,
   the in-game date sped up by **Zone days per game day** from the day the game starts. The
   game writes that date to `appdata\seasons_clock.txt` as it saves and loads, and

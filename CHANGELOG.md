@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **The dice can roll the season at launch.** MCM's Main page has **Roll the season at
+  launch** and **Chance per launch**, and `configure.bat` sets the same on its Seasons step,
+  in the advanced editor, and with `configure.py dice`. With the dice on, each launch
+  through `play.bat` draws 1 to 100; at or under the chance, 25 by default, another season
+  your calendar has on, picked at random, runs until the next launch: the light and the
+  weather, the seasonal mods, texture sets and sound, and the PDA's message and MCM's Main
+  page say so. At 100 every launch rolls. A pinned season is never rolled over, and a hit
+  sets a spell's season aside, as a pin does. `sotz_api.season()` gives `rolled`.
 - **The anniversary artefacts reach a level you are visiting for the first time.** Dynamic
   Anomalies sets a level up on its own first update, which runs after the mod's, so on a
   new level the call failed (`drx_da_main.script:1503: attempt to index a nil value` in the

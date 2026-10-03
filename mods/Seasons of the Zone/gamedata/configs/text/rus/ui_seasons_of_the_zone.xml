@@ -55,6 +55,19 @@
 		<text>Поздняя зима (оттепель)</text>
 	</string>
 
+	<string id="ui_mcm_seasons_zone_dice">
+		<text>Бросать кости при запуске</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_dice_desc">
+		<text>При каждом запуске через play.bat бросаются кости. Если выпало, до следующего запуска в Зоне идёт другой из сезонов, включённых в вашем календаре, выбранный случайно: свет, туман, ветер, влажность, снегопад, сезонные моды и наборы текстур. События по датам по-прежнему приходят в свои дни. Закреплённый сезон кости не меняют. Вступает в силу при следующем запуске через play.bat.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_dice_chance">
+		<text>Шанс при запуске (%)</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_dice_chance_desc">
+		<text>Как часто выпадают кости. При 25 примерно каждый четвёртый запуск идёт с другим сезоном, при 100 — каждый.</text>
+	</string>
+
 	<string id="ui_mcm_seasons_zone_clock">
 		<text>Календарь идёт</text>
 	</string>
@@ -289,6 +302,7 @@
 	<string id="ui_mcm_seasons_zone_today"><text>Сегодня $date.</text></string>
 	<string id="ui_mcm_seasons_zone_today_game"><text>Дата Зоны по часам игры: $date.</text></string>
 	<string id="ui_mcm_seasons_zone_pinned"><text>Сезон закреплён: $pinned, а по календарю — $season. Сезонные моды последуют за ним со следующего запуска через play.bat.</text></string>
+	<string id="ui_mcm_seasons_zone_rolled"><text>Кости выпали: $rolled на этот запуск, а по календарю — $season. Следующий запуск через play.bat бросит их снова.</text></string>
 	<string id="ui_mcm_seasons_zone_spell"><text>$name: $spell до $ends, а по календарю — $season.</text></string>
 
 	<!-- The preset lists: the built-in grade, and the mod's own presets. The rest are

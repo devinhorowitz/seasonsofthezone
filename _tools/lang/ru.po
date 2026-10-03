@@ -614,6 +614,33 @@ msgstr "в названии \"%s\" есть буквы, которые игра 
 msgid "%(first)s and %(second)s would both be called \"%(name)s\". Give one of them another name."
 msgstr "%(first)s и %(second)s будут называться одинаково: «%(name)s». Дайте одному из них другое название."
 
+#: season.py configure.py
+msgid "off"
+msgstr "выкл."
+
+#: season.py
+msgid "every launch rolls another season"
+msgstr "каждый запуск — другой сезон"
+
+#: season.py
+#, python-format
+msgid "a %d%% chance at each launch of another season"
+msgstr "шанс %d%% на другой сезон при каждом запуске"
+
+#: season.py
+msgid "on, but a pinned or forced season is never rolled over"
+msgstr "включены, но закреплённый или заданный сезон кости не меняют"
+
+#: season.py
+#, python-format
+msgid "drew %d, but the calendar has no other season on"
+msgstr "выпало %d, но других включённых сезонов в календаре нет"
+
+#: season.py
+#, python-format
+msgid "drew %(draw)d, over %(chance)d, so the calendar's season"
+msgstr "выпало %(draw)d, больше %(chance)d, так что сезон по календарю"
+
 #: season.py
 msgid "added, enabled"
 msgstr "добавлен, включён"
@@ -1524,6 +1551,11 @@ msgstr "(закреплён в MCM)"
 
 #: season.py
 #, python-format
+msgid "(rolled by MCM's dice: %(draw)d, at or under %(chance)d)"
+msgstr "(по костям MCM: выпало %(draw)d, не больше %(chance)d)"
+
+#: season.py
+#, python-format
 msgid "(a spell: %(name)s, %(first)s to %(last)s)"
 msgstr "(каприз: %(name)s, с %(first)s по %(last)s)"
 
@@ -1536,6 +1568,11 @@ msgstr "сезон"
 msgctxt "report"
 msgid "calendar says"
 msgstr "по календарю"
+
+#: season.py
+msgctxt "report"
+msgid "dice"
+msgstr "кости"
 
 #: season.py
 msgctxt "report"
@@ -2605,10 +2642,6 @@ msgid "ambient sound"
 msgstr "фоновые звуки"
 
 #: configure.py
-msgid "off"
-msgstr "выкл."
-
-#: configure.py
 msgid "play.bat can't switch anything until these are fixed:"
 msgstr "play.bat ничего не переключит, пока не будет исправлено следующее:"
 
@@ -3066,6 +3099,45 @@ msgstr "добавлена настройка MCM для %(option)s: %(words)s"
 #, python-format
 msgid "MCM's file has no %(option)s yet, so play.bat adds it. Check the name with %(command)s."
 msgstr "В файле MCM пока нет %(option)s, поэтому play.bat добавит его. Проверьте название командой %(command)s."
+
+#: configure.py
+#, python-format
+msgid "Not saved: %s is running, and would save its own MCM settings over the dice. Set them on the mod's MCM page instead, or close the game and save again."
+msgstr "Не сохранено: сейчас работает %s, и игра сохранила бы поверх костей свои настройки MCM. Задайте их на странице мода в MCM или закройте игру и сохраните снова."
+
+#: configure.py
+#, python-format
+msgid "The dice: %s."
+msgstr "Кости: %s."
+
+#: configure.py
+msgid "play.bat rolls them at each launch from the next one."
+msgstr "play.bat будет бросать их при каждом запуске, начиная со следующего."
+
+#: configure.py
+msgid "play.bat runs the calendar's season from the next launch."
+msgstr "Со следующего запуска play.bat ставит сезон по календарю."
+
+#: configure.py
+msgid "Roll the season at launch"
+msgstr "Бросать кости при запуске"
+
+#: configure.py
+msgid "Chance per launch:"
+msgstr "Шанс при запуске:"
+
+#: configure.py
+msgid "The chance is a whole number from 1 to 100."
+msgstr "Шанс — целое число от 1 до 100."
+
+#: configure.py
+#, python-format
+msgid "To roll them: %s"
+msgstr "Чтобы бросать их: %s"
+
+#: configure.py
+msgid "The chance is a whole number from 1 to 100; at 100 every launch rolls."
+msgstr "Шанс — целое число от 1 до 100; при 100 другой сезон выпадает при каждом запуске."
 
 #: configure.py
 msgid "--reset and --dates each set the whole calendar; give one."
@@ -3950,6 +4022,14 @@ msgstr[1] "Короткие отрезки, от 1 до %d дней, котор�
 msgstr[2] "Короткие отрезки, от 1 до %d дней, которые начинаются случайно в выбранные вами сезоны и могут принести с собой другой сезон."
 
 #: configure.py guide.py
+msgid "The dice"
+msgstr "Кости"
+
+#: configure.py guide.py
+msgid "At each launch, play.bat can roll the dice: on a hit, the game runs another of the seasons that are on, picked at random, until the next launch. A season pinned in MCM is never rolled over. Kept in MCM's own settings, so its page in the game shows the same."
+msgstr "При каждом запуске play.bat может бросить кости: если выпало, до следующего запуска игра идёт в другом из включённых сезонов, выбранном случайно. Закреплённый в MCM сезон кости не меняют. Хранится в собственных настройках MCM, так что его страница в игре показывает то же самое."
+
+#: configure.py guide.py
 msgid "MCM settings"
 msgstr "Настройки MCM"
 
@@ -4205,6 +4285,11 @@ msgid "weather from %s"
 msgstr "погода: %s"
 
 #: configure.py
+#, python-format
+msgid "the dice at %d%%"
+msgstr "кости на %d%%"
+
+#: configure.py
 msgid "Unsaved changes"
 msgstr "Несохранённые изменения"
 
@@ -4237,6 +4322,10 @@ msgstr "Сохранение"
 #, python-format
 msgid "Give %s a start day first, on the Seasons tab."
 msgstr "Сначала задайте день начала на вкладке «Сезоны»: %s."
+
+#: configure.py
+msgid "Give the dice's chance as a whole number from 1 to 100 first, on the Seasons tab."
+msgstr "Сначала задайте шанс костей целым числом от 1 до 100 на вкладке «Сезоны»."
 
 #: configure.py guide.py
 #, python-format
@@ -4989,6 +5078,14 @@ msgid "back to Polesia's dates"
 msgstr "вернуться к датам Полесья"
 
 #: configure.py
+msgid "show MCM's dice, or switch them on or off: at each launch, a chance of another season"
+msgstr "показать кости MCM или включить и выключить их: при каждом запуске — шанс другого сезона"
+
+#: configure.py
+msgid "the chance in 100 at each launch, 1 to 100; at 100 every launch rolls"
+msgstr "шанс из 100 при каждом запуске, от 1 до 100; при 100 другой сезон при каждом запуске"
+
+#: configure.py
 msgid "show or change what the seasons are called"
 msgstr "показать или изменить названия сезонов"
 
@@ -5162,6 +5259,10 @@ msgstr "< Назад"
 #: guide.py
 msgid "Fix the seasons first:"
 msgstr "Сначала исправьте сезоны:"
+
+#: guide.py
+msgid "The dice's chance is a whole number from 1 to 100."
+msgstr "Шанс костей — целое число от 1 до 100."
 
 #: guide.py
 msgid "Pick a place from the search, or choose Chornobyl."

@@ -148,6 +148,10 @@ local function page_main()
         modes[#modes + 1] = {s, shown(s, "seasons_zone_main_mode_lst_" .. s)}
     end
     add({id = "mode", type = "list", val = 0, def = "auto", no_str = true, content = modes})
+    -- the dice: at each launch play.bat rolls another season, at this chance in 100; read by
+    -- season.py from MCM's file, like the switches below, so a change waits for the launch
+    add({id = "dice", type = "check", val = 1, def = false})
+    add({id = "dice_chance", type = "track", val = 2, min = 1, max = 100, step = 1, def = 25})
     -- the day the calendar runs on: the real date, or the game's own clock, run faster
     add({id = "clock", type = "list", val = 0, def = "real", content = {
         {"real", "real"},
