@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **The anniversary artefacts reach a level you are visiting for the first time.** Dynamic
+  Anomalies sets a level up on its own first update, which runs after the mod's, so on a
+  new level the call failed (`drx_da_main.script:1503: attempt to index a nil value` in the
+  log) and the day still counted as done. The mod now waits until Dynamic Anomalies has the
+  level, which takes a few seconds.
+
 ## 2.1.1 — 2026-10-02
 
 - **A seasonal mod keeps working when an update renames the mod it wins over.** Mods put

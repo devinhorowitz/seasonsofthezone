@@ -1439,6 +1439,14 @@ local function anniversary_artefacts()
 
     local key = zone_today().iso .. "|" .. lvl
     if arte_done[key] then return nil end
+    -- DAO sets a level up in its own actor_on_update, which runs after ours, so on the
+    -- first update on a level it has not seen yet its table for the level is missing and
+    -- spawn_artefacts_on_level indexes nil. Wait for it: this runs every REM_MS, and the
+    -- day is only latched once DAO has the level.
+    local da = drx_da_main.updated_anomaly_levels
+    if not (type(da) == "table" and da[lvl] and da[lvl].anomaly_types_by_smart) then
+        return nil
+    end
     arte_done[key] = true
 
     -- One call is a ~15% dice roll per eligible smart, so it yields 0-1 artefacts -
