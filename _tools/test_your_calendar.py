@@ -337,6 +337,28 @@ def t_a_spell_tints_its_days_and_the_marked_days_follow_their_switches():
 
 
 @case
+def t_a_spell_taken_out_since_launch_leaves_the_page():
+    """configure.bat takes a spell out after play.bat staged it: the page leaves it off,
+    unless it is the spell whose season the game still follows until the next launch."""
+    staged = CRLF.join(["", "[today]", "day = 2026-10-17", "1_spell = Gone spell",
+                        "1_key = spell_gone_spell", "1_first = 2026-10-16",
+                        "1_last = 2026-10-19"]) + CRLF
+    text, _ = calendar(spells={})
+    lua, g = tcal.build(2026, 10, 17, calendar=text + staged)
+    d = g.zzz_seasons_of_the_zone.calendar_page()
+    assert not [r for r in items(d.now) if r.kind == "spell"], "a spell taken out is on"
+    assert not [m for m in items(d.marks) if m["from"] == 289], "its days are still drawn"
+    in_force = CRLF.join(["", "[spell]", "season = summer", "name = Gone spell",
+                          "first = 2026-10-16", "last = 2026-10-19"]) + CRLF
+    lua, g = tcal.build(2026, 10, 17, calendar=text + in_force + staged.replace(
+        "1_last = 2026-10-19", "1_last = 2026-10-19" + CRLF + "1_as = summer"))
+    d = g.zzz_seasons_of_the_zone.calendar_page()
+    now = [(r.show, r.what) for r in items(d.now) if r.kind == "spell"]
+    assert now == [("Gone spell", "Brings summer")], now
+    return "left off once taken out; kept while its season still runs"
+
+
+@case
 def t_the_game_reads_every_rule_as_season_py_does():
     """Every day of 2026 to 2028, a leap year among them: the game's event rules and windows
     agree with season.py's event_on() on each, for each kind of rule there is."""

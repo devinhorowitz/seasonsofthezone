@@ -2249,15 +2249,19 @@ end
 local KIND_ORDER = {turn = 1, marked = 2, own = 3, period = 4, event = 5}
 
 -- The spells play.bat found on, as items, while their days last
+-- A spell configure.bat has taken out since is left off, unless it is the one whose
+-- season the game still follows from [spell] until the next launch.
 local function spells_on_now()
     local out = {}
     for _, s in ipairs(STAGED_DAY and STAGED_DAY.spells or {}) do
-        local show = s.name
+        local show = (SPELL and SPELL.name == s.name) and s.name or nil
         for _, y in ipairs(YOURS.spells) do
             if y.name == s.name then show = y.show end
         end
-        out[#out + 1] = {kind = "spell", name = s.name, key = s.key, show = show,
-                         first = s.first, last = s.last, as = s.as}
+        if show then
+            out[#out + 1] = {kind = "spell", name = s.name, key = s.key, show = show,
+                             first = s.first, last = s.last, as = s.as}
+        end
     end
     return out
 end
