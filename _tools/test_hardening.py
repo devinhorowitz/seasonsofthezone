@@ -267,9 +267,12 @@ def t_a_mod_name_in_the_wrong_case_is_kept_out_of_the_modlist():
 
 @case
 def t_a_skipped_mod_is_not_reported_as_done():
+    """An anchor no mod in the list answers to skips its mod, and the summary counts it.
+    A typo in the letters: since 2.1.1 a difference only in case or punctuation is taken
+    as the same mod renamed by an update."""
     with tempfile.TemporaryDirectory() as d:
         tc.install(d, config=cfg(TOGGLE_MODS='{"Winter Pack": {"when": ("autumn",), '
-                                                '"above": "grass compat"}}',
+                                                '"above": "Grass Compot"}}',
                                  SOUND_SRC='"No Such Mod"'))
         rc, out = status(d)
         assert "skipped: the mod it wins over" in out and "1 seasonal mod skipped" in out, out
