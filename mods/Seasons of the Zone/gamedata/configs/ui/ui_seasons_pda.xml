@@ -7,10 +7,11 @@
     frame with the corners left open, a rule under the header block, and a vertical split
     with the year on the left and the dial on the right.
 
-    Dates only. Anything running on the GAME clock - the weather plan, the next emission -
-    lives on the forecast page, because those are not calendar questions. Nothing about the
-    MOD belongs here either: which seasonal mods are staged is a question about an install
-    rather than about the Zone, and MCM's per-season pages already answer it.
+    Dates and names only. Anything running on the GAME clock - the weather plan, the next
+    emission - lives on the forecast page, because those are not calendar questions. Nothing
+    about the MOD belongs here either: which seasonal mods are staged is a question about an
+    install rather than about the Zone, and MCM's per-season pages already answer it. The
+    player's own seasons, events, periods and spells are on it by the names they gave them.
 
     Textureless except for two things this mod ships and therefore cannot be missing: the
     year dial (ui_seasons_dial_NN, 384x384) and the season accent bar
@@ -23,7 +24,7 @@
 -->
     <background x="28" y="106" width="764" height="603" stretch="1"/>
 
-    <!-- season name, then the accent bar in that season's color -->
+    <!-- the season the Zone runs, then the accent bar in that season's color -->
     <header x="52" y="120" width="440" height="28">
         <text font="letterica18" r="238" g="196" b="112" align="l" vert_align="c" complex_mode="1"/>
     </header>
@@ -34,28 +35,26 @@
         <text font="letterica16" r="170" g="170" b="170" align="l" vert_align="c" complex_mode="1"/>
     </subheader>
 
-    <!-- the turning, and - when today is one of the six - what today is. They share a
-         line because only one of them is ever the interesting one. -->
-    <turning x="52" y="180" width="258" height="16">
+    <!-- what has the season: a pin, the dice or a spell, beside what the calendar reads;
+         else the calendar's next turn. A whole line, as some of these run long. -->
+    <turning x="52" y="180" width="452" height="16">
         <text font="letterica16" r="255" g="255" b="255" align="l" vert_align="c" complex_mode="1"/>
     </turning>
-    <marked x="314" y="180" width="190" height="16">
-        <text font="letterica16" r="238" g="196" b="112" align="r" vert_align="c" complex_mode="1"/>
-    </marked>
 
     <!-- The year, as a year looks: twelve month rows of day cells tinted by season, with
-         today lit and the days the Zone marks underlined. This page's equivalent of the
-         forecast's chart - the thing that answers "where are we" without being read.
+         today lit, the days the Zone marks underlined, and the player's own seasons and
+         events drawn as a line above their days. This page's equivalent of the forecast's
+         chart - the thing that answers "where are we" without being read.
 
          Cells are tinted copies of <px> parented to this element. A month is drawn as one
          block per season rather than one block per day, and the day divisions are 30
          hairlines over the whole grid: the same picture for a twelfth of the widgets. -->
-    <grid x="52" y="216" width="452" height="258"/>
+    <grid x="52" y="212" width="452" height="230"/>
 
-    <grid_cap_l x="52" y="478" width="220" height="16">
+    <grid_cap_l x="52" y="446" width="150" height="16">
         <text font="letterica16" r="150" g="156" b="150" align="l" vert_align="c" complex_mode="1"/>
     </grid_cap_l>
-    <grid_cap_r x="284" y="478" width="220" height="16">
+    <grid_cap_r x="206" y="446" width="298" height="16">
         <text font="letterica16" r="150" g="156" b="150" align="r" vert_align="c" complex_mode="1"/>
     </grid_cap_r>
 
@@ -70,10 +69,11 @@
         <text font="letterica16" r="150" g="156" b="150" align="c" vert_align="c" complex_mode="1"/>
     </axis_x>
 
-    <!-- the year dial; square, so the width is corrected for aspect from script -->
-    <dial x="566" y="168" width="236" height="236" stretch="1"/>
+    <!-- the year dial; square, so the width is corrected for aspect from script, which
+         puts it in the middle of the column at 16:9 -->
+    <dial x="575" y="160" width="212" height="212" stretch="1"/>
 
-    <dial_caption x="546" y="414" width="216" height="18">
+    <dial_caption x="546" y="378" width="216" height="18">
         <text font="letterica16" r="170" g="170" b="170" align="c" vert_align="c" complex_mode="1"/>
     </dial_caption>
 

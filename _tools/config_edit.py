@@ -1204,6 +1204,13 @@ class Calendar(object):
     def names_changed(self):
         return self._replace_names or self.names != self._kept_names
 
+    def yours_changed(self):
+        """Have the player's own seasons, events, periods or spells changed? The game's PDA
+        and MCM show them, so a save hands them over."""
+        return (self.events != self._kept_events or self.own != self._kept_own
+                or self.spells != self._kept_spells
+                or self.periods != getattr(self, "_kept_periods", self.periods))
+
     def dirty(self):
         return (self.fixes != [] or set(self.toggle) != set(self._kept_toggle)
                 or any((frozenset(c["when"]), c["above"]) != self._kept_toggle.get(n)

@@ -665,18 +665,33 @@ function season()
     end)
 end
 
---- Where the year stands, and whether today is one of the days the Zone marks.
--- @return {season, label, today, next = {label, days}, marked = {kind, key}}
+--- Where the year stands, whether today is one of the days the Zone marks, and what else
+-- is on.
+-- @return {season, label, today, next = {label, days}, marked = {kind, key},
+--          on = {{kind, name, last}}}
+--
+--         on lists what is on today beside the season: kind "own" (a season of the
+--         player's own), "event", "period" or "spell" with the name configure.bat gave it,
+--         "weather" with "freezing", "thaw" or "heat", and "marked" with the Zone's day's
+--         key; last is its last day, "YYYY-MM-DD".
 function calendar()
     return cached("calendar", function()
         local page = zzz_seasons_of_the_zone.calendar_page()
         if not page then return nil end
+        local on = {}
+        for _, row in ipairs(page.now or {}) do
+            local last = row.last and string.format("%04d-%02d-%02d", row.last.year,
+                                                    row.last.month, row.last.day)
+                         or zzz_seasons_of_the_zone.zone_today().iso
+            on[#on + 1] = {kind = row.kind, name = row.name or row.key, last = last}
+        end
         return {
             season = page.season,
             label  = page.label,
             today  = page.today,
             next   = page.next,
-            marked = page.marked,
+            marked = page.marked_day,
+            on     = on,
         }
     end)
 end

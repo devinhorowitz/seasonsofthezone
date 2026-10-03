@@ -67,13 +67,13 @@ FORECAST = {
 CALENDAR = {
     "name": "calendar",
     "file": "ui_seasons_pda",
-    "LEFT": {"header", "bar", "subheader", "turning", "marked", "grid",
+    "LEFT": {"header", "bar", "subheader", "turning", "grid",
              "grid_cap_l", "grid_cap_r"},
     "RIGHT": {"dial", "dial_caption", "back",
               "toggle_year", "toggle_fc", "toggle_year_label", "toggle_fc_label"},
-    # one list per column now: the six marked days under the grid, the six seasons
-    # beside the dial that draws them.
-    "SECTIONS": [(1, 6), (2, 6)],
+    # two lists a column, at their fullest: under the grid, Now at its four rows and
+    # Coming up after it; beside the dial, the six seasons and a period, then two spells.
+    "SECTIONS": [(1, 4), (1, 5), (2, 7), (2, 2)],
 }
 
 

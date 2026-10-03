@@ -568,17 +568,18 @@ def t_an_event_day_alarms_and_an_ordinary_day_breathes():
     def colours(page, g, ms):
         g.time_global = lambda: ms
         g.SeasonsPDA.Update(page)
-        line = page.marked.col
+        line = page.alert_set[1].col
         cell = page.today_bar.col
         return ((line["r"], line["g"], line["b"]) if line else None,
                 (cell["r"], cell["g"], cell["b"]), cell["a"])
 
     # --- 2 October: an anniversary, so the Zone gets loud ---------------------
+    # the row in Now that names the day alarms with its cell
     lua, g = build(2026, 10, 2)
     _, _, _, page, data = draw(lua, g)
     assert data["marked"] is not None, "2 October is not reported as marked"
     assert data["marked"]["kind"] == "anniversary", data["marked"]["kind"]
-    page.marked, page.alert = g.mkwidget(), True
+    page.alert_set, page.alert = lua.table_from([g.mkwidget()]), True
 
     # a 900ms square pulse: hot for the first 55%, cool after
     hot_line, hot_cell, hot_a = colours(page, g, 0)
@@ -595,7 +596,7 @@ def t_an_event_day_alarms_and_an_ordinary_day_breathes():
     lua2, g2 = build(2026, 9, 23)
     _, _, _, plain, plain_data = draw(lua2, g2)
     assert plain_data["marked"] is None, "23 September reads as a marked day"
-    plain.marked, plain.alert = g2.mkwidget(), False
+    plain.alert_set, plain.alert = lua2.table_from([g2.mkwidget()]), False
     alphas = set()
     for ms in (0, 600, 1200, 1800):
         g2.time_global = lambda ms=ms: ms
@@ -603,7 +604,7 @@ def t_an_event_day_alarms_and_an_ordinary_day_breathes():
         alphas.add(plain.today_bar.col["a"])
     assert len(alphas) > 1, "the ordinary-day cell is not breathing: %s" % alphas
     assert max(alphas) <= 255 and min(alphas) >= 150, alphas
-    assert plain.marked.col is None, "an ordinary day coloured the event line"
+    assert plain.alert_set[1].col is None, "an ordinary day coloured the event line"
     return "2 Oct alarms at 900ms on both, 23 Sep breathes %s and leaves the line alone" \
         % sorted(alphas)
 

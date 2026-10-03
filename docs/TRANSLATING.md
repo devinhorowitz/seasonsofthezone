@@ -149,7 +149,9 @@ gets its dial drawn by `play.bat`, in the game's language.
 What stays English for now:
 
 - `ui_mcm_seasons_mods.xml`, which `season.py` writes for your own seasonal mods, into
-  `text\eng\`.
+  `text\eng\`. Its `ui_mcm_seasons_yours.xml`, the labels of MCM's switches for your own
+  seasons, events, periods and spells, comes in English and Russian; another language gets
+  the English ones.
 - The words other mods read from the API, like the emission warning's bands.
 
 `_tools\test_strings.py`, in the source on GitHub (it needs `py -m pip install lupa`),

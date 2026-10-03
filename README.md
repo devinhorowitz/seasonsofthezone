@@ -41,7 +41,8 @@ each boundary:
 | Wind | `ssfx_wind_grass`, `ssfx_wind_trees` |
 | Wetness | `ssfx_wetness_multiplier` — the thaw is the wettest, summer dries fast |
 
-There is a year dial on the Main page and a PDA message when you load in.
+There is a year dial on the Main page, a PDA message when you load in, and a Seasons app
+in the PDA that shows what the Zone runs and why, and what is on and coming.
 
 **Six seasons.** Winter comes in three parts: in Polesia snow starts falling in November,
 settles from December, and thaws through March into mud before anything turns green.
@@ -318,10 +319,13 @@ season your calendar has on: seven pages with the default calendar.
   transition length (0 for a hard switch on the boundary date, 14 by default);
   intensity (0 is GAMMA's stock look, 1 the full season); one switch per layer: color,
   foliage, fog, wind, and wetness; the two launch-time switches, for textures and
-  ambient sound; the PDA message.
+  ambient sound; the PDA messages, on loading in and as the season turns while you play.
 - **Spring, Summer, Autumn, Winter, Deep winter, Late winter** — that season's color
   grade preset, a read-out of the values it resolves to, and a checkbox for each
   seasonal mod on in it. The pages take your own season names.
+- **Your calendar** — with seasons of your own, events, periods or spells, a switch for
+  each one's PDA message: when it is on as the game starts, and when it begins while you
+  play.
 
 ---
 

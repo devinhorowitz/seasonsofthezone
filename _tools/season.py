@@ -2347,6 +2347,164 @@ def dial_state(mapping="pheno", calendar=None, names=None):
         return "none"
 
 
+# --- the player's own, for the game --------------------------------------------------------
+#
+# season_calendar.ltx carries the player's own seasons, events, periods and spells too, so
+# the PDA's Year page can show them and MCM can offer a PDA message for each. The game
+# works out which are on by the date itself: with the calendar on the game's clock the
+# Zone's date moves on mid-session, past anything worked out at launch. Each comes
+# numbered, a part to a line, as "1_name = Wormhole season", because a name can have
+# spaces and the game's reader keeps one value to a key. [today] holds what only play.bat
+# knows about the day it staged: the kinds of weather, and the spells on, which are drawn
+# here and never shown before they come.
+YOURS_XML = "ui_mcm_seasons_yours.xml"
+# The hover text of each one's switch on MCM's page for them, in the game's languages; the
+# name goes in as it is.
+YOURS_DESC = {
+    "eng": "A PDA message when %s is on as the game starts, and when it begins while you "
+           "play.",
+    "rus": "Сообщение на КПК, когда «%s» идёт при входе в игру и когда начинается по ходу "
+           "игры.",
+}
+
+
+def your_keys():
+    """{(kind, name): key} for the player's own seasons ("own"), events, periods and spells:
+    MCM's switch for each one's PDA message goes by it, and so do its strings. Letters and
+    digits as they are, the rest "_"; a name with letters past ASCII, or one that comes out
+    like another's, takes a checksum of its whole name, so a key is the same every run."""
+    out, taken = {}, set()
+    for kind, table in (("own", OWN_SEASONS), ("event", EVENTS), ("period", PERIODS),
+                        ("spell", SPELLS)):
+        for name in sorted((n for n in table if isinstance(n, str)),
+                           key=lambda n: (n.casefold(), n)):
+            s = "".join(c if c.isascii() and c.isalnum() else "_" for c in name.lower())
+            while "__" in s:
+                s = s.replace("__", "_")
+            k = ("%s_%s" % (kind, s.strip("_")[:32])).rstrip("_")
+            if k == kind or k in taken or not name.isascii():
+                k = "%s_%08x" % (k[:40], zlib.crc32(name.encode("utf-8")) & 0xffffffff)
+            while k in taken:
+                k += "_"
+            taken.add(k)
+            out[(kind, name)] = k
+    return out
+
+
+def your_name(kind, name):
+    """One of the player's own as the game shows it: a season of their own or a spell as it
+    was typed, an event or a period, which are letters and underscores, as words."""
+    if kind in ("event", "period"):
+        return cap_first(name.replace("_", " "))
+    return name
+
+
+def _mmdd(md):
+    return "%02d-%02d" % (int(md[0]), int(md[1]))
+
+
+def your_sections():
+    """season_calendar.ltx's [own], [events], [periods] and [spells], as lines, each section
+    after a blank one; [] for a player with none of them."""
+    keys = your_keys()
+    out = []
+
+    def section(title, rows):
+        if rows:
+            out.extend(["", "[%s]" % title])
+            for i, parts in enumerate(rows, 1):
+                out.extend("%d_%s = %s" % (i, k, v) for k, v in parts if v not in (None, ""))
+
+    def head(kind, name):
+        return [("name", name), ("key", keys[(kind, name)]), ("show", your_name(kind, name))]
+
+    section("own", [head("own", n) + [("from", _mmdd(w[0])), ("to", _mmdd(w[1]))]
+                    for n, w in sorted(OWN_SEASONS.items(),
+                                       key=lambda nw: (tuple(nw[1][0]), nw[0].casefold()))])
+    rows = []
+    for name in sorted(EVENTS, key=lambda n: (n.casefold(), n)):
+        spec = EVENTS[name]
+        if isinstance(spec, (tuple, list)):
+            rows.append(head("event", name) + [("from", _mmdd(spec[0])), ("to", _mmdd(spec[1]))])
+            continue
+        parts = head("event", name)
+        for k in ("weekdays", "days", "weeks", "months"):
+            if k in spec:
+                parts.append((k, ", ".join(str(x) for x in spec[k])))
+        if "within" in spec:
+            parts.append(("within", "%s, %s" % (_mmdd(spec["within"][0]),
+                                                _mmdd(spec["within"][1]))))
+        rows.append(parts)
+    section("events", rows)
+    section("periods", [head("period", n) + [("from", _mmdd(md))]
+                        for n, md in sorted(PERIODS.items(), key=lambda nm: tuple(nm[1]))])
+    rows = []
+    for name in sorted(SPELLS, key=lambda n: (n.casefold(), n)):
+        spec = SPELLS[name]
+        lo, hi = spell_days(spec)
+        start = spec["in"]
+        start = [start] if isinstance(start, str) else list(start)
+        rows.append(head("spell", name) + [("in", ", ".join(start)),
+                                           ("chance", "%g" % float(spec["chance"])),
+                                           ("days", "%d, %d" % (lo, hi)),
+                                           ("as", spec.get("as") or "")])
+    section("spells", rows)
+    return out
+
+
+def today_section(day):
+    """[today], as lines after a blank one: the day play.bat staged, the kinds of weather it
+    found for it, and each spell on, with its days and the season it brings. [] when there
+    is none of these, which leaves Polesia's calendar file as it ships."""
+    keys = your_keys()
+    out = []
+    flags = weather_flags()
+    if flags:
+        out.append("weather = %s" % ", ".join(flags))
+    for i, (name, first, last) in enumerate(spells_on(day), 1):
+        out += ["%d_spell = %s" % (i, name), "%d_key = %s" % (i, keys.get(("spell", name), "")),
+                "%d_first = %s" % (i, first.isoformat()), "%d_last = %s" % (i, last.isoformat())]
+        if SPELLS[name].get("as"):
+            out.append("%d_as = %s" % (i, SPELLS[name]["as"]))
+    return ["", "[today]", "day = %s" % day.isoformat()] + out if out else []
+
+
+def write_your_strings():
+    """The labels of MCM's switches for the player's own, a switch for each season, event,
+    period and spell, in English and Russian: its name, and what the switch does. Rewritten
+    with the calendar file, so the two always name the same ones."""
+    d = os.path.join(MODS, SOTZ, "gamedata", "configs", "text")
+    if not os.path.isdir(d):
+        return
+    keys = your_keys()
+    for code, desc in sorted(YOURS_DESC.items()):
+        x = ['<?xml version="1.0" encoding="windows-1251"?>', "",
+             "<!-- generated by _tools/season.py - the labels of MCM's switches for the",
+             "     player's own seasons, events, periods and spells. -->",
+             "<string_table>"]
+        for (kind, name), key in sorted(keys.items(), key=lambda kv: kv[1]):
+            shown = _xml_escape(your_name(kind, name))
+            x += ['\t<string id="ui_mcm_seasons_zone_ann_%s"><text>%s</text></string>'
+                  % (key, shown),
+                  '\t<string id="ui_mcm_seasons_zone_ann_%s_desc"><text>%s</text></string>'
+                  % (key, desc % shown)]
+        x += ["</string_table>", ""]
+        body = chr(13) + chr(10)
+        body = body.join(x)
+        path = os.path.join(d, code, YOURS_XML)
+        try:
+            old = io.open(path, encoding="cp1251", errors="replace", newline="").read()
+        except OSError:
+            old = None
+        if old != body:
+            try:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                io.open(path, "w", encoding="cp1251", errors="replace",
+                        newline="").write(body)
+            except OSError:
+                pass
+
+
 def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None, staged=False,
                    today=None, roll=None):
     """Write configs/season_calendar.ltx for the game, and draw the dial a custom calendar
@@ -2400,6 +2558,9 @@ def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None, stag
         for s in SEASONS:
             if s in named:
                 lines.append("name_%s = %s" % (s, named[s]))
+    # the player's own seasons, events, periods and spells, which the PDA and MCM show
+    lines += your_sections()
+    write_your_strings()
     if staged:
         # the spell that brings a season today, for the game to follow while its dates
         # last; an MCM pin still wins over it in game, as it does here. A roll of the dice
@@ -2414,6 +2575,7 @@ def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None, stag
             lines += ["", "[roll]", "season = %s" % roll[0], "draw = %d" % roll[1],
                       "chance = %d" % roll[2],
                       "day = %s" % (today or datetime.date.today()).isoformat()]
+        lines += today_section(today or datetime.date.today())
     else:
         lines += _staged_sections(path)
     body = "\r\n".join(lines) + "\r\n"
@@ -2430,9 +2592,9 @@ def write_calendar(mapping="pheno", calendar=None, redraw=True, names=None, stag
     return state, note
 
 
-def _staged_sections(path, names=("spell", "roll")):
-    """The [spell] and [roll] sections of the calendar file as they stand, as lines, each
-    after a blank one; [] when it has neither."""
+def _staged_sections(path, names=("spell", "roll", "today")):
+    """The [spell], [roll] and [today] sections of the calendar file as they stand, as
+    lines, each after a blank one; [] when it has none of them."""
     try:
         old = io.open(path, encoding="cp1251", errors="replace").read().splitlines()
     except OSError:

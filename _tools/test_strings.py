@@ -508,6 +508,11 @@ def families():
         "st_sotz_rem_": rem["ids"],
         "ui_mcm_seasons_zone_page_": ["ui_mcm_seasons_zone_page_" + s for s in SEASONS],
         "seasons_zone_main_mode_lst_": ["seasons_zone_main_mode_lst_" + s for s in SEASONS],
+        # what one of the player's own is, on the Year page's Now list
+        "st_sotz_year_kind_": ["st_sotz_year_kind_" + k for k in ("own", "event", "period")],
+        # the kinds of weather play.bat finds, by name and in words
+        "st_sotz_year_weather_": ["st_sotz_year_weather_%s%s" % (k, f)
+                                  for k in ("freezing", "thaw", "heat") for f in ("", "_what")],
     }
 
 
@@ -694,6 +699,7 @@ def world(date=(2026, 9, 22), mcm=None, standing=0, surge_left=4 * HOUR, weather
     if calendar is not None:
         path = os.path.join(TMP, "calendar_%d.ltx" % len(os.listdir(TMP)))
         io.open(path, "w", encoding="cp1251").write(
+            calendar if isinstance(calendar, str) else
             "[calendar]\n" + "".join("%s = %s\n" % kv for kv in calendar.items()))
         files[("$game_config$", "season_calendar.ltx")] = path
     g.getFS = lambda: lua.table_from({
@@ -801,6 +807,33 @@ def mcm_rows(g):
 OWN = {"custom": "true", "dial": "none", "summer": "5, 1", "winter_snow": "11, 15"}
 ONE = {"custom": "true", "dial": "none", "winter_snow": "1, 1"}
 
+# A player's own seasons, events, a period and spells, as play.bat hands them to the game
+# (test_your_calendar checks this format against season.py's writer)
+YOURS = "\n".join([
+    "[calendar]", "custom = false", "dial = default", "",
+    "[own]", "1_name = Hunter's moon", "1_key = own_hunter_s_moon", "1_show = Hunter's moon",
+    "1_from = 10-10", "1_to = 10-31", "",
+    "[events]", "1_name = halloween", "1_key = event_halloween", "1_show = Halloween",
+    "1_from = 10-31", "1_to = 10-31", "2_name = weekend", "2_key = event_weekend",
+    "2_show = Weekend", "2_weekdays = sat, sun", "",
+    "[periods]", "1_name = high_summer", "1_key = period_high_summer",
+    "1_show = High summer", "1_from = 07-01", "",
+    "[spells]", "1_name = Indian summer", "1_key = spell_indian_summer",
+    "1_show = Indian summer", "1_in = autumn", "1_chance = 2", "1_days = 2, 4", "1_as = summer",
+    "2_name = Odd fog", "2_key = spell_odd_fog", "2_show = Odd fog", "2_in = autumn",
+    "2_chance = 0.5", "2_days = 1, 1", ""])
+YOURS_SPELL = YOURS + "\n".join([
+    "", "[spell]", "season = summer", "name = Indian summer", "first = 2026-10-16",
+    "last = 2026-10-19", "",
+    "[today]", "day = 2026-10-17", "weather = freezing, thaw, heat",
+    "1_spell = Indian summer", "1_key = spell_indian_summer", "1_first = 2026-10-16",
+    "1_last = 2026-10-19", "1_as = summer", ""])
+YOURS_ROLL = YOURS + "\n".join(["", "[roll]", "season = winter", "draw = 5", "chance = 25",
+                                "day = 2026-10-17", ""])
+YOURS_FROST = YOURS + "\n".join(["", "[today]", "day = 2026-10-13", "weather = freezing", ""])
+# the names the player gave them, which no translation changes
+THEIRS = {"Hunter's moon", "Halloween", "Weekend", "High summer", "Indian summer", "Odd fog"}
+
 
 def play(asked, strings=None):
     """Every path that puts text on screen, run over `strings` (the English table unless
@@ -823,6 +856,37 @@ def play(asked, strings=None):
                       ((2026, 7, 1), ONE)):
         rows += page(world(date=date, calendar=cal, asked=asked, strings=strings),
                      "SeasonsPDA")
+    # The Year with the player's own: on, coming, and more than Now has room for; the
+    # season pinned, rolled, brought by a spell and with the dice on; marked days with some
+    # of their switches off
+    off = {"seasons_zone/main/rem_ann_weather": False, "seasons_zone/main/rem_weather": False}
+    for date, cal, mcm in (((2026, 10, 17), YOURS, None), ((2026, 10, 17), YOURS_SPELL, None),
+                           ((2026, 10, 17), YOURS_ROLL, None),
+                           ((2026, 10, 17), YOURS, {"seasons_zone/main/mode": "summer"}),
+                           ((2026, 10, 17), YOURS, {"seasons_zone/main/dice": True}),
+                           ((2026, 10, 2), YOURS, off), ((2026, 12, 14), YOURS, off),
+                           ((2026, 10, 2), YOURS, dict(off, **{
+                               "seasons_zone/main/rem_anniversary": False})),
+                           ((2026, 10, 13), YOURS_FROST, None)):
+        rows += page(world(date=date, calendar=cal, mcm=mcm, asked=asked, strings=strings),
+                     "SeasonsPDA")
+    # their messages at the start, the dice's greeting, and the day moving on while playing:
+    # the moon and the weekend beginning, winter near in days and tomorrow, winter come
+    for cal, mcm in ((YOURS_SPELL, None), (YOURS, {"seasons_zone/main/dice": True})):
+        w = world(date=(2026, 10, 17), calendar=cal, mcm=mcm, asked=asked, strings=strings)
+        w.g.CreateTimeEvent = lambda ev, act, delay, fn, *a: fn()
+        w.z["pda_announce"]()
+        w.g.zzz_seasons_of_the_zone.announce_yours(0, False)
+        rows += [m for m, _ in w.sent]
+    for blend, days in ((14, ((10, 8), (10, 10), (10, 25), (11, 1))),
+                        (0, ((10, 30), (10, 31), (11, 1)))):
+        w = world(date=(2026, 10, 8), calendar=YOURS, asked=asked, strings=strings,
+                  mcm={"seasons_zone/main/blend_days": blend})
+        w.g.CreateTimeEvent = lambda ev, act, delay, fn, *a: fn()
+        for m, d in days:
+            w.g.os = w.g.fixed_os(2026, m, d)
+            w.g.zzz_seasons_of_the_zone.turn_tick()
+        rows += [m for m, _ in w.sent]
     # both, when their data cannot be read
     w = world(asked=asked, strings=strings)
     w.g.zzz_seasons_of_the_zone.forecast_page = None
@@ -864,7 +928,7 @@ def play(asked, strings=None):
                dict(mac=False, weather="none", mods={
                    "mods": {"staged_for": "autumn", "list": "pack"},
                    "pack": {"name": "Pack", "seasons": "winter"}}),
-               dict(calendar=OWN)):
+               dict(calendar=OWN), dict(calendar=YOURS)):
         w = world(asked=asked, strings=strings, **kw)
         w.z["actor_on_first_update"]()
         for r in mcm_rows(w.g):
@@ -1052,7 +1116,7 @@ def t_a_translation_reaches_every_line():
               for sid, t in table().items()}
     rows = [str(r) for r in play([], marked) if r]
     # the player's own words: the season named in configure.bat above
-    theirs = {"Long"}
+    theirs = {"Long"} | THEIRS
     left = sorted(set(r for r in rows if re.search(r"[A-Za-z]{2}", r) and "[" not in r
                       and r not in theirs))
     assert not left, "%d line(s) no translation would change: %s" % (len(left), left[:8])

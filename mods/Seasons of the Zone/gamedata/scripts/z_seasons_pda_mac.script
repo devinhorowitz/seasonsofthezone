@@ -26,10 +26,12 @@
 -- The year tile is not the dial. The dial carries season names and day counts that read
 -- at 200px on the page and are mud at the ~48px a tile gets, so the tile is a plain ring
 -- with the live season lit. It changes five times a year rather than daily, which is
--- often enough to be informative and rare enough not to be noise.
+-- often enough to be informative and rare enough not to be noise. The season lit is the
+-- one the world runs, which a pin, the dice or a spell can make another than the
+-- calendar's.
 local function year_icon()
     local ok, season = pcall(function()
-        return zzz_seasons_of_the_zone.calendar_page().season
+        return zzz_seasons_of_the_zone.season_now().key
     end)
     if ok and type(season) == "string" and season ~= "" then
         return "sotz_app_year_" .. season

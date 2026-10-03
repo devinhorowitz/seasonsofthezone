@@ -623,6 +623,239 @@ local function season_mode()
     return sp and sp.season or "auto"
 end
 
+-- --- the player's own: seasons, events, periods and spells ------------------------------
+--
+-- configure.bat makes them and play.bat hands them over in season_calendar.ltx, in [own],
+-- [events], [periods] and [spells], numbered, a part to a line: "1_name = Hunter's moon".
+-- They switch mods, which play.bat does at launch; here they are for the PDA's page, for
+-- MCM's page of their messages, and for the messages. Which are on is worked out from the
+-- date, the Zone's when the calendar runs on the game's clock, so a page opened after the
+-- Zone's date has moved on shows the day it is. Spells are drawn by play.bat and never
+-- here: [today] names those on the day it staged, beside the kinds of weather it found.
+
+-- {[i] = {part = value}} from a section of numbered parts, in number order, as far as the
+-- numbers run unbroken
+local function numbered(section)
+    local ok, kv = pcall(calendar_file, section)
+    if not (ok and kv) then return {} end
+    local rows = {}
+    for k, v in pairs(kv) do
+        local i, part = k:match("^(%d+)_([%w_]+)$")
+        if i then
+            i = tonumber(i)
+            rows[i] = rows[i] or {}
+            rows[i][part] = v
+        end
+    end
+    local out = {}
+    while rows[#out + 1] do out[#out + 1] = rows[#out + 1] end
+    return out
+end
+
+-- "08-01" as {8, 1}; nil for anything else
+local function md_of(v)
+    local m, d = tostring(v or ""):match("^%s*(%d%d?)%-(%d%d?)%s*$")
+    m, d = tonumber(m), tonumber(d)
+    if m and MONTH_LEN[m] and d >= 1 and d <= MONTH_LEN[m] + ((m == 2) and 1 or 0) then
+        return {m, d}
+    end
+    return nil
+end
+
+-- "sat, sun" as {"sat", "sun"}
+local function list_of(v)
+    local out = {}
+    for x in tostring(v or ""):gmatch("[^,]+") do
+        x = x:match("^%s*(.-)%s*$")
+        if x ~= "" then out[#out + 1] = x end
+    end
+    return out
+end
+
+-- whole numbers from lo to hi, -hi to -lo too with `negative`; nil if any is not
+local function ints_of(v, lo, hi, negative)
+    local out = {}
+    for _, x in ipairs(list_of(v)) do
+        local n = tonumber(x)
+        if not (n and n == math.floor(n) and ((n >= lo and n <= hi)
+                or (negative and n <= -lo and n >= -hi))) then
+            return nil
+        end
+        out[#out + 1] = n
+    end
+    return (#out > 0) and out or nil
+end
+
+local WEEKDAY_OK = {mon = true, tue = true, wed = true, thu = true, fri = true, sat = true,
+                    sun = true}
+
+local function read_yours()
+    local out = {own = {}, events = {}, periods = {}, spells = {}}
+    for _, r in ipairs(numbered("own")) do
+        local a, b = md_of(r.from), md_of(r.to)
+        if r.name and r.key and a and b then
+            out.own[#out.own + 1] = {kind = "own", name = r.name, key = r.key,
+                                     show = r.show or r.name, from = a, to = b}
+        else
+            say("!season_calendar.ltx: the season of your own " .. tostring(r.name)
+                .. " can't be used - the PDA leaves it off")
+        end
+    end
+    for _, r in ipairs(numbered("events")) do
+        local ev = {kind = "event", name = r.name, key = r.key, show = r.show or r.name}
+        local ok = (r.name and r.key) and true or false
+        if r.from or r.to then
+            ev.from, ev.to = md_of(r.from), md_of(r.to)
+            ok = ok and ev.from ~= nil and ev.to ~= nil
+        else
+            local rule = {}
+            if r.weekdays then
+                rule.weekdays = {}
+                for _, w in ipairs(list_of(r.weekdays)) do
+                    if WEEKDAY_OK[w] then rule.weekdays[w] = true else ok = false end
+                end
+            end
+            if r.days then
+                rule.days = ints_of(r.days, 1, 31, true)
+                ok = ok and rule.days ~= nil
+            end
+            if r.weeks then
+                rule.weeks = ints_of(r.weeks, 1, 5, true)
+                ok = ok and rule.weeks ~= nil
+            end
+            if r.months then
+                local ms = ints_of(r.months, 1, 12)
+                ok = ok and ms ~= nil
+                rule.months = {}
+                for _, m in ipairs(ms or {}) do rule.months[m] = true end
+            end
+            if r.within then
+                local w = list_of(r.within)
+                local a, b = md_of(w[1]), md_of(w[2])
+                ok = ok and a ~= nil and b ~= nil
+                rule.within = {a, b}
+            end
+            ok = ok and next(rule) ~= nil
+            ev.rule = rule
+        end
+        if ok then
+            out.events[#out.events + 1] = ev
+        else
+            say("!season_calendar.ltx: the event " .. tostring(r.name)
+                .. " can't be used - the PDA leaves it off")
+        end
+    end
+    for _, r in ipairs(numbered("periods")) do
+        local a = md_of(r.from)
+        if r.name and r.key and a then
+            out.periods[#out.periods + 1] = {kind = "period", name = r.name, key = r.key,
+                                             show = r.show or r.name, from = a}
+        else
+            say("!season_calendar.ltx: the period " .. tostring(r.name)
+                .. " can't be used - the PDA leaves it off")
+        end
+    end
+    for _, r in ipairs(numbered("spells")) do
+        local d = list_of(r.days)
+        local chance, lo, hi = tonumber(r.chance), tonumber(d[1]), tonumber(d[2] or d[1])
+        local as = r.as and r.as:lower() or nil
+        if r.name and r.key and chance and lo and hi and (not as or is_on(as)) then
+            out.spells[#out.spells + 1] = {kind = "spell", name = r.name, key = r.key,
+                                           show = r.show or r.name, chance = chance,
+                                           days = {lo, hi}, as = as, ["in"] = list_of(r["in"])}
+        else
+            say("!season_calendar.ltx: the spell " .. tostring(r.name)
+                .. " can't be used - the PDA leaves it off")
+        end
+    end
+    return out
+end
+
+local ok_yours, YOURS = pcall(read_yours)
+if not ok_yours then
+    say("!season_calendar.ltx: your own seasons and events could not be read ("
+        .. tostring(YOURS) .. ") - the PDA leaves them off")
+    YOURS = {own = {}, events = {}, periods = {}, spells = {}}
+end
+
+-- What play.bat found on the day it staged: {day = "YYYY-MM-DD", weather = {kinds},
+-- spells = {{name, key, first, last, as}}}; nil when it found nothing to say.
+local function read_today()
+    local ok, kv = pcall(calendar_file, "today")
+    if not (ok and kv and kv.day) then return nil end
+    local out = {day = kv.day, weather = list_of(kv.weather), spells = {}}
+    for _, r in ipairs(numbered("today")) do
+        if r.spell and r.first and r.last then
+            out.spells[#out.spells + 1] = {kind = "spell", name = r.spell, key = r.key or "",
+                                           first = r.first, last = r.last,
+                                           as = r.as and r.as:lower() or nil}
+        end
+    end
+    return out
+end
+
+local ok_today, STAGED_DAY = pcall(read_today)
+if not ok_today then STAGED_DAY = nil end
+
+-- Is month m, day d inside the window a..b, both {month, day} and both in it? A window
+-- whose start is after its end wraps the year end, as season.py's do.
+local function in_window(m, d, a, b)
+    local x, lo, hi = m * 100 + d, a[1] * 100 + a[2], b[1] * 100 + b[2]
+    if lo <= hi then return lo <= x and x <= hi end
+    return x >= lo or x <= hi
+end
+
+local DAY_NAMES = {"sun", "mon", "tue", "wed", "thu", "fri", "sat"}   -- os.date's wday 1..7
+
+local function month_days(y, m)
+    if m == 2 and (y % 4 == 0 and (y % 100 ~= 0 or y % 400 == 0)) then return 29 end
+    return MONTH_LEN[m]
+end
+
+-- Is the day t, as os.date("*t") gives one, in an event's rule? The day has to be
+-- everything the rule names, as season.py's event_on() has it.
+local function rule_on(t, r)
+    if r.within and not in_window(t.month, t.day, r.within[1], r.within[2]) then
+        return false
+    end
+    if r.months and not r.months[t.month] then return false end
+    if r.weekdays and not r.weekdays[DAY_NAMES[t.wday]] then return false end
+    local last = month_days(t.year, t.month)
+    if r.days then
+        local hit = false
+        for _, x in ipairs(r.days) do
+            if t.day == ((x > 0) and x or (last + 1 + x)) then hit = true end
+        end
+        if not hit then return false end
+    end
+    if r.weeks then
+        local nth, from_end = math.floor((t.day - 1) / 7) + 1, -(math.floor((last - t.day) / 7) + 1)
+        local hit = false
+        for _, w in ipairs(r.weeks) do
+            if w == nth or w == from_end then hit = true end
+        end
+        if not hit then return false end
+    end
+    return true
+end
+
+-- Whether an MCM switch on the page of the player's own has the PDA tell them about one
+local function announces(key)
+    return mcm_path(PREFIX .. "yours/ann_" .. tostring(key), true) and true or false
+end
+
+-- The player's own as MCM lists them: {kind, name, key, show}, seasons of their own first,
+-- then events, periods and spells. MCM builds its page from this.
+function your_items()
+    local out = {}
+    for _, kind in ipairs({"own", "events", "periods", "spells"}) do
+        for _, it in ipairs(YOURS[kind]) do
+            out[#out + 1] = {kind = it.kind, name = it.name, key = it.key, show = it.show}
+        end
+    end
+    return out
+end
+
 -- --- color grade presets ------------------------------------------------------------
 --
 -- A cfg_load preset is a text file of console commands in appdata/. Atmospherics ships
@@ -1284,6 +1517,9 @@ local function pda_announce()
             if nxt == to then
                 -- a calendar with one season on: it never gives way
                 msg = sotz_text.text("st_sotz_news_one_season", v)
+            elseif mcm("dice", false) then
+                -- the dice roll again at the next launch, so the next season is no promise
+                msg = sotz_text.text("st_sotz_news_dice_again", v)
             elseif d == 1 then
                 msg = sotz_text.text("st_sotz_news_next_tomorrow", v)
             else
@@ -1730,6 +1966,8 @@ function weather_tilt_tick()
     end
 end
 
+local turn_failed = false          -- said once, not every five seconds
+
 local function actor_on_update()
     if not P then return end
     local tg = time_global()
@@ -1739,6 +1977,11 @@ local function actor_on_update()
         remembrance_tick()
         eco_access_tick()
         weather_tilt_tick()
+        local okt, why = pcall(turn_tick)
+        if not okt and not turn_failed then
+            turn_failed = true
+            say("!turn messages failed: " .. tostring(why))
+        end
     end
     if tg >= next_date then
         next_date = tg + DATE_MS
@@ -1833,13 +2076,16 @@ local function actor_on_first_update()
         end
     end
 
-    if mcm("pda_greeting", true) then
-        local delay = mcm("pda_delay", 12)
+    local greeted, delay = mcm("pda_greeting", true), mcm("pda_delay", 12)
+    if greeted then
         CreateTimeEvent("seasons_zone", "pda_greeting", delay, function()
             pda_announce()
             return true
         end)
     end
+    -- then the player's own that are on, each where MCM's page of them has its switch on
+    local oky, why = pcall(announce_yours, delay + (greeted and 5 or 0), greeted)
+    if not oky then say("!your own's PDA messages failed: " .. tostring(why)) end
 end
 
 -- The artefact latch rides in the save. Only today's keys are kept, so the table does
@@ -1885,6 +2131,314 @@ local function days_until(m, d)
     local tgt  = doy_of(m, d, year)
     if tgt >= doy then return tgt - doy end
     return (doy_of(12, 31, year) - doy) + doy_of(m, d, year + 1)
+end
+
+-- --- what is on, and what is coming --------------------------------------------------------
+--
+-- The page's Now and Coming up, the overlines on its grid, the spells it lists, and the
+-- messages: the Zone's marked days, and the player's own seasons, events, periods and
+-- spells, each worked out from the day the seasons run on.
+
+-- The days from t on, as os.date("*t") gives a day, each with its "YYYY-MM-DD" in iso:
+-- ahead(0) is t, ahead(n) the day n days later, each worked out once. Noon to noon, so no
+-- daylight-saving hour can tip one.
+local function lookahead(t)
+    local base, days = os.time({year = t.year, month = t.month, day = t.day, hour = 12}), {}
+    return function(n)
+        local d = days[n]
+        if not d then
+            d = os.date("*t", base + n * 86400)
+            d.iso = string.format("%04d-%02d-%02d", d.year, d.month, d.day)
+            days[n] = d
+        end
+        return d
+    end
+end
+
+-- The base periods in date order: the seasons that are on, and the player's own periods,
+-- which share the year with them. Each runs from its start until the next one's.
+local function base_starts()
+    local out = {}
+    for _, b in ipairs(BOUNDS) do out[#out + 1] = {m = b.m, d = b.d, season = b.season} end
+    for _, p in ipairs(YOURS.periods) do
+        out[#out + 1] = {m = p.from[1], d = p.from[2], period = p}
+    end
+    table.sort(out, function(a, b) return a.m * 100 + a.d < b.m * 100 + b.d end)
+    return out
+end
+
+-- the base period the day t is in, from base_starts()
+local function base_on(t, starts)
+    local cur, x = starts[#starts], t.month * 100 + t.day
+    for _, s in ipairs(starts) do
+        if x >= s.m * 100 + s.d then cur = s end
+    end
+    return cur
+end
+
+-- Is one of the player's own on the day t?
+local function item_on(it, t, starts)
+    if it.kind == "own" then return in_window(t.month, t.day, it.from, it.to) end
+    if it.kind == "event" then
+        if it.from then return in_window(t.month, t.day, it.from, it.to) end
+        return rule_on(t, it.rule)
+    end
+    if it.kind == "period" then return base_on(t, starts).period == it end
+    if it.kind == "spell" then return it.first <= t.iso and t.iso <= it.last end
+    return false
+end
+
+-- How many days after today one that is on today runs on: 0 when today is its last. A
+-- year at most, which a rule on every day reaches.
+local function runs_on(it, ahead, starts)
+    local n = 0
+    while n < 366 and item_on(it, ahead(n + 1), starts) do n = n + 1 end
+    return n
+end
+
+-- How many days off the next day it comes on is, after today; nil when not within a year
+local function comes_in(it, ahead, starts)
+    for n = 1, 366 do
+        if item_on(it, ahead(n), starts) then return n end
+    end
+    return nil
+end
+
+-- The next turn of the calendar after the day t: (days off, season). A turn on t itself is
+-- a year off, so the first day of autumn reports winter, not autumn; with one season on,
+-- the season is the one running.
+local function turn_after(t)
+    local len, best, name = doy_of(12, 31, t.year), nil, nil
+    for _, b in ipairs(BOUNDS) do
+        local d = doy_of(b.m, b.d, t.year) - t.yday
+        if d <= 0 then d = (len - t.yday) + doy_of(b.m, b.d, t.year + 1) end
+        if not best or d < best then best, name = d, b.season end
+    end
+    return best, name
+end
+
+-- What one of the Zone's marked days does, by MCM's switches for its kind: the string ids
+-- of what is on, in order. Empty with every switch off, and the day is then not marked.
+local function day_does(kind)
+    if kind == "memorial" then
+        local sky, voices = mcm("rem_weather", true), mcm("rem_messages", true)
+        if sky and voices then return {"st_sotz_day_memorial"} end
+        local out = {}
+        if sky then out[#out + 1] = "st_sotz_day_clear" end
+        if voices then out[#out + 1] = "st_sotz_day_voices" end
+        return out
+    end
+    local storm, arte = mcm("rem_ann_weather", true), mcm("rem_ann_artefacts", true)
+    local voices = mcm("rem_anniversary", true)
+    if storm and arte then return {"st_sotz_day_anniversary"} end
+    local out = {}
+    if storm then out[#out + 1] = "st_sotz_day_storm" end
+    if arte then out[#out + 1] = "st_sotz_day_artefacts" end
+    if voices then out[#out + 1] = "st_sotz_day_voices" end
+    return out
+end
+
+-- each sentence a whole string of its own, so a translation keeps them whole
+local function does_text(ids)
+    local out = {}
+    for _, id in ipairs(ids) do out[#out + 1] = sotz_text.text(id) end
+    return table.concat(out, " ")
+end
+
+-- the Coming up list's order on one day: the turn, the Zone's day, then the player's own
+local KIND_ORDER = {turn = 1, marked = 2, own = 3, period = 4, event = 5}
+
+-- The spells play.bat found on, as items, while their days last
+local function spells_on_now()
+    local out = {}
+    for _, s in ipairs(STAGED_DAY and STAGED_DAY.spells or {}) do
+        local show = s.name
+        for _, y in ipairs(YOURS.spells) do
+            if y.name == s.name then show = y.show end
+        end
+        out[#out + 1] = {kind = "spell", name = s.name, key = s.key, show = show,
+                         first = s.first, last = s.last, as = s.as}
+    end
+    return out
+end
+
+--- What is on and what is coming, from the day t (today, the Zone's, unless given):
+--   now     {kind, key, name, show, when, what, alert, n}: the Zone's marked day, the
+--           player's own seasons, events and periods, the spells and kinds of weather
+--           play.bat found; n the days it runs on after today
+--   coming  {kind, key, show, date, away, when, what}: the calendar's next turn, the next
+--           day of each marked day and each of the player's own, soonest first
+--   marks   {from, to, active}: day-of-year spans this year of the player's own seasons,
+--           dated events and periods, and of the spells on, for the grid's overlines
+--   tints   {from, to, season}: the days of a spell that brings its season, while it does
+--   spells  {show, chance, on}: the spells that can start today, by the base period and
+--           the player's own seasons on; spells_in the name of that base period
+function your_days(t)
+    t = t or zone_today()
+    if not t.iso then
+        t.iso = string.format("%04d-%02d-%02d", t.year, t.month, t.day)
+    end
+    local ahead, starts = lookahead(t), base_starts()
+    local year, ylen = t.year, doy_of(12, 31, t.year)
+    local out = {now = {}, coming = {}, marks = {}, tints = {}, spells = {}}
+    local fixed = (pinned() ~= "auto") or (rolled() ~= nil)
+    local dice = mcm("dice", false) and true or false
+
+    local function until_text(n)
+        if n == 0 then return sotz_text.text("st_sotz_year_today") end
+        local last = ahead(n)
+        return sotz_text.text("st_sotz_year_until", {date = md(last.month, last.day)})
+    end
+    local function away_text(n)
+        if n == 1 then return sotz_text.text("st_sotz_year_tomorrow") end
+        return sotz_text.plural("st_sotz_year_in_days", n)
+    end
+    local function doy(md_)
+        return doy_of(md_[1], math.min(md_[2], month_days(year, md_[1])), year)
+    end
+    local function span(a, b, active)
+        local x, y = doy(a), doy(b)
+        if x <= y then
+            out.marks[#out.marks + 1] = {from = x, to = y, active = active}
+        else
+            out.marks[#out.marks + 1] = {from = x, to = ylen, active = active}
+            out.marks[#out.marks + 1] = {from = 1, to = y, active = active}
+        end
+    end
+
+    -- the Zone's marked days: today's in Now, the rest in Coming up
+    for key, day in pairs(REMEMBRANCE) do
+        local m, d = math.floor(key / 100), key % 100
+        local does = day_does(day.kind)
+        if #does > 0 then
+            if m == t.month and d == t.day then
+                out.now[#out.now + 1] = {kind = "marked", key = day.key, show = md(m, d),
+                                         when = until_text(0), what = does_text(does),
+                                         alert = true, n = 0}
+            else
+                local n = doy_of(m, d, year) - t.yday
+                if n <= 0 then n = (ylen - t.yday) + doy_of(m, d, year + 1) end
+                out.coming[#out.coming + 1] = {kind = "marked", key = day.key, date = md(m, d),
+                                               away = n, when = away_text(n),
+                                               what = does_text(does)}
+            end
+        end
+    end
+
+    -- the player's own seasons, events and periods
+    local base = base_on(t, starts)
+    local own_now = {}
+    for _, group in ipairs({"own", "events", "periods"}) do
+        for _, it in ipairs(YOURS[group]) do
+            local on = item_on(it, t, starts)
+            if on then
+                if it.kind == "own" then own_now[it.name] = true end
+                local n = runs_on(it, ahead, starts)
+                out.now[#out.now + 1] = {
+                    kind = it.kind, key = it.key, name = it.name, show = it.show, n = n,
+                    last = ahead(n), when = until_text(n),
+                    what = sotz_text.text("st_sotz_year_kind_" .. it.kind)}
+            else
+                local n = comes_in(it, ahead, starts)
+                if n then
+                    local at = ahead(n)
+                    out.coming[#out.coming + 1] = {
+                        kind = it.kind, key = it.key, show = it.show,
+                        date = md(at.month, at.day), away = n, when = away_text(n),
+                        what = (it.kind == "event") and it.show
+                               or sotz_text.text("st_sotz_year_begins", {name = it.show})}
+                end
+            end
+            -- a window on the grid: seasons of the player's own, dated events, periods
+            if it.kind == "own" or (it.kind == "event" and it.from) then
+                span(it.from, it.to, on)
+            elseif it.kind == "period" then
+                local nxt
+                for i, s in ipairs(starts) do
+                    if s.period == it then nxt = starts[i % #starts + 1] end
+                end
+                if nxt and nxt.period ~= it then
+                    local stop = os.date("*t", os.time({year = year, month = nxt.m,
+                                                        day = nxt.d, hour = 12}) - 86400)
+                    span(it.from, {stop.month, stop.day}, on)
+                end
+            end
+        end
+    end
+
+    -- the spells play.bat found, while their days last
+    local in_force, found = spell_today(), spells_on_now()
+    local spell_now = {}
+    for _, sp in ipairs(found) do
+        if item_on(sp, t, starts) then
+            spell_now[sp.name] = true
+            local n = runs_on(sp, ahead, starts)
+            local brings = sp.as and in_force and in_force.name == sp.name and not fixed
+            out.now[#out.now + 1] = {
+                kind = "spell", key = sp.key, name = sp.name, show = sp.show, n = n,
+                last = ahead(n), when = until_text(n), brings = brings and sp.as or nil,
+                what = brings and sotz_text.text("st_sotz_year_spell_brings",
+                                                 {season = name_of(sp.as)})
+                       or sotz_text.text("st_sotz_year_kind_spell")}
+            -- its days on the grid, this year's of them
+            local fy, fm, fd = sp.first:match("^(%d+)%-(%d+)%-(%d+)$")
+            local ly, lm, ld = sp.last:match("^(%d+)%-(%d+)%-(%d+)$")
+            fy, ly = tonumber(fy), tonumber(ly)
+            if fy and ly and fy <= year and ly >= year then
+                local a = (fy < year) and 1 or doy_of(tonumber(fm), tonumber(fd), year)
+                local b = (ly > year) and ylen or doy_of(tonumber(lm), tonumber(ld), year)
+                out.marks[#out.marks + 1] = {from = a, to = b, active = true}
+                if brings then
+                    out.tints[#out.tints + 1] = {from = a, to = b, season = sp.as}
+                end
+            end
+        end
+    end
+
+    -- the kinds of weather play.bat found, on the day it found them
+    if STAGED_DAY and STAGED_DAY.day == t.iso then
+        for _, k in ipairs(STAGED_DAY.weather) do
+            if k == "freezing" or k == "thaw" or k == "heat" then
+                out.now[#out.now + 1] = {kind = "weather", key = k, n = 0,
+                                         show = sotz_text.text("st_sotz_year_weather_" .. k),
+                                         when = until_text(0),
+                                         what = sotz_text.text("st_sotz_year_weather_"
+                                                               .. k .. "_what")}
+            end
+        end
+    end
+
+    -- the calendar's next turn; with the season fixed, or the dice about to roll again,
+    -- the turn is the calendar's and not a promise
+    local n, nxt = turn_after(t)
+    if nxt and nxt ~= season_at(t.yday, t.year) then
+        local at = ahead(n)
+        out.coming[#out.coming + 1] = {
+            kind = "turn", key = nxt, date = md(at.month, at.day), away = n, when = away_text(n),
+            what = (fixed or dice) and sotz_text.text("st_sotz_year_turn_calendar",
+                                                      {Season = cap(nxt), season = name_of(nxt)})
+                   or cap(nxt)}
+    end
+    table.sort(out.coming, function(a, b)
+        if a.away ~= b.away then return a.away < b.away end
+        return (KIND_ORDER[a.kind] or 9) < (KIND_ORDER[b.kind] or 9)
+    end)
+
+    -- the spells that can start today: in the base period, or a season of the player's own
+    -- on today
+    local base_name = base.period and base.period.name or base.season
+    for _, sp in ipairs(YOURS.spells) do
+        local can = false
+        for _, w in ipairs(sp["in"]) do
+            if w == base_name or own_now[w] then can = true end
+        end
+        if can then
+            out.spells[#out.spells + 1] = {show = sp.show, chance = sp.chance,
+                                           on = spell_now[sp.name] or false}
+        end
+    end
+    out.spells_in = base.period and base.period.show or name_of(base.season)
+    return out
 end
 
 function calendar_page()
@@ -1937,9 +2491,10 @@ function calendar_page()
         table.insert(out.seasons, table.remove(out.seasons, 1))
     end
 
-    -- the six fixed days
+    -- the six fixed days, each marked while MCM's switches leave it doing something
     for key, day in pairs(REMEMBRANCE) do
         local m, d = math.floor(key / 100), key % 100
+        local does = day_does(day.kind)
         out.days[#out.days + 1] = {
             doy    = doy_of(m, d, year),   -- where it falls, for the ribbon's ticks
             key    = day.key,
@@ -1950,6 +2505,8 @@ function calendar_page()
             away   = days_until(m, d),
             today  = (m == now.month and d == now.day),
             lines  = (day.opens and #day.opens or 0) + (day.lines and #day.lines or 0),
+            on     = #does > 0,
+            does   = does_text(does),
         }
     end
     table.sort(out.days, function(a, b) return a.away < b.away end)
@@ -1965,13 +2522,45 @@ function calendar_page()
         end
     end
 
-    -- is one of the six marked days today? the page leads with it if so
+    -- is one of the six marked days today? marked_day says so by the date, for the API;
+    -- the page alarms on `marked`, while MCM's switches leave the day doing something
     for _, day in ipairs(out.days) do
-        if day.today then out.marked = day end
+        if day.today then
+            out.marked_day = day
+            if day.on then out.marked = day end
+        end
     end
 
-    -- the accent bar for the current season; one of this mod's own 256x16 strips
-    out.bar = "ui_season_hdr_" .. tostring(cur)
+    -- The season the world runs, which a pin, the dice or a spell can make another than
+    -- the calendar's: the page heads with it and says why. `dice` is whether MCM's dice are
+    -- on, which make the calendar's next turn no promise.
+    local sn = season_now()
+    out.running = {key = sn.key, label = sn.label, title = sn.title, pinned = sn.pinned,
+                   rolled = sn.rolled, spell = sn.spell}
+    out.dice = mcm("dice", false) and true or false
+
+    -- the accent bar for the season running; one of this mod's own 256x16 strips
+    out.bar = "ui_season_hdr_" .. tostring(sn.key)
+
+    -- what is on beyond the season, what is coming, and the player's own on the grid
+    local ok_y, yd = pcall(your_days, now)
+    if not ok_y then
+        say("!your_days failed: " .. tostring(yd))
+        yd = {now = {}, coming = {}, marks = {}, tints = {}, spells = {}}
+    end
+    out.now, out.coming, out.marks, out.tints = yd.now, yd.coming, yd.marks, yd.tints
+    out.spells, out.spells_in = yd.spells, yd.spells_in
+    -- the base periods of the player's own beside the seasons, for the page's year list
+    out.periods = {}
+    local on = {}
+    for _, row in ipairs(out.now) do
+        if row.kind == "period" then on[row.key] = true end
+    end
+    for _, p in ipairs(YOURS.periods) do
+        out.periods[#out.periods + 1] = {show = p.show, from = md(p.from[1], p.from[2]),
+                                         doy_from = doy_of(p.from[1], p.from[2], year),
+                                         key = p.key, on = on[p.key] or false}
+    end
 
 
     -- anything the player added in seasons_config.py reaches the game only as staged
@@ -1983,6 +2572,122 @@ function calendar_page()
     end
 
     return out
+end
+
+-- --- PDA messages for the player's own, and for a turn while playing -------------------------
+--
+-- At the start, after the season's greeting, a message for each of the player's own
+-- seasons, events, periods and spells that is on, where MCM's page of them has its switch
+-- on. While playing, the day the seasons run on can move on - always on the game's clock,
+-- and past midnight on the real one - and then a message as a turn draws near, another as
+-- it comes, and one for each of the player's own as it begins. A season fixed by a pin, the
+-- dice or a spell has no turn to tell of.
+
+local sent_n = 0
+
+-- Send PDA messages one after another, `gap` seconds apart from `delay` on, through
+-- CreateTimeEvent as the greeting is, so none lands under the loading screen.
+local function send_later(msgs, delay, gap)
+    for i, msg in ipairs(msgs) do
+        sent_n = sent_n + 1
+        CreateTimeEvent("seasons_zone", "pda_msg_" .. sent_n, delay + gap * (i - 1), function()
+            if db.actor and news_manager and news_manager.send_tip then
+                news_manager.send_tip(db.actor, msg, nil, nil, 12000)
+                say("PDA: " .. msg)
+            end
+            return true
+        end)
+    end
+end
+
+-- One of the player's own in a message: on now, or `begins` as it comes on while playing
+local function your_message(row, begins)
+    local v = {name = row.show, Name = sotz_text.cap_first(row.show)}
+    if row.n == 0 or not row.last then
+        return sotz_text.text(begins and "st_sotz_news_yours_begins_today"
+                              or "st_sotz_news_yours_today", v)
+    end
+    v.ends = sotz_text.date(row.last.month, row.last.day, row.last.year)
+    return sotz_text.text(begins and "st_sotz_news_yours_begins_until"
+                          or "st_sotz_news_yours_until", v)
+end
+
+local MINE = {own = true, event = true, period = true, spell = true}
+
+--- The start's messages for the player's own, from `delay` seconds on. `greeted` says the
+-- season's greeting goes out, which names a spell that brings its season already.
+function announce_yours(delay, greeted)
+    local yd = your_days()
+    local in_force = (pinned() == "auto" and not rolled()) and spell_today() or nil
+    local msgs = {}
+    for _, row in ipairs(yd.now) do
+        local said = greeted and in_force and row.kind == "spell" and row.name == in_force.name
+        if MINE[row.kind] and not said and announces(row.key) then
+            msgs[#msgs + 1] = your_message(row, false)
+        end
+    end
+    send_later(msgs, delay, 5)
+    return msgs
+end
+
+-- What turn_tick() saw the last time the day moved: nil until it first looks, which is
+-- after the greeting has said how things stand
+local turn_seen = nil
+
+-- the textures play.bat staged, and whether it stages them: the ground a turn can't move
+local function staged_ground()
+    local staged = ini_file("season_staged.ltx")
+    if staged and staged:section_exist("staged") then
+        return staged:r_string_ex("staged", "season"),
+               (staged:r_string_ex("staged", "staging") or "on") ~= "off"
+    end
+    return nil, false
+end
+
+--- Look at the day the seasons run on, and send what moving to it brought: a turn drawing
+-- near or come, and the player's own beginning. Returns the messages.
+function turn_tick()
+    local t = zone_today()
+    if turn_seen and turn_seen.iso == t.iso then return nil end
+    local cal = season_at(t.yday, t.year)
+    local n, nxt = turn_after(t)
+    local lead = math.max(1, math.floor((tonumber(mcm("blend_days", 14)) or 14) / 2))
+    local near = nil
+    if nxt and nxt ~= cal and n <= lead then
+        near = nxt .. "@" .. os.date("%Y-%m-%d", os.time({year = t.year, month = t.month,
+                                                           day = t.day, hour = 12}) + n * 86400)
+    end
+    local yd = your_days(t)
+    local on = {}
+    for _, row in ipairs(yd.now) do
+        if MINE[row.kind] then on[row.kind .. ":" .. tostring(row.key)] = true end
+    end
+    local prev = turn_seen
+    turn_seen = {iso = t.iso, season = cal, near = near, on = on}
+    if not prev then return nil end
+
+    local msgs = {}
+    if mcm("pda_turns", true) and season_mode() == "auto" then
+        local v = {season = name_of(cal), Season = cap(cal)}
+        if cal ~= prev.season then
+            local ground, staging = staged_ground()
+            msgs[#msgs + 1] = sotz_text.text((staging and ground ~= cal)
+                                             and "st_sotz_news_turned_ground"
+                                             or "st_sotz_news_turned", v)
+        elseif near and near ~= prev.near then
+            local w = {season = name_of(nxt), Season = cap(nxt)}
+            msgs[#msgs + 1] = (n == 1) and sotz_text.text("st_sotz_news_near_tomorrow", w)
+                              or sotz_text.plural("st_sotz_news_near_in_days", n, w)
+        end
+    end
+    for _, row in ipairs(yd.now) do
+        if MINE[row.kind] and not prev.on[row.kind .. ":" .. tostring(row.key)]
+           and announces(row.key) then
+            msgs[#msgs + 1] = your_message(row, true)
+        end
+    end
+    send_later(msgs, 1, 5)
+    return msgs
 end
 
 
@@ -2174,11 +2879,12 @@ function forecast_page()
     local out = {today = today_text()}
 
     -- the same accent strip the calendar page wears, so the two read as one mod rather
-    -- than two addons that happen to be installed together
+    -- than two addons that happen to be installed together: the season running, which a
+    -- pin, the dice or a spell can make another than the calendar's
     pcall(function()
         local cur = season_at(zone_today().yday, zone_today().year)
         out.season = cur
-        out.bar    = "ui_season_hdr_" .. tostring(cur)
+        out.bar    = "ui_season_hdr_" .. tostring(season_now().key)
     end)
 
     -- --- what the ecologists will tell you ------------------------------------------------

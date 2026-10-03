@@ -199,8 +199,8 @@ With `"as": None` the season stays, and only the mods on during the spell come o
 The same date and name always draw the same number, on every machine and every launch, so
 a spell can't come and go between launches on the same day, and two players with the same
 spell see it on the same days. `configure.bat` says how often each comes on average:
-3% a day in Polesia's summer is about 3 a year. No one sees a spell coming: the Forecast
-page doesn't show them.
+3% a day in Polesia's summer is about 3 a year. No one sees a spell coming: the PDA's
+Year page lists the spells that can start today with their chance a day, never a date.
 
 An MCM pin fixes the season, and a spell doesn't change a pinned season; the mods on
 during it still come on. `season.py status --season` works the same way. So do MCM's
@@ -232,9 +232,10 @@ The model above invites all of these.
   over while you play takes effect at the next launch.
 - **One base period at a time.** Base periods partition the year by design. If you want two
   things true at once, one of them is an event, a season of your own or a spell.
-- **Seasons of your own and spells aren't on the dial or the MCM pages.** The dial and
-  the PDA's Seasons app show the calendar's seasons, as they do under an MCM pin; a spell
-  that brings a season is that season in the light and the weather.
+- **Seasons of your own and spells aren't on the dial.** The dial and MCM's season pages
+  show the calendar's seasons. The PDA's Year page has them all, though: what is on now,
+  what is coming, and a line over their days on its grid; MCM's Your calendar page has a
+  switch for each one's PDA message.
 
 ---
 

@@ -1,9 +1,11 @@
 -- Seasons of the Zone - MCM pages
 --
--- Pages under one entry: Main (the calendar and the global settings) and one per
--- season the calendar has on. A season page holds that season's color grade preset, a
--- read-out of its resolved values, and a checkbox for each seasonal mod active in it.
--- Options are stored as seasons_zone/<page>/<id>.
+-- Pages under one entry: Main (the calendar and the global settings), one per season the
+-- calendar has on, and Your calendar for a player with seasons, events, periods or spells
+-- of their own. A season page holds that season's color grade preset, a read-out of its
+-- resolved values, and a checkbox for each seasonal mod active in it; Your calendar a
+-- switch for each of the player's own PDA messages. Options are stored as
+-- seasons_zone/<page>/<id>.
 --
 -- String keys (from ui_mcm.script, not its tutorial):
 --     page title    the node's `text` field: ui_mcm_seasons_zone_page_<page>
@@ -220,6 +222,34 @@ local function page_main()
     add({id = "notify", type = "check", val = 1, def = true})
     add({id = "pda_greeting", type = "check", val = 1, def = true})
     add({id = "pda_delay", type = "track", val = 2, min = 3, max = 60, step = 1, def = 12})
+    -- while playing: a PDA message as the next season draws near, and as it comes
+    add({id = "pda_turns", type = "check", val = 1, def = true})
+    return gr
+end
+
+-- The player's own seasons, events, periods and spells, from configure.bat, under a line
+-- and a heading for each kind: a switch for each one's PDA message, at the start when it is
+-- on and as it begins while playing. Its label is the name it was given, which season.py
+-- writes into ui_mcm_seasons_yours.xml with the calendar file the list comes from.
+local YOURS_HEAD = {own = "ui_mcm_seasons_zone_yours_own",
+                    event = "ui_mcm_seasons_zone_yours_event",
+                    period = "ui_mcm_seasons_zone_yours_period",
+                    spell = "ui_mcm_seasons_zone_yours_spell"}
+
+local function page_yours(items)
+    local gr = {}
+    local function add(t) gr[#gr + 1] = opt(t) end
+    desc(gr, "desc_yours", "ui_mcm_seasons_zone_yours_desc", false)
+    local kind
+    for _, it in ipairs(items) do
+        if it.kind ~= kind then
+            kind = it.kind
+            add({id = "line_" .. kind, type = "line"})
+            desc(gr, "head_" .. kind, YOURS_HEAD[kind] or "", true)
+        end
+        add({id = "ann_" .. it.key, type = "check", val = 1, def = true,
+             hint = "seasons_zone_ann_" .. it.key})
+    end
     return gr
 end
 
@@ -281,6 +311,12 @@ function on_mcm_load()
     for _, s in ipairs(seasons_on()) do
         pages[#pages + 1] = {id = s, sh = true, text = shown(s, "ui_mcm_seasons_zone_page_" .. s),
             gr = page_season(s, choices, info)}
+    end
+    -- the player's own, after the seasons, for a player who has made some
+    local oky, items = pcall(function() return zzz_seasons_of_the_zone.your_items() end)
+    if oky and type(items) == "table" and #items > 0 then
+        pages[#pages + 1] = {id = "yours", sh = true, text = "ui_mcm_seasons_zone_page_yours",
+                             gr = page_yours(items)}
     end
 
     op = {id = "seasons_zone", sh = false, gr = pages}

@@ -99,7 +99,14 @@ Every transmission is signed and carries that speaker's portrait — Barman, Sid
 Owl, Beard, Sakharov, Forester, Nimble, or an unnamed guide — so the day arrives as people
 talking rather than as the game narrating.
 
-Last come the PDA message settings.
+Last come the PDA message settings: the report on loading in and how long after loading it
+comes, and **PDA messages as the season turns in play**. While you play, the day the seasons
+run on can move on, always on the game's clock and past midnight on the real one; with this
+on, your PDA says when the next season draws near and when it comes. With texture swapping
+on, the second message adds that the ground follows at the next launch through `play.bat`.
+A pinned or rolled season, or one a spell brings, has no turn to tell of. With the dice on,
+the report on loading in never says when the next season begins: the next launch rolls
+again.
 
 Every option has hover text.
 
@@ -134,13 +141,24 @@ the Autumn page above, *CCon Autumn* is the autumn set.
 The mods shown are third-party texture packs (I.N.V.E.R.N.O, C Consciousness and others). None
 of them are included in this mod.
 
+## Your calendar
+
+With seasons of your own, events, periods or spells made in `configure.bat`, MCM has one
+more page after the seasons: a switch for each, under a heading for each kind, by the name
+you gave it. On, which is the default, your PDA tells you when it is on as the game starts,
+after the season's report, and when it begins while you play. A spell that brings its season
+is already in that report, so it isn't told twice. `play.bat` writes the page's list and its
+labels, and so does a save in `configure.bat`.
+
 ---
 
 ## The Seasons app
 
 One tile in [Mod App Creator](https://www.moddb.com/mods/stalker-anomaly/addons/mod-app-creator)'s
-launcher, showing the current season. It opens on The Year, and a switch at the top of the
-right column moves between **The Year** and **Forecast**. The page you're on is lit.
+launcher, showing the season the world runs, which a pin, the dice or a spell can make
+another than the calendar's. It opens on The Year, and a switch at the top of the right
+column moves between **The Year** and **Forecast**. The page you're on is lit. Both pages
+wear the running season's accent bar.
 
 Without Mod App Creator the app can't be opened, and MCM's Main page shows that in red. For a
 standalone version that works without MAC, see the note at the top of `sotz_pda.script`.
@@ -149,23 +167,37 @@ standalone version that works without MAC, see the note at the top of `sotz_pda.
 
 ![The Year: the grid with today lit, and the days the Zone marks](images/pda-the-year.png)
 
-Dates only. Anything running on the game clock lives on [Forecast](#forecast--the-pda-page)
-instead.
+Dates and names. Anything running on the game clock lives on
+[Forecast](#forecast--the-pda-page) instead.
 
 It is read-only:
 
-- **The year grid** — twelve rows of day cells, one per month, tinted by season. Today's cell
-  is lit, and the six days the Zone marks are underlined.
-- **Days the Zone marks** — the six fixed days, soonest first, with how far off each is and
-  what it does: *Clear sky. The Zone goes quiet.* for the two remembrance days, *Storm.
-  Artefacts surface.* for the four anniversaries.
-- **The year** — the seasons, starting with spring, and the date each begins, beside the
-  dial. A calendar of your own lists the seasons it has on, starting from the first of
-  them in that order.
+- **The header** — the season the world runs, and under the date, why: *Pinned.*, *By the
+  dice.* or the spell and its last day, each followed by what the calendar reads. On a plain
+  calendar day it says when the next season comes; with the dice on, that they roll again
+  at the next launch instead, since the next season is no promise then.
+- **The year grid** — twelve rows of day cells, one per month, tinted by the calendar's
+  seasons. Today's cell is lit, the days the Zone marks are underlined, and your own
+  seasons, dated events, periods and the spells on have a line in the gap above their days.
+  A spell that brings its season tints its days that season's color. Weekly events, like
+  every weekend, are in the lists rather than drawn.
+- **Now** — what is on today beyond the season, each with its last day: your seasons,
+  events, periods and spells, the kinds of weather `play.bat` found (freezing, thaw, heat),
+  and a day the Zone marks. Four rows at most, the last saying how many more there are.
+- **Coming up** — the next of everything, soonest first: the calendar's next turn (*by the
+  calendar* when a pin, the dice or a spell has the season), the marked days, and the next
+  day each of your own comes on.
+- **Season starts** — the seasons from spring, your periods among them, and the date each
+  begins, beside the dial, which stays the calendar's. The calendar's season is white.
+- **Spells in** the season — the spells that can start today, with their chance a day.
+  When one comes is never shown.
 
-Today and the marked days are red, a color no season uses. Today fills its cell and a marked
-day is underlined, so the two stay distinct when they fall on the same day. On one of the six
-days, its line and its cell pulse the way the forecast's emission alert does.
+What is on glows: its rows in amber that swells to near white and back, its line on the grid
+over a halo, a season another than the calendar's in the header and the year list. A day the
+Zone marks alarms instead: its row and its cell pulse in red the way the forecast's emission
+alert does. Today and the marked days are red, a color no season uses. Today fills its cell
+and a marked day is underlined, so the two stay distinct when they fall on the same day. A
+marked day says what MCM's switches leave it doing, and with all of them off it isn't marked.
 
 Seasonal mods are listed on MCM's season pages, not here.
 

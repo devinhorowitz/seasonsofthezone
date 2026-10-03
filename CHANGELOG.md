@@ -10,6 +10,27 @@
   weather, the seasonal mods, texture sets and sound, and the PDA's message and MCM's Main
   page say so. At 100 every launch rolls. A pinned season is never rolled over, and a hit
   sets a spell's season aside, as a pin does. `sotz_api.season()` gives `rolled`.
+- **The PDA's Year page shows what your setup is doing.** It heads with the season the
+  world runs, and says why under the date: pinned, by the dice, or a spell and its last day,
+  beside what the calendar reads. **Now** lists what is on today beyond the season, each to
+  its last day: your seasons, events, periods and spells, the kinds of weather `play.bat`
+  found, and a day the Zone marks. **Coming up** has the next of everything, soonest first.
+  The grid draws a line over the days of your seasons, dated events, periods and spells on,
+  and a spell that brings its season tints its days. Beside the dial, your periods join the
+  season starts, and the spells that can start today are listed with their chance a day.
+  What is on glows, so you can see the PDA has it. The launcher tile and the Forecast page's
+  bar follow the running season too. `play.bat` and `configure.bat` hand your seasons,
+  events, periods and spells to the game; `sotz_api.calendar()` gives `on`.
+- **PDA messages for your own, and for a turn while you play.** MCM has a **Your calendar**
+  page with a switch for each of your seasons, events, periods and spells: on, your PDA says
+  when one is on as the game starts, and when it begins while you play. **PDA messages as
+  the season turns in play**, on MCM's Main page, tells you when the next season draws near
+  and when it comes, which the game's clock makes happen mid-session; with texture swapping
+  on, the second adds that the ground follows at the next launch.
+- **With the dice on, no message promises the next season.** The report on loading in and
+  the Year page say the dice roll again at the next launch instead.
+- **A marked day says what its MCM switches leave it doing.** With the anniversary storm off,
+  the Year page says *Artefacts surface.*; with every switch off, the day isn't marked.
 - **The anniversary artefacts reach a level you are visiting for the first time.** Dynamic
   Anomalies sets a level up on its own first update, which runs after the mod's, so on a
   new level the call failed (`drx_da_main.script:1503: attempt to index a nil value` in the

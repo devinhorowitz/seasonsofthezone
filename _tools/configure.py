@@ -189,7 +189,7 @@ def save(cal, summary=()):
     """Save from a command. Written: the `summary` of what changed, the save's own lines,
     and a changed calendar handed to the game; True. Refused: why, and exit 1, with no word
     of a change that was not made. Nothing to write: False."""
-    moved = calendar_moved(cal)
+    moved, yours = calendar_moved(cal), cal.yours_changed()
     saved, lines = cal.save()
     if not saved:
         for l in lines:
@@ -204,6 +204,8 @@ def save(cal, summary=()):
         ok, out = draw_dial()
         for l in out:
             print("  " + l)
+    elif yours:
+        draw_dial()             # the PDA's and MCM's list of them; the dial is as it was
     return True
 
 
@@ -2872,7 +2874,7 @@ class App(object):
                     "Give the dice's chance as a whole number from 1 to 100 first, on the "
                     "Seasons tab."), parent=self.root)
             return False
-        moved = calendar_moved(self.cal)
+        moved, yours = calendar_moved(self.cal), self.cal.yours_changed()
         placed = self.cal.place_changed()
         saved, lines = self.cal.save()
         if saved and self.cal.wrote:
@@ -2881,6 +2883,8 @@ class App(object):
             if moved:
                 ok, out = draw_dial()
                 lines = lines + [""] + (dial_sentence(self.cal) if ok else out)
+            elif yours:
+                draw_dial()     # the PDA's and MCM's list of them; the dial is as it was
             if placed:
                 lines = lines + ["", _("The weather now comes from %s:")
                                  % ce.place_text(self.cal.place)] + fetch_now()

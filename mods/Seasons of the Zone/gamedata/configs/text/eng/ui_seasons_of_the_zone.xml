@@ -208,7 +208,7 @@
 		<text>PDA report on loading in</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_pda_greeting_desc">
-		<text>Once you are in the world, your PDA reports the season, the real date and how long until the next season. With a season pinned, it reports the season only.</text>
+		<text>Once you are in the world, your PDA reports the season, the date and how long until the next season - or, with the dice on, that they roll again at the next launch. A season pinned, rolled by the dice or brought by a spell is reported as such. Your own seasons, events, periods and spells that are on follow, each where Your calendar has its switch on.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_pda_delay">
@@ -216,6 +216,38 @@
 	</string>
 	<string id="ui_mcm_seasons_zone_pda_delay_desc">
 		<text>How long after loading the report arrives. Too short and it is buried by the loading screen before you see it.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_pda_turns">
+		<text>PDA messages as the season turns in play</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_pda_turns_desc">
+		<text>While you play, the day the seasons run on can move on: on the game's clock, or past midnight. Your PDA says when the next season draws near, and when it comes. A season pinned, rolled by the dice or brought by a spell has no turn to tell of.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_page_yours">
+		<text>Your calendar</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_yours_desc">
+		<text>Your own seasons, events, periods and spells, made in configure.bat. Each has a PDA message when it is on as the game starts, and when it begins while you play. Uncheck one to leave it quiet.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_yours_own">
+		<text>Seasons of your own</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_yours_event">
+		<text>Events</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_yours_period">
+		<text>Periods</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_yours_spell">
+		<text>Spells</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_desc_cal_unavailable">

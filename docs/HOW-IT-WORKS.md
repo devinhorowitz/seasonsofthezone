@@ -139,7 +139,13 @@ They ship empty and are rewritten at every launch. Do not edit them. A fourth,
 `configs/season_calendar.ltx`, holds the calendar and season names; `configure.bat` writes
 it on Save, and `play.bat` at every launch, adding the season a spell brings under
 `[spell]`, or what the dice rolled under `[roll]`: the season, the draw, the chance and the
-day.
+day. It also carries the player's own seasons, events, periods and spells, under `[own]`,
+`[events]`, `[periods]` and `[spells]`, numbered a part to a line (`1_name = Hunter's moon`),
+for the PDA's Year page and MCM's Your calendar page; the game works out which are on by
+the date, its rules as `season.py` has them. `[today]` holds what only `play.bat` knows about
+the day it staged: the kinds of weather it found and the spells on. Beside it,
+`configs/text/eng/` and `text/rus/ui_mcm_seasons_yours.xml` hold the labels of Your
+calendar's switches, rewritten with it.
 
 The season pages are built from that list, which is why a mod added to `TOGGLE_MODS`
 appears in the menu by itself.

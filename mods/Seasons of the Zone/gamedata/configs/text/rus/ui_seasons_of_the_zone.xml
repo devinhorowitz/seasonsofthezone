@@ -208,7 +208,7 @@
 		<text>Сообщение КПК при загрузке</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_pda_greeting_desc">
-		<text>Как только вы окажетесь в игровом мире, КПК сообщит сезон, реальную дату и сколько осталось до следующего сезона. Если сезон закреплён, сообщается только сезон.</text>
+		<text>После загрузки КПК сообщает сезон, дату и сколько осталось до следующего сезона, а при включённых костях — что они снова бросаются при следующем запуске. О сезоне, закреплённом, выпавшем на костях или принесённом капризом, сообщается особо. Следом идут ваши сезоны, события, периоды и капризы, которые сейчас идут, — каждый, если его галочка на странице «Ваш календарь» стоит.</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_pda_delay">
@@ -216,6 +216,38 @@
 	</string>
 	<string id="ui_mcm_seasons_zone_pda_delay_desc">
 		<text>Через сколько секунд после загрузки приходит сообщение. Если задержка слишком короткая, сообщение затеряется за экраном загрузки раньше, чем вы его увидите.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_pda_turns">
+		<text>Сообщения на КПК при смене сезона в игре</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_pda_turns_desc">
+		<text>По ходу игры день, по которому идут сезоны, может смениться: по часам игры или после полуночи. КПК сообщит, когда следующий сезон близко, и когда он наступит. У сезона, закреплённого, выпавшего на костях или принесённого капризом, смены нет.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_page_yours">
+		<text>Ваш календарь</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_yours_desc">
+		<text>Ваши сезоны, события, периоды и капризы из configure.bat. Для каждого приходит сообщение на КПК, если он идёт при входе в игру и когда начинается по ходу игры. Снимите галочку, чтобы он прошёл тихо.</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_yours_own">
+		<text>Свои сезоны</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_yours_event">
+		<text>События</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_yours_period">
+		<text>Периоды</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_yours_spell">
+		<text>Капризы</text>
 	</string>
 
 	<string id="ui_mcm_seasons_zone_desc_cal_unavailable">

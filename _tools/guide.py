@@ -1403,6 +1403,7 @@ class Guide(object):
                 "The dice's chance is a whole number from 1 to 100."), parent=self.root)
             return False
         moved, placed = cf.calendar_moved(self.cal), self.cal.place_changed()
+        yours = self.cal.yours_changed()
         saved, lines = self.cal.save()
         if not saved:
             messagebox.showerror(pgettext("dialog title", "Save"),
@@ -1415,6 +1416,8 @@ class Guide(object):
             if moved:
                 ok, out = cf.draw_dial()
                 extra += [""] + (cf.dial_sentence(self.cal) if ok else out)
+            elif yours:
+                cf.draw_dial()  # the PDA's and MCM's list of them; the dial is as it was
             if placed:
                 extra += ["", _("The weather now comes from %s:")
                           % ce.place_text(self.cal.place)]

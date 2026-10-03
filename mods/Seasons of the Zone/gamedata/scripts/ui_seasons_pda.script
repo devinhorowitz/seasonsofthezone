@@ -1,12 +1,18 @@
 -- Seasons of the Zone - the calendar page.
 --
--- A read-only view of the calendar: where the year stands, when it turns next, and which
--- of the days the Zone marks are coming. Everything comes from
--- zzz_seasons_of_the_zone.calendar_page(); nothing is computed twice.
+-- What the Zone runs and why, where the year stands, what is on today and what is coming:
+-- the Zone's own marked days, and the player's own seasons, events, periods and spells
+-- from configure.bat. Everything comes from zzz_seasons_of_the_zone.calendar_page();
+-- nothing is computed twice.
 --
--- Dates only, and nothing about the MOD. An earlier version listed the staged seasonal
--- mods by name, which put MO2 folder strings on a stalker's PDA - and there is no
--- reliable way to turn an author-chosen folder name into something the Zone would say.
+-- The season at the top is the one the world runs, which a pin, the dice or a spell can
+-- make another than the calendar's, and the line under the date says which of them has
+-- it. What is on today glows - in the lists, and as the line over its days on the grid -
+-- so a season or event of the player's own reads as one the PDA has taken up.
+--
+-- Dates and names, and nothing about the MOD. An earlier version listed the staged
+-- seasonal mods by name, which put MO2 folder strings on a stalker's PDA - and there is
+-- no reliable way to turn an author-chosen folder name into something the Zone would say.
 -- MCM's per-season pages already list them, which is where a question about an install
 -- belongs. Anything on the GAME clock - the weather plan, the next emission - lives on
 -- the forecast page for the same reason: it is not a calendar question.
@@ -24,7 +30,7 @@
 --
 -- Every word on the page is a string id, st_sotz_* in st_seasons_of_the_zone.xml, read
 -- through sotz_text; the dates and season names arrive from the data layer already in the
--- player's language.
+-- player's language, and the player's own names as they typed them.
 
 local SINGLETON = nil
 
@@ -54,21 +60,20 @@ local function tex(name)
     return (name:gsub("%.dds$", ""))
 end
 
--- "in 40 days" / "tomorrow" / "today". Nobody says "in 1 days".
-local function when_text(days)
-    if days == 0 then return sotz_text.text("st_sotz_year_today") end
-    if days == 1 then return sotz_text.text("st_sotz_year_tomorrow") end
-    return sotz_text.plural("st_sotz_year_in_days", days)
+-- `s` cut to `n` letters, an ellipsis last, for a field narrower than a name can be. A
+-- byte is a letter here: the game's text is windows-1251, whose ellipsis is 133.
+local function fit(s, n)
+    s = tostring(s or "")
+    if #s <= n then return s end
+    return s:sub(1, n - 1) .. "\133"
 end
 
--- What each kind of marked day actually does, said the way the Zone would say it. Both
--- are true rather than flavor: a memorial holds the sky clear and quiets the traffic on
--- every channel, an anniversary holds a storm and seeds an extra crop of artefacts on
--- each level visited that day.
-local DAY_TEXT = {
-    memorial    = "st_sotz_day_memorial",
-    anniversary = "st_sotz_day_anniversary",
-}
+-- A spell's chance a day: a whole percent as one, a fraction to one place
+local function odds(chance)
+    local c = tonumber(chance) or 0
+    local shown = (c == math.floor(c)) and string.format("%d", c) or string.format("%.1f", c)
+    return sotz_text.text("st_sotz_year_odds", {chance = shown})
+end
 
 -- CScriptXmlInit:ParseFile does NOT raise when the xml cannot be used - it returns, and
 -- every Init* afterwards quietly hands back nil. The first method call on one of those
@@ -108,7 +113,6 @@ function SeasonsPDA:InitControls()
     self.bar       = xml:InitStatic("bar", self)
     self.subheader = xml:InitTextWnd("subheader", self)
     self.turning   = xml:InitTextWnd("turning", self)
-    self.marked    = xml:InitTextWnd("marked", self)
 
     self.dial = xml:InitStatic("dial", self)
     if self.dial then
@@ -199,9 +203,9 @@ local RULE_A = 210
 local FR_L, FR_T, FR_R, FR_B = 38, 112, 782, 700
 local CHAMFER   = 14        -- how far each line stops short of a corner
 local SPLIT_X   = 526       -- between the year column and the dial column
-local FR_HEAD_Y = 202       -- under the title, accent bar, date and the turning
-local FR_DIAL_Y = 446       -- under the dial and its caption, right column only
-local FR_GRID_Y = 506       -- under the grid and its captions, left column only
+local FR_HEAD_Y = 202       -- under the title, accent bar, date and the line under it
+local FR_DIAL_Y = 404       -- under the dial and its caption, right column only
+local FR_GRID_Y = 470       -- under the grid and its captions, left column only
 
 function SeasonsPDA:InitFrame()
     self.frame = {}
@@ -236,27 +240,30 @@ end
 
 -- --- rows ---------------------------------------------------------------------------------
 --
--- Two fixed columns, no scrolling, one list in each. Color carries the emphasis a font
--- change would normally carry, because a widget cannot be restyled after it is built.
+-- Two fixed columns, no scrolling, two lists in each: Now and Coming up under the grid, the
+-- year and its spells beside the dial. Color carries the emphasis a font change would
+-- normally carry, because a widget cannot be restyled after it is built.
 local HEAD_RGB = {238, 196, 112}
 local LINE_RGB = {200, 200, 200}
 local NOW_RGB  = {255, 255, 255}
 
 -- Each column starts where the thing above it ends rather than on a shared line: the
--- left one is under the grid, the right one under the dial, which is far taller.
+-- left one is under the grid, the right one under the dial.
 local COL_X  = {52, 556}
 -- What is left of the frame after each column's left edge and its own padding. row_line
 -- is declared at the LEFT column's width, so a right-hand field inherited a 460px rect
 -- running half a screen past the page edge; every field is sized to its cell instead.
 local COL_W  = {460, 212}
 local FIELD_MIN = 44
-local COL_Y0 = {518, 458}     -- the heading in each column
+local COL_Y0 = {480, 412}     -- the first heading in each column
 local COL_Y1 = {692, 628}     -- and where it must stop; the back button owns that corner
 local HEAD_H = 24
 local ROW_H  = 17
--- six marked days on the left, six seasons on the right, with slack
-local ROWS   = {10, 8}
+-- a full Now and Coming up on the left; the year, its periods and the spells on the right
+local ROWS   = {12, 12}
 local HEADS  = 4
+-- Now shows this many rows at most, the last of them "and 3 more" when there are more
+local NOW_MOST = 4
 
 -- Rows are placed against a moving cursor rather than a fixed first-row y, so a list can
 -- change length without every constant below it moving too.
@@ -301,18 +308,31 @@ function SeasonsPDA:Section(col, title)
     self.cursor[col] = y + HEAD_H
 end
 
+-- air between two lists in one column, so the second heading does not read as a row
+function SeasonsPDA:Gap(col, px)
+    self.cursor[col] = (self.cursor[col] or COL_Y0[col]) + px
+end
+
+-- Rows that fit under the cursor in a column, after a heading of `heads` headings
+function SeasonsPDA:Room(col, heads)
+    local y = (self.cursor[col] or COL_Y0[col]) + (heads or 0) * HEAD_H
+    return math.max(0, math.floor((COL_Y1[col] - y) / ROW_H))
+end
+
 -- fields is {{dx, text}, ...}, dx measured from the column's left edge. letterica is a
 -- PROPORTIONAL font: padding a string with string.format("%-12s") does NOT line anything
--- up. It looked fine in a monospaced editor and ragged on the PDA.
+-- up. It looked fine in a monospaced editor and ragged on the PDA. Returns the widgets
+-- the row was drawn in, or nil when the column is full.
 function SeasonsPDA:Put(col, fields, rgb)
-    if not (self.rows and self.rows[col]) then return end
+    if not (self.rows and self.rows[col]) then return nil end
     local n = (self.used[col] or 0) + 1
     local y = self.cursor[col] or COL_Y0[col]
     -- never grow, and never run past the cell: a full column simply stops
-    if n > ROWS[col] or y + ROW_H > COL_Y1[col] then return end
+    if n > ROWS[col] or y + ROW_H > COL_Y1[col] then return nil end
     self.used[col] = n
     self.cursor[col] = y + ROW_H
     local set = self.rows[col][n]
+    local drawn = {}
     rgb = rgb or LINE_RGB
     for f = 1, 3 do
         local w = set and set[f]
@@ -325,11 +345,13 @@ function SeasonsPDA:Put(col, fields, rgb)
                     math.max(FIELD_MIN, COL_W[col] - spec[1]), ROW_H))
                 w:SetTextColor(GetARGB(255, rgb[1], rgb[2], rgb[3]))
                 w:Show(true)
+                drawn[#drawn + 1] = w
             else
                 w:Show(false)
             end
         end
     end
+    return drawn
 end
 
 function SeasonsPDA:ClearRows()
@@ -349,12 +371,22 @@ function SeasonsPDA:ClearRows()
     end
 end
 
+-- What is on glows: a row's words, the line over its days on the grid, and that line's
+-- halo. Kept on lists that Update() walks; Fill() starts them afresh.
+function SeasonsPDA:Glow(widgets)
+    self.glow = self.glow or {}
+    for _, w in ipairs(widgets or {}) do self.glow[#self.glow + 1] = w end
+end
+
 
 -- --- the year grid ------------------------------------------------------------------------
 --
 -- Twelve month rows of day cells, tinted by season, today lit and the marked days
 -- underlined. A year drawn the way a year looks, which a single strip never quite is: on
 -- a strip "late October" is a position you have to measure, and on a grid it is a place.
+-- The player's own seasons, dated events and periods are a line in the gap above their
+-- days, the spells play.bat found too, and a spell that brings its season tints its days
+-- that season's color: those days are that season now.
 --
 -- Drawn as one block per SEASON RUN rather than one block per day. Twelve months of 31
 -- days would be 372 statics held for the life of the session; the same picture comes out
@@ -365,14 +397,18 @@ end
 -- SetTextureColor is how every other mod in the install draws one. The blocks are
 -- allocated ONCE and reused, because get_ui() calls Reset() on every open and a fresh set
 -- per redraw would pile up and never release.
-local GRID_X, GRID_Y = 52, 216      -- must match <grid> in the xml
+local GRID_X, GRID_Y = 52, 212      -- must match <grid> in the xml
 local GRID_W  = 452
 local GUT     = 38                  -- the month-name column, left of the cells
 local CELL_W  = 13                  -- 31 days at 13 is 403, inside 452 - 38
-local CELL_H  = 16
-local PITCH   = 20                  -- month to month, so the rows read as twelve bands
+local CELL_H  = 14
+local PITCH   = 18                  -- month to month, so the rows read as twelve bands
 local ROW_Y0  = 18                  -- under the day scale, in grid-local y
-local BAR_POOL = 72                 -- ~15 runs + 30 day rules + 6 marked + today
+-- ~15 runs + 30 day rules + 6 marked + today, and the player's own: a line and a halo
+-- for each month a window touches
+local BAR_POOL = 240
+-- kept back from the player's own, so a crowded year still draws the marked days and today
+local RESERVE = 8
 
 -- The dial's own arc colors, so the grid and the dial are one picture of the year seen
 -- twice rather than two that merely sit near each other. These are exactly what
@@ -402,6 +438,12 @@ local MARK_H     = 5                -- the underline; 4 read as an artefact of t
 -- The cool half of the alarm pulse. Still red, so the thing never stops reading as red -
 -- it just stops being bright, which is what makes a pulse a pulse rather than a blink.
 local MARK_COOL  = {150, 60, 50}
+
+-- The player's own: a line in the gap above the cells, not on them, so it reads over any
+-- season's color. The Zone's amber, dimmed while it is not on; on, it glows.
+local OVER_RGB   = {176, 146, 88}
+local OVER_H     = 2
+local HALO_H     = 4                -- the whole gap above the row, behind the line
 
 local MONTH_LEN  = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
 -- five day marks, like the forecast's five hours: more than this and they collide
@@ -451,6 +493,17 @@ local function md_of(doy, starts, year_len)
     return nil, nil
 end
 
+-- {m, first day, last day} for each month a day-of-year span from..to touches
+local function month_runs(from, to, starts, year_len)
+    local out = {}
+    for m = 1, 12 do
+        local a, z = starts[m], starts[m] + month_len(m, year_len) - 1
+        local lo, hi = math.max(from, a), math.min(to, z)
+        if lo <= hi then out[#out + 1] = {m, lo - a + 1, hi - a + 1} end
+    end
+    return out
+end
+
 function SeasonsPDA:InitGrid()
     self.bars, self.bar_n = {}, 0
     if not self.grid then return end
@@ -476,7 +529,9 @@ function SeasonsPDA:InitScales()
     end
 end
 
-function SeasonsPDA:Bar(x, y, w, h, r, g, b, alpha)
+-- One block from the pool. `spare` keeps that many back for what has to be drawn after.
+function SeasonsPDA:Bar(x, y, w, h, r, g, b, alpha, spare)
+    if spare and (self.bar_n or 0) >= #(self.bars or {}) - spare then return nil end
     self.bar_n = (self.bar_n or 0) + 1
     local s = self.bars and self.bars[self.bar_n]
     if not s then return nil end               -- pool exhausted: draw nothing, never grow
@@ -490,6 +545,7 @@ end
 
 function SeasonsPDA:BlankGrid()
     self.today_bar = nil
+    self.glow_bars, self.halos = {}, {}
     for i = 1, #(self.bars or {}) do
         if self.bars[i] then self.bars[i]:Show(false) end
     end
@@ -541,6 +597,17 @@ function SeasonsPDA:DrawGrid(d)
         end
     end
 
+    -- --- a spell's season, on its days -----------------------------------------------
+    for _, t in ipairs(d.tints or {}) do
+        local c = SEASON_RGB[tostring(t.season)]
+        if c then
+            for _, r in ipairs(month_runs(t.from, t.to, starts, len)) do
+                self:Bar(cell_x(r[2]), row_y(r[1]), (r[3] - r[2] + 1) * CELL_W - 1, CELL_H,
+                         c[1], c[2], c[3], 235, RESERVE)
+            end
+        end
+    end
+
     -- --- the day divisions ------------------------------------------------------------
     -- One hairline per day boundary, over the whole grid. Drawing 372 separate cells
     -- would look identical and cost twelve times the widgets, so the gaps are drawn
@@ -550,6 +617,25 @@ function SeasonsPDA:DrawGrid(d)
         self:Bar(cell_x(day + 1) - 1, ROW_Y0, 1, rows_h, 26, 28, 26, 220)
     end
 
+    -- --- the player's own ---------------------------------------------------------------
+    -- A line in the gap above each day of a season of their own, a dated event, a period
+    -- or a spell on. One that is on today glows, over a halo filling the gap; the rest
+    -- wait in a dimmer amber.
+    for _, mk in ipairs(d.marks or {}) do
+        for _, r in ipairs(month_runs(mk.from, mk.to, starts, len)) do
+            local x, w = cell_x(r[2]), (r[3] - r[2] + 1) * CELL_W - 1
+            local y = row_y(r[1])
+            if mk.active then
+                local h = self:Bar(x, y - HALO_H, w, HALO_H, HEAD_RGB[1], HEAD_RGB[2],
+                                   HEAD_RGB[3], 60, RESERVE)
+                if h then self.halos[#self.halos + 1] = h end
+            end
+            local line = self:Bar(x, y - 3, w, OVER_H, OVER_RGB[1], OVER_RGB[2], OVER_RGB[3],
+                                  255, RESERVE)
+            if line and mk.active then self.glow_bars[#self.glow_bars + 1] = line end
+        end
+    end
+
     -- --- the days the Zone marks ------------------------------------------------------
     -- Underlined rather than filled: the cell already carries its season, and a day that
     -- changes the weather has not stopped being a day in that season. The underline is
@@ -557,10 +643,11 @@ function SeasonsPDA:DrawGrid(d)
     -- both, one color with two meanings would have to pick one.
     --
     -- One red for every kind. The memorial-against-anniversary split the color used to
-    -- carry is said in words in the list below, which has room to say it properly.
+    -- carry is said in words in the lists, which have room to say it properly. A day MCM's
+    -- switches leave doing nothing is not marked.
     for _, day in ipairs(d.days or {}) do
         local m, dd = tonumber(day.month), tonumber(day.day)
-        if m and dd then
+        if m and dd and day.on ~= false then
             self:Bar(cell_x(dd), row_y(m) + CELL_H - MARK_H, CELL_W - 1, MARK_H,
                      MARK_RGB[1], MARK_RGB[2], MARK_RGB[3], 255)
         end
@@ -596,26 +683,72 @@ function SeasonsPDA:DrawGrid(d)
 end
 
 
+-- --- what has the season ------------------------------------------------------------------
+--
+-- The line under the date: a pin, the dice or a spell, each beside what the calendar
+-- reads; with the dice on, that they roll again; else the calendar's next turn. Returns
+-- the line, and whether the season is another than the calendar's, which glows.
+local function status(d)
+    local run = d.running or {}
+    local v = {season = d.label, Season = d.title}
+    if run.pinned then return sotz_text.text("st_sotz_year_by_pin", v), true end
+    if run.rolled then return sotz_text.text("st_sotz_year_by_dice", v), true end
+    if run.spell then
+        local _, m, day = tostring(run.spell.last):match("^(%d+)%-(%d+)%-(%d+)$")
+        v.name = run.spell.name
+        v.ends = sotz_text.date_short(tonumber(m), tonumber(day))
+        return sotz_text.text("st_sotz_year_by_spell", v), true
+    end
+    local nx = d.next
+    if not nx then return "", false end
+    if d.dice then return sotz_text.text("st_sotz_year_dice_again"), false end
+    local w = {season = nx.label, Season = nx.title}
+    if nx.days == 0 then return sotz_text.text("st_sotz_year_next_today", w), false end
+    if nx.days == 1 then return sotz_text.text("st_sotz_year_next_tomorrow", w), false end
+    return sotz_text.plural("st_sotz_year_next_in_days", nx.days, w), false
+end
+
+-- The seasons that are on and the player's own periods, in the order the year runs from
+-- spring: each period after the season its start falls in
+local function year_rows(d)
+    local out, len = {}, tonumber(d.year_len) or 365
+    for _, s in ipairs(d.seasons or {}) do
+        out[#out + 1] = {season = s}
+        local mine = {}
+        for _, p in ipairs(d.periods or {}) do
+            local off = ((tonumber(p.doy_from) or 0) - (tonumber(s.doy_from) or 0)) % len
+            if off < (tonumber(s.span) or 0) then mine[#mine + 1] = {off = off, period = p} end
+        end
+        table.sort(mine, function(a, b) return a.off < b.off end)
+        for _, x in ipairs(mine) do out[#out + 1] = {period = x.period} end
+    end
+    return out
+end
+
+
 function SeasonsPDA:Fill()
     self:ClearRows()
+    self.glow, self.alert_set = {}, nil
 
     local d = page()
     if not d then
         put(self.header, sotz_text.text("st_sotz_year_title"))
         put(self.subheader, sotz_text.text("st_sotz_year_unreadable"))
         put(self.turning, "")
-        put(self.marked, "")
         put(self.grid_cap_l, "")
         put(self.grid_cap_r, "")
         -- and clear the grid, or the last good year stays on screen with today's cell
         -- still breathing over it: a stale reading that looks live
         self:BlankGrid()
+        self.alert = false
         return
     end
 
-    -- a season's name in both its forms: `title` starts a line, `label` sits inside one
+    -- the season the Zone runs, in both its forms: `title` starts a line, `label` sits
+    -- inside one
+    local run = d.running or {key = d.season, label = d.label, title = d.title}
     put(self.header, sotz_text.text("st_sotz_year_header",
-                                    {season = d.label, Season = d.title}))
+                                    {season = run.label, Season = run.title}))
     put(self.subheader, d.today)
 
     -- the season's own accent strip; ours, so it cannot be missing
@@ -624,31 +757,13 @@ function SeasonsPDA:Fill()
         if not okb then say("accent bar failed: " .. tostring(d.bar)) end
     end
 
-    -- what the year does next, as one sentence each way it can be said
-    local nx = d.next
-    if nx then
-        local v = {season = nx.label, Season = nx.title}
-        if nx.days == 0 then
-            put(self.turning, sotz_text.text("st_sotz_year_next_today", v))
-        elseif nx.days == 1 then
-            put(self.turning, sotz_text.text("st_sotz_year_next_tomorrow", v))
-        else
-            put(self.turning, sotz_text.plural("st_sotz_year_next_in_days", nx.days, v))
-        end
-    else
-        put(self.turning, "")
-    end
-
-    -- today is one of the marked days, so say so on the same line: only one of the two
-    -- is ever the interesting one, and a line of its own for a thing that is blank 359
-    -- days a year is a hole in the header
-    if d.marked then
-        put(self.marked, sotz_text.text((d.marked.kind == "memorial")
-                                        and "st_sotz_year_quiet"
-                                        or  "st_sotz_year_loud"))
-    else
-        put(self.marked, "")
-    end
+    -- what has the season, and it glows when it is not the calendar. White first: the
+    -- page is kept between openings, and a glow left on it from a pin since taken off
+    -- would go on looking like one
+    local line, other = status(d)
+    put(self.turning, line)
+    if self.turning then self.turning:SetTextColor(GetARGB(255, 255, 255, 255)) end
+    if other and self.turning then self:Glow({self.turning}) end
 
     -- no dial is a calendar of the player's own that could not be drawn (no Pillow)
     if self.dial then
@@ -659,7 +774,7 @@ function SeasonsPDA:Fill()
         end
     end
 
-    -- the dial shows where the year stands; the caption gives the current span
+    -- the dial shows the calendar's year; the caption gives its current span
     put(self.dial_caption, "")
     for _, s in ipairs(d.seasons or {}) do
         if s.current then
@@ -677,34 +792,85 @@ function SeasonsPDA:Fill()
     -- --- the grid -----------------------------------------------------------------------
     self:DrawGrid(d)
     -- The month names and the day scale carry the axes, so the captions only say what
-    -- they cannot: where today falls as a number, and what the underlines are.
+    -- they cannot: where today falls as a number, and what the marks are.
     put(self.grid_cap_l, sotz_text.text("st_sotz_year_day_of",
                                         {day = tonumber(d.doy) or 0,
                                          days = tonumber(d.year_len) or 0}))
     put(self.grid_cap_r, sotz_text.text("st_sotz_year_key"))
 
-    -- --- the marked days, soonest first -----------------------------------------------
-    -- The wide column, so each day can say what it actually does rather than leaving it
-    -- to a color the player has to learn.
-    self:Section(1, sotz_text.text("st_sotz_year_marked_days"))
-    for _, day in ipairs(d.days or {}) do
-        -- White said "this is the one you are on" and nothing more. On the six days that
-        -- actually do something, the row wears the alarm color the grid cell does.
-        local does = DAY_TEXT[tostring(day.kind)]
-        self:Put(1, {{0, day.date}, {110, when_text(day.away)},
-                     {210, does and sotz_text.text(does) or ""}},
-                 day.today and MARK_RGB or LINE_RGB)
+    -- --- now, and coming up ----------------------------------------------------------
+    -- Now is what is on today beyond the season, each until its last day, glowing; the
+    -- Zone's own day alarms instead. Coming up is the next of each, soonest first: the
+    -- calendar's turn, the marked days, the player's own.
+    local now = d.now or {}
+    if #now > 0 then
+        self:Section(1, sotz_text.text("st_sotz_year_now"))
+        local shown = (#now > NOW_MOST) and (NOW_MOST - 1) or #now
+        for i = 1, shown do
+            local row = now[i]
+            local drawn = self:Put(1, {{0, fit(row.show, 16)}, {110, row.when},
+                                       {210, fit(row.what, 40)}},
+                                   row.alert and MARK_RGB or NOW_RGB)
+            if row.alert then
+                self.alert_set = drawn
+            else
+                self:Glow(drawn)
+            end
+        end
+        if #now > shown then
+            self:Put(1, {{0, sotz_text.plural("st_sotz_year_more", #now - shown)}},
+                     LINE_RGB)
+        end
+        self:Gap(1, 6)
+    end
+    local coming = d.coming or {}
+    if #coming > 0 then
+        self:Section(1, sotz_text.text("st_sotz_year_coming"))
+        for _, row in ipairs(coming) do
+            if not self:Put(1, {{0, row.date}, {110, row.when}, {210, fit(row.what, 40)}},
+                            LINE_RGB) then
+                break
+            end
+        end
     end
 
     -- --- the year, beside the dial that draws it ----------------------------------------
     -- Start dates, not lengths. The dial directly above prints every season's length
-    -- already - illegibly, at 236px, but it prints them - and the grid on the left shows
+    -- already - illegibly, at 212px, but it prints them - and the grid on the left shows
     -- each span at its true width. What neither can state exactly is the date a season
-    -- turns, which is the thing a stalker would actually want off this page.
+    -- turns, which is the thing a stalker would actually want off this page. The
+    -- calendar's season is white; the season running, when it is another, glows, and so
+    -- does a period of the player's own while it is on.
     self:Section(2, sotz_text.text("st_sotz_year_season_starts"))
-    for _, s in ipairs(d.seasons or {}) do
-        local since = sotz_text.text("st_sotz_year_from", {date = s.from})
-        self:Put(2, {{0, s.title}, {118, since}}, s.current and NOW_RGB or LINE_RGB)
+    local running = run.key
+    for _, r in ipairs(year_rows(d)) do
+        if r.season then
+            local s = r.season
+            local since = sotz_text.text("st_sotz_year_from", {date = s.from})
+            local glow = (s.key == running) and not s.current
+            local drawn = self:Put(2, {{0, fit(s.title, 17)}, {118, since}},
+                                   (s.current or glow) and NOW_RGB or LINE_RGB)
+            if glow then self:Glow(drawn) end
+        else
+            local p = r.period
+            local since = sotz_text.text("st_sotz_year_from", {date = p.from})
+            local drawn = self:Put(2, {{0, fit(p.show, 17)}, {118, since}},
+                                   p.on and NOW_RGB or LINE_RGB)
+            if p.on then self:Glow(drawn) end
+        end
+    end
+
+    -- the spells that can start today, with the chance of each a day; one on glows
+    local spells = d.spells or {}
+    if #spells > 0 then
+        self:Gap(2, 6)
+        self:Section(2, sotz_text.text("st_sotz_year_spells_in", {season = d.spells_in}))
+        for _, sp in ipairs(spells) do
+            local drawn = self:Put(2, {{0, fit(sp.show, 17)}, {118, odds(sp.chance)}},
+                                   sp.on and NOW_RGB or LINE_RGB)
+            if not drawn then break end
+            if sp.on then self:Glow(drawn) end
+        end
     end
 
     -- One line per open, naming what the page actually resolved. This page has the same
@@ -712,39 +878,61 @@ function SeasonsPDA:Fill()
     -- was never opened look identical from the log, so three quiet sessions proved only
     -- that nothing had crashed. cells is the count DrawGrid placed, which is the one
     -- number that cannot be produced by a page that failed to build.
-    say(string.format("season=%s day=%s/%s cells=%s days=%s seasons=%s",
-        tostring(d.season), tostring(d.doy), tostring(d.year_len),
-        tostring(self.bar_n), tostring(self.used[1]), tostring(self.used[2])))
+    say(string.format("season=%s running=%s day=%s/%s cells=%s rows=%s/%s now=%s glow=%s",
+        tostring(d.season), tostring(run.key), tostring(d.doy), tostring(d.year_len),
+        tostring(self.bar_n), tostring(self.used[1]), tostring(self.used[2]),
+        tostring(#now), tostring(#(self.glow or {}))))
 end
 
--- Two rhythms, and which one is running is itself the information.
+-- Three rhythms, and which one is running is itself the information.
 --
 -- An ordinary day BREATHES: 2.4 seconds, a slow nod that the page is live rather than a
 -- picture of a year. Six days out of three hundred and sixty five the Zone actually does
 -- something, and on those the cell ALARMS instead - the same 900ms square pulse the
 -- forecast strobes an approaching emission in, in the same red.
 --
+-- And what is on today GLOWS: the player's own seasons, events, periods and spells, a
+-- season another than the calendar's, in amber that swells to near white and back over
+-- two seconds, with a halo behind each line on the grid. Smooth, where the alarm is
+-- square, so the two never read as the same signal.
+--
 -- So the tell is the rhythm, not the color: you can see which kind of day it is from
 -- across the room without reading a word, which is most of the reason for drawing a year
--- as a grid at all. A fade would have been wrong here for the same reason it was wrong
--- there - a fade reads as decoration, a pulse reads as an alarm.
+-- as a grid at all. A fade would have been wrong for the alarm for the same reason it was
+-- wrong there - a fade reads as decoration, a pulse reads as an alarm.
 --
--- One color write per frame on one cell, two on an event day. Same budget as the
--- forecast page's live dot.
+-- One color write per frame on one cell, two on an event day, and one for each glowing
+-- widget. Same budget as the forecast page's live dot, plus the handful that is on.
 local PULSE_MS = 2400
 local ALERT_MS = 900
+local GLOW_MS  = 2000
+local GLOW_LO  = {214, 166, 82}
+local GLOW_HI  = {255, 238, 190}
 
 function SeasonsPDA:Update()
     CUIScriptWnd.Update(self)
     local ok, ms = pcall(time_global)
     if not (ok and type(ms) == "number") then return end
 
+    if (self.glow and #self.glow > 0) or (self.glow_bars and #self.glow_bars > 0) then
+        local f = 0.5 + 0.5 * math.sin((ms % GLOW_MS) / GLOW_MS * 6.2831853)
+        local r = math.floor(GLOW_LO[1] + (GLOW_HI[1] - GLOW_LO[1]) * f + 0.5)
+        local g = math.floor(GLOW_LO[2] + (GLOW_HI[2] - GLOW_LO[2]) * f + 0.5)
+        local b = math.floor(GLOW_LO[3] + (GLOW_HI[3] - GLOW_LO[3]) * f + 0.5)
+        local argb = GetARGB(255, r, g, b)
+        -- words take a text color, the grid's blocks a texture color
+        for _, w in ipairs(self.glow or {}) do w:SetTextColor(argb) end
+        for _, s in ipairs(self.glow_bars or {}) do s:SetTextureColor(argb) end
+        local halo = GetARGB(math.floor(30 + 110 * f), HEAD_RGB[1], HEAD_RGB[2], HEAD_RGB[3])
+        for _, h in ipairs(self.halos or {}) do h:SetTextureColor(halo) end
+    end
+
     if self.alert then
         local hot = (ms % ALERT_MS) < (ALERT_MS * 0.55)
         local c = hot and MARK_RGB or MARK_COOL
         local argb = GetARGB(255, c[1], c[2], c[3])
-        -- the line that names the day, and the cell it falls on, together
-        if self.marked    then self.marked:SetTextColor(argb) end
+        -- the row that names the day, and the cell it falls on, together
+        for _, w in ipairs(self.alert_set or {}) do w:SetTextColor(argb) end
         if self.today_bar then self.today_bar:SetTextureColor(argb) end
         return
     end

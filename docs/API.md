@@ -235,10 +235,17 @@ moves the frequency slider.
 ```lua
 { season = "autumn", label = "autumn", today = "September 22, 2026",
   next = { label = "winter", days = 40 },
-  marked = { kind = "memorial", key = "chernobyl" } }
+  marked = { kind = "memorial", key = "chernobyl" },
+  on = { { kind = "own", name = "Hunter's moon", last = "2026-10-31" } } }
 ```
 
 `today` is text to show, not to parse; since 2.0.0 it reads month first, as above.
+
+`on` lists what is on today beside the season (2.2.0): `kind` is `own` (a season of the
+player's own), `event`, `period` or `spell`, with the `name` configure.bat gave it;
+`weather`, with `freezing`, `thaw` or `heat`; or `marked`, with the Zone's day's key. `last`
+is its last day. It is the PDA's Now list, so a marked day whose MCM switches are all off
+is not in it.
 
 `season` is one of `spring`, `summer`, `autumn`, `winter`, `winter_snow` and
 `late_winter` (new in 1.8.0); `label` is the name to show, such as "deep winter", or the
