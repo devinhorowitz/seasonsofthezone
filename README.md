@@ -470,21 +470,21 @@ a fresh install.
 
 | Mod | Seasons | Notes |
 |---|---|---|
-| Project I.N.V.E.R.N.O — winter textures | `winter`, `winter_snow`, `late_winter` | Terrain, flora and levels. Must win over your grass mod and Atmospherics/SSS; it carries its own shader headers. |
-| I.N.V.E.R.N.O — "Partly snowy" ground detail | `winter`, `late_winter` | Patchy ground while the snow arrives and while it melts. Wins over the base INVERNO. |
-| C Consciousness Grass & Trees | `spring` / `summer` / `autumn` / the three winters | Four sets, one entry each; the Dead set covers all three winters, under the snow and through the thaw. Its grass placement does not change with the season, so that part stays mounted year-round and is not a seasonal entry. |
-| Grass and Trees by PanceRide | `summer` / `autumn` | Matching Summer and Autumn editions; two entries, one per season. |
-| Winter loading screens | `winter`, `winter_snow`, `late_winter` | Wins over your loading-screen mod. |
-| Winter PDA maps | `winter`, `winter_snow`, `late_winter` | Wins over every mod that ships map textures, INVERNO included. |
-| Swamp / ground fog | `late_winter`, `spring`, `autumn` | |
-| Colorful Autumn (a C-Consciousness and Boreal forest ground recolor) | `autumn` | A recolor of C-Consciousness's autumn set, so it wins over that set. |
-| Flora Optimize | `spring` / `summer` / `autumn` / the three winters | Four sets like C-Consciousness's, one entry each; Dead for the winters. |
-| Grizzly's Overgrown | `spring`, `summer` | |
-| Frozen grass for C-Consciousness | `winter`, `winter_snow` | |
-| Snow footsteps (INVERNO's base sounds) | `winter_snow` | Snow underfoot. Must win over every footstep mod, Dark Signal's included. |
-| Screen Space Shaders' ICE water | `winter_snow` | Frozen rivers and pools. Its `gamemtl.xr` is what makes ice sound like ice; without it, as when your footstep mod's table wins, frozen water sounds like water. Your own steps can still splash: see below. |
+| [Project I.N.V.E.R.N.O](https://www.moddb.com/mods/stalker-anomaly/addons/inverno-fx), winter textures | `winter`, `winter_snow`, `late_winter` | Terrain, flora and levels. Must win over your grass mod and Atmospherics/SSS; it carries its own shader headers. Version 1.09 also brings a cold-survival system with items of its own; see [seasonal snowfall](#optional-seasonal-snowfall). |
+| INVERNO's "Partly snowy textures", in its [extras folder](https://drive.google.com/drive/folders/1C2Ny5ULVsHmVEpWImK8dhYzrw8fzTboa) | `winter`, `late_winter` | Patchy ground while the snow arrives and while it melts. Wins over the base INVERNO. |
+| [C Consciousness Grass & Trees](https://www.moddb.com/mods/stalker-anomaly/addons/ccon-grass-n-trees) | `spring` / `summer` / `autumn` / the three winters | Four sets, one entry each; the Dead set covers all three winters, under the snow and through the thaw. Its grass placement does not change with the season, so that part stays mounted year-round and is not a seasonal entry. |
+| Grass and Trees by PanceRide, [Summer](https://www.moddb.com/mods/stalker-anomaly/addons/grass-and-trees-by-panceride-v10) and [Autumn](https://www.moddb.com/mods/stalker-anomaly/addons/grass-and-trees-by-panceride-autumn-edition-v1) | `summer` / `autumn` | Matching editions; two entries, one per season. |
+| [Winter Load Screens](https://www.moddb.com/mods/stalker-anomaly/addons/winterloadscreens) | `winter`, `winter_snow`, `late_winter` | Wins over your loading-screen mod. |
+| INVERNO's "Pda Maps v1", in its [extras folder](https://drive.google.com/drive/folders/1C2Ny5ULVsHmVEpWImK8dhYzrw8fzTboa) | `winter`, `winter_snow`, `late_winter` | Snowy PDA maps. Wins over every mod that ships map textures, INVERNO included. |
+| [Man I Love Fog](https://drive.google.com/file/d/17Q6CANnu_ZKkf63is14HwdPbTk1zM1cs/view) by Sickhowl ([his post](https://discord.com/channels/912320241713958912/1296365727472943158/1303770497758138398)) | `late_winter`, `spring`, `autumn` | Fog over the water in the Great Swamps, with density and distance in MCM. |
+| [Colorful Autumn](https://discord.com/channels/912320241713958912/1453922382145261669), a recolor of C-Consciousness and [Boreal's Forest Ground Textures](https://drive.google.com/file/d/1jP1Ai1-UL6nVVEc8Jx2oRl1rPC0nAKjl/view) | `autumn` | Recolors C-Consciousness's autumn set, so it wins over that set. |
+| [Grizzly's Overgrown Grass and Trees](https://www.moddb.com/mods/stalker-anomaly/addons/grizzlys-grass-tweaks) | `spring`, `summer` | |
+| INVERNO's "CCON Frozen Grass", in its [extras folder](https://drive.google.com/drive/folders/1C2Ny5ULVsHmVEpWImK8dhYzrw8fzTboa) | `winter`, `winter_snow` | Frozen grass for C-Consciousness. |
+| Snow footsteps, in [INVERNO](https://www.moddb.com/mods/stalker-anomaly/addons/inverno-fx)'s base module | `winter_snow` | Snow underfoot. Must win over every footstep mod, Dark Signal's included. |
+| The "04 - SSR Water - [ ICE VERSION ]" option of [Screen Space Shaders](https://www.moddb.com/mods/stalker-anomaly/addons/screen-space-shaders) | `winter_snow` | Frozen rivers and pools. Its `gamemtl.xr` is what makes ice sound like ice; without it, as when your footstep mod's table wins, frozen water sounds like water. Your own steps can still splash: see below. |
 
-The last six come from players' own setups.
+The last five come from players' own setups. The extras folder is the Google Drive folder
+INVERNO's ModDB page links to.
 
 **Ice under your own feet.** The Modded Exes read `gamedata/materials/material_pairs_*.ltx`
 after `gamemtl.xr`, and some sound mods use that to set the player's steps on water to
@@ -558,13 +558,14 @@ The gated presets are generated from your own files at launch. Switchable on the
 
 ## Optional: seasonal snowfall
 
-Project I.N.V.E.R.N.O's snowfall addon plays its particles off the weather alone, so it
-snows in September. `patches/apply_seasonal_snowfall.py` adds a seasonal layer: snow only
-in the three winters, lighter in the first and the last, seeds in spring, leaves in autumn,
-dust in the dry months, mist in the thaw.
+Project I.N.V.E.R.N.O's old snowfall addon, "Snowfall (light + Dynamic Fog)", plays its
+particles off the weather alone, so it snows in September. `patches/apply_seasonal_snowfall.py`
+adds a seasonal layer: snow only in the three winters, lighter in the first and the last,
+seeds in spring, leaves in autumn, dust in the dry months, mist in the thaw.
 
-It edits your own copy of the addon; none of INVERNO's code is shipped here. Install the
-standalone "Snowfall (light + Dynamic Fog)" addon, then, in your GAMMA folder:
+**INVERNO 1.09 no longer includes that addon.** It came with INVERNO up to 1.08, so the
+patch is for a copy you already have. It edits your own copy; none of INVERNO's code is
+shipped here. With the addon installed, in your GAMMA folder:
 
 ```
 py "mods\Seasons of the Zone\patches\apply_seasonal_snowfall.py"
@@ -577,6 +578,13 @@ look like INVERNO's script.
 
 The addon also ships an old `level_weathers.script`. Remove it: the patcher warns, and
 `--disable-weathers` renames it. See [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
+
+**INVERNO 1.09's own snowfall** is part of a cold-survival system in its base module: a
+freezing mechanic, an MCM page, frozen drinks, and a heating injector that traders sell.
+The patch does not apply to it. Set up as a seasonal mod, INVERNO and its snow are only on
+in the winters, but its items can tie a save to it: a save that holds them may not load once
+INVERNO is off in spring (see **Switch with care** under
+[Making a mod seasonal](#making-a-mod-seasonal)).
 
 ---
 
@@ -601,7 +609,7 @@ priority. It only has to be enabled. What does need placing:
 - the seasonal mods — `play.bat` keeps each just below the mod it wins over in MO2's list
   at every launch, and `py _tools\season.py status` reports any other mod that would still
   win its files;
-- INVERNO's snowfall addon — remove `level_weathers.script` from it;
+- INVERNO's old snowfall addon, if you have it — remove `level_weathers.script` from it;
 - never enable the old Season Flora prototype alongside this.
 
 A GAMMA launcher **Update** drops this mod and its companions from the load order.

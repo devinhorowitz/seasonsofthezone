@@ -19,6 +19,14 @@
   only the tab bar's two; the Relations page's layout has one, which it doesn't use. Now it
   changes `ui/pda.xml` and `ui/pda_16.xml` only, and only the tab control that holds the
   PDA's own sections.
+- **The README links every mod in its list.** Each mod in *Mods that work well this way*
+  links to its download, and the swamp fog has its name: Man I Love Fog, by Sickhowl.
+  INVERNO's partly snowy ground, winter PDA maps and frozen grass for C-Consciousness are in
+  the Google Drive folder its ModDB page links to. Flora Optimize is off the list: it came
+  from one player's setup, and no source for it could be found.
+- **The snowfall section says INVERNO 1.09 no longer includes the snowfall addon** the
+  patch works on, and what 1.09's own snowfall brings: a cold-survival system with items of
+  its own, which can tie a save to INVERNO once it is a seasonal mod.
 
 ## 2.2.0 — 2026-10-03
 

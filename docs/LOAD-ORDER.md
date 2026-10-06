@@ -13,7 +13,8 @@ examples only.
   puts them there at every launch; `whowins` tells you which mod that is, and
   `season.py status` reports anything higher up that would override them.
 - **Seasonal Soundscape** is generated at launch and placed directly above its source mod.
-- **INVERNO's snowfall addon: anywhere, once `level_weathers.script` is removed from it.**
+- **INVERNO's old snowfall addon, if you have it: anywhere, once `level_weathers.script` is
+  removed from it.**
 - **Never enable** the old Season Flora prototype alongside this mod.
 - A GAMMA launcher **Update** drops all of the above from MO2's mod list. Recover from a
   snapshot, not by re-checking mods where MO2 put them.
@@ -132,8 +133,14 @@ next launch.
 
 ## INVERNO's snowfall addon
 
-Install the standalone "Snowfall (light + Dynamic Fog)" addon and run
-`patches/apply_seasonal_snowfall.py` on it. Its position does not matter: nothing else
+The standalone "Snowfall (light + Dynamic Fog)" addon came with INVERNO up to 1.08, and 1.09
+no longer includes it. The patch does not apply to 1.09's own snowfall, which is part of a
+cold-survival system in its base module (see the README's
+[seasonal snowfall](../README.md#optional-seasonal-snowfall)). The rest of this section is
+for a copy of the old addon.
+
+With the addon installed, run `patches/apply_seasonal_snowfall.py` on it. Its position
+does not matter: nothing else
 ships `yawm_snowfall.script`, its snow particle files are identical to the stock Particles
 Cinematic VFX copies, and the gate finds Seasons of the Zone by module name. Keep the
 addon enabled all year; the gate decides what plays in each season. Do not put it in
