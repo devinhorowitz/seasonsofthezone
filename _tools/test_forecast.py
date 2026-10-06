@@ -713,7 +713,9 @@ def t_mcm_status():
     # a row carries its string id, and MCM shows translate_string of it
     shown = translator()
 
-    def run(has_mac, source, raises=False):
+    def run(has_mac, source, raises=False, launcher_tab=None, key=None):
+        """launcher_tab: what the PDA's tab bar was read with (None: not read yet, as at the
+        main menu); key: the app key as saved (None: unbound)."""
         def setup(lua, g):
             g.mac_mcm = lua.table_from({"add_app": lambda *a: None}) if has_mac else None
 
@@ -722,6 +724,9 @@ def t_mcm_status():
                     raise RuntimeError("weather_source broke")
                 return source
             g.zzz_seasons_of_the_zone = lua.table_from({"weather_source": ws})
+            bar = None if launcher_tab is None else lua.table_from({"launcher": launcher_tab})
+            g.modxml_seasons_pda = lua.table_from({"tab_bar": lambda: bar})
+            g.sotz_pda = lua.table_from({"app_key": lambda only_saved=None: key})
         lua, g, fx = expose("zzz_seasons_of_the_zone_mcm.script", ["dependency_rows"], setup)
         out = lua.table_from({})
         fx.dependency_rows(out)
@@ -749,7 +754,52 @@ def t_mcm_status():
     assert run(True, "plan")["status_weather"][1] == gray
     # a failure in the check is reported as the broken case, not swallowed as fine
     assert run(True, "plan", raises=True)["status_weather"][1] == red
-    return "MAC and weather flagged red only when broken; stock GAMMA reads gray"
+
+    # The app key opens the app without MAC or any PDA tab, so with a key set nothing is red
+    keyed = run(False, "stock", key=59)
+    assert keyed["status_mac"][1] == gray, "no MAC but a key set, and still red"
+    assert "key below" in keyed["status_mac"][0], keyed["status_mac"][0]
+    # MAC installed, but the tab bar the game read has no Launcher: another mod's pda_16.xml
+    # won. Red until a key is set; gray after.
+    lost = run(True, "stock", launcher_tab=False)
+    assert lost["status_mac"][1] == red, "the Launcher tab is gone and no key, but not red"
+    assert "taken the place" in lost["status_mac"][0], lost["status_mac"][0]
+    assert run(True, "stock", launcher_tab=False, key=59)["status_mac"][1] == gray
+    # the bar as MAC ships it, or not read yet (the main menu): the plain line
+    for tab in (True, None):
+        row = run(True, "stock", launcher_tab=tab)["status_mac"]
+        assert row[1] == gray and "Mod App Creator launcher" in row[0], (tab, row)
+    return ("MAC, the app key and weather flagged red only when broken; a Launcher tab lost "
+            "to another mod's tab bar reads red until a key is set")
+
+
+def t_mcm_key_bind_label():
+    """MCM labels an option ui_mcm_<hint>, else ui_mcm_<path>_<id>; opt() gives every
+    captioned kind the hint, so a key bind's label is ui_mcm_seasons_zone_<id> on any page,
+    as the string table and test_mcm_strings have it."""
+    lua, g, fx = expose("zzz_seasons_of_the_zone_mcm.script", ["opt"])
+    t = fx.opt(lua.table_from({"id": "app_key", "type": "key_bind", "val": 2, "def": -1}))
+    assert t.hint == "seasons_zone_app_key", "the key bind's hint is %r" % t.hint
+    d = fx.opt(lua.table_from({"id": "line9", "type": "line"}))
+    assert d.hint is None, "a line got a hint: %r" % d.hint
+    return "a key bind gets the page-free hint; an unlabeled row gets none"
+
+
+def t_mcm_reads_the_saved_key():
+    """ui_mcm.get asserts while MCM builds its page, so the status line asks for the saved
+    value only. A call without it would assert on every open of MCM."""
+    calls = []
+
+    def setup(lua, g):
+        g.mac_mcm = None
+        g.zzz_seasons_of_the_zone = lua.table_from({"weather_source": lambda: "stock"})
+        g.modxml_seasons_pda = lua.table_from({"tab_bar": lambda: None})
+        g.sotz_pda = lua.table_from({"app_key": lambda only_saved=None: calls.append(
+            only_saved)})
+    lua, g, fx = expose("zzz_seasons_of_the_zone_mcm.script", ["dependency_rows"], setup)
+    fx.dependency_rows(lua.table_from({}))
+    assert calls == [True], "dependency_rows asked for the key as %r" % calls
+    return "the status line reads the key with app_key(true)"
 
 
 # --- the realistic forecast --------------------------------------------------------------
@@ -987,6 +1037,8 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("source at menu", t_source_from_menu),
              ("stock page text", t_stock_page_text),
              ("mcm status", t_mcm_status),
+             ("mcm saved key", t_mcm_reads_the_saved_key),
+             ("mcm key label", t_mcm_key_bind_label),
              ("forecast calls", t_forecast_calls),
              ("calibration", t_forecast_calibration),
              ("converges", t_forecast_converges),

@@ -17,6 +17,13 @@
 		<text>Свет, листва, туман, ветер, влажность и снегопад следуют за реальной датой от сезона к сезону и меняются прямо во время игры. Сезонов шесть, как в календаре Полесья, если в configure.bat не заданы свои. Текстуры земли и травы так не могут: движок загружает их один раз, поэтому play.bat подменяет их до запуска игры.</text>
 	</string>
 
+	<!-- the app key: a window of its own, outside the PDA (sotz_pda) -->
+	<string id="ui_mcm_seasons_zone_app_key">
+		<text>Открыть приложение «Сезоны»</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_app_key_desc">
+		<text>Открывает приложение «Сезоны» в отдельном окне, вне КПК. Ему не нужны ни вкладка КПК, ни Mod App Creator, поэтому оно откроется, даже если вкладки КПК другого мода заняли место меню Mod App Creator. С трёхмерным КПК окно к тому же чётче. Закрывается клавишей Esc, этой же клавишей или кнопкой «Назад».</text>
+	</string>
 	<string id="ui_mcm_seasons_zone_enabled">
 		<text>Включить сезонную атмосферу</text>
 	</string>
@@ -324,8 +331,9 @@
 	     st_seasons_of_the_zone.xml, which says how they work. -->
 
 	<!-- Main page: whether what the PDA app needs is here -->
-	<string id="ui_mcm_seasons_zone_status_mac"><text>КПК: приложение «Сезоны» запускается из меню Mod App Creator.</text></string>
-	<string id="ui_mcm_seasons_zone_status_no_mac"><text>Mod App Creator не найден. Приложение КПК «Сезоны» запускается из его меню — установите Mod App Creator, чтобы открыть приложение.</text></string>
+	<string id="ui_mcm_seasons_zone_status_mac"><text>КПК: приложение «Сезоны» запускается из меню Mod App Creator или клавишей ниже.</text></string>
+	<string id="ui_mcm_seasons_zone_status_no_tab"><text>КПК: вкладки КПК другого мода заняли место вкладки меню Mod App Creator. Приложение «Сезоны» открывается клавишей ниже, а собственная клавиша Mod App Creator по-прежнему открывает его меню.</text></string>
+	<string id="ui_mcm_seasons_zone_status_no_mac"><text>Mod App Creator не найден: приложение «Сезоны» открывается клавишей ниже.</text></string>
 	<string id="ui_mcm_seasons_zone_status_plan"><text>Погода: дневной планировщик Atmospherics. Прогноз охватывает все предстоящие смены погоды.</text></string>
 	<string id="ui_mcm_seasons_zone_status_stock"><text>Погода: планировщик базовой игры, который использует GAMMA. Прогноз показывает текущую погоду, время её смены и шансы для следующей — её планировщик выбирает случайно, когда приходит время. Atmospherics 2.69 планирует весь день заранее.</text></string>
 	<string id="ui_mcm_seasons_zone_status_none"><text>Менеджер погоды не найден, поэтому страница «Прогноз» не может показать погоду. Всё остальное в моде работает.</text></string>

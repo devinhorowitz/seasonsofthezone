@@ -15,10 +15,15 @@ Year** and **Forecast**. There is no HUD element, no pop-up and no key binding.
 
 At the top, under the summary, two lines show what the PDA app needs:
 
-- **Mod App Creator.** The Seasons PDA app opens from its launcher. Red if it's missing.
+- **Mod App Creator.** The Seasons app opens from its launcher, or with the key below. Red
+  while it has no way in: Mod App Creator is missing, or another mod's PDA tabs have taken
+  the place of its Launcher tab, and no key is set.
 - **The weather scheduler.** The base game's, which GAMMA uses, or Atmospherics' day planner
   if you've installed it. This sets how far ahead the forecast can see; see [Forecast](#forecast--the-pda-page).
   Red only if there's no weather manager at all.
+
+Under them, **Open the Seasons app** sets a key that opens the app in a window of its own,
+outside the PDA. It is unset until you pick one; see [The Seasons app](#the-seasons-app).
 
 The page opens with a short summary, today's date, and a dial of the year with the needle
 on the current day. Each wedge is sized by the season's real length: summer is a third of
@@ -160,8 +165,13 @@ another than the calendar's. It opens on The Year, and a switch at the top of th
 column moves between **The Year** and **Forecast**. The page you're on is lit. Both pages
 wear the running season's accent bar.
 
-Without Mod App Creator the app can't be opened, and MCM's Main page shows that in red. For a
-standalone version that works without MAC, see the note at the top of `sotz_pda.script`.
+The app also opens on a key you set on MCM's Main page (**Open the Seasons app**), in a window
+of its own drawn in the 2D PDA's frame. The switch works the same, and Escape, the key again
+or Back closes it. This way in needs no PDA tab and no Mod App Creator. The PDA's tab bar is
+one file, `ui/pda_16.xml`, that Mod App Creator ships whole, and so do some mods that add
+tabs of their own; only one copy is used, and the other's tabs are gone. If that takes
+Mod App Creator's Launcher tab, MCM's Main page says so, and the key still opens the app.
+With the 3D PDA on, the window is also sharper than the screen in hand.
 
 ## The Year — the calendar page
 

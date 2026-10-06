@@ -463,6 +463,13 @@ def english_on_screen(s, allowed=None):
 ID = re.compile(r"^(?:st_sotz_|ui_mcm_seasons_zone_|pda_btn_|pda_app_)[a-z0-9_]*$"
                 r"|^seasons_zone_[a-z0-9_]*_lst_[a-z0-9_]*$")
 
+# Ids that look like ours and belong to another mod, named on purpose. Each says whose.
+NOT_OURS = {
+    # MAC's Launcher, which modxml_seasons_pda parks in a tab bar that lacks it, and only
+    # with MAC installed; MAC's st_mac.xml has the string, so the PDA's caption reads as MAC's
+    "pda_btn_launcher": "Mod App Creator, st_mac.xml",
+}
+
 CALLS = ("text", "plural")
 
 
@@ -532,7 +539,7 @@ def ids_in(scripts, have, known=None):
                     continue
                 bad += ["%s: %s" % (where, x) for x in known[body(tok)]
                         if not resolves(x, have)]
-            elif not resolves(body(tok), have):
+            elif not resolves(body(tok), have) and body(tok) not in NOT_OURS:
                 bad.append("%s: %s" % (where, body(tok)))
         # a helper asked for a whole literal id, whatever it looks like
         for open_i, helper in calls(s):

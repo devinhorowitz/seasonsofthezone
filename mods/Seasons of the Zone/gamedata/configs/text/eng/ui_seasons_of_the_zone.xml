@@ -17,6 +17,13 @@
 		<text>Light, foliage, fog, wind, wetness and snowfall follow the real-world date through the seasons, Polesia's six unless configure.bat has set your own, and change as you play. Terrain and grass textures can't: the engine loads them once, so play.bat swaps them before the game starts.</text>
 	</string>
 
+	<!-- the app key: a window of its own, outside the PDA (sotz_pda) -->
+	<string id="ui_mcm_seasons_zone_app_key">
+		<text>Open the Seasons app</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_app_key_desc">
+		<text>Opens the Seasons app in a window of its own, outside the PDA. It needs no PDA tab and no Mod App Creator, so it still opens when another mod's PDA tabs take the place of MAC's Launcher. With the 3D PDA on, the window is also sharper. Escape, the key again or Back closes it.</text>
+	</string>
 	<string id="ui_mcm_seasons_zone_enabled">
 		<text>Enable seasonal atmosphere</text>
 	</string>
@@ -324,8 +331,9 @@
 	     st_seasons_of_the_zone.xml, which says how they work. -->
 
 	<!-- Main page: whether what the PDA app needs is here -->
-	<string id="ui_mcm_seasons_zone_status_mac"><text>PDA: the Seasons app opens from the Mod App Creator launcher.</text></string>
-	<string id="ui_mcm_seasons_zone_status_no_mac"><text>Mod App Creator not found. The Seasons PDA app opens from its launcher, so install Mod App Creator to use it.</text></string>
+	<string id="ui_mcm_seasons_zone_status_mac"><text>PDA: the Seasons app opens from the Mod App Creator launcher, or with the key below.</text></string>
+	<string id="ui_mcm_seasons_zone_status_no_tab"><text>PDA: another mod's PDA tabs have taken the place of Mod App Creator's Launcher tab. The Seasons app opens with the key below, and MAC's own launcher key still opens the launcher.</text></string>
+	<string id="ui_mcm_seasons_zone_status_no_mac"><text>Mod App Creator not found: the Seasons app opens with the key below.</text></string>
 	<string id="ui_mcm_seasons_zone_status_plan"><text>Weather: Atmospherics' day planner. The forecast covers every change ahead.</text></string>
 	<string id="ui_mcm_seasons_zone_status_stock"><text>Weather: the base game's scheduler, which GAMMA uses. The forecast shows the sky now, when it turns, and the odds for the next sky, which the scheduler draws at random when the time comes. Atmospherics 2.69 plans the whole day ahead.</text></string>
 	<string id="ui_mcm_seasons_zone_status_none"><text>No weather manager was found, so the Forecast page can't show the sky. The rest of the mod works.</text></string>

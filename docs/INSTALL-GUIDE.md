@@ -12,8 +12,8 @@ screenshots is `C:\GAMMA`; yours is wherever `ModOrganizer.exe` is.
 
 ## Before you start
 
-- **GAMMA** through **Mod Organizer 2**, with **MCM** and **Mod App Creator**, which the
-  PDA app opens from.
+- **GAMMA** through **Mod Organizer 2**, with **MCM**. **Mod App Creator** is optional: the
+  PDA app opens from its launcher, or on a key you set in MCM.
 - **Python 3** from [python.org](https://www.python.org/downloads/), for `configure.bat`
   and `play.bat`. Check **Add python.exe to PATH** as it installs.
 - **The seasonal mods you want switched**, installed in MO2 like any other mod. The

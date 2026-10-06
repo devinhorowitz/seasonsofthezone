@@ -11,8 +11,19 @@
     barometer (ui_seasons_forecast, 384x384) and the season accent bar
     (ui_season_hdr_<season>, 256x16). The shared PDA frame textures other tab-adding mods
     borrow are declared in NO texture_descr in a stock install, which is why those pages
-    log "Can't find texture".
+    log "Can't find texture". The flat window's frame is the one exception: the PDA's own
+    body, which the base game declares (ui_actor_pda.xml) because pda_16.xml draws it.
 -->
+    <!-- the flat window only (the app key): the 2D PDA's frame behind the page, and the
+         face's name where the PDA prints a section's - pda_16.xml's background_static and
+         caption_static, at the same offsets -->
+    <flat_bezel x="-10" y="-34" width="819" height="768" stretch="1">
+        <texture>ui_inGame2_pda_texture</texture>
+    </flat_bezel>
+    <flat_caption x="29" y="28" width="748" height="17">
+        <text font="letterica16" align="l" r="170" g="170" b="170"/>
+    </flat_caption>
+
     <background x="28" y="106" width="764" height="603" stretch="1"/>
 
     <header x="52" y="120" width="440" height="28">

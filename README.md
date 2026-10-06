@@ -180,7 +180,8 @@ of the mod that writes to your save.
   the twenty values are SSS's own; an older exe does not have them, and the mod says so in
   the log.
 - **MCM**
-- **Mod App Creator**, for the PDA app. MCM's Main page shows in red if it's missing.
+- **Mod App Creator**, for the PDA app's tile in its launcher. Without it, the app opens on a
+  key you set on MCM's Main page, which shows in red while the app has no way in.
 - **Python 3**, for `play.bat` and `configure.bat` only. The python.org installer is
   enough.
 - For some things only: the py7zr package to open a `.7z` - an optional `LAYOUT` texture
@@ -197,12 +198,13 @@ of the mod that writes to your save.
 | Foliage, fog, wind, wetness | no | with Screen Space Shaders |
 | The six marked days | yes | yes |
 | The read API for other mods | yes | yes |
-| The Seasons PDA app | no | with Mod App Creator |
+| The Seasons PDA app | on a key | on a key, and from Mod App Creator |
 | Texture and sound staging | with MO2 portable and Python | same |
 
 - Foliage, fog, wind, and wetness use Screen Space Shaders' engine commands, which only exist
   in Modded Exes. Without them the mod logs it once and skips those layers.
-- The PDA app needs Mod App Creator, which requires Modded Exes.
+- The PDA app opens on a key you set in MCM, in a window of its own. Mod App Creator, which
+  requires Modded Exes, adds a tile in its launcher.
 - Staging works with any MO2 portable install. It reads the game path and profile from
   `ModOrganizer.ini`.
 - The anniversary artifacts need Dynamic Anomalies Overhaul.

@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+- **The Seasons app opens on a key.** MCM's Main page has **Open the Seasons app**, unset
+  until you pick a key. It opens The Year in a window of its own, drawn in the 2D PDA's
+  frame; the switch moves to Forecast, and Escape, the key again or Back closes it. This way
+  in needs no PDA tab and no Mod App Creator, and with the 3D PDA on, the window is sharper
+  than the screen in hand.
+- **Mods that ship their own PDA tab bar.** The bar is one file, `ui/pda_16.xml`, which Mod
+  App Creator ships whole, and so do mods that add tabs of their own, such as INTERFECTOR's
+  PDA Trading. The game uses one copy, so the other's tabs are gone: with MAC's, the other
+  mod's tabs; with the other mod's, MAC's Launcher, and the Seasons tile with it. MCM's Main
+  page now says when the Launcher tab is missing and the app needs its key. With MAC
+  installed, the mod adds a hidden Launcher section to a bar without one, so MAC's own
+  launcher key and the app's Back button still reach the launcher.
+- **The PDA hook changes the tab bar and nothing else.** It added the app's two hidden
+  sections to the first tab control in every PDA layout file, `ui/pda*.xml`, where it meant
+  only the tab bar's two; the Relations page's layout has one, which it doesn't use. Now it
+  changes `ui/pda.xml` and `ui/pda_16.xml` only, and only the tab control that holds the
+  PDA's own sections.
+
 ## 2.2.0 — 2026-10-03
 
 - **The dice can roll the season at launch.** MCM's Main page has **Roll the season at

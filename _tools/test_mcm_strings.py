@@ -130,6 +130,24 @@ def t_a_full_id_as_a_label_is_caught():
     return "the old units key is reported"
 
 
+@case
+def t_the_app_key_is_where_sotz_pda_reads_it():
+    """The key is stored as seasons_zone/<page>/<id>, and sotz_pda reads one fixed path. A
+    move to another page, or a renamed id, would leave the key read from where nothing is.
+    Unbound (-1) as it ships, and val 2, which MCM requires of a key bind."""
+    found = [(page, body) for page, body in calls(read(MCM))
+             if re.match(r'\{\s*id\s*=\s*"app_key"', body)]
+    assert len(found) == 1, "%d app_key options in the MCM script" % len(found)
+    page, body = found[0]
+    assert page == "main", "the app key is on page_%s" % page
+    for field in ('type = "key_bind"', "val = 2", "def = -1"):
+        assert field in body, "the app key's option lacks %s: %s" % (field, body)
+    pda = read(os.path.join(GD, "scripts", "sotz_pda.script"))
+    path = re.search(r'^KEY_PATH = "([^"]+)"', pda, re.M)
+    assert path and path.group(1) == "seasons_zone/main/app_key", path and path.group(1)
+    return "app_key on the Main page, unbound, at the path sotz_pda reads"
+
+
 if __name__ == "__main__":
     print("  checking the MCM strings")
     bad = 0

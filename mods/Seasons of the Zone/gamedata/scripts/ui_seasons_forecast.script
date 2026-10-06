@@ -11,10 +11,18 @@
 -- Mod App Creator calls get_ui() and expects a CUIScriptWnd back. Registration lives in
 -- z_seasons_pda_mac.script, so this file does not care whether MAC is installed.
 --
+-- The same page also opens flat (sotz_pda.open_flat): a window of its own in the 2D PDA's
+-- frame, reached from The Year's flat window. Escape, the app key or Back closes it, and
+-- the switch trades it for The Year's.
+--
 -- Every word on the page is a string id, st_sotz_* in st_seasons_of_the_zone.xml, read
 -- through sotz_text. The only English left in this file is what goes to the log.
 
 local SINGLETON = nil
+local FLAT = nil        -- the page in its own window, while it exists
+-- The PDA's pages sit this far into the screen (pda_16.xml's <main>), and so does the flat
+-- window, so its frame and page land where the 2D PDA's would.
+local PDA_X, PDA_Y = 112, 34
 
 local function say(msg)
     printf("%s", "[seasons-forecast] " .. tostring(msg))
@@ -277,21 +285,33 @@ end
 
 class "SeasonsForecast" (CUIScriptWnd)
 
-function SeasonsForecast:__init() super()
+function SeasonsForecast:__init(flat) super()
+    self.flat = flat == true
     self:InitControls()
 end
 
 function SeasonsForecast:__finalize()
-    SINGLETON = nil
+    if self.flat then
+        FLAT = nil
+    else
+        SINGLETON = nil
+    end
 end
 
 function SeasonsForecast:InitControls()
-    self:SetWndRect(Frect():set(0, 0, 1024, 768))
+    local x, y = self.flat and PDA_X or 0, self.flat and PDA_Y or 0
+    self:SetWndRect(Frect():set(x, y, x + 1024, y + 768))
 
     local xml = CScriptXmlInit()
     xml:ParseFile("ui_seasons_forecast.xml")
     self.xml = xml
 
+    -- flat: the 2D PDA's frame behind the page, and the face's name where the PDA prints a
+    -- section's
+    if self.flat then
+        xml:InitStatic("flat_bezel", self)
+        put(xml:InitTextWnd("flat_caption", self), sotz_text.text(sotz_pda.VIEWS.forecast.title))
+    end
     xml:InitStatic("background", self)
     self.header    = xml:InitTextWnd("header", self)
     self.bar       = xml:InitStatic("bar", self)
@@ -435,15 +455,31 @@ function SeasonsForecast:InitToggle()
     end
 end
 
+-- in the PDA, the other face's section; flat, the other face's window in place of this one
 function SeasonsForecast:OnToggle()
-    sotz_pda.open(sotz_pda.VIEWS.year.tab)
+    if self.flat then
+        sotz_pda.open_flat("year")
+    else
+        sotz_pda.open(sotz_pda.VIEWS.year.tab)
+    end
 end
 
+-- back to MAC's launcher; flat, out of the window
 function SeasonsForecast:OnBack()
+    if self.flat then
+        self:Close()
+        return
+    end
     local ok, err = pcall(function()
         ActorMenu.get_pda_menu():SetActiveSubdialog("eptLauncher")
     end)
     if not ok then say("back to launcher failed: " .. tostring(err)) end
+end
+
+function SeasonsForecast:Close()
+    if self:IsShown() then
+        self:HideDialog()
+    end
 end
 
 
@@ -1169,9 +1205,10 @@ end
 function SeasonsForecast:OnKeyboard(dik, action)
     local res = CUIScriptWnd.OnKeyboard(self, dik, action)
     if res then return res end
-    if action == ui_events.WINDOW_KEY_PRESSED and dik == DIK_keys.DIK_ESCAPE then
+    if action == ui_events.WINDOW_KEY_PRESSED
+       and (dik == DIK_keys.DIK_ESCAPE or (self.flat and dik == sotz_pda.app_key())) then
         -- escape used to be swallowed here, which left the page with no way out but the
-        -- launcher key. It goes back now.
+        -- launcher key. It goes back now; flat, it and the app key close the window.
         self:OnBack()
         return true
     end
@@ -1182,4 +1219,24 @@ function get_ui()
     SINGLETON = SINGLETON or SeasonsForecast()
     SINGLETON:Reset()
     return SINGLETON
+end
+
+-- The page in a window of its own, filled afresh each time it opens. sotz_pda.open_flat
+-- calls this; it closes The Year's window first.
+function open_flat()
+    FLAT = FLAT or SeasonsForecast(true)
+    if not FLAT:IsShown() then
+        FLAT:Reset()
+        FLAT:ShowDialog(true)
+    end
+    return FLAT
+end
+
+function close_flat()
+    if FLAT then FLAT:Close() end
+end
+
+-- the flat window, while it is open
+function flat_window()
+    return (FLAT and FLAT:IsShown()) and FLAT or nil
 end

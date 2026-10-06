@@ -10,6 +10,10 @@ it does not break this mod's pages - it breaks the player's whole PDA. So these 
 claims only its own two sections, hands every other one down with all its arguments, contains
 a page that fails to build, never wraps twice, and works whichever order it and MAC install in.
 
+Then the tab bar hook (modxml_seasons_pda): only ui/pda.xml and ui/pda_16.xml, only the <tab>
+of the PDA's own sections, and a parked Launcher when MAC is installed but another mod's bar
+won. And the app key: the shipped page scripts opened flat, switched, and closed.
+
   python _tools/test_pda.py
 """
 import io
@@ -306,6 +310,301 @@ def t_one_name_for_each_section():
         assert not stray, "%s spells %s out by hand instead of using sotz_pda.VIEWS" % (
             f, stray)
     return "sotz_pda, the xml injection and every caller agree on both section ids"
+
+
+# --- the tab bar: which file, which <tab>, and MAC's Launcher -----------------------------------
+#
+# The bar is ui/pda_16.xml (and ui/pda.xml, which includes it), and several mods ship it
+# whole. These run the shipped modxml_seasons_pda.script over bars shaped like MAC's and like
+# a mod's that adds tabs of its own and has no Launcher (INTERFECTOR's PDA Trading), through a
+# stand-in for DXML that does what DXML does: query hands back the <tab> elements, and
+# insertFromXMLString appends the button the string describes.
+
+DXML = r"""
+function mktab(ids)
+    local el = {name = "tab", kids = {}}
+    for _, id in ipairs(ids) do
+        if id == "caption" then
+            el.kids[#el.kids + 1] = {name = "caption", attribs = {}}
+        else
+            el.kids[#el.kids + 1] = {name = "button", attribs = {id = id}}
+        end
+    end
+    return el
+end
+
+function mkdxml(tabs)
+    local o = {tabs = tabs, inserted = {}}
+    function o:query(q)
+        if q ~= "tab" then error("unexpected query " .. tostring(q)) end
+        return self.tabs
+    end
+    function o:insertFromXMLString(s, where)
+        local id = s:match('id="([^"]+)"')
+        local parked = s:match('x="1000"') ~= nil and s:match('width="0"') ~= nil
+        where.kids[#where.kids + 1] = {name = "button", attribs = {id = id}, parked = parked}
+        self.inserted[#self.inserted + 1] = id
+    end
+    return o
+end
+
+function ids_of(el)
+    local t = {}
+    for _, k in ipairs(el.kids) do
+        t[#t + 1] = (k.name == "button") and k.attribs.id or k.name
+    end
+    return t
+end
+"""
+
+MAC_BAR = ["eptTasks", "eptLauncher", "eptRanking", "eptRelations", "eptContacts",
+           "eptEncyclopedia", "eptRadio", "eptLogs", "eptTaskboard", "eptInteractive"]
+OTHER_BAR = ["eptTasks", "eptTaskboard", "eptRanking", "eptRelations", "eptContacts",
+             "eptEncyclopedia", "eptRadio", "eptTrading", "eptLogs"]
+
+
+def load_modxml(mac):
+    lua = LuaRuntime(unpack_returned_tuples=True)
+    g = lua.globals()
+    lua.execute(PRELUDE)
+    lua.execute(DXML)
+    logs = []
+    g.printf = lambda fmt, *a: logs.append(str(a[0]) if a else str(fmt))
+    g.dxml_core = lua.table_from({})
+    g.mac_mcm = lua.table_from({"add_app": lambda *a: None}) if mac else None
+    hooks = {}
+    g.RegisterScriptCallback = lambda name, fn: hooks.setdefault(name, []).append(fn)
+    mod = load("modxml_seasons_pda.script", g, lua)
+    mod.on_game_start()
+    return lua, g, mod, hooks["on_xml_read"][0], logs
+
+
+def lseq(t):
+    return [t[i] for i in range(1, len(t) + 1)]
+
+
+@case
+def t_the_tab_bar_files_and_no_others():
+    lua, g, mod, read_xml, _ = load_modxml(mac=True)
+    for name in ("ui\\pda.xml", "ui\\pda_16.xml", "ui/pda_16.xml", "UI\\PDA_16.XML"):
+        assert mod.is_bar_file(name) is True, "%s is the tab bar and was refused" % name
+    for name in ("ui\\pda_relations_16.xml", "ui\\pda_taskboard_16.xml", "ui\\pda_apps_16.xml",
+                 "ui\\pda_xcvb.xml", "ui\\pda_trading_16.xml", "ui\\pda_relations_f10.xml",
+                 "gameplay\\pda_16.xml", "ui\\pda_16.xml.bak"):
+        assert mod.is_bar_file(name) is False, "%s is not the tab bar and was taken" % name
+    # through the callback: another PDA page, even one with sections in a <tab>, is left alone
+    tab = g.mktab(lua.table_from(["eptTasks", "eptTrading"]))
+    x = g.mkdxml(lua.table_from([tab]))
+    read_xml("ui\\pda_trading_16.xml", x)
+    assert lseq(x.inserted) == [], "a page other than the bar got %s" % lseq(x.inserted)
+    assert mod.tab_bar() is None, "a page other than the bar was recorded as the bar"
+    return "ui/pda.xml and ui/pda_16.xml only; pda_relations_16.xml and the rest untouched"
+
+
+@case
+def t_both_faces_parked_in_macs_bar():
+    lua, g, mod, read_xml, logs = load_modxml(mac=True)
+    bar = g.mktab(lua.table_from(MAC_BAR))
+    read_xml("ui\\pda_16.xml", g.mkdxml(lua.table_from([bar])))
+    ids = lseq(g.ids_of(bar))
+    assert ids == MAC_BAR + ["eptSeasons", "eptForecast"], ids
+    kids = lseq(bar.kids)
+    assert all(k.parked for k in kids[-2:]), "a face was added visible"
+    st = mod.tab_bar()
+    assert st.launcher is True and st.parked_launcher is False, (st.launcher, st.parked_launcher)
+    # read again, as on the next level: nothing twice
+    again = g.mkdxml(lua.table_from([bar]))
+    read_xml("ui\\pda_16.xml", again)
+    assert lseq(again.inserted) == [], "a second read added %s again" % lseq(again.inserted)
+    return "two parked sections after MAC's own; the Launcher left as it is; no duplicates"
+
+
+@case
+def t_a_bar_without_the_launcher():
+    """Another mod's pda_16.xml won over MAC's: its own tabs, no Launcher. With MAC, a parked
+    Launcher keeps MAC's key and this app's Back working; without MAC, none is added."""
+    for mac in (True, False):
+        lua, g, mod, read_xml, logs = load_modxml(mac=mac)
+        bar = g.mktab(lua.table_from(OTHER_BAR))
+        x = g.mkdxml(lua.table_from([bar]))
+        read_xml("ui\\pda_16.xml", x)
+        want = ["eptSeasons", "eptForecast"] + (["eptLauncher"] if mac else [])
+        assert lseq(x.inserted) == want, (mac, lseq(x.inserted))
+        assert lseq(g.ids_of(bar))[:len(OTHER_BAR)] == OTHER_BAR, "the bar's own tabs moved"
+        assert all(k.parked for k in lseq(bar.kids)[len(OTHER_BAR):]), "an addition shows"
+        st = mod.tab_bar()
+        assert st.launcher is False, "a bar without the Launcher recorded as having it"
+        assert st.parked_launcher is mac, (mac, st.parked_launcher)
+        said = [l for l in logs if "no Launcher tab" in l]
+        assert len(said) == (1 if mac else 0), (mac, logs)
+    return "with MAC a Launcher is parked and logged once; without MAC, nothing of MAC's"
+
+
+@case
+def t_the_sections_tab_not_the_first_tab():
+    """A <tab> that is a plain container (pda_relations_16.xml has one) must never get the
+    sections; the bar is the <tab> holding ept... buttons, wherever it sits."""
+    lua, g, mod, read_xml, _ = load_modxml(mac=False)
+    box = g.mktab(lua.table_from(["caption"]))
+    bar = g.mktab(lua.table_from(["eptTasks", "eptLauncher", "eptLogs"]))
+    read_xml("ui\\pda_16.xml", g.mkdxml(lua.table_from([box, bar])))
+    assert lseq(g.ids_of(box)) == ["caption"], "the container got %s" % lseq(g.ids_of(box))
+    assert lseq(g.ids_of(bar))[-2:] == ["eptSeasons", "eptForecast"], lseq(g.ids_of(bar))
+    # a bar file with no section tab at all (a mod's odd copy): no error, nothing recorded
+    lua, g, mod, read_xml, logs = load_modxml(mac=True)
+    x = g.mkdxml(lua.table_from([g.mktab(lua.table_from(["caption"]))]))
+    read_xml("ui\\pda_16.xml", x)
+    assert lseq(x.inserted) == [] and mod.tab_bar() is None, lseq(x.inserted)
+    assert not [l for l in logs if "failed" in l], logs
+    return "the sections go to the tab of sections, not the first <tab> in the file"
+
+
+# --- the app key and the flat windows -----------------------------------------------------------
+#
+# The shipped sotz_pda.script and both page scripts, with the engine reduced to what the flat
+# path touches: a window that is shown or not, MCM's stored key, and an actor alive or not.
+
+FLAT = r"""
+class = function(n) return function(b) local t = {}; t.__index = t; _G[n] = t; return t end end
+super = function() end
+made = {}
+function make_window(cls, flat)
+    local w = setmetatable({flat = flat, shown = false, fills = 0, hides = 0}, cls)
+    function w:IsShown() return self.shown end
+    function w:ShowDialog() self.shown = true end
+    function w:HideDialog() self.shown = false; self.hides = self.hides + 1 end
+    function w:Fill() self.fills = self.fills + 1 end
+    made[#made + 1] = w
+    return w
+end
+function constructible(cls)
+    setmetatable(cls, {__call = function(c, flat) return make_window(c, flat) end})
+end
+"""
+
+KEY = 59           # DIK_F1, as a player might bind it
+ESC = 1
+
+
+def build_flat(key=KEY, alive=True, mcm_raises=False, saved=None):
+    lua, g, seen, opened, hooks = build()
+    lua.execute(FLAT)
+    g.CUIScriptWnd = lua.table_from({"OnKeyboard": lambda *a: False})
+    g.ui_events = lua.table_from({"BUTTON_CLICKED": 17, "WINDOW_KEY_PRESSED": 6})
+    g.DIK_keys = lua.table_from({"DIK_ESCAPE": ESC})
+
+    def get(path):
+        if mcm_raises:
+            raise RuntimeError("ui_mcm.get asserts while MCM builds its page")
+        return key if str(path) == "seasons_zone/main/app_key" else None
+    g.ui_mcm = lua.table_from({"get": get})
+    stored = key if saved is None else saved
+    g.axr_main = lua.table_from({"config": lua.table_from({
+        "r_value": lambda self, sec, k, typ, d: stored if str(k) == "seasons_zone/main/app_key"
+        else d})})
+    actor = lua.table_from({"alive": lambda self: alive})
+    g.db = lua.table_from({"actor": actor})
+    g.ui_seasons_pda = load("ui_seasons_pda.script", g, lua)
+    g.ui_seasons_forecast = load("ui_seasons_forecast.script", g, lua)
+    g.constructible(g.SeasonsPDA)
+    g.constructible(g.SeasonsForecast)
+    return lua, g, opened, hooks
+
+
+def shown(g):
+    out = []
+    if g.ui_seasons_pda.flat_window():
+        out.append("year")
+    if g.ui_seasons_forecast.flat_window():
+        out.append("forecast")
+    return out
+
+
+@case
+def t_the_key_opens_the_year_flat():
+    lua, g, opened, hooks = build_flat()
+    press = hooks["on_key_press"][0]
+    press(KEY + 1)
+    assert shown(g) == [], "another key opened %s" % shown(g)
+    press(KEY)
+    assert shown(g) == ["year"], shown(g)
+    w = g.ui_seasons_pda.flat_window()
+    assert w.flat is True and w.fills == 1, (w.flat, w.fills)
+    assert list(opened) == [], "the key went through the PDA: %s" % list(opened)
+    # unbound (how it ships), or the actor dead: nothing
+    for kw in (dict(key=-1), dict(alive=False)):
+        lua2, g2, _, hooks2 = build_flat(**kw)
+        hooks2["on_key_press"][0](KEY)
+        assert shown(g2) == [], (kw, shown(g2))
+    return "the bound key opens The Year in its own window; unbound or dead, nothing"
+
+
+@case
+def t_the_switch_trades_one_window_for_the_other():
+    lua, g, opened, hooks = build_flat()
+    hooks["on_key_press"][0](KEY)
+    year = g.ui_seasons_pda.flat_window()
+    g.SeasonsPDA.OnToggle(year)
+    assert shown(g) == ["forecast"], "after the switch on The Year: %s" % shown(g)
+    fc = g.ui_seasons_forecast.flat_window()
+    assert fc.flat is True, "Forecast opened in the PDA's place, not flat"
+    # identity compared inside Lua: two lupa proxies of one table need not be == in Python
+    lua.execute("FIRST_FORECAST = ui_seasons_forecast.flat_window()")
+    g.SeasonsForecast.OnToggle(fc)
+    assert shown(g) == ["year"], "after the switch on Forecast: %s" % shown(g)
+    assert list(opened) == [], "a flat switch went through the PDA: %s" % list(opened)
+    # one window per face, however often: the same one comes back, filled afresh
+    hooks["on_key_press"][0](KEY)
+    assert g.ui_seasons_pda.flat_window().fills == 2, g.ui_seasons_pda.flat_window().fills
+    g.SeasonsPDA.OnToggle(g.ui_seasons_pda.flat_window())
+    assert shown(g) == ["forecast"], shown(g)
+    assert lua.eval("ui_seasons_forecast.flat_window() == FIRST_FORECAST"), \
+        "Forecast came back as a new window"
+    assert len(g.made) == 2, "%d windows made for two faces" % len(g.made)
+    # and in the PDA the switch still goes through the PDA's sections
+    page = g.make_window(g.SeasonsPDA, False)
+    g.SeasonsPDA.OnToggle(page)
+    assert list(opened) == ["eptForecast"], list(opened)
+    return "flat, each switch closes one window and opens the other; in the PDA, sections"
+
+
+@case
+def t_what_closes_a_flat_face():
+    lua, g, opened, hooks = build_flat()
+    pressed = g.ui_events.WINDOW_KEY_PRESSED
+    for cls, mod in (("SeasonsPDA", "ui_seasons_pda"), ("SeasonsForecast", "ui_seasons_forecast")):
+        for how in ("escape", "key", "back"):
+            g[mod].open_flat()
+            w = g[mod].flat_window()
+            if how == "back":
+                g[cls].OnBack(w)
+            else:
+                took = g[cls].OnKeyboard(w, ESC if how == "escape" else KEY, pressed)
+                assert took is True, "%s: %s not taken" % (cls, how)
+            assert g[mod].flat_window() is None, "%s: %s left the window open" % (cls, how)
+        assert list(opened) == [], "%s: closing went through the PDA: %s" % (cls, list(opened))
+        # in the PDA the app key is not the page's to take, and Escape goes to the launcher
+        page = g.make_window(g[cls], False)
+        assert g[cls].OnKeyboard(page, KEY, pressed) is False, "%s took the key in the PDA" % cls
+        g[cls].OnKeyboard(page, ESC, pressed)
+        assert list(opened)[-1:] == ["eptLauncher"], list(opened)
+        del opened[:]
+    return "Escape, the key and Back close either flat face; in the PDA, Escape goes back"
+
+
+@case
+def t_the_key_as_saved_skips_ui_mcm():
+    """MCM's page reads the key with app_key(true): ui_mcm.get asserts while MCM builds it."""
+    lua, g, opened, hooks = build_flat(mcm_raises=True)
+    assert g.sotz_pda.app_key(True) == KEY, g.sotz_pda.app_key(True)
+    # in play, ui_mcm first; when it cannot answer, the saved value
+    assert g.sotz_pda.app_key() == KEY, g.sotz_pda.app_key()
+    lua, g, opened, hooks = build_flat(key=-1, saved=-1)
+    assert g.sotz_pda.app_key() is None and g.sotz_pda.app_key(True) is None
+    # the saved value never overrides what MCM answers in play
+    lua, g, opened, hooks = build_flat(key=KEY, saved=-1)
+    assert g.sotz_pda.app_key() == KEY and g.sotz_pda.app_key(True) is None
+    return "app_key(true) reads only the saved options; in play MCM answers first"
 
 
 if __name__ == "__main__":

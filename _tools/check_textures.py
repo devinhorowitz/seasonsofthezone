@@ -56,6 +56,8 @@ PICKERS = ["eco_emblem"]
 # Declared by base Anomaly itself, inside its packed configs, where this check cannot look.
 BASE_GAME = {
     "ui_inGame2_PD_Ecologist": "configs/ui/textures_descr/ui_actor_newsmanager_icons.xml",
+    # the PDA's own body, behind a face opened flat; pda_16.xml draws it too
+    "ui_inGame2_pda_texture": "configs/ui/textures_descr/ui_actor_pda.xml",
 }
 
 
@@ -156,6 +158,8 @@ def resolve(name, is_button, ids, files, foreign=None):
     foreign = foreign or {}
     if not is_button and name in foreign:
         return None                      # borrowed, and present in this install
+    if not is_button and name in BASE_GAME:
+        return None                      # base Anomaly declares it; see BASE_GAME
     if is_button:
         missing = [s for s in BUTTON_SUFFIXES if (name + s) not in ids]
         if missing:
@@ -179,6 +183,8 @@ def run(install=None):
         checked += 1
         if not is_btn and name not in ids and name not in files and name in foreign:
             borrowed.append((name, foreign[name]))
+        elif not is_btn and name not in ids and name not in files and name in BASE_GAME:
+            borrowed.append((name, "base Anomaly, " + BASE_GAME[name]))
         why = resolve(name, is_btn, ids, files, foreign)
         if why:
             problems.append("%s: %s" % (name, why))

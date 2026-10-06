@@ -5,38 +5,43 @@
 -- section, so the engine treats both as ordinary pages, and a switch at the top of each
 -- page moves between them.
 --
--- This file is the app itself, and it does not know Mod App Creator exists. It maps the
--- two sections to their pages and moves between them; nothing here depends on how the
--- player first got in. MAC is the official way in - z_seasons_pda_mac.script puts one tile
--- in its launcher - and that file is the only place MAC is registered.
+-- Two ways in, and nothing here depends on which the player took:
 --
--- FOR A STANDALONE FORK that runs without MAC: keep this file, delete
--- z_seasons_pda_mac.script, and give the player another way in. Two that work:
+--   Mod App Creator's launcher. z_seasons_pda_mac.script puts one tile there, and is the
+--   only place MAC is registered. It needs MAC, and MAC's Launcher in the PDA's tab bar.
 --
---   A visible tab. Modded exes bind CUITabControl:AddTab(id, caption, after_id), which
---   takes its size from the tabs already there and adds scroll arrows once they overflow -
---   so a full top bar (550px holding eight tabs on stock GAMMA, seven on base Anomaly) no
---   longer means clipping. The clipping came from adding a button to the pda xml by hand,
---   the older way. GetTabControl is bound too and is presumably how a script reaches the
---   bar from ActorMenu.get_pda_menu(); this mod calls neither, so confirm that before
---   relying on it. Add VIEWS.year.tab that way and remove it from the parked list in
---   modxml_seasons_pda.script, or the section id exists twice. AddTab is not in the
---   unmodded exe, so a fork that uses it needs modded exes - as MAC does.
+--   The app key (MCM, Main page). It opens either face in a window of its own, drawn in the
+--   2D PDA's frame, and needs neither MAC nor any PDA tab. The tab bar is one file,
+--   ui/pda_16.xml, which MAC ships whole and so do mods that add tabs of their own. Only one
+--   copy wins, and the loser's tabs are gone: MAC's Launcher, or the other mod's. The key is
+--   the way in that no such pair can take away. With the 3D PDA on it is also the sharper
+--   view: a PDA page is drawn onto the screen in hand, this window straight to the screen.
 --
---   A key. mac_mcm.bind_launcher shows the PDA-in-hand check MAC uses for its own
---   launcher, and open(VIEWS.year.tab) is all the key has to call.
---
--- The router below, and the switch between the two faces, work unchanged either way.
+-- A visible tab of our own would be a third way. Modded exes bind CUITabControl:AddTab(id,
+-- caption, after_id), which sizes a tab like its neighbors and scrolls once they overflow,
+-- where a button added to the pda xml by hand clips once the bar is full. This mod calls
+-- neither. A fork that adds a tab that way takes its section off the parked list in
+-- modxml_seasons_pda.script, or the section id exists twice.
 
 -- The two faces, by the PDA section each lives in. `title` is the string id of what the
--- PDA prints top left for that section, and of what the switch on each page says.
+-- PDA prints top left for that section, of what the switch on each page says, and of the
+-- caption over a face opened flat.
 VIEWS = {
     year     = {tab = "eptSeasons",  title = "pda_btn_seasons"},
     forecast = {tab = "eptForecast", title = "pda_btn_forecast"},
 }
 
+-- MCM stores the app key here: the key's DIK code, or -1 while unbound, which is how it ships.
+KEY_PATH = "seasons_zone/main/app_key"
+
 local function say(msg)
     printf("%s", "[seasons-pda] " .. tostring(msg))
+end
+
+-- the script that draws a face
+local function page_module(view)
+    if view == "forecast" then return ui_seasons_forecast end
+    return ui_seasons_pda
 end
 
 local function page_for(section)
@@ -45,8 +50,8 @@ local function page_for(section)
     return nil
 end
 
--- Go to one face. The same call each page's Back button makes to reach MAC's launcher, so
--- it rides the engine's own section switch rather than opening a window of its own.
+-- Go to one face in the PDA. The same call each page's Back button makes to reach MAC's
+-- launcher, so it rides the engine's own section switch rather than opening a window.
 function open(tab)
     local ok, err = pcall(function()
         ActorMenu.get_pda_menu():SetActiveSubdialog(tab)
@@ -54,6 +59,53 @@ function open(tab)
     if not ok then say("could not open " .. tostring(tab) .. ": " .. tostring(err)) end
 end
 
+-- --- the app key: a face in a window of its own ---------------------------------------------
+
+-- The app key's DIK code, or nil while it is unbound or MCM is missing. Read at each press,
+-- so a change in MCM takes at once. `saved` reads the stored options and nothing else, for
+-- MCM's own page: ui_mcm.get asserts while MCM is building it.
+function app_key(saved)
+    local k
+    if not saved then
+        local ok, v = pcall(function() return ui_mcm and ui_mcm.get(KEY_PATH) end)
+        if ok then k = v end
+    end
+    if k == nil then
+        local ok, v = pcall(function() return axr_main.config:r_value("mcm", KEY_PATH, 2, -1) end)
+        if ok then k = v end
+    end
+    k = tonumber(k)
+    return (k and k >= 0) and k or nil
+end
+
+-- Open one face flat and close the other, so the switch on a flat page trades one window
+-- for the other and the key never stacks two. Only while the player is up and about: a
+-- window over the death screen or a level being loaded has nothing to show. Returns the
+-- window, or nil.
+function open_flat(view)
+    view = VIEWS[view] and view or "year"
+    if not (db.actor and db.actor:alive()) then return nil end
+    for name in pairs(VIEWS) do
+        if name ~= view then
+            local ok, err = pcall(function() page_module(name).close_flat() end)
+            if not ok then say("could not close " .. name .. ": " .. tostring(err)) end
+        end
+    end
+    local ok, w = pcall(function() return page_module(view).open_flat() end)
+    if ok then return w end
+    say("could not open " .. view .. " flat: " .. tostring(w))
+    return nil
+end
+
+-- The key opens The Year. While a flat face is open it has the keyboard, so the same key
+-- closing it is the page's to handle (OnKeyboard), not this callback's.
+local function on_key_press(key)
+    local k = app_key()
+    if k and key == k then open_flat("year") end
+end
+
+-- --- the router --------------------------------------------------------------------------------
+--
 -- pda.set_active_subdialog turns a section id into a page, and a mod claims its sections by
 -- wrapping it, as MAC does for its launcher. This claims the two sections above and passes
 -- every other one down untouched.
@@ -86,7 +138,8 @@ local function install_router()
     WRAPPED = true
 end
 
--- on_game_load, the same moment MAC installs its own wrapper.
+-- the router on on_game_load, the same moment MAC installs its own wrapper
 function on_game_start()
     RegisterScriptCallback("on_game_load", install_router)
+    RegisterScriptCallback("on_key_press", on_key_press)
 end
