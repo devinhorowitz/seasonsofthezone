@@ -504,6 +504,18 @@ def build_flat(key=KEY, alive=True, mcm_raises=False, saved=None):
         else d})})
     actor = lua.table_from({"alive": lambda self: alive})
     g.db = lua.table_from({"actor": actor})
+    # _g.script's time events: kept here, run by tick(); one that returns true is done
+    timers = {}
+
+    def create_time_event(ev, act, delay, fn, *args):
+        timers[(str(ev), str(act))] = (fn, args)
+
+    def tick():
+        for k, (fn, args) in list(timers.items()):
+            if fn(*args):
+                timers.pop(k, None)
+    g.CreateTimeEvent = create_time_event
+    hooks["tick"] = tick
     g.ui_seasons_pda = load("ui_seasons_pda.script", g, lua)
     g.ui_seasons_forecast = load("ui_seasons_forecast.script", g, lua)
     g.constructible(g.SeasonsPDA)
@@ -520,29 +532,48 @@ def shown(g):
     return out
 
 
+def engine_press(g, hooks, key):
+    """A key press in the order Level_input.cpp handles it: the scripts' on_key_press first,
+    then the UI's top window, which by then may be one the scripts just opened; time events
+    run on a later update."""
+    hooks["on_key_press"][0](key)
+    for mod, cls in (("ui_seasons_pda", "SeasonsPDA"), ("ui_seasons_forecast", "SeasonsForecast")):
+        w = g[mod].flat_window()
+        if w:
+            g[cls].OnKeyboard(w, key, g.ui_events.WINDOW_KEY_PRESSED)
+            break
+    hooks["tick"]()
+
+
 @case
 def t_the_key_opens_the_year_flat():
+    """In game the window opened and closed on one press (2026-10-06): the press that opened
+    it reached it next, and the app key closes a flat face."""
     lua, g, opened, hooks = build_flat()
-    press = hooks["on_key_press"][0]
-    press(KEY + 1)
+    engine_press(g, hooks, KEY + 1)
     assert shown(g) == [], "another key opened %s" % shown(g)
-    press(KEY)
-    assert shown(g) == ["year"], shown(g)
+    engine_press(g, hooks, KEY)
+    assert shown(g) == ["year"], "after one press of the key: %s" % shown(g)
     w = g.ui_seasons_pda.flat_window()
     assert w.flat is True and w.fills == 1, (w.flat, w.fills)
     assert list(opened) == [], "the key went through the PDA: %s" % list(opened)
+    # the key again closes it, and does not open it again behind its own back
+    engine_press(g, hooks, KEY)
+    assert shown(g) == [], "after a second press: %s" % shown(g)
+    engine_press(g, hooks, KEY)
+    assert shown(g) == ["year"], "after a third press: %s" % shown(g)
     # unbound (how it ships), or the actor dead: nothing
     for kw in (dict(key=-1), dict(alive=False)):
         lua2, g2, _, hooks2 = build_flat(**kw)
-        hooks2["on_key_press"][0](KEY)
+        engine_press(g2, hooks2, KEY)
         assert shown(g2) == [], (kw, shown(g2))
-    return "the bound key opens The Year in its own window; unbound or dead, nothing"
+    return "the key opens The Year, the key again closes it; unbound or dead, nothing"
 
 
 @case
 def t_the_switch_trades_one_window_for_the_other():
     lua, g, opened, hooks = build_flat()
-    hooks["on_key_press"][0](KEY)
+    engine_press(g, hooks, KEY)
     year = g.ui_seasons_pda.flat_window()
     g.SeasonsPDA.OnToggle(year)
     assert shown(g) == ["forecast"], "after the switch on The Year: %s" % shown(g)
@@ -553,8 +584,10 @@ def t_the_switch_trades_one_window_for_the_other():
     g.SeasonsForecast.OnToggle(fc)
     assert shown(g) == ["year"], "after the switch on Forecast: %s" % shown(g)
     assert list(opened) == [], "a flat switch went through the PDA: %s" % list(opened)
-    # one window per face, however often: the same one comes back, filled afresh
+    # one window per face, however often: the same one comes back, filled afresh, and asking
+    # for a face already open leaves it as it is
     hooks["on_key_press"][0](KEY)
+    g.ui_seasons_pda.open_flat()
     assert g.ui_seasons_pda.flat_window().fills == 2, g.ui_seasons_pda.flat_window().fills
     g.SeasonsPDA.OnToggle(g.ui_seasons_pda.flat_window())
     assert shown(g) == ["forecast"], shown(g)

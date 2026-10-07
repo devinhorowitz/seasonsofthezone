@@ -97,11 +97,27 @@ function open_flat(view)
     return nil
 end
 
--- The key opens The Year. While a flat face is open it has the keyboard, so the same key
--- closing it is the page's to handle (OnKeyboard), not this callback's.
+-- the face open flat ("year" or "forecast"), or nil
+function flat_open()
+    for name in pairs(VIEWS) do
+        local ok, w = pcall(function() return page_module(name).flat_window() end)
+        if ok and w then return name end
+    end
+    return nil
+end
+
+-- The key opens The Year a moment after the press, not on it. The engine hands a key to the
+-- scripts before the UI (Level_input.cpp: on_key_press, then IR_UIOnKeyboardPress), so a
+-- window opened during the press becomes the UI's receiver for that same press, and the app
+-- key closes a flat face: it opened and closed in one frame, and nothing showed. While a
+-- face is open the press is the face's to close it, so this leaves it alone.
 local function on_key_press(key)
     local k = app_key()
-    if k and key == k then open_flat("year") end
+    if not (k and key == k) or flat_open() then return end
+    CreateTimeEvent("sotz_pda", "open_flat", 0, function()
+        open_flat("year")
+        return true
+    end)
 end
 
 -- --- the router --------------------------------------------------------------------------------
