@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.3.0 — 2026-10-07
 
 - **The Seasons app opens on a key.** MCM's Main page has **Open the Seasons app**, unset
   until you pick a key. It opens The Year in a window of its own, drawn in the 2D PDA's
