@@ -294,7 +294,9 @@ def shipped_scripts():
 # where a string meets the player: (name, called as a method, which argument is the text)
 SINKS = [("put", False, 2), ("SetText", True, 1), ("Head", True, 2), ("Section", True, 2),
          ("Put", True, 2), ("send_tip", False, 2), ("set_msg", False, 2), ("desc", False, 3),
-         ("row", False, 2)]
+         ("row", False, 2),
+         # every PDA message goes through zzz_seasons_of_the_zone's gate, text first
+         ("pda_tip", False, 1)]
 
 LOGS = {"say", "printf", "print", "error"}
 
@@ -317,7 +319,12 @@ NOT_SHOWN = {
         "alife", "zone%s*=%s*(%d%d%d%d)%-(%d%d)%-(%d%d)",
         "; Seasons of the Zone: the Zone's date when the game last saved or loaded.\\n",
         "; play.bat reads it to switch the season's mods. Delete it at will.\\n",
-        "zone = %04d-%02d-%02d\\ngame = %04d-%02d-%02d %02d:%02d\\n", "speed = %d\\n"},
+        "zone = %04d-%02d-%02d\\ngame = %04d-%02d-%02d %02d:%02d\\n", "speed = %d\\n",
+        # pda_tip's names for what it sends, in the log line beside each message
+        "PDA", "remembrance PDA", " access PDA"},
+    # the author's handle, on the credit line at the foot of the pages: a name, the same in
+    # every language, which st_sotz_credit places
+    "sotz_pda.script": {"Windwalker"},
     # the default place's name in the weather file, compared to show the table's instead
     "ui_seasons_forecast.script": {"Chornobyl"},
 }
@@ -1128,6 +1135,19 @@ def t_a_translation_reaches_every_line():
                       and r not in theirs))
     assert not left, "%d line(s) no translation would change: %s" % (len(left), left[:8])
     return "%d lines on screen, every one through the table" % len(rows)
+
+
+@case
+def t_both_pages_end_with_the_foot():
+    """Each page, built and opened as in play: Silence, and the credit line naming the release
+    by sotz_pda's VERSION and its author, both in the table's words."""
+    w = world()
+    credit = "Seasons of the Zone v%s by %s" % (w.g.sotz_pda.VERSION, w.g.sotz_pda.AUTHOR)
+    for cls in ("SeasonsPDA", "SeasonsForecast"):
+        rows = [str(r) for r in page(w, cls) if r]
+        assert "Silence" in rows, "%s: no Silence among %s" % (cls, rows[-6:])
+        assert credit in rows, "%s: no %r among %s" % (cls, credit, rows[-6:])
+    return "Silence and %r on both pages" % credit
 
 
 @case

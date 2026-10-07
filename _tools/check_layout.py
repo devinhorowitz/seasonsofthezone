@@ -55,7 +55,8 @@ FORECAST = {
              "chart", "chart_cap_l", "chart_cap_r"},
     "RIGHT": {"gauge", "needle", "gauge_caption", "eco_logo", "eco_class", "eco_l1",
               "eco_l2", "eco_l3", "units", "units_label", "back",
-              "toggle_year", "toggle_fc", "toggle_year_label", "toggle_fc_label"},
+              "toggle_year", "toggle_fc", "toggle_year_label", "toggle_fc_label",
+              "silence", "silence_label", "credit"},
     # Elements that belong to the ecologist panel. Anything ELSE overlapping the panel is
     # a mistake - the back button drifted inside it when the panel grew, and a control
     # sitting in the middle of a CLASSIFIED box reads as part of the classified thing.
@@ -70,7 +71,8 @@ CALENDAR = {
     "LEFT": {"header", "bar", "subheader", "turning", "grid",
              "grid_cap_l", "grid_cap_r"},
     "RIGHT": {"dial", "dial_caption", "back",
-              "toggle_year", "toggle_fc", "toggle_year_label", "toggle_fc_label"},
+              "toggle_year", "toggle_fc", "toggle_year_label", "toggle_fc_label",
+              "silence", "silence_label", "credit"},
     # two lists a column, at their fullest: under the grid, Now at its four rows and
     # Coming up after it; beside the dial, the six seasons and a period, then two spells.
     "SECTIONS": [(1, 4), (1, 5), (2, 7), (2, 2)],
@@ -192,6 +194,12 @@ def check(box, c, spec):
             if c["COL_Y1"][col - 1] > FR_B - EDGE:
                 bad.append("column %d runs to %d, past the frame at %d"
                            % (col, c["COL_Y1"][col - 1], FR_B))
+        # the right column's list stops above the foot it shares with Back: Silence and the
+        # credit line, the same place on both pages
+        foot = min((box[t][1] for t in ("silence", "credit", "back") if t in box), default=None)
+        if foot is not None and c["COL_Y1"][1] > foot - CLEAR:
+            bad.append("the right column's list runs to %d, into the foot at %d"
+                       % (c["COL_Y1"][1], foot))
         # rows must not need more slots than the pool holds
         need = {1: 0, 2: 0}
         for col, rows_n in CALENDAR["SECTIONS"]:
@@ -263,7 +271,7 @@ def check(box, c, spec):
 
 
 # Everything a player can click, on either page.
-CONTROLS = {"back", "units", "toggle_year", "toggle_fc"}
+CONTROLS = {"back", "units", "toggle_year", "toggle_fc", "silence"}
 
 
 def width_of(c, col):

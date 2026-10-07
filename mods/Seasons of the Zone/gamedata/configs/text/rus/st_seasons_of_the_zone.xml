@@ -232,6 +232,10 @@
 	<string id="st_sotz_year_weather_heat"><text>Жара</text></string>
 	<string id="st_sotz_year_weather_heat_what"><text>Жаркий день</text></string>
 
+	<!-- Внизу обеих страниц: «Тишина» (параметр MCM «Сообщения КПК») и мод, его версия и автор, чтобы на снимке экрана было видно, какие это «Сезоны» -->
+	<string id="st_sotz_silence"><text>Тишина</text></string>
+	<string id="st_sotz_credit"><text>Seasons of the Zone v$version — $author</text></string>
+
 	<!-- На экране, когда сезон меняется во время игры -->
 	<string id="st_sotz_msg_settled"><text>$Season окончательно вступает в свои права.</text></string>
 	<string id="st_sotz_msg_giving_way"><text>$From отступает, наступает $to.</text></string>

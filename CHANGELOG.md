@@ -7,6 +7,16 @@
   frame; the switch moves to Forecast, and Escape, the key again or Back closes it. This way
   in needs no PDA tab and no Mod App Creator, and with the 3D PDA on, the window is sharper
   than the screen in hand.
+- **Silence the mod's PDA messages.** MCM's Main page has **PDA notifications**, on as it
+  ships. Off, the mod sends nothing to your PDA: not the report on loading in, the season
+  turning in play, remembrance days, forecast access or your calendar's messages, whatever
+  their own settings say. The app has the same setting as **Silence**, at the foot of both
+  pages beside Back, lit while the messages are off. A message sent while they are off is
+  dropped, not held for later. The on-screen announcement of a season change keeps its own
+  setting.
+- **The app names its version.** A line at the foot of both pages names the mod, its version
+  and its author, so a screenshot of the app says which release it shows. The release build
+  refuses a package where that version is not the tools' own.
 - **Mods that ship their own PDA tab bar.** The bar is one file, `ui/pda_16.xml`, which Mod
   App Creator ships whole, and so do mods that add tabs of their own, such as INTERFECTOR's
   PDA Trading. The game uses one copy, so the other's tabs are gone: with MAC's, the other

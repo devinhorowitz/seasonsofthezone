@@ -9,12 +9,13 @@ in the shipped strings.
 
   python _tools/test_mcm_strings.py
 """
+import glob
 import io
 import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT =os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GD = os.path.join(ROOT, "mods", "Seasons of the Zone", "gamedata")
 MCM = os.path.join(GD, "scripts", "zzz_seasons_of_the_zone_mcm.script")
 XML = os.path.join(GD, "configs", "text", "eng", "ui_seasons_of_the_zone.xml")
@@ -146,6 +147,37 @@ def t_the_app_key_is_where_sotz_pda_reads_it():
     path = re.search(r'^KEY_PATH = "([^"]+)"', pda, re.M)
     assert path and path.group(1) == "seasons_zone/main/app_key", path and path.group(1)
     return "app_key on the Main page, unbound, at the path sotz_pda reads"
+
+
+@case
+def t_one_switch_for_every_pda_message():
+    """MCM's "PDA notifications" (pda_news) is one option seen in three places: MCM's Main
+    page, the Silence button (sotz_pda.NEWS_PATH, which it writes) and the gate every message
+    passes (pda_tip, which reads it through mcm()). If any one names another path, the button
+    and the menu disagree, or the messages ignore both. On as it ships."""
+    found = [(page, body) for page, body in calls(read(MCM))
+             if re.match(r'\{\s*id\s*=\s*"pda_news"', body)]
+    assert len(found) == 1, "%d pda_news options in the MCM script" % len(found)
+    page, body = found[0]
+    assert page == "main", "pda_news is on page_%s" % page
+    for field in ('type = "check"', "val = 1", "def = true"):
+        assert field in body, "pda_news lacks %s: %s" % (field, body)
+    pda = read(os.path.join(GD, "scripts", "sotz_pda.script"))
+    path = re.search(r'^NEWS_PATH = "([^"]+)"', pda, re.M)
+    assert path and path.group(1) == "seasons_zone/main/pda_news", path and path.group(1)
+    main = read(os.path.join(GD, "scripts", "zzz_seasons_of_the_zone.script"))
+    gate = re.search(r"local function pda_tip\(.*?\n(.*?)\nend", main, re.S)
+    assert gate and 'mcm("pda_news", true)' in gate.group(1), "pda_tip does not ask pda_news"
+    # and nothing reaches the PDA except through it
+    direct = [l.strip() for l in main.splitlines()
+              if "news_manager.send_tip(" in l and "if not" not in l]
+    assert len(direct) == 1 and "send_tip(db.actor, msg, nil, icon, ms)" in direct[0], direct
+    for p in glob.glob(os.path.join(GD, "scripts", "*.script")):
+        src = read(p)
+        assert "give_game_news" not in src, "%s sends news past the gate" % os.path.basename(p)
+        if not p.endswith("zzz_seasons_of_the_zone.script"):
+            assert "send_tip(" not in src, "%s sends news past the gate" % os.path.basename(p)
+    return "pda_news on the Main page, on, where the button writes and the gate reads"
 
 
 if __name__ == "__main__":

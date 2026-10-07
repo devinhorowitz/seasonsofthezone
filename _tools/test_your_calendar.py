@@ -436,6 +436,46 @@ def t_the_start_tells_of_the_player_s_own():
 
 
 @case
+def t_silence_drops_every_message():
+    """MCM's "PDA notifications" off, which the Silence button on the app's pages writes: the
+    greeting, the player's own and a turn while playing all go unsent, whatever their own
+    switches say, and the log names each one dropped. Asked at sending time, so a message
+    queued before the switch went off is dropped too."""
+    text, _ = calendar(spell=("summer", "Indian summer", "2026-10-16", "2026-10-19"),
+                       today=("2026-10-17", [("Indian summer", "2026-10-16", "2026-10-19",
+                                              "summer")], []))
+    sent = []
+    mcm = {"seasons_zone/main/blend_days": 0, "seasons_zone/main/pda_news": False}
+    lua, g = tcal.build(2026, 10, 17, calendar=text, mcm=mcm)
+    queued = []
+    g.CreateTimeEvent = lambda ev, act, delay, fn, *a: queued.append(fn)
+    g.news_manager = lua.table_from({"send_tip": lambda a, msg, *r: sent.append(msg)})
+    (announce,) = tcal.probe(lua, g, "pda_announce")
+    announce()
+    g.zzz_seasons_of_the_zone.announce_yours(0, True)
+    for fn in queued:
+        fn()
+    assert sent == [], sent
+    dropped = [l for l in tcal.LOG if "(silenced)" in l]
+    assert len(dropped) == 3, tcal.LOG
+    # on again: the same three go out; queued while on and silenced before they fire: dropped
+    mcm["seasons_zone/main/pda_news"] = True
+    del queued[:]
+    announce()
+    g.zzz_seasons_of_the_zone.announce_yours(0, True)
+    for fn in queued:
+        fn()
+    assert len(sent) == 3, sent
+    del sent[:], queued[:]
+    g.zzz_seasons_of_the_zone.announce_yours(0, True)
+    mcm["seasons_zone/main/pda_news"] = False
+    for fn in queued:
+        fn()
+    assert queued and sent == [], (len(queued), sent)
+    return "silenced, 3 messages dropped and logged; on again, 3 sent; queued, then dropped"
+
+
+@case
 def t_a_turn_while_playing_is_told():
     """The day moves on while playing: a message as winter draws near, another as it comes,
     the ground's at the next launch since autumn is staged, and one as a season of the

@@ -785,30 +785,38 @@ def t_the_build_refuses_a_version_not_in_the_changelog():
     changelog = os.path.join(build_release.OUT, "CHANGELOG.md")
     if not os.path.isfile(changelog):               # a clone: the changelog is at the top
         changelog = os.path.join(REPO, "CHANGELOG.md")
-    _, out = quiet(build_release.check_version, os.path.join(HERE, "season.py"), changelog)
+    pda = os.path.join(REPO, "mods", "Seasons of the Zone", "gamedata", "scripts",
+                       "sotz_pda.script")
+    _, out = quiet(build_release.check_version, os.path.join(HERE, "season.py"), changelog, pda)
     assert "version                %s" % VERSION in out, out
     log = "# Changelog\n\n## 1.9.1 \u2014 2026-10-01\n\n- x\n\n## 1.9.0 \u2014 2026-09-25\n"
     refused = []
     with tempfile.TemporaryDirectory() as d:
         s, c = os.path.join(d, "season.py"), os.path.join(d, "CHANGELOG.md")
-        for code, text in (('VERSION = "1.9.1"\n', log),
-                           ('VERSION = "1.9.0"\n', log),             # an entry, no new VERSION
-                           ('VERSION = "1.9.2"\n', log),             # a VERSION, no entry
-                           ('SOTZ = "Seasons of the Zone"\n', log),  # no VERSION
-                           ('VERSION = "1.9.1"\n', None)):           # no CHANGELOG.md
+        p = os.path.join(d, "sotz_pda.script")
+        for code, text, shown in (
+                ('VERSION = "1.9.1"\n', log, "1.9.1"),
+                ('VERSION = "1.9.0"\n', log, "1.9.0"),             # an entry, no new VERSION
+                ('VERSION = "1.9.2"\n', log, "1.9.2"),             # a VERSION, no entry
+                ('SOTZ = "Seasons of the Zone"\n', log, "1.9.1"),  # no VERSION
+                ('VERSION = "1.9.1"\n', None, "1.9.1"),            # no CHANGELOG.md
+                ('VERSION = "1.9.1"\n', log, "1.9.0"),             # the pages show the last one
+                ('VERSION = "1.9.1"\n', log, None)):               # the pages show none
             io.open(s, "w", encoding="utf-8").write(code)
+            io.open(p, "w", encoding="utf-8").write(
+                'VIEWS = {}\nVERSION = "%s"\n' % shown if shown else "VIEWS = {}\n")
             if text is None:
                 os.remove(c)
             else:
                 io.open(c, "w", encoding="utf-8").write(text)
             try:
-                quiet(build_release.check_version, s, c)
+                quiet(build_release.check_version, s, c, p)
                 refused.append(False)
             except SystemExit as e:
                 assert "refusing to package" in str(e.code), e.code
                 refused.append(True)
-    assert refused == [False, True, True, True, True], refused
-    return "%s matches this changelog; 4 mismatches refused" % VERSION
+    assert refused == [False, True, True, True, True, True, True], refused
+    return "%s matches this changelog and the app pages; 6 mismatches refused" % VERSION
 
 
 if __name__ == "__main__":

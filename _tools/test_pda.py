@@ -292,6 +292,66 @@ def t_the_switch_on_each_page():
     return "each page lights its own half and sends the other to the other face"
 
 
+def rgb(col):
+    return (col.r, col.g, col.b)
+
+
+@case
+def t_the_foot_of_each_page():
+    """Silence is MCM's "PDA notifications" seen on the page: it writes the option, lit with an
+    amber label while the messages are off, and shows a change made in MCM at the next open.
+    Under it, the mod's name, version and author."""
+    lua, g, _, opened, _ = build()
+    lua.execute("class = function(n) return function(b) local t = {}; t.__index = t; "
+                "_G[n] = t; return t end end; super = function() end")
+    g.CUIScriptWnd = lua.table_from({})
+    options = {}
+    g.ui_mcm = lua.table_from({"get": lambda path: options.get(str(path)),
+                               "set": lambda path, v: options.__setitem__(str(path), v)})
+    path = str(g.sotz_pda.NEWS_PATH)
+    assert path == "seasons_zone/main/pda_news", path
+    credit = "Seasons of the Zone v%s by %s" % (g.sotz_pda.VERSION, g.sotz_pda.AUTHOR)
+    gray = (200, 200, 200)
+    for page_file, cls in (("ui_seasons_pda.script", "SeasonsPDA"),
+                           ("ui_seasons_forecast.script", "SeasonsForecast")):
+        options.clear()
+        load(page_file, g, lua)
+        p = g.mkpage(g[cls])
+        g[cls].InitFooter(p)
+        btn, lbl = p.silence, p.silence_label
+        assert lbl.text == "Silence", "%s: %r" % (cls, lbl.text)
+        assert p.credit.text == credit, "%s: %r" % (cls, p.credit.text)
+        # on as it ships: the plain plate and a gray label
+        assert btn.tex == "sotz_btn" and rgb(lbl.col) == gray, (cls, btn.tex, rgb(lbl.col))
+        cb = p.callbacks["silence"]
+        cb.fn(cb.obj)
+        assert options.get(path) is False, "%s: Silence wrote %r" % (cls, options)
+        assert btn.tex == "sotz_btn_on" and rgb(lbl.col) == AMBER, (cls, btn.tex, rgb(lbl.col))
+        cb.fn(cb.obj)
+        assert options.get(path) is True, "%s: a second click wrote %r" % (cls, options)
+        assert btn.tex == "sotz_btn" and rgb(lbl.col) == gray, (cls, btn.tex, rgb(lbl.col))
+        # turned off in MCM: the page shows it the next time it opens
+        options[path] = False
+        g[cls].Reset(p)
+        assert btn.tex == "sotz_btn_on" and rgb(lbl.col) == AMBER, (cls, btn.tex, rgb(lbl.col))
+    assert list(opened) == [], "the footer went through the PDA: %s" % list(opened)
+    return "Silence writes and shows MCM's option on both pages; the credit names %s" \
+        % g.sotz_pda.VERSION
+
+
+@case
+def t_the_pages_name_the_release():
+    """The credit's version is sotz_pda's VERSION, and season.py's VERSION names the release:
+    they have to agree, or a screenshot names the wrong one. build_release.py refuses too."""
+    src = io.open(os.path.join(ROOT, "_tools", "season.py"), encoding="utf-8").read()
+    want = re.search(r'(?m)^VERSION\s*=\s*"([^"]+)"', src).group(1)
+    lua, g, _, _, _ = build()
+    assert g.sotz_pda.VERSION == want, "the pages show %s, season.py says %s" % (
+        g.sotz_pda.VERSION, want)
+    assert g.sotz_pda.AUTHOR == "Windwalker", g.sotz_pda.AUTHOR
+    return "the pages show %s, season.py's VERSION, by %s" % (want, g.sotz_pda.AUTHOR)
+
+
 @case
 def t_one_name_for_each_section():
     """Four files name the two sections. If they disagree, a face is unreachable, silently."""

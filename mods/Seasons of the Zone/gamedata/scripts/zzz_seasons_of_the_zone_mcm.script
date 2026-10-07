@@ -235,6 +235,9 @@ local function page_main()
     add({id = "wx_exact", type = "check", val = 1, def = false})
 
     add({id = "line3", type = "line"})
+    -- every PDA message at once, whatever the switches for each kind say; the Silence button at
+    -- the foot of the app's pages writes this same option (sotz_pda.NEWS_PATH)
+    add({id = "pda_news", type = "check", val = 1, def = true})
     add({id = "notify", type = "check", val = 1, def = true})
     add({id = "pda_greeting", type = "check", val = 1, def = true})
     add({id = "pda_delay", type = "track", val = 2, min = 3, max = 60, step = 1, def = 12})

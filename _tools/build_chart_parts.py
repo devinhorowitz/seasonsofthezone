@@ -180,7 +180,8 @@ def white_block():
 
 
 def button_strip():
-    """A four-state plate, 4 cells of 16x16 in a row.
+    """The plates' cells, 16x16 each: a four-state plate along the top row, and under its first
+    cell the one more a switch held on needs. 64x32, so both sides stay a power of two.
 
     Init3tButton makes the engine append _e/_h/_t/_d and look those up as declared ids -
     the white block alone satisfies none of them and the button draws nothing, which is
@@ -190,14 +191,22 @@ def button_strip():
     # The disabled cell is lit, not dimmed. The only plate this mod disables is the half of
     # the app's view switch you are on, which should be the half that stands out. It uses the
     # pressed color, so the half you clicked stays pressed.
-    cells = [(40, 46, 40, 235),     # e  resting
-             (62, 70, 58, 245),     # h  hovered
-             (86, 74, 44, 255),     # t  pressed, warm like the amber label
-             (86, 74, 44, 255)]     # d  "you are here" on the view switch - held pressed
-    im = Image.new("RGBA", (64, 16), (0, 0, 0, 0))
-    for i, c in enumerate(cells):
-        im.paste(Image.new("RGBA", (16, 16), c), (i * 16, 0))
+    cells = {(0, 0): (40, 46, 40, 235),     # e  resting
+             (1, 0): (62, 70, 58, 245),     # h  hovered
+             (2, 0): (86, 74, 44, 255),     # t  pressed, warm like the amber label
+             (3, 0): (86, 74, 44, 255),     # d  "you are here" on the view switch - held pressed
+             (0, 1): (106, 92, 56, 255)}    # a switch held on (Silence), hovered: a shade brighter
+    im = Image.new("RGBA", (64, 32), (0, 0, 0, 0))
+    for (cx, cy), c in sorted(cells.items()):
+        im.paste(Image.new("RGBA", (16, 16), c), (cx * 16, cy * 16))
     return im
+
+
+# The ids each plate takes its states from, by cell (column, row) in button_strip. sotz_btn is
+# the plain plate; sotz_btn_on is a switch held on, as Silence is while the messages are off:
+# lit at rest, and still lit while hovered, so the state never seems to flip under the cursor.
+PLATES = (("sotz_btn", (("e", (0, 0)), ("h", (1, 0)), ("t", (2, 0)), ("d", (3, 0)))),
+          ("sotz_btn_on", (("e", (3, 0)), ("h", (0, 1)), ("t", (2, 0)), ("d", (3, 0)))))
 
 
 ENTRY = ('\t<file name="%s">\n\t\t<texture id="%s" x="0" y="0" '
@@ -227,7 +236,7 @@ def main():
             im.save(os.path.join(TEXDIR, stem + ".dds"), "DDS")
             print("  %s.dds" % stem)
         body = "".join(ENTRY % (stem, idn, n, n) for stem, idn, n, _ in items)
-        # the button strip declares four ids into one file, so it is written by hand
+        # the button strip declares eight ids into one file, so it is written by hand
         button_strip().save(os.path.join(TEXDIR, "ui_sotz_btn.dds"), "DDS")
         print("  ui_sotz_btn.dds")
         # The forecast factions' emblems, taken from the faction banners G.A.M.M.A. UI
@@ -241,9 +250,10 @@ def main():
                      % (idn, x, y))
         body += '\t</file>\n'
         body += '\t<file name="ui_sotz_btn">\n'
-        for i, suf in enumerate(("e", "h", "t", "d")):
-            body += ('\t\t<texture id="sotz_btn_%s" x="%d" y="0" width="16" '
-                     'height="16" />\n' % (suf, i * 16))
+        for plate, states in PLATES:
+            for suf, (cx, cy) in states:
+                body += ('\t\t<texture id="%s_%s" x="%d" y="%d" width="16" '
+                         'height="16" />\n' % (plate, suf, cx * 16, cy * 16))
         body += "\t</file>\n"
         p = os.path.join(DESCR, "ui_sotz_charts.xml")
         with open(p, "w", encoding="utf-8", newline="\n") as fh:

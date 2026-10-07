@@ -173,6 +173,22 @@ local function mcm(key, default)
     return mcm_path(PREFIX .. "main/" .. key, default)
 end
 
+-- Every PDA message the mod sends goes through here, so MCM's "PDA notifications" quiets them
+-- all at once, and so does the Silence button at the foot of the app's pages, which writes the
+-- same option (sotz_pda.NEWS_PATH). A silenced message is dropped, not held for later; the log
+-- still has it. `what` names the kind in the log. Returns whether it was sent.
+local function pda_tip(msg, icon, ms, what)
+    what = what or "PDA"
+    if not mcm("pda_news", true) then
+        say(what .. " (silenced): " .. tostring(msg))
+        return false
+    end
+    if not (db.actor and news_manager and news_manager.send_tip) then return false end
+    news_manager.send_tip(db.actor, msg, nil, icon, ms)
+    say(what .. ": " .. tostring(msg))
+    return true
+end
+
 local function goodwill(faction)
     local ok, v = pcall(function()
         return relation_registry.community_goodwill(faction, db.actor:id())
@@ -1538,8 +1554,7 @@ local function pda_announce()
             end
         end
     end
-    news_manager.send_tip(db.actor, msg, nil, nil, 14000)
-    say("PDA: " .. msg)
+    pda_tip(msg, nil, 14000)
 end
 
 -- --- days of remembrance -----------------------------------------------------------------
@@ -1805,8 +1820,8 @@ local function rem_send(day, pool, i)
     if not (db.actor and news_manager and news_manager.send_tip) then return end
     local msg, who = rem_line(day, pool, i)
     if not msg then return false end              -- unusable; the caller tries another
-    news_manager.send_tip(db.actor, msg, nil, SPEAKER_ICON[who], 14000)
-    say("remembrance PDA: " .. msg)
+    -- usable, whether or not it is silenced: the caller is done either way
+    pda_tip(msg, SPEAKER_ICON[who], 14000, "remembrance PDA")
     return true
 end
 
@@ -1908,7 +1923,7 @@ function eco_access_tick()
     local news = ACCESS_NEWS[faction] or ACCESS_NEWS.ecolog
     pcall(function()
         -- the LIMITED tier: a bracket like "2 to 8 hours" on the Forecast page
-        news_manager.send_tip(db.actor, sotz_text.text(news[1]), nil, news[2], 16000)
+        pda_tip(sotz_text.text(news[1]), news[2], 16000, faction .. " access PDA")
     end)
     say(faction .. " forecast access granted at standing " .. tostring(st))
 end
@@ -2595,10 +2610,8 @@ local function send_later(msgs, delay, gap)
     for i, msg in ipairs(msgs) do
         sent_n = sent_n + 1
         CreateTimeEvent("seasons_zone", "pda_msg_" .. sent_n, delay + gap * (i - 1), function()
-            if db.actor and news_manager and news_manager.send_tip then
-                news_manager.send_tip(db.actor, msg, nil, nil, 12000)
-                say("PDA: " .. msg)
-            end
+            -- asks at sending time, so silencing after loading in drops what is still queued
+            pda_tip(msg, nil, 12000)
             return true
         end)
     end

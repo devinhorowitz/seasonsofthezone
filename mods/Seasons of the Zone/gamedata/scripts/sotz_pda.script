@@ -34,6 +34,16 @@ VIEWS = {
 -- MCM stores the app key here: the key's DIK code, or -1 while unbound, which is how it ships.
 KEY_PATH = "seasons_zone/main/app_key"
 
+-- MCM's "PDA notifications" (Main page), on as it ships. Every PDA message the mod sends goes
+-- through zzz_seasons_of_the_zone's pda_tip, which reads it; the Silence button at the foot of
+-- both pages writes it, so the button and the menu are one setting seen twice.
+NEWS_PATH = "seasons_zone/main/pda_news"
+
+-- The release and its author, on the line at the foot of both pages, so a screenshot of either
+-- says which Seasons it shows. test_pda.py and build_release.py hold VERSION to season.py's.
+VERSION = "2.2.0"
+AUTHOR  = "Windwalker"
+
 local function say(msg)
     printf("%s", "[seasons-pda] " .. tostring(msg))
 end
@@ -118,6 +128,24 @@ local function on_key_press(key)
         open_flat("year")
         return true
     end)
+end
+
+-- --- the foot of the page: Silence, and which Seasons this is -------------------------------
+
+-- whether the mod's PDA messages are on: true unless the player turned them off
+function news_on()
+    local ok, v = pcall(function() return ui_mcm and ui_mcm.get(NEWS_PATH) end)
+    return not (ok and v == false)
+end
+
+function set_news(on)
+    local ok, err = pcall(function() ui_mcm.set(NEWS_PATH, on and true or false) end)
+    if not ok then say("could not set PDA notifications: " .. tostring(err)) end
+end
+
+-- the line at the foot of both pages: the mod's name, VERSION and AUTHOR (st_sotz_credit)
+function credit()
+    return sotz_text.text("st_sotz_credit", {version = VERSION, author = AUTHOR})
 end
 
 -- --- the router --------------------------------------------------------------------------------

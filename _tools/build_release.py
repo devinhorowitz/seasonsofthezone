@@ -83,20 +83,28 @@ def check_messages():
     print("  translations           %s" % r.stdout.strip().splitlines()[-1])
 
 
-def check_version(season_py, changelog):
+def check_version(season_py, changelog, pda_script):
     """season.py's VERSION names the release, and the installer tells an update from a
-    downgrade by it: it has to be the newest entry in CHANGELOG.md."""
-    m = re.search(r"""(?m)^VERSION\s*=\s*["']([^"']*)["']""",
-                  io.open(season_py, encoding="utf-8").read())
+    downgrade by it: it has to be the newest entry in CHANGELOG.md. The game's own copy, on
+    the line at the foot of the app's pages, is sotz_pda.script's VERSION: a screenshot names
+    the release by it, so it has to be the same."""
+    def version_in(path):
+        m = re.search(r"""(?m)^VERSION\s*=\s*["']([^"']*)["']""",
+                      io.open(path, encoding="utf-8").read())
+        return m.group(1) if m else None
     heads = (re.findall(r"(?m)^## (\d+\.\d+\.\d+)\b",
                         io.open(changelog, encoding="utf-8").read())
              if os.path.isfile(changelog) else [])
-    version = m.group(1) if m else None
+    version = version_in(season_py)
     if not heads or version != heads[0]:
         raise SystemExit("  refusing to package: season.py's VERSION is %s and CHANGELOG.md's "
                          "newest entry is %s" % (version or "missing",
                                                  heads[0] if heads else "missing"))
-    print("  version                %s, CHANGELOG.md's newest" % version)
+    shown = version_in(pda_script)
+    if shown != version:
+        raise SystemExit("  refusing to package: season.py's VERSION is %s and the app pages "
+                         "show %s (sotz_pda.script's VERSION)" % (version, shown or "none"))
+    print("  version                %s, CHANGELOG.md's newest and the app pages'" % version)
 
 
 def refuse_test_rigs():
@@ -775,7 +783,8 @@ def check_savedgames_repair(moddir):
 def main():
     selftest_mo2_base()
     refuse_test_rigs()
-    check_version(os.path.join(TOOLS, "season.py"), os.path.join(OUT, "CHANGELOG.md"))
+    check_version(os.path.join(TOOLS, "season.py"), os.path.join(OUT, "CHANGELOG.md"),
+                  os.path.join(ROOT, "mods", MOD, "gamedata", "scripts", "sotz_pda.script"))
     verify_engine_only()
 
     shutil.rmtree(STAGE, ignore_errors=True)

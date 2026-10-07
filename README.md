@@ -321,7 +321,9 @@ season your calendar has on: seven pages with the default calendar.
   transition length (0 for a hard switch on the boundary date, 14 by default);
   intensity (0 is GAMMA's stock look, 1 the full season); one switch per layer: color,
   foliage, fog, wind, and wetness; the two launch-time switches, for textures and
-  ambient sound; the PDA messages, on loading in and as the season turns while you play.
+  ambient sound; the PDA messages, on loading in and as the season turns while you play,
+  and **PDA notifications**, which silences every one of them, as **Silence** at the foot of
+  the app's pages does.
 - **Spring, Summer, Autumn, Winter, Deep winter, Late winter** — that season's color
   grade preset, a read-out of the values it resolves to, and a checkbox for each
   seasonal mod on in it. The pages take your own season names.

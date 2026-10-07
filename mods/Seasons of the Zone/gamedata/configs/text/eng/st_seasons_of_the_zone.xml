@@ -230,6 +230,10 @@
 	<string id="st_sotz_year_weather_heat"><text>Heat</text></string>
 	<string id="st_sotz_year_weather_heat_what"><text>A hot day</text></string>
 
+	<!-- The foot of both pages: Silence (MCM's "PDA notifications"), and the mod, its version and its author, so a screenshot says which Seasons it shows -->
+	<string id="st_sotz_silence"><text>Silence</text></string>
+	<string id="st_sotz_credit"><text>Seasons of the Zone v$version by $author</text></string>
+
 	<!-- On screen when the season shifts during play -->
 	<string id="st_sotz_msg_settled"><text>$Season has settled over the Zone.</text></string>
 	<string id="st_sotz_msg_giving_way"><text>$From giving way to $to.</text></string>

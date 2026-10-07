@@ -397,12 +397,55 @@ function SeasonsForecast:InitControls()
     -- the switch to the app's other face; a fault in it costs the switch, not the page
     local okt, errt = pcall(function() self:InitToggle() end)
     if not okt then say("switch failed: " .. tostring(errt)) end
+    -- Silence and the credit line, likewise
+    local okf, errf = pcall(function() self:InitFooter() end)
+    if not okf then say("footer failed: " .. tostring(errf)) end
 
     self.back = xml:Init3tButton("back", self)
     if self.back then
         self.back:InitTexture("sotz_app_back")
         self:Register(self.back, "back")
         self:AddCallback("back", ui_events.BUTTON_CLICKED, self.OnBack, self)
+    end
+end
+
+-- The foot of the right column, beside Back, the same on both faces: Silence, and under it
+-- the mod's name, version and author, so a screenshot of either page says which Seasons it is.
+-- Silence is MCM's "PDA notifications" seen here too: it writes that option rather than
+-- keeping a copy, as the units button does.
+function SeasonsForecast:InitFooter()
+    local xml = self.xml
+    self.silence = xml:Init3tButton("silence", self)
+    -- the label after its plate, so it draws on top
+    self.silence_label = xml:InitTextWnd("silence_label", self)
+    self.credit = xml:InitTextWnd("credit", self)
+    put(self.silence_label, sotz_text.text("st_sotz_silence"))
+    put(self.credit, sotz_pda.credit())
+    if self.silence then
+        self.silence:InitTexture("sotz_btn")
+        self:Register(self.silence, "silence")
+        self:AddCallback("silence", ui_events.BUTTON_CLICKED, self.OnSilence, self)
+    end
+    self:PaintFooter()
+end
+
+function SeasonsForecast:OnSilence()
+    sotz_pda.set_news(not sotz_pda.news_on())
+    self:PaintFooter()
+end
+
+-- Lit, with an amber label, while the messages are silenced. Read afresh at every open, so a
+-- change made in MCM shows the next time the page does.
+function SeasonsForecast:PaintFooter()
+    local quiet = not sotz_pda.news_on()
+    -- two named calls rather than one chosen name: check_textures tells a four-state plate by
+    -- the widget the call is made on
+    if self.silence then
+        if quiet then self.silence:InitTexture("sotz_btn_on") else self.silence:InitTexture("sotz_btn") end
+    end
+    if self.silence_label then
+        self.silence_label:SetTextColor(quiet and GetARGB(255, 238, 196, 112)
+                                              or GetARGB(255, 200, 200, 200))
     end
 end
 -- Back to the launcher. MAC reaches its own tab the same way, and it binds a key for it
@@ -1200,6 +1243,8 @@ end
 function SeasonsForecast:Reset()
     local ok, err = pcall(function() self:Fill() end)
     if not ok then say("Fill failed: " .. tostring(err)) end
+    local okf, errf = pcall(function() self:PaintFooter() end)
+    if not okf then say("footer failed: " .. tostring(errf)) end
 end
 
 function SeasonsForecast:OnKeyboard(dik, action)

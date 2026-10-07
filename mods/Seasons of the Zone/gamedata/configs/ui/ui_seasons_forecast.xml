@@ -161,6 +161,18 @@
         <text font="letterica16" r="200" g="200" b="200" align="c" vert_align="c" complex_mode="1"/>
     </toggle_fc_label>
 
+    <!-- The foot of the right column, beside Back, the same on both pages: Silence, which is
+         MCM's "PDA notifications" seen here too (lit, with an amber label, while the messages
+         are off), and under it the mod's name, version and author, so a screenshot of either
+         page says which Seasons it shows. The plate takes its texture from script. -->
+    <silence x="556" y="641" width="64" height="24" stretch="1"/>
+    <silence_label x="556" y="641" width="64" height="24">
+        <text font="letterica16" r="200" g="200" b="200" align="c" vert_align="c" complex_mode="1"/>
+    </silence_label>
+    <credit x="556" y="676" width="212" height="16">
+        <text font="letterica16" r="128" g="136" b="128" align="l" vert_align="c" complex_mode="1"/>
+    </credit>
+
     <!-- rows are cloned from these at runtime. row_holder carries the columns: one text
          widget per column at a fixed x, because letterica is proportional and padded
          strings do not line up. -->

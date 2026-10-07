@@ -36,5 +36,9 @@
 		<texture id="sotz_btn_h" x="16" y="0" width="16" height="16" />
 		<texture id="sotz_btn_t" x="32" y="0" width="16" height="16" />
 		<texture id="sotz_btn_d" x="48" y="0" width="16" height="16" />
+		<texture id="sotz_btn_on_e" x="48" y="0" width="16" height="16" />
+		<texture id="sotz_btn_on_h" x="0" y="16" width="16" height="16" />
+		<texture id="sotz_btn_on_t" x="32" y="0" width="16" height="16" />
+		<texture id="sotz_btn_on_d" x="48" y="0" width="16" height="16" />
 	</file>
 </w>

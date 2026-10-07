@@ -10,8 +10,10 @@
     Dates and names only. Anything running on the GAME clock - the weather plan, the next
     emission - lives on the forecast page, because those are not calendar questions. Nothing
     about the MOD belongs here either: which seasonal mods are staged is a question about an
-    install rather than about the Zone, and MCM's per-season pages already answer it. The
-    player's own seasons, events, periods and spells are on it by the names they gave them.
+    install rather than about the Zone, and MCM's per-season pages already answer it. The one
+    exception is the line at the foot naming the mod, its version and its author, so that a
+    screenshot says which Seasons it shows. The player's own seasons, events, periods and
+    spells are on it by the names they gave them.
 
     Textureless except for two things this mod ships and therefore cannot be missing: the
     year dial (ui_seasons_dial_NN, 384x384) and the season accent bar
@@ -110,6 +112,18 @@
     <toggle_fc_label x="622" y="126" width="64" height="24">
         <text font="letterica16" r="200" g="200" b="200" align="c" vert_align="c" complex_mode="1"/>
     </toggle_fc_label>
+
+    <!-- The foot of the right column, beside Back, the same on both pages: Silence, which is
+         MCM's "PDA notifications" seen here too (lit, with an amber label, while the messages
+         are off), and under it the mod's name, version and author, so a screenshot of either
+         page says which Seasons it shows. The plate takes its texture from script. -->
+    <silence x="556" y="641" width="64" height="24" stretch="1"/>
+    <silence_label x="556" y="641" width="64" height="24">
+        <text font="letterica16" r="200" g="200" b="200" align="c" vert_align="c" complex_mode="1"/>
+    </silence_label>
+    <credit x="556" y="676" width="212" height="16">
+        <text font="letterica16" r="128" g="136" b="128" align="l" vert_align="c" complex_mode="1"/>
+    </credit>
 
     <!-- Rows and headings are allocated from these once and repositioned. Color carries
          the emphasis a font change would normally carry, because a widget cannot be

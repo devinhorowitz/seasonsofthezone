@@ -104,8 +104,11 @@ Every transmission is signed and carries that speaker's portrait — Barman, Sid
 Owl, Beard, Sakharov, Forester, Nimble, or an unnamed guide — so the day arrives as people
 talking rather than as the game narrating.
 
-Last come the PDA message settings: the report on loading in and how long after loading it
-comes, and **PDA messages as the season turns in play**. While you play, the day the seasons
+Last come the PDA message settings. **PDA notifications** turns every message the mod sends
+to your PDA off, or on again, whatever the settings for each kind say; the **Silence** button
+in the Seasons app is the same setting. A message sent while they are off is dropped, not
+held for later. Then come the report on loading in and how long after loading it comes, and
+**PDA messages as the season turns in play**. While you play, the day the seasons
 run on can move on, always on the game's clock and past midnight on the real one; with this
 on, your PDA says when the next season draws near and when it comes. With texture swapping
 on, the second message adds that the ground follows at the next launch through `play.bat`.
@@ -172,6 +175,11 @@ one file, `ui/pda_16.xml`, that Mod App Creator ships whole, and so do some mods
 tabs of their own; only one copy is used, and the other's tabs are gone. If that takes
 Mod App Creator's Launcher tab, MCM's Main page says so, and the key still opens the app.
 With the 3D PDA on, the window is also sharper than the screen in hand.
+
+At the foot of both pages, beside Back, **Silence** turns the mod's PDA messages off, and on
+again. It is MCM's **PDA notifications** seen on the page, and it is lit while the messages
+are off. Under it, a line names the mod, its version and its author, so a screenshot of the
+app says which Seasons it shows.
 
 ## The Year — the calendar page
 
