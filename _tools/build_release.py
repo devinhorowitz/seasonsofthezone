@@ -641,6 +641,12 @@ def verify_fresh_install(zp, base, name):
     return ok
 
 
+# The ambient sound source the examples name: GAMMA's own Dark Signal, whatever this
+# install's is. A source built here, like the slice of Dark Signal Amplified this install
+# reads from since 2.4.0, is no other player's mod.
+EXAMPLE_SOUND_SRC = "304- Dark Signal Weather and Ambiance Audio - Shrike"
+
+
 def write_presets(td):
     """The presets marked as shipped, and one made from this install's config. A preset
     saved on this install stays here: it names this install's mods and dates."""
@@ -664,6 +670,8 @@ def write_presets(td):
     # the parts with something in them: an empty one would empty that part of the setup
     # of whoever loads it
     data = ce.preset_from(cal, [p for p in ce.parts_with_content(cal) if p != "calendar"])
+    if data.get("sound_src"):
+        data["sound_src"] = EXAMPLE_SOUND_SRC
     data["shipped"] = True
     data["about"] = ce.GAMMA_EXAMPLE_ABOUT         # English; the windows show it translated
     io.open(os.path.join(out, "GAMMA example.json"), "w", encoding="utf-8",
@@ -730,11 +738,19 @@ def write_example(src, dst):
             and isinstance(first.value.value, str)):
         lines = lines[first.end_lineno:]
     body = "\n".join(lines).lstrip("\n")
+    import config_edit as ce
+    if season.SOUND_SRC:
+        body = ce.set_value(body, "SOUND_SRC", EXAMPLE_SOUND_SRC)[0]
     io.open(dst, "w", encoding="utf-8", newline="\n").write(EXAMPLE_DOC + "\n" + body)
     theirs, ours = {}, {}
     exec(compile(text, src, "exec"), theirs)
     exec(compile(io.open(dst, encoding="utf-8").read(), dst, "exec"), ours)
+    if theirs.get("SOUND_SRC") and ours.get("SOUND_SRC") != EXAMPLE_SOUND_SRC:
+        raise SystemExit("  refusing to package: the worked example's SOUND_SRC is not "
+                         "GAMMA's Dark Signal")
     for var in season.CONFIG_NAMES:
+        if var == "SOUND_SRC":
+            continue
         if theirs.get(var) != ours.get(var):
             raise SystemExit("  refusing to package: the worked example's %s differs from "
                              "this install's" % var)
