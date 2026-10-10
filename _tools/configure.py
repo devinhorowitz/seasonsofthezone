@@ -38,6 +38,9 @@ GAMMA folder (use python in place of py if that is how your Python starts):
   py _tools\configure.py place                   where the real weather comes from
   py _tools\configure.py place "Kyiv" [--pick 2]  look a place up, and take the weather there
   py _tools\configure.py place --at 50.45 30.52 [--name "Home"] | place --reset
+  py _tools\configure.py sound                   the ambient sound mod the soundscape is
+                                                taken from, and the others there are
+  py _tools\configure.py sound "<mod>" | sound --off  take it from that mod, or none
   py _tools\configure.py --advanced              the tabbed editor, not the guided setup
   py mods\<the mod>\_tools\configure.py install  put the tools in the GAMMA folder, or
                                                 update them there (configure.bat does it
@@ -1032,6 +1035,38 @@ def cmd_place(a):
     if save(cal, [_("the weather comes from %s") % ce.place_text(cal.place)]):
         for l in fetch_now():
             print("  " + l)
+
+
+def cmd_sound(a):
+    cal = loaded()
+    found = season.sound_sources()
+    if not (a.mod or a.off):
+        print("  " + (_("The soundscape is taken from \"%s\".") % cal.sound_src if cal.sound_src
+                      else _("No ambient sound mod is set, so the soundscape is off.")))
+        if cal.sound_src and cal.sound_src not in dict(found):
+            print("  ! " + _("\"%s\" is not an enabled mod with ambient sound files.")
+                  % cal.sound_src)
+        for line in season.sound_shadow_lines(cal.sound_src):
+            season._print_lines("  ! ", line)
+        if found:
+            print("  " + _("Enabled mods with ambient sound files, highest in MO2 first:"))
+            for name, files in found:
+                print("    %-58s %s" % (name, ngettext("%d file", "%d files", len(files))
+                                        % len(files)))
+        return
+    if a.mod and a.off:
+        fail(_("Give a mod or --off, not both."))
+    src = None if a.off else a.mod.strip()
+    if src and src not in dict(found):
+        if not ce.Install().listed(src):
+            fail(_("No mod named \"%s\" in MO2's mod list. Use the name exactly as MO2 shows "
+                   "it.") % src)
+        fail(_("\"%s\" is not an enabled mod with ambient sound files.") % src,
+             _("These are: %s") % comma_list(name for name, files in found) if found
+             else _("No enabled mod has any."))
+    cal.sound_src = src
+    save(cal, [_("the soundscape is taken from \"%s\"; play.bat stages it at the next "
+                 "launch") % src if src else _("the seasonal soundscape is off")])
 
 
 def found_text(f):
@@ -3823,6 +3858,9 @@ GAMMA folder (use python in place of py if that is how your Python starts):
   py _tools\configure.py place                   where the real weather comes from
   py _tools\configure.py place "Kyiv" [--pick 2]  look a place up, and take the weather there
   py _tools\configure.py place --at 50.45 30.52 [--name "Home"] | place --reset
+  py _tools\configure.py sound                   the ambient sound mod the soundscape is
+                                                taken from, and the others there are
+  py _tools\configure.py sound "<mod>" | sound --off  take it from that mod, or none
   py _tools\configure.py --advanced              the tabbed editor, not the guided setup
   py mods\<the mod>\_tools\configure.py install  put the tools in the GAMMA folder, or
                                                 update them there (configure.bat does it
@@ -3947,6 +3985,10 @@ def main():
                    help=_("the place's coordinates in degrees, north and east positive"))
     p.add_argument("--name", help=_("with --at, what to call the place"))
     p.add_argument("--reset", action="store_true", help=_("back to Chornobyl"))
+    p = sub.add_parser("sound", help=_("show or change the mod the soundscape is taken "
+                                       "from"))
+    p.add_argument("mod", nargs="?", help=_("an ambient sound mod, as MO2's list names it"))
+    p.add_argument("--off", action="store_true", help=_("no seasonal soundscape"))
     p = sub.add_parser("install", help=_("copy the tools from the mod's folder into the "
                                          "GAMMA folder, or update them there; configure.bat "
                                          "does this when opened from the mod's folder"))
@@ -3966,7 +4008,7 @@ def main():
     a = ap.parse_args()
     {"list": cmd_list, "add": cmd_add, "remove": cmd_remove, "event": cmd_event,
      "season": cmd_season, "spell": cmd_spell, "mcm": cmd_mcm, "calendar": cmd_calendar,
-     "dice": cmd_dice, "name": cmd_name, "preset": cmd_preset, "place": cmd_place,
+     "dice": cmd_dice, "name": cmd_name, "preset": cmd_preset, "place": cmd_place, "sound": cmd_sound,
      "install": lambda a: __import__("installer").main(a),
      None: lambda a: window(a.advanced)}[a.cmd](a)
 

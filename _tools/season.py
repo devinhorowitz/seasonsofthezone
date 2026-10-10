@@ -1482,28 +1482,37 @@ SOUND_MOD = "Seasonal Soundscape"
 SOUND_REL = ("configs", "environment", "ambients", "presets")
 
 # Channels removed per season. Wind, storms, drones and interiors are never touched;
-# birds_night (owls and crows) stays all year. The case of "Insects" varies between the
-# files, so both spellings are listed.
+# birds_night (owls) and the crows stay all year. Names are matched exactly, and the
+# packs spell some two ways, so both spellings are listed.
+#
+# Two sources are covered. Dark Signal Weather and Ambiance Audio names its insects
+# Insects (day) and Insects_night. Dark Signal Amplified renames them bugs_day, bugs_night
+# and bugs_swamp, and adds leaf rustle: Foliage/foliage, foliage_lite, tree_lush and
+# tree_small (gusts through leaves; tree_sway, tree_tall and the branch snaps are wood and
+# wind, and stay). A name a source does not use cuts nothing there.
 #
 #   spring       crickets are a summer and autumn night sound, so spring nights are owls
 #                and the dawn chorus carries the season on its own
 #   summer       nothing cut - the full soundscape, and the baseline the rest are read against
 #   autumn       day insects are gone by October, but crickets call at night until the
-#                first frost, so Insects_night stays; the waders have left the marshes
-#   winter       nothing stridulates below freezing
+#                first frost, so the night insects stay; the waders have left the marshes
+#   winter       nothing stridulates below freezing, and bare trees do not rustle
 #   winter_snow  corvids and owls only
 #   late_winter  the thaw brings the waterfowl back to the marshes before any insect
-#                stirs
+#                stirs or any leaf opens
 #
 # Each season must leave a different set of channels standing, or two of them sound
-# alike; _tools/test_soundscape.py checks that.
+# alike; _tools/test_soundscape.py checks that against the installed source.
+_LEAVES = ("Foliage", "foliage", "foliage_lite", "tree_lush", "tree_small")
+_DAY_INSECTS = ("Insects", "insects", "bugs_day", "bugs_swamp")
+_NIGHT_INSECTS = ("Insects_night", "bugs_night")
 SOUND_CUT = {
-    "spring":      ("Insects_night",),
+    "spring":      _NIGHT_INSECTS,
     "summer":      (),
-    "autumn":      ("Insects", "insects", "birds_swamp"),
-    "winter":      ("Insects", "insects", "Insects_night", "birds_swamp"),
-    "winter_snow": ("Insects", "insects", "Insects_night", "birds_swamp", "birds"),
-    "late_winter": ("Insects", "insects", "Insects_night"),
+    "autumn":      _DAY_INSECTS + ("birds_swamp",),
+    "winter":      _DAY_INSECTS + _NIGHT_INSECTS + ("birds_swamp",) + _LEAVES,
+    "winter_snow": _DAY_INSECTS + _NIGHT_INSECTS + ("birds_swamp", "birds") + _LEAVES,
+    "late_winter": _DAY_INSECTS + _NIGHT_INSECTS + _LEAVES,
 }
 
 SOUND_TAG = ";; seasonal-soundscape season="
@@ -1511,10 +1520,11 @@ SOUND_SIG = " cuts="
 
 
 def _sound_signature(season):
-    """Short hash of the channels cut for `season`. It goes in the marker so that
-    editing SOUND_CUT makes the generated files stale even when the season has not
-    moved - otherwise the edit silently does nothing until the season turns."""
-    raw = ",".join(sorted(SOUND_CUT.get(season, ())))
+    """Short hash of the source mod and the channels cut for `season`. It goes in the
+    marker so that editing SOUND_CUT or changing SOUND_SRC makes the generated files stale
+    even when the season has not moved - otherwise the change silently does nothing until
+    the season turns, and the old source's presets stay on top of the new source."""
+    raw = (SOUND_SRC or "") + "|" + ",".join(sorted(SOUND_CUT.get(season, ())))
     return hashlib.md5(raw.encode("utf-8")).hexdigest()[:8]
 
 
@@ -1528,6 +1538,66 @@ def _sound_src_dir():
 
 def _sound_dst_dir():
     return os.path.join(MODS, SOUND_MOD, "gamedata", *SOUND_REL)
+
+
+def sound_sources():
+    """The enabled mods that ship ambient sound files (configs/environment/ambients/
+    presets/*.ltx), highest in MO2's list first, each with the files' names in lower case:
+    the mods SOUND_SRC can name. The generated soundscape itself is left out."""
+    out = []
+    for line in _modlist_lines() or []:
+        if line[:1] != "+" or line[1:] == SOUND_MOD:
+            continue
+        try:
+            files = {f.lower() for f in os.listdir(os.path.join(MODS, line[1:], "gamedata",
+                                                                *SOUND_REL))
+                     if f.lower().endswith(".ltx")}
+        except OSError:
+            continue
+        if files:
+            out.append((line[1:], files))
+    return out
+
+
+def sound_shadow(src=None):
+    """The enabled mods above the source that ship some of its ambient sound files, as
+    [(mod, files it wins, files the source has)], highest first. The generated files sit
+    directly above the source, so these win them back and the season never reaches those
+    places: a soundscape pack installed over the one SOUND_SRC names, like Dark Signal
+    Amplified over GAMMA's Dark Signal. Empty when no source is set or nothing is above it."""
+    src = SOUND_SRC if src is None else src
+    if not src:
+        return []
+    found = sound_sources()
+    mine = dict(found).get(src)
+    if not mine:
+        return []
+    out, taken = [], set()
+    for name, files in found:
+        if name == src:
+            break
+        won = (files & mine) - taken
+        if won:
+            out.append((name, len(won), len(mine)))
+            taken |= won
+    return out
+
+
+def sound_shadow_lines(src=None):
+    """What sound_shadow found, as lines to print after "  ! ": what wins, and the command
+    that makes it the source."""
+    src = SOUND_SRC if src is None else src
+    out = []
+    for name, won, total in sound_shadow(src):
+        out.append(ngettext(
+            "\"%(mod)s\" is above \"%(src)s\" and wins %(won)d of its %(total)d ambient sound "
+            "file, so the seasons don't reach those places.",
+            "\"%(mod)s\" is above \"%(src)s\" and wins %(won)d of its %(total)d ambient sound "
+            "files, so the seasons don't reach those places.", total)
+            % {"mod": name, "src": src, "won": won, "total": total})
+        out.append(_("To take the soundscape from it instead: %s")
+                   % command("configure.py", "sound \"%s\"" % name))
+    return out
 
 
 def _strip_channels(line, cut):
@@ -3787,6 +3857,9 @@ def main():
                     "   " + _("(\"%s\" is disabled in MO2, so the soundscape is off)")
                     % SOUND_SRC if not _mod_enabled(SOUND_SRC) else
                     "" if prefs["stage_sound"] else "   " + _("(gating is off in MCM)")))
+            if listed and _mod_enabled(SOUND_SRC) and prefs["stage_sound"]:
+                for line in sound_shadow_lines():
+                    _print_lines("  ! ", line)
         shipped, present, copied = install_presets(writing)
         if shipped:
             _row(pgettext("report", "grade presets"),

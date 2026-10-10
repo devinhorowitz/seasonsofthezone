@@ -681,6 +681,18 @@ msgstr ""
 msgid "Pick another in its \"Wins over\" box in configure.bat."
 msgstr ""
 
+#: season.py
+#, python-format
+msgid "\"%(mod)s\" is above \"%(src)s\" and wins %(won)d of its %(total)d ambient sound file, so the seasons don't reach those places."
+msgid_plural "\"%(mod)s\" is above \"%(src)s\" and wins %(won)d of its %(total)d ambient sound files, so the seasons don't reach those places."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "To take the soundscape from it instead: %s"
+msgstr ""
+
 #. follows a table's name, like PERIODS, which stays English
 #: season.py
 msgid "must be a table, {season: (month, day)}, or None for Polesia's dates."
@@ -1207,7 +1219,7 @@ msgstr ""
 msgid "Can't read MO2's mod list (%s)."
 msgstr ""
 
-#: season.py
+#: season.py configure.py
 #, python-format
 msgid "No mod named \"%s\" in MO2's mod list. Use the name exactly as MO2 shows it."
 msgstr ""
@@ -1349,7 +1361,7 @@ msgid_plural "%(n)d disabled mods in MO2 would win some of %(mod)s's files if en
 msgstr[0] ""
 msgstr[1] ""
 
-#: season.py
+#: season.py configure.py
 #, python-format
 msgid "%d file"
 msgid_plural "%d files"
@@ -3202,6 +3214,46 @@ msgstr ""
 
 #: configure.py
 #, python-format
+msgid "The soundscape is taken from \"%s\"."
+msgstr ""
+
+#: configure.py
+msgid "No ambient sound mod is set, so the soundscape is off."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%s\" is not an enabled mod with ambient sound files."
+msgstr ""
+
+#: configure.py
+msgid "Enabled mods with ambient sound files, highest in MO2 first:"
+msgstr ""
+
+#: configure.py
+msgid "Give a mod or --off, not both."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "These are: %s"
+msgstr ""
+
+#: configure.py
+msgid "No enabled mod has any."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "the soundscape is taken from \"%s\"; play.bat stages it at the next launch"
+msgstr ""
+
+#: configure.py
+msgid "the seasonal soundscape is off"
+msgstr ""
+
+#: configure.py
+#, python-format
 msgid "No presets yet. Save one with: %s"
 msgstr ""
 
@@ -3241,11 +3293,6 @@ msgstr ""
 #: configure.py
 #, python-format
 msgid "There is no preset called \"%s\"."
-msgstr ""
-
-#: configure.py
-#, python-format
-msgid "These are: %s"
 msgstr ""
 
 #: configure.py
@@ -4700,6 +4747,9 @@ msgid ""
 "  py _tools\\configure.py place                   where the real weather comes from\n"
 "  py _tools\\configure.py place \"Kyiv\" [--pick 2]  look a place up, and take the weather there\n"
 "  py _tools\\configure.py place --at 50.45 30.52 [--name \"Home\"] | place --reset\n"
+"  py _tools\\configure.py sound                   the ambient sound mod the soundscape is\n"
+"                                                taken from, and the others there are\n"
+"  py _tools\\configure.py sound \"<mod>\" | sound --off  take it from that mod, or none\n"
 "  py _tools\\configure.py --advanced              the tabbed editor, not the guided setup\n"
 "  py mods\\<the mod>\\_tools\\configure.py install  put the tools in the GAMMA folder, or\n"
 "                                                update them there (configure.bat does it\n"
@@ -4954,6 +5004,18 @@ msgstr ""
 
 #: configure.py
 msgid "back to Chornobyl"
+msgstr ""
+
+#: configure.py
+msgid "show or change the mod the soundscape is taken from"
+msgstr ""
+
+#: configure.py
+msgid "an ambient sound mod, as MO2's list names it"
+msgstr ""
+
+#: configure.py
+msgid "no seasonal soundscape"
 msgstr ""
 
 #: configure.py

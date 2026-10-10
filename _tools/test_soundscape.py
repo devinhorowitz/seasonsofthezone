@@ -21,6 +21,16 @@ PRESETS = [
     "    sound_channels_dynamic  = wind_normal, Insects, Insects_night, birds, birds_swamp;",
     "    sound_channels_dynamic  = insects, birds, birds_swamp, birds_night, wind_normal",
     "    sound_channels_dynamic  = Insects_night, birds_night, out_night_amb;",
+    # Dark Signal Amplified's (ROMEO's soundscape), tabs and double spaces as it has them:
+    # its insects are bugs_*, and it adds leaf rustle
+    "\t\tsound_channels_dynamic      =  bugs_day, wind_forest, bugs_night, day_drones, "
+    "out_drone, tree_sway, tree_tall, Foliage, tree_lush;",
+    "    sound_channels_dynamic      = ambient_urban, wind_urban, out_spooks, foliage_lite, "
+    "tree_small, wind_trash;",
+    "    sound_channels_dynamic      =  tree_sway_small, bugs_day, tree_lush, branch, foliage, "
+    "crows, ambient_urban_lite, tree_pine;",
+    "\t\tsound_channels_dynamic      = wind_normal, bugs_swamp, wind_heavy, out_spooks, "
+    "out_drone, tree_swamp, wind_gust, crows;",
 ]
 
 
@@ -98,6 +108,22 @@ def t_each_season_has_its_own_signature():
     sigs = {season._sound_signature(s) for s in season.SEASONS}
     assert len(sigs) == len(season.SEASONS), "two seasons share a signature"
     return "%d signatures, all different" % len(sigs)
+
+
+@case
+def t_the_source_is_in_the_signature():
+    """Changing SOUND_SRC alone has to make the generated files stale, or the old source's
+    files stay on top of the new one until the season turns."""
+    was = season.SOUND_SRC
+    try:
+        season.SOUND_SRC = "One Pack"
+        a = season._sound_signature("winter")
+        season.SOUND_SRC = "Another Pack"
+        b = season._sound_signature("winter")
+    finally:
+        season.SOUND_SRC = was
+    assert a != b, "the signature ignores the source"
+    return "the same cuts from another source get another signature"
 
 
 if __name__ == "__main__":

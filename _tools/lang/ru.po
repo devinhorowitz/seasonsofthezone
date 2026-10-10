@@ -688,6 +688,19 @@ msgstr "%(mod)s пропущен: мода \"%(above)s\", который он п
 msgid "Pick another in its \"Wins over\" box in configure.bat."
 msgstr "Выберите другой в его поле «Перекрывает» в configure.bat."
 
+#: season.py
+#, python-format
+msgid "\"%(mod)s\" is above \"%(src)s\" and wins %(won)d of its %(total)d ambient sound file, so the seasons don't reach those places."
+msgid_plural "\"%(mod)s\" is above \"%(src)s\" and wins %(won)d of its %(total)d ambient sound files, so the seasons don't reach those places."
+msgstr[0] "\"%(mod)s\" стоит выше \"%(src)s\" и перекрывает %(won)d из %(total)d его файла фоновых звуков, так что сезоны туда не доходят."
+msgstr[1] "\"%(mod)s\" стоит выше \"%(src)s\" и перекрывает %(won)d из %(total)d его файлов фоновых звуков, так что сезоны туда не доходят."
+msgstr[2] "\"%(mod)s\" стоит выше \"%(src)s\" и перекрывает %(won)d из %(total)d его файлов фоновых звуков, так что сезоны туда не доходят."
+
+#: season.py
+#, python-format
+msgid "To take the soundscape from it instead: %s"
+msgstr "Чтобы брать фоновые звуки из него: %s"
+
 #. follows a table's name, like PERIODS, which stays English
 #: season.py
 msgid "must be a table, {season: (month, day)}, or None for Polesia's dates."
@@ -1222,7 +1235,7 @@ msgstr "нет в списке"
 msgid "Can't read MO2's mod list (%s)."
 msgstr "Не удаётся прочитать список модов MO2 (%s)."
 
-#: season.py
+#: season.py configure.py
 #, python-format
 msgid "No mod named \"%s\" in MO2's mod list. Use the name exactly as MO2 shows it."
 msgstr "В списке модов MO2 нет мода с именем \"%s\". Укажите имя точно так, как его показывает MO2."
@@ -1376,7 +1389,7 @@ msgstr[0] "%(n)d выключенный мод в MO2 перекрыл бы ча
 msgstr[1] "%(n)d выключенных мода в MO2 перекрыли бы часть файлов %(mod)s, если их включить (например, \"%(other)s\": %(files)s, %(file)s)."
 msgstr[2] "%(n)d выключенных модов в MO2 перекрыли бы часть файлов %(mod)s, если их включить (например, \"%(other)s\": %(files)s, %(file)s)."
 
-#: season.py
+#: season.py configure.py
 #, python-format
 msgid "%d file"
 msgid_plural "%d files"
@@ -3271,6 +3284,46 @@ msgstr "место для погоды: %s"
 
 #: configure.py
 #, python-format
+msgid "The soundscape is taken from \"%s\"."
+msgstr "Фоновые звуки берутся из \"%s\"."
+
+#: configure.py
+msgid "No ambient sound mod is set, so the soundscape is off."
+msgstr "Мод фоновых звуков не задан, поэтому фоновые звуки выключены."
+
+#: configure.py
+#, python-format
+msgid "\"%s\" is not an enabled mod with ambient sound files."
+msgstr "\"%s\" выключен в MO2, или в нём нет файлов фоновых звуков."
+
+#: configure.py
+msgid "Enabled mods with ambient sound files, highest in MO2 first:"
+msgstr "Включённые моды с файлами фоновых звуков, сверху вниз по списку MO2:"
+
+#: configure.py
+msgid "Give a mod or --off, not both."
+msgstr "Укажите мод или --off, но не то и другое сразу."
+
+#: configure.py
+#, python-format
+msgid "These are: %s"
+msgstr "Доступны: %s"
+
+#: configure.py
+msgid "No enabled mod has any."
+msgstr "Ни в одном включённом моде их нет."
+
+#: configure.py
+#, python-format
+msgid "the soundscape is taken from \"%s\"; play.bat stages it at the next launch"
+msgstr "фоновые звуки берутся из \"%s\"; play.bat подготовит их при следующем запуске"
+
+#: configure.py
+msgid "the seasonal soundscape is off"
+msgstr "сезонные фоновые звуки выключены"
+
+#: configure.py
+#, python-format
 msgid "No presets yet. Save one with: %s"
 msgstr "Пресетов пока нет. Сохранить пресет можно командой: %s"
 
@@ -3311,11 +3364,6 @@ msgstr "Пресет %(name)s (%(parts)s) сохранён как:"
 #, python-format
 msgid "There is no preset called \"%s\"."
 msgstr "Пресета \"%s\" нет."
-
-#: configure.py
-#, python-format
-msgid "These are: %s"
-msgstr "Доступны: %s"
 
 #: configure.py
 #, python-format
@@ -4818,6 +4866,9 @@ msgid ""
 "  py _tools\\configure.py place                   where the real weather comes from\n"
 "  py _tools\\configure.py place \"Kyiv\" [--pick 2]  look a place up, and take the weather there\n"
 "  py _tools\\configure.py place --at 50.45 30.52 [--name \"Home\"] | place --reset\n"
+"  py _tools\\configure.py sound                   the ambient sound mod the soundscape is\n"
+"                                                taken from, and the others there are\n"
+"  py _tools\\configure.py sound \"<mod>\" | sound --off  take it from that mod, or none\n"
 "  py _tools\\configure.py --advanced              the tabbed editor, not the guided setup\n"
 "  py mods\\<the mod>\\_tools\\configure.py install  put the tools in the GAMMA folder, or\n"
 "                                                update them there (configure.bat does it\n"
@@ -4870,6 +4921,10 @@ msgstr ""
 "  py _tools\\configure.py place                   откуда берётся реальная погода\n"
 "  py _tools\\configure.py place \"Kyiv\" [--pick 2]  найти место и брать погоду оттуда\n"
 "  py _tools\\configure.py place --at 50.45 30.52 [--name \"Home\"] | place --reset\n"
+"  py _tools\\configure.py sound                   мод, из которого берутся фоновые звуки,\n"
+"                                                и другие, какие есть\n"
+"  py _tools\\configure.py sound \"<mod>\" | sound --off  брать их из этого мода\n"
+"                                                или ни из какого\n"
 "  py _tools\\configure.py --advanced              редактор с вкладками, а не\n"
 "                                                пошаговая настройка\n"
 "  py mods\\<the mod>\\_tools\\configure.py install  положить инструменты в папку GAMMA\n"
@@ -5125,6 +5180,18 @@ msgstr "с --at — как назвать место"
 #: configure.py
 msgid "back to Chornobyl"
 msgstr "вернуться к Чернобылю"
+
+#: configure.py
+msgid "show or change the mod the soundscape is taken from"
+msgstr "показать или сменить мод, из которого берутся фоновые звуки"
+
+#: configure.py
+msgid "an ambient sound mod, as MO2's list names it"
+msgstr "мод фоновых звуков, как он назван в списке MO2"
+
+#: configure.py
+msgid "no seasonal soundscape"
+msgstr "без сезонных фоновых звуков"
 
 #: configure.py
 msgid "copy the tools from the mod's folder into the GAMMA folder, or update them there; configure.bat does this when opened from the mod's folder"
@@ -6730,3 +6797,108 @@ msgstr "ЯСНО"
 msgctxt "the barometer's face"
 msgid "DRY"
 msgstr "СУШЬ"
+
+#~ msgid ""
+#~ "configure.bat opens the window. The same changes can be made with commands, run in the\n"
+#~ "GAMMA folder (use python in place of py if that is how your Python starts):\n"
+#~ "\n"
+#~ "  py _tools\\configure.py list                    the seasonal mods, events and calendar\n"
+#~ "  py _tools\\configure.py add \"<mod>\" --when winter \"deep winter\" [--above \"<mod>\"]\n"
+#~ "  py _tools\\configure.py remove \"<mod>\"\n"
+#~ "  py _tools\\configure.py event <name> <MM-DD> [<MM-DD>]\n"
+#~ "  py _tools\\configure.py event <name> --weekdays sat sun\n"
+#~ "  py _tools\\configure.py event <name> --days 1 15 last [--months dec jan]\n"
+#~ "  py _tools\\configure.py event <name> --weekdays mon --weeks first [--between 12-01 02-28]\n"
+#~ "  py _tools\\configure.py event <name> --remove\n"
+#~ "  py _tools\\configure.py season                  your own seasons\n"
+#~ "  py _tools\\configure.py season \"<name>\" <MM-DD> <MM-DD>    add or change one, a week or\n"
+#~ "                                                longer; it runs on top of the season it\n"
+#~ "                                                falls in\n"
+#~ "  py _tools\\configure.py season \"<name>\" --rename \"<new>\" | --remove\n"
+#~ "  py _tools\\configure.py spell                   your spells\n"
+#~ "  py _tools\\configure.py spell \"<name>\" --in summer --chance 3 [--days 1 2] [--as winter]\n"
+#~ "                                                a short stretch, 1 to 6 days, that starts by\n"
+#~ "                                                chance; --as is the season it brings\n"
+#~ "  py _tools\\configure.py spell \"<name>\" --rename \"<new>\" | --remove\n"
+#~ "  py _tools\\configure.py mcm                     other mods' MCM options that follow the\n"
+#~ "                                                season\n"
+#~ "  py _tools\\configure.py mcm --find <words>      MCM's options with those words in their\n"
+#~ "                                                names, and their values now\n"
+#~ "  py _tools\\configure.py mcm <page/option> --in winter \"deep winter\" --to true --else false\n"
+#~ "  py _tools\\configure.py mcm <page/option> --set \"deep winter=2\" winter=1.5 --else 1\n"
+#~ "  py _tools\\configure.py mcm <page/option> --remove\n"
+#~ "  py _tools\\configure.py calendar                when each season starts\n"
+#~ "  py _tools\\configure.py calendar summer=5-1 \"deep winter=11-15\" [--only]\n"
+#~ "  py _tools\\configure.py calendar --off \"late winter\" | --on \"late winter\"\n"
+#~ "  py _tools\\configure.py calendar --dates met | --reset\n"
+#~ "  py _tools\\configure.py name                    what the seasons are called\n"
+#~ "  py _tools\\configure.py name \"deep winter\" \"The Long Cold\" | name \"deep winter\" --reset\n"
+#~ "  py _tools\\configure.py place                   where the real weather comes from\n"
+#~ "  py _tools\\configure.py place \"Kyiv\" [--pick 2]  look a place up, and take the weather there\n"
+#~ "  py _tools\\configure.py place --at 50.45 30.52 [--name \"Home\"] | place --reset\n"
+#~ "  py _tools\\configure.py --advanced              the tabbed editor, not the guided setup\n"
+#~ "  py mods\\<the mod>\\_tools\\configure.py install  put the tools in the GAMMA folder, or\n"
+#~ "                                                update them there (configure.bat does it\n"
+#~ "                                                when opened from the mod's folder)\n"
+#~ "  py _tools\\configure.py preset                  the presets there are\n"
+#~ "  py _tools\\configure.py preset save \"<name>\" [--about \"...\"] [--parts calendar mods]\n"
+#~ "  py _tools\\configure.py preset load \"<name>\" [--parts calendar events mods textures]\n"
+#~ "  py _tools\\configure.py preset show \"<name>\"\n"
+#~ "\n"
+#~ "Mod names are as MO2's mod list shows them; a name with a space goes in quotes. --above\n"
+#~ "is the mod a seasonal mod wins over, worked out from the files they share when left out.\n"
+#~ "Every change is checked with season.py's rules before it is written, and the previous\n"
+#~ "file is kept as seasons_config.py.bak.\n"
+#~ msgstr ""
+#~ "configure.bat открывает окно. То же самое можно сделать командами, запуская их\n"
+#~ "в папке GAMMA (пишите python вместо py, если ваш Python запускается так):\n"
+#~ "\n"
+#~ "  py _tools\\configure.py list                    сезонные моды, события и календарь\n"
+#~ "  py _tools\\configure.py add \"<mod>\" --when winter \"deep winter\" [--above \"<mod>\"]\n"
+#~ "  py _tools\\configure.py remove \"<mod>\"\n"
+#~ "  py _tools\\configure.py event <name> <MM-DD> [<MM-DD>]\n"
+#~ "  py _tools\\configure.py event <name> --weekdays sat sun\n"
+#~ "  py _tools\\configure.py event <name> --days 1 15 last [--months dec jan]\n"
+#~ "  py _tools\\configure.py event <name> --weekdays mon --weeks first [--between 12-01 02-28]\n"
+#~ "  py _tools\\configure.py event <name> --remove\n"
+#~ "  py _tools\\configure.py season                  свои сезоны\n"
+#~ "  py _tools\\configure.py season \"<name>\" <MM-DD> <MM-DD>    добавить или изменить\n"
+#~ "                                                (от недели и дольше); он действует\n"
+#~ "                                                поверх сезона, в который попадает\n"
+#~ "  py _tools\\configure.py season \"<name>\" --rename \"<new>\" | --remove\n"
+#~ "  py _tools\\configure.py spell                   ваши капризы\n"
+#~ "  py _tools\\configure.py spell \"<name>\" --in summer --chance 3 [--days 1 2] [--as winter]\n"
+#~ "                                                короткий отрезок от 1 до 6 дней,\n"
+#~ "                                                наступающий случайно; --as — сезон,\n"
+#~ "                                                который он приносит\n"
+#~ "  py _tools\\configure.py spell \"<name>\" --rename \"<new>\" | --remove\n"
+#~ "  py _tools\\configure.py mcm                     настройки MCM других модов,\n"
+#~ "                                                которые меняются с сезоном\n"
+#~ "  py _tools\\configure.py mcm --find <words>      параметры MCM с этими словами\n"
+#~ "                                                в названии и их текущие значения\n"
+#~ "  py _tools\\configure.py mcm <page/option> --in winter \"deep winter\" --to true --else false\n"
+#~ "  py _tools\\configure.py mcm <page/option> --set \"deep winter=2\" winter=1.5 --else 1\n"
+#~ "  py _tools\\configure.py mcm <page/option> --remove\n"
+#~ "  py _tools\\configure.py calendar                когда начинается каждый сезон\n"
+#~ "  py _tools\\configure.py calendar summer=5-1 \"deep winter=11-15\" [--only]\n"
+#~ "  py _tools\\configure.py calendar --off \"late winter\" | --on \"late winter\"\n"
+#~ "  py _tools\\configure.py calendar --dates met | --reset\n"
+#~ "  py _tools\\configure.py name                    как называются сезоны\n"
+#~ "  py _tools\\configure.py name \"deep winter\" \"The Long Cold\" | name \"deep winter\" --reset\n"
+#~ "  py _tools\\configure.py place                   откуда берётся реальная погода\n"
+#~ "  py _tools\\configure.py place \"Kyiv\" [--pick 2]  найти место и брать погоду оттуда\n"
+#~ "  py _tools\\configure.py place --at 50.45 30.52 [--name \"Home\"] | place --reset\n"
+#~ "  py _tools\\configure.py --advanced              редактор с вкладками, а не\n"
+#~ "                                                пошаговая настройка\n"
+#~ "  py mods\\<the mod>\\_tools\\configure.py install  положить инструменты в папку GAMMA\n"
+#~ "                                                или обновить их там (так делает\n"
+#~ "                                                configure.bat из папки мода)\n"
+#~ "  py _tools\\configure.py preset                  какие есть пресеты\n"
+#~ "  py _tools\\configure.py preset save \"<name>\" [--about \"...\"] [--parts calendar mods]\n"
+#~ "  py _tools\\configure.py preset load \"<name>\" [--parts calendar events mods textures]\n"
+#~ "  py _tools\\configure.py preset show \"<name>\"\n"
+#~ "\n"
+#~ "Имена модов — как в списке модов MO2; имя с пробелом пишется в кавычках. --above —\n"
+#~ "мод, перекрываемый сезонным модом; если не указан, он определяется по файлам,\n"
+#~ "общим для обоих модов. Каждое изменение перед записью проверяется по правилам\n"
+#~ "season.py, а прежний файл сохраняется как seasons_config.py.bak.\n"
