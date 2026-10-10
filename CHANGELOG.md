@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+- **Dark Signal Amplified's soundscape is gated by season.** Shrike's Dark Signal Amplified
+  Soundscape, which ROMEO ships, names its insects `bugs_day`, `bugs_night` and
+  `bugs_swamp`, and adds leaf rustle. The seasons now cut those too: the daytime insects
+  from autumn, every insect from the winters, crickets from spring nights, and in winter,
+  deep winter and late winter the rustle of leaves (`Foliage`, `foliage_lite`,
+  `tree_lush`, `tree_small`), since bare trees don't rustle. Gusts through the trees,
+  branch snaps and the crows stay. GAMMA's Dark Signal is cut as before.
+- **`configure.py sound` picks the soundscape's source.** `sound` names the mod it is taken
+  from and lists the enabled mods with ambient sound files; `sound "<mod>"` switches to one,
+  and `sound --off` turns the layer off. Before, only a preset or an edit to
+  `seasons_config.py` changed it.
+- **Status says when another pack hides the soundscape.** The generated files sit directly
+  above the source mod, so a pack installed above it, as ROMEO puts Dark Signal Amplified
+  above GAMMA's Dark Signal, wins them back, and the seasons stopped reaching those places
+  without a word. `season.py status` and `play.bat` now name the pack, how many files it
+  wins, and the command that makes it the source.
+- **A new source takes effect at the next launch.** The generated files record the source
+  as well as the cuts, so switching it rebuilds them right away instead of when the season
+  next turns.
+- **The README has a section on ROMEO**: its soundscape, its color grade, its new-game date
+  and the PDA app.
+
 ## 2.3.0 — 2026-10-07
 
 - **The Seasons app opens on a key.** MCM's Main page has **Open the Seasons app**, unset

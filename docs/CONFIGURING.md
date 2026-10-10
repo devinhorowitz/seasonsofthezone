@@ -305,25 +305,38 @@ SOUND_SRC = "304- Dark Signal Weather and Ambiance Audio - Shrike"
 ```
 
 Name the mod that wins your `configs/environment/ambients/presets/` files (several
-soundscape mods ship the same presets; use `whowins`). `season.py` generates a
-`Seasonal Soundscape` mod from that mod's files with these channels removed:
+soundscape mods ship the same presets). `py _tools\configure.py sound` lists the enabled
+mods that have them, highest in MO2 first, and `configure.py sound "<mod>"` sets this line
+for you; `sound --off` sets it to `None`. `season.py` generates a `Seasonal Soundscape` mod
+from that mod's files with these channels removed:
 
 | Season | Silenced |
 |---|---|
 | spring | night crickets |
 | summer | nothing |
 | autumn | daytime insects, swamp birds |
-| winter | all insects, swamp birds |
-| deep winter | all insects, swamp birds, daytime birds |
-| late winter | all insects |
+| winter | all insects, swamp birds, leaf rustle |
+| deep winter | all insects, swamp birds, daytime birds, leaf rustle |
+| late winter | all insects, leaf rustle |
 
 Wind, storms, thunder and interiors are never touched. Crows and owls stay all year.
 Crickets belong to summer and autumn nights, so spring is carried by the dawn chorus
 alone; autumn keeps them calling until the first frost but loses the daytime insects.
-The thaw brings the marsh birds back before any insect stirs.
+The thaw brings the marsh birds back before any insect stirs, or any leaf opens.
 
-The generated files record which channels they were cut with, so editing this table
-rebuilds them at the next launch rather than waiting for the season to turn.
+The channel names are both packs' by Shrike: Dark Signal Weather and Ambiance Audio's
+`Insects` and `Insects_night`, and Dark Signal Amplified Soundscape's `bugs_day`,
+`bugs_night` and `bugs_swamp`, with its leaf rustle (`Foliage`, `foliage_lite`,
+`tree_lush`, `tree_small`). Gusts through the trees and branch snaps are wood and wind, and
+stay. A name a pack doesn't use cuts nothing in it.
+
+The generated files record the source and the channels they were cut with, so changing
+either rebuilds them at the next launch rather than waiting for the season to turn.
+
+A soundscape pack installed above the source wins its files back, since the generated mod
+sits directly above the source: the seasons then stop reaching those places, which shows
+nowhere in the game. `season.py status` names such a pack, how many of the files it wins,
+and the `configure.py sound` command that makes it the source.
 
 The generated mod is placed just above `SOUND_SRC` and follows the MCM switch; you do not
 touch it in MO2. If you disable the source mod, the generated presets are removed at the

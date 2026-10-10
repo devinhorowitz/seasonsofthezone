@@ -214,6 +214,20 @@ GAMMA: the seasonal atmosphere, the marked days, the PDA app and MCM all work, a
 reads the base game's weather. Plain Anomaly without Modded Exes hasn't been run; its column
 follows from what its engine lacks.
 
+### With ROMEO
+
+ROMEO, CLIKRΔD GROUP's repack built on GAMMA, hasn't been run with this mod yet. Where they
+meet:
+
+- **Its soundscape**, Dark Signal Amplified, sits above GAMMA's Dark Signal. Make it the
+  source with `py _tools\configure.py sound "<its name in MO2>"`; `season.py status` says
+  when that is needed.
+- **Its color grade**, Kumo's LUT, is applied after this mod's grade, so the two stack. If
+  the result is too strong, lower **Intensity** on MCM's Main page.
+- **RE:Done A-Life Performance** moves the new-game date a day earlier; the mod reads the
+  date from `alife.ltx`, so the game's own clock follows it.
+- **The PDA app** opens from Mod App Creator's tile, or on a key from MCM's Main page.
+
 ---
 
 ## Install
@@ -546,13 +560,21 @@ mods, texture sets and sound - with every table described;
 
 ## Optional: seasonal ambient sound
 
-Point `SOUND_SRC` at the ambience mod that wins your
-`configs/environment/ambients/presets/` files. Its sound channels are then gated per
-season, so each of the six sounds different: spring keeps the dawn chorus and loses the
-crickets, summer has everything, autumn loses the daytime insects but keeps crickets
-calling until the frost, and the winters lose the insects entirely. Deep winter loses
-the daytime birds too, and the thaw brings the marsh birds back before any insect. Wind
-and storms are untouched. Crows and owls stay all year.
+Point the soundscape at the ambience mod that wins your
+`configs/environment/ambients/presets/` files: `py _tools\configure.py sound` lists the
+mods you have with them, and `configure.py sound "<mod>"` picks one. Its sound channels are
+then gated per season, so each of the six sounds different: spring keeps the dawn chorus and
+loses the crickets, summer has everything, autumn loses the daytime insects but keeps
+crickets calling until the frost, and the winters lose the insects entirely, and the rustle
+of leaves on bare trees. Deep winter loses the daytime birds too, and the thaw brings the
+marsh birds back before any insect. Wind and storms are untouched. Crows and owls stay all
+year.
+
+Both of Shrike's packs are covered: Dark Signal Weather and Ambiance Audio, which GAMMA
+ships, and Dark Signal Amplified Soundscape, which names its insects and leaves its own way.
+A pack installed above the one the soundscape reads from wins those files back, and the
+seasons stop reaching them; `py _tools\season.py status` names the pack and the command
+that switches to it.
 
 The gated presets are generated from your own files at launch. Switchable on the Main page.
 

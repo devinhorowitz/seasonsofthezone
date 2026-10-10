@@ -129,6 +129,12 @@ called `Seasonal Soundscape` and places it directly above the source. Do not mov
 you disable the source mod, the generated mod is disabled and its files removed at the
 next launch.
 
+Because it sits directly above the source, a soundscape pack installed above the source
+wins those files back: ROMEO's Dark Signal Amplified, above GAMMA's Dark Signal, is one.
+`py _tools\season.py status` names the pack; make it the source with
+`py _tools\configure.py sound "<the pack>"`, and the generated mod moves above it at the
+next launch.
+
 ---
 
 ## INVERNO's snowfall addon
