@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.4.1 — 2026-10-10
 
 - **The setup window picks the soundscape's source.** In `configure.bat`, under **Texture
   sets and ambient sound**, **Ambient sound follows the season** has a list of the enabled

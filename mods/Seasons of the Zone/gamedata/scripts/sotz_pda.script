@@ -41,7 +41,7 @@ NEWS_PATH = "seasons_zone/main/pda_news"
 
 -- The release and its author, on the line at the foot of both pages, so a screenshot of either
 -- says which Seasons it shows. test_pda.py and build_release.py hold VERSION to season.py's.
-VERSION = "2.4.0"
+VERSION = "2.4.1"
 AUTHOR  = "Windwalker"
 
 local function say(msg)
