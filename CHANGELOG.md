@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.4.0 — 2026-10-10
 
 - **Dark Signal Amplified's soundscape is gated by season.** Shrike's Dark Signal Amplified
   Soundscape, which ROMEO ships, names its insects `bugs_day`, `bugs_night` and

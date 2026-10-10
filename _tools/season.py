@@ -59,7 +59,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODS = os.path.join(ROOT, "mods")
 DOWNLOADS = os.path.join(ROOT, "downloads")
 SOTZ = "Seasons of the Zone"
-VERSION = "2.3.0"           # of the tools; build_release.py checks it against CHANGELOG.md
+VERSION = "2.4.0"           # of the tools; build_release.py checks it against CHANGELOG.md
 SEASONS = ("spring", "summer", "autumn", "winter", "winter_snow", "late_winter")
 
 
