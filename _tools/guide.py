@@ -631,9 +631,14 @@ class Guide(object):
         for name, c in ((self.default or {}).get("layout") or {}).items():
             if name in self.inst.names and name not in layouts:
                 layouts[name] = c
-        src = self.cal.sound_src or (self.default or {}).get("sound_src")
-        if src and not self.inst.listed(src):
-            src = None
+        # the ambient sound's source: the setup's, else the example's or, with neither among
+        # the enabled mods with ambient sound files, the highest of those
+        found = [name for name, _files in season.sound_sources()]
+        src = self.cal.sound_src
+        if not src:
+            src = (self.default or {}).get("sound_src")
+            if src not in found:
+                src = found[0] if found else None
         if not layouts and not src:
             return
         self.subhead(_("Texture sets and ambient sound"), parent=box)
@@ -663,11 +668,49 @@ class Guide(object):
                 self.para(_("Swapping it also needs WinRAR or 7-Zip installed."), parent=box,
                           color=cf.AMBER, pad=(0, 0), indent=24)
         if src:
-            var = tk.BooleanVar(value=bool(self.cal.sound_src))
-            ttk.Checkbutton(box, text=_("Ambient sound follows the season, from %s") % src,
-                            variable=var, command=lambda v=var, s=src:
-                            setattr(self.cal, "sound_src", s if v.get() else None)).pack(
-                anchor="w", pady=(6, 1))
+            self.sound_line(box, src, found)
+
+    def sound_line(self, box, src, found):
+        """The ambient sound: on or off, and the mod it is taken from, picked from the enabled
+        mods with ambient sound files, highest in MO2 first; under it, a note."""
+        tk, ttk = self.tk, self.ttk
+        names = found + ([src] if src not in found else [])
+        on = tk.BooleanVar(value=bool(self.cal.sound_src))
+        pick = tk.StringVar(value=src)
+        line = ttk.Frame(box)
+        line.pack(anchor="w", fill="x", pady=(6, 1))
+        ttk.Checkbutton(line, text=_("Ambient sound follows the season, from"), variable=on,
+                        command=lambda: self.set_sound(on, pick, found)).pack(side="left")
+        combo = ttk.Combobox(line, textvariable=pick, values=names, state="readonly",
+                             width=min(max(len(n) for n in names) + 2, 64))
+        combo.pack(side="left", padx=(6, 0))
+        combo.bind("<<ComboboxSelected>>", lambda e: self.set_sound(on, pick, found))
+        self.sound_box, self.sound_note = combo, ttk.Frame(box)
+        self.sound_note.pack(anchor="w", fill="x")
+        self.show_sound_note(on, pick, found)
+
+    def set_sound(self, on, pick, found):
+        self.cal.sound_src = pick.get() if on.get() else None
+        self.show_sound_note(on, pick, found)
+
+    def show_sound_note(self, on, pick, found):
+        """Under the ambient sound: that the pick can't be one, or, while it is on, the packs
+        above it that win its files back, so the seasons never reach those places."""
+        note = self.sound_note
+        for w in note.winfo_children():
+            w.destroy()
+        src = pick.get()
+        if src not in found:
+            self.para(_("\"%s\" is not an enabled mod with ambient sound files.") % src,
+                      parent=note, color=cf.RED, pad=(0, 0), indent=24)
+            return
+        shadow = season.sound_shadow(src) if on.get() else []
+        for name, won, total in shadow:
+            self.para(season.sound_shadow_text(name, src, won, total), parent=note,
+                      color=cf.AMBER, pad=(0, 0), indent=24)
+        if shadow:
+            self.para(_("Pick it in the list to take the soundscape from it instead."),
+                      parent=note, color=cf.AMBER, pad=(0, 0), indent=24)
 
     def mcm_box(self, box):
         """Other mods' MCM options that follow the season: each to change or take off, and

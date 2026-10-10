@@ -39,8 +39,8 @@ CALENDARS = ("Polesia", "Meteorological", "Two seasons", "Southern hemisphere")
 ENTRIES = "[customExecutables]\n1\\title=Anomaly (DX11-AVX)\n2\\title=Anomaly (DX11)\n"
 
 
-def sandbox(d, config=None, example=True, play=True):
-    tc.install(d, config=config)
+def sandbox(d, config=None, example=True, play=True, mods=None):
+    tc.install(d, config=config, mods=mods or tc.MODS)
     tc.with_mod(d)
     presets = os.path.join(d, "_tools", "presets")
     os.makedirs(presets)
@@ -48,7 +48,8 @@ def sandbox(d, config=None, example=True, play=True):
         shutil.copy2(os.path.join(HERE, "presets", name + ".json"), presets)
     if example:
         io.open(os.path.join(presets, "GAMMA example.json"), "w",
-                encoding="utf-8").write(json.dumps(EXAMPLE))
+                encoding="utf-8").write(json.dumps(example if isinstance(example, dict)
+                                                   else EXAMPLE))
     if play:
         shutil.copy2(os.path.join(os.path.dirname(HERE), "play.bat"), d)
         io.open(os.path.join(d, "ModOrganizer.ini"), "a", encoding="utf-8").write(ENTRIES)
@@ -660,6 +661,131 @@ print("AFTER", [t for t in texts(g.body) if "rarfile" in t or "7-Zip" in t])
                 "'Swapping it also needs WinRAR or 7-Zip installed.']") in out, out
         assert "ASKED ['rarfile']" in out and "AFTER []" in out, out
     return "rarfile and the tool named; the package installed from its button; redrawn clean"
+
+
+P = "configs/environment/ambients/presets/"
+# ambient sound mods, highest in MO2 first: the generated soundscape, a pack over the source,
+# a disabled pack and the source; then the usual scratch mods
+SOUND_MODS = [
+    ("Seasonal Soundscape", True, [P + "environment_field.ltx"]),
+    ("Pack On Top", True, [P + "environment_field.ltx", P + "environment_forest.ltx",
+                           P + "environment_new.ltx"]),
+    ("Off Pack", False, [P + "environment_swamp.ltx"]),
+    ("Old Ambience", True, [P + "environment_field.ltx", P + "environment_forest.ltx",
+                            P + "environment_swamp.ltx"]),
+] + tc.MODS
+SHADOW = ('"Pack On Top" is above "Old Ambience" and wins 2 of its 3 ambient sound files, so '
+          "the seasons don't reach those places.")
+PICK_IT = "Pick it in the list to take the soundscape from it instead."
+SOUND_DRIVER = r"""
+from tkinter import ttk
+g.edit("mods")
+settle()
+combo = g.sound_box
+check = [c for c in widgets(g.body) if isinstance(c, ttk.Checkbutton)
+         and str(c.cget("text")).startswith("Ambient sound follows")][0]
+def note():
+    return [t for t in texts(g.sound_note) if t]
+def pick(name):
+    combo.set(name)
+    combo.event_generate("<<ComboboxSelected>>")
+    settle()
+print("SHOWN", list(combo.cget("values")), combo.get(), check.instate(["selected"]))
+print("NOTE", note())
+"""
+
+
+@case
+def t_the_soundscape_s_source_is_picked_in_the_window():
+    """The ambient sound line lists the enabled mods with ambient sound files, highest in
+    MO2 first (not a disabled one, nor the generated soundscape), on the source; a pack
+    above it is named with what to do; picking that pack makes it the source. The box turns
+    the soundscape off, with no note whatever is picked, and on again on the pick. Saved,
+    season.py takes it."""
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config='SOUND_SRC = "Old Ambience"\n', mods=SOUND_MODS)
+        rc, out = drive(d, SOUND_DRIVER + r"""
+pick("Pack On Top")
+print("PICKED", g.cal.sound_src, note())
+check.invoke()
+settle()
+pick("Old Ambience")
+print("OFF", g.cal.sound_src, note())
+check.invoke()
+settle()
+print("ON", g.cal.sound_src, note())
+pick("Pack On Top")
+print("FINAL", g.cal.sound_src)
+g.save_edit()
+print("SAVED", said[-1][0] if said else None)
+""")
+        assert rc == 0, out
+        assert "SHOWN ['Pack On Top', 'Old Ambience'] Old Ambience True" in out, out
+        assert "NOTE %r" % [SHADOW, PICK_IT] in out, out
+        assert "PICKED Pack On Top []" in out, out
+        assert "OFF None []" in out, out
+        assert "ON Old Ambience %r" % [SHADOW, PICK_IT] in out, out
+        assert "FINAL Pack On Top" in out, out
+        assert "SAVED showinfo" in out, out
+        assert table(d)["SOUND_SRC"] == "Pack On Top", table(d)
+        tc.accepted(d)
+    return ("two mods offered, highest first; the pack above named, then picked; off with no "
+            "note, on again on the pick; saved and accepted")
+
+
+@case
+def t_with_no_source_the_highest_pack_is_offered():
+    """No source in the setup or the example: the line still shows, off, on the highest
+    enabled mod with ambient sound files; ticking it takes the soundscape from that one."""
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config='TOGGLE_MODS = {"Winter Pack": {"when": ("winter",), '
+                          '"above": "Grass Compat"}}\n', mods=SOUND_MODS)
+        rc, out = drive(d, SOUND_DRIVER + r"""
+check.invoke()
+settle()
+print("TICKED", g.cal.sound_src, note())
+""")
+        assert rc == 0, out
+        assert "SHOWN ['Pack On Top', 'Old Ambience'] Pack On Top False" in out, out
+        assert "NOTE []" in out and "TICKED Pack On Top []" in out, out
+    return "shown off on the pack on top; ticked, the soundscape comes from it"
+
+
+@case
+def t_a_source_that_can_t_be_one_says_so():
+    """A source that is no enabled mod with ambient sound files, a disabled one here, stays
+    in the list where the setup has it, said in red; picking one that can be clears that,
+    and then what wins over the new pick is said."""
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config='SOUND_SRC = "Off Pack"\n', mods=SOUND_MODS)
+        rc, out = drive(d, SOUND_DRIVER + r"""
+pick("Old Ambience")
+print("PICKED", g.cal.sound_src, note())
+""")
+        assert rc == 0, out
+        assert "SHOWN ['Pack On Top', 'Old Ambience', 'Off Pack'] Off Pack True" in out, out
+        assert "NOTE ['\"Off Pack\" is not an enabled mod with ambient sound files.']" in out, out
+        assert "PICKED Old Ambience %r" % [SHADOW, PICK_IT] in out, out
+    return "kept and said in red; a good pick clears it, then the pack above is named"
+
+
+@case
+def t_the_example_s_source_is_offered_only_when_it_can_be():
+    """With no source in the setup, the GAMMA example's is the one offered, off, when it is
+    an enabled mod with ambient sound files; when it isn't (disabled here), the highest one
+    is offered instead of a pick that can't be one."""
+    shown = {}
+    for label, src in (("enabled", "Old Ambience"), ("disabled", "Off Pack")):
+        with tempfile.TemporaryDirectory() as d:
+            sandbox(d, config='TOGGLE_MODS = {"Winter Pack": {"when": ("winter",), '
+                              '"above": "Grass Compat"}}\n', mods=SOUND_MODS,
+                    example=dict(EXAMPLE, sound_src=src))
+            rc, out = drive(d, SOUND_DRIVER)
+            assert rc == 0, out
+            shown[label] = out.split("SHOWN ", 1)[1].splitlines()[0]
+    assert shown["enabled"] == "['Pack On Top', 'Old Ambience'] Old Ambience False", shown
+    assert shown["disabled"] == "['Pack On Top', 'Old Ambience'] Pack On Top False", shown
+    return "the example's own when it can be one; the pack on top when it is disabled"
 
 
 if __name__ == "__main__":

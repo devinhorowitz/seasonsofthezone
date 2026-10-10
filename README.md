@@ -220,8 +220,10 @@ ROMEO, CLIKRΔD GROUP's repack built on GAMMA, hasn't been run with this mod yet
 meet:
 
 - **Its soundscape**, Dark Signal Amplified, sits above GAMMA's Dark Signal. Make it the
-  source with `py _tools\configure.py sound "<its name in MO2>"`; `season.py status` says
-  when that is needed.
+  source in `configure.bat`: under **Texture sets and ambient sound**, pick it in the list
+  beside **Ambient sound follows the season**. Or run
+  `py _tools\configure.py sound "<its name in MO2>"`. `season.py status` says when that is
+  needed.
 - **Its color grade**, Kumo's LUT, is applied after this mod's grade, so the two stack. If
   the result is too strong, lower **Intensity** on MCM's Main page.
 - **RE:Done A-Life Performance** moves the new-game date a day earlier; the mod reads the
@@ -561,14 +563,15 @@ mods, texture sets and sound - with every table described;
 ## Optional: seasonal ambient sound
 
 Point the soundscape at the ambience mod that wins your
-`configs/environment/ambients/presets/` files: `py _tools\configure.py sound` lists the
-mods you have with them, and `configure.py sound "<mod>"` picks one. Its sound channels are
-then gated per season, so each of the six sounds different: spring keeps the dawn chorus and
-loses the crickets, summer has everything, autumn loses the daytime insects but keeps
-crickets calling until the frost, and the winters lose the insects entirely, and the rustle
-of leaves on bare trees. Deep winter loses the daytime birds too, and the thaw brings the
-marsh birds back before any insect. Wind and storms are untouched. Crows and owls stay all
-year.
+`configs/environment/ambients/presets/` files: pick it in `configure.bat`, beside
+**Ambient sound follows the season**, from the mods you have with them, highest in MO2
+first. Or `py _tools\configure.py sound` lists them, and `configure.py sound "<mod>"` picks
+one. Its sound channels are then gated per season, so each of the six sounds different:
+spring keeps the dawn chorus and loses the crickets, summer has everything, autumn loses the
+daytime insects but keeps crickets calling until the frost, and the winters lose the insects
+entirely, and the rustle of leaves on bare trees. Deep winter loses the daytime birds too,
+and the thaw brings the marsh birds back before any insect. Wind and storms are untouched.
+Crows and owls stay all year.
 
 Both of Shrike's packs are covered: Dark Signal Weather and Ambiance Audio, which GAMMA
 ships, and Dark Signal Amplified Soundscape, which names its insects and leaves its own way.

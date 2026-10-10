@@ -690,7 +690,7 @@ msgstr[1] ""
 
 #: season.py
 #, python-format
-msgid "To take the soundscape from it instead: %s"
+msgid "To take the soundscape from it instead, pick it in configure.bat under \"Texture sets and ambient sound\", or run %s"
 msgstr ""
 
 #. follows a table's name, like PERIODS, which stays English
@@ -3221,7 +3221,7 @@ msgstr ""
 msgid "No ambient sound mod is set, so the soundscape is off."
 msgstr ""
 
-#: configure.py
+#: configure.py guide.py
 #, python-format
 msgid "\"%s\" is not an enabled mod with ambient sound files."
 msgstr ""
@@ -5313,8 +5313,11 @@ msgid "Swapping it also needs WinRAR or 7-Zip installed."
 msgstr ""
 
 #: guide.py
-#, python-format
-msgid "Ambient sound follows the season, from %s"
+msgid "Ambient sound follows the season, from"
+msgstr ""
+
+#: guide.py
+msgid "Pick it in the list to take the soundscape from it instead."
 msgstr ""
 
 #: guide.py

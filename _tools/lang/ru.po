@@ -698,8 +698,8 @@ msgstr[2] "\"%(mod)s\" стоит выше \"%(src)s\" и перекрывает
 
 #: season.py
 #, python-format
-msgid "To take the soundscape from it instead: %s"
-msgstr "Чтобы брать фоновые звуки из него: %s"
+msgid "To take the soundscape from it instead, pick it in configure.bat under \"Texture sets and ambient sound\", or run %s"
+msgstr "Чтобы брать фоновые звуки из него, выберите его в configure.bat в разделе «Наборы текстур и фоновые звуки» или выполните %s"
 
 #. follows a table's name, like PERIODS, which stays English
 #: season.py
@@ -3291,7 +3291,7 @@ msgstr "Фоновые звуки берутся из \"%s\"."
 msgid "No ambient sound mod is set, so the soundscape is off."
 msgstr "Мод фоновых звуков не задан, поэтому фоновые звуки выключены."
 
-#: configure.py
+#: configure.py guide.py
 #, python-format
 msgid "\"%s\" is not an enabled mod with ambient sound files."
 msgstr "\"%s\" выключен в MO2, или в нём нет файлов фоновых звуков."
@@ -5497,9 +5497,12 @@ msgid "Swapping it also needs WinRAR or 7-Zip installed."
 msgstr "Для подмены также нужен установленный WinRAR или 7-Zip."
 
 #: guide.py
-#, python-format
-msgid "Ambient sound follows the season, from %s"
-msgstr "Фоновые звуки меняются с сезоном, из мода %s"
+msgid "Ambient sound follows the season, from"
+msgstr "Фоновые звуки меняются с сезоном, из мода"
+
+#: guide.py
+msgid "Pick it in the list to take the soundscape from it instead."
+msgstr "Выберите его в списке, чтобы брать фоновые звуки из него."
 
 #: guide.py
 msgid "MCM settings that follow the season"
@@ -6797,6 +6800,12 @@ msgstr "ЯСНО"
 msgctxt "the barometer's face"
 msgid "DRY"
 msgstr "СУШЬ"
+
+#~ msgid "To take the soundscape from it instead: %s"
+#~ msgstr "Чтобы брать фоновые звуки из него: %s"
+
+#~ msgid "Ambient sound follows the season, from %s"
+#~ msgstr "Фоновые звуки меняются с сезоном, из мода %s"
 
 #~ msgid ""
 #~ "configure.bat opens the window. The same changes can be made with commands, run in the\n"

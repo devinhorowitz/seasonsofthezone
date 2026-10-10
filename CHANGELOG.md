@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **The setup window picks the soundscape's source.** In `configure.bat`, under **Texture
+  sets and ambient sound**, **Ambient sound follows the season** has a list of the enabled
+  mods with ambient sound files, highest in MO2 first. Picking Dark Signal Amplified there
+  does what `configure.py sound` does, so no command line is needed. The line shows
+  whenever you have such a mod, even with no source set yet.
+- **The window says when another pack hides the soundscape.** Under the list, it names a
+  pack above your pick that wins its files back, as `season.py status` does, and a source
+  that isn't an enabled mod with ambient sound files is said in red.
+- **Status points to the window.** When a pack hides the soundscape, `season.py status` and
+  `play.bat` now say to pick it in `configure.bat`, as well as the command.
+
 ## 2.4.0 — 2026-10-10
 
 - **Dark Signal Amplified's soundscape is gated by season.** Shrike's Dark Signal Amplified

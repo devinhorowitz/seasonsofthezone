@@ -1583,19 +1583,26 @@ def sound_shadow(src=None):
     return out
 
 
+def sound_shadow_text(mod, src, won, total):
+    """A pack above the source that wins `won` of its `total` ambient sound files, in words:
+    what status and configure.bat's setup both say."""
+    return ngettext(
+        "\"%(mod)s\" is above \"%(src)s\" and wins %(won)d of its %(total)d ambient sound "
+        "file, so the seasons don't reach those places.",
+        "\"%(mod)s\" is above \"%(src)s\" and wins %(won)d of its %(total)d ambient sound "
+        "files, so the seasons don't reach those places.", total) % {
+        "mod": mod, "src": src, "won": won, "total": total}
+
+
 def sound_shadow_lines(src=None):
-    """What sound_shadow found, as lines to print after "  ! ": what wins, and the command
-    that makes it the source."""
+    """What sound_shadow found, as lines to print after "  ! ": what wins, and the two ways
+    to make it the source: configure.bat's setup, or the command."""
     src = SOUND_SRC if src is None else src
     out = []
     for name, won, total in sound_shadow(src):
-        out.append(ngettext(
-            "\"%(mod)s\" is above \"%(src)s\" and wins %(won)d of its %(total)d ambient sound "
-            "file, so the seasons don't reach those places.",
-            "\"%(mod)s\" is above \"%(src)s\" and wins %(won)d of its %(total)d ambient sound "
-            "files, so the seasons don't reach those places.", total)
-            % {"mod": name, "src": src, "won": won, "total": total})
-        out.append(_("To take the soundscape from it instead: %s")
+        out.append(sound_shadow_text(name, src, won, total))
+        out.append(_("To take the soundscape from it instead, pick it in configure.bat under "
+                     "\"Texture sets and ambient sound\", or run %s")
                    % command("configure.py", "sound \"%s\"" % name))
     return out
 

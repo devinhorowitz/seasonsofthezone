@@ -61,6 +61,7 @@ def t_status_names_the_pack_above_the_source():
         assert rc == 0, out
         assert SHADOW in out, out
         assert 'configure.py sound "Pack On Top"' in out, out
+        assert 'pick it in configure.bat under "Texture sets and ambient sound"' in out, out
         assert "Off Pack" not in out and '"Seasonal Soundscape" is above' not in out, out
     return "the pack, 2 of 3 files, and the command; not the disabled pack or the generated one"
 

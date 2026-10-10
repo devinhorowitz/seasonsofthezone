@@ -307,7 +307,8 @@ SOUND_SRC = "304- Dark Signal Weather and Ambiance Audio - Shrike"
 Name the mod that wins your `configs/environment/ambients/presets/` files (several
 soundscape mods ship the same presets). `py _tools\configure.py sound` lists the enabled
 mods that have them, highest in MO2 first, and `configure.py sound "<mod>"` sets this line
-for you; `sound --off` sets it to `None`. `season.py` generates a `Seasonal Soundscape` mod
+for you; `sound --off` sets it to `None`. In `configure.bat`, the list beside **Ambient
+sound follows the season** does the same, and the box turns it off. `season.py` generates a `Seasonal Soundscape` mod
 from that mod's files with these channels removed:
 
 | Season | Silenced |
@@ -336,7 +337,8 @@ either rebuilds them at the next launch rather than waiting for the season to tu
 A soundscape pack installed above the source wins its files back, since the generated mod
 sits directly above the source: the seasons then stop reaching those places, which shows
 nowhere in the game. `season.py status` names such a pack, how many of the files it wins,
-and the `configure.py sound` command that makes it the source.
+and how to make it the source: in `configure.bat`, or with `configure.py sound`.
+`configure.bat` says so under the list too.
 
 The generated mod is placed just above `SOUND_SRC` and follows the MCM switch; you do not
 touch it in MO2. If you disable the source mod, the generated presets are removed at the

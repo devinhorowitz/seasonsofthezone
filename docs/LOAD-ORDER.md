@@ -131,7 +131,8 @@ next launch.
 
 Because it sits directly above the source, a soundscape pack installed above the source
 wins those files back: ROMEO's Dark Signal Amplified, above GAMMA's Dark Signal, is one.
-`py _tools\season.py status` names the pack; make it the source with
+`py _tools\season.py status` names the pack. Make it the source in `configure.bat`
+(pick it beside **Ambient sound follows the season**) or with
 `py _tools\configure.py sound "<the pack>"`, and the generated mod moves above it at the
 next launch.
 
