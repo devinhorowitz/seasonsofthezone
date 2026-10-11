@@ -491,6 +491,7 @@ a fresh install.
 | [Project I.N.V.E.R.N.O](https://www.moddb.com/mods/stalker-anomaly/addons/inverno-fx), winter textures | `winter`, `winter_snow`, `late_winter` | Terrain, flora and levels. Must win over your grass mod and Atmospherics/SSS; it carries its own shader headers. Version 1.09 also brings a cold-survival system with items of its own; see [seasonal snowfall](#optional-seasonal-snowfall). |
 | INVERNO's "Partly snowy textures", in its [extras folder](https://drive.google.com/drive/folders/1C2Ny5ULVsHmVEpWImK8dhYzrw8fzTboa) | `winter`, `late_winter` | Patchy ground while the snow arrives and while it melts. Wins over the base INVERNO. |
 | [C Consciousness Grass & Trees](https://www.moddb.com/mods/stalker-anomaly/addons/ccon-grass-n-trees) | `spring` / `summer` / `autumn` / the three winters | Four sets, one entry each; the Dead set covers all three winters, under the snow and through the thaw. Its grass placement does not change with the season, so that part stays mounted year-round and is not a seasonal entry. |
+| [Grizzly's CCon Overhaul](https://www.moddb.com/mods/stalker-anomaly/addons/grizzlys-ccon-overhaul) | `spring` / `summer` / `autumn` / the three winters | A standalone overhaul of C Consciousness, so it replaces it. Install it once per season, naming each install for its season, and give each install one entry; Dead covers all three winters. Each install carries its own grass placement, so the warm ones can take Overgrown (grass on the roads too) while Dead keeps the Default. |
 | Grass and Trees by PanceRide, [Summer](https://www.moddb.com/mods/stalker-anomaly/addons/grass-and-trees-by-panceride-v10) and [Autumn](https://www.moddb.com/mods/stalker-anomaly/addons/grass-and-trees-by-panceride-autumn-edition-v1) | `summer` / `autumn` | Matching editions; two entries, one per season. |
 | [Winter Load Screens](https://www.moddb.com/mods/stalker-anomaly/addons/winterloadscreens) | `winter`, `winter_snow`, `late_winter` | Wins over your loading-screen mod. |
 | INVERNO's "Pda Maps v1", in its [extras folder](https://drive.google.com/drive/folders/1C2Ny5ULVsHmVEpWImK8dhYzrw8fzTboa) | `winter`, `winter_snow`, `late_winter` | Snowy PDA maps. Wins over every mod that ships map textures, INVERNO included. |
@@ -680,7 +681,7 @@ seasonal layer.
 
 Built on **Screen Space Shaders** by Ascii1457, **Atmospherics** by Hippobot, whose weathers
 and color grade presets the seasons use, and **G.A.M.M.A.** by Grokitach. Seasonal texture
-sets by the I.N.V.E.R.N.O, C Consciousness, PanceRide and Aydin authors.
+sets by the I.N.V.E.R.N.O, C Consciousness, PanceRide and Aydin authors, and Grizzlybearhands.
 
 The weather odds that follow the season, the full-day forecast and the marked days' skies
 work through **W.P.W.M.** (Weighted Probability Weather Manager) by UmYeahNo, the weather

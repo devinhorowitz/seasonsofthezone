@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **README:** Grizzly's CCon Overhaul joins *Mods that work well this way*: a standalone
+  C Consciousness, installed once per season, with Overgrown grass for the warm seasons if you
+  like.
+
 ## 2.4.1 — 2026-10-10
 
 - **The setup window picks the soundscape's source.** In `configure.bat`, under **Texture
