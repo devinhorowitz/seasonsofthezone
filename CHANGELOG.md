@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Install with Claude Code.** `docs/INSTALL-WITH-CLAUDE.md` is the install written for
+  Claude Code to follow, with the setup, updating and removing. It checks the download
+  against GitHub's checksum, works with MO2 closed, asks before each change and keeps your
+  setup. The README's Install section has the line to paste.
 - **README:** Grizzly's CCon Overhaul joins *Mods that work well this way*: a standalone
   C Consciousness, installed once per season, with Overgrown grass for the warm seasons if you
   like.

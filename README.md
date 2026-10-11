@@ -250,6 +250,15 @@ meet:
 [docs/INSTALL-GUIDE.md](docs/INSTALL-GUIDE.md) shows every window of a first install, with
 a screenshot of each.
 
+**With Claude Code:** open it in your GAMMA folder (where `ModOrganizer.exe` is) and paste
+*"Install Seasons of the Zone by following
+https://raw.githubusercontent.com/devinhorowitz/seasonsofthezone/main/docs/INSTALL-WITH-CLAUDE.md"*.
+It downloads the latest release, checks it against GitHub's checksum, installs and enables it
+with MO2 closed, puts the tools in place, and can do the setup with you: where the weather comes
+from and which of your mods switch with the season. It asks before every change, moves rather
+than deletes, and keeps your setup on an update.
+[docs/INSTALL-WITH-CLAUDE.md](docs/INSTALL-WITH-CLAUDE.md) is the whole procedure.
+
 `play.bat` fetches the day's real weather - Chornobyl's, or a place you pick in the
 setup - checks the date, switches the seasonal mods, and starts the game. Most days it changes nothing. Paths come from `ModOrganizer.ini`, so the
 drive, game folder and profile are read rather than assumed. To see what the next launch
@@ -650,6 +659,7 @@ Details and recovery: [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
 | | |
 |---|---|
 | [docs/INSTALL-GUIDE.md](docs/INSTALL-GUIDE.md) | A first install, window by window, with screenshots |
+| [docs/INSTALL-WITH-CLAUDE.md](docs/INSTALL-WITH-CLAUDE.md) | The same install for Claude Code to follow, with the setup, updating and removing |
 | [docs/SCHEDULING.md](docs/SCHEDULING.md) | The calendar: base periods, seasons of your own, spells, events, and recipes |
 | [docs/TRANSLATING.md](docs/TRANSLATING.md) | Translating the tools and the game's text into another language |
 | [docs/INTERFACE.md](docs/INTERFACE.md) | The MCM pages and the Seasons app in the PDA |
