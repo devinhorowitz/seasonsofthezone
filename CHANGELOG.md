@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.4.2 — 2026-10-11
 
 - **Fixed: a load with a Seasons page open in its own window crashed the game.** Quickloading
   while The Year or Forecast was open on the app key crashed as the save came up: the load
