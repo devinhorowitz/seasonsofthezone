@@ -700,6 +700,25 @@ def t_the_key_as_saved_skips_ui_mcm():
     return "app_key(true) reads only the saved options; in play MCM answers first"
 
 
+@case
+def t_a_load_closes_the_flat_faces():
+    """A quickload with The Year open flat crashed the game as the save came up (2026-10-11):
+    the load restarts the scripts and frees the window the engine still shows, and the next
+    frame draws it (AnomalyDX11AVX.exe+0x215C52, where Immersive Identification's tag dialog
+    crashed). Both faces close when the level goes."""
+    lua, g, opened, hooks = build_flat()
+    unload = hooks.get("actor_on_net_destroy")
+    assert unload, "nothing closes a flat face when the level goes"
+    for face in ("year", "forecast"):
+        g.sotz_pda.open_flat(face)
+        assert shown(g) == [face], "opening %s flat: %s" % (face, shown(g))
+        unload[0]()
+        assert shown(g) == [], "a load left %s open flat" % shown(g)
+    unload[0]()
+    assert shown(g) == [], shown(g)
+    return "a load closes whichever face is open flat, and with none open does nothing"
+
+
 if __name__ == "__main__":
     print("  running the shipped PDA wiring under %s" % LUA_NAME)
     bad = 0

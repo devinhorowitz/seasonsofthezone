@@ -182,8 +182,20 @@ local function install_router()
     WRAPPED = true
 end
 
+-- A face open flat is a window Lua made, shown with ShowDialog. A load (a quickload while it is
+-- open) restarts the scripts and frees it while the engine still holds it, and the next frame
+-- draws freed memory: the crash at AnomalyDX11AVX.exe+0x215C52, as Immersive Identification's
+-- tag dialog did. So both faces close when the level goes.
+local function close_faces()
+    for name in pairs(VIEWS) do
+        local ok, err = pcall(function() page_module(name).close_flat() end)
+        if not ok then say("could not close " .. name .. ": " .. tostring(err)) end
+    end
+end
+
 -- the router on on_game_load, the same moment MAC installs its own wrapper
 function on_game_start()
     RegisterScriptCallback("on_game_load", install_router)
     RegisterScriptCallback("on_key_press", on_key_press)
+    RegisterScriptCallback("actor_on_net_destroy", close_faces)
 end

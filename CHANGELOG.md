@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Fixed: a load with a Seasons page open in its own window crashed the game.** Quickloading
+  while The Year or Forecast was open on the app key crashed as the save came up: the load
+  frees the window while the game still draws it. Both pages now close when the level goes.
 - **Install with Claude Code.** `docs/INSTALL-WITH-CLAUDE.md` is the install written for
   Claude Code to follow, with the setup, updating and removing. It checks the download
   against GitHub's checksum, works with MO2 closed, asks before each change and keeps your
