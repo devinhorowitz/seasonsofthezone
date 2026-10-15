@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.6.0 — 2026-10-15
 
 - **INVERNO follows the season.** With Project INVERNO installed, MCM's Main page has
   **INVERNO follows the season**, on by default. INVERNO's snowfall and fog run only in the
