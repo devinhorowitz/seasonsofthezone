@@ -147,6 +147,12 @@
 	<string id="ui_mcm_seasons_zone_wx_season_desc">
 		<text>С Atmospherics 2.69 сезон смещает шансы каждого типа погоды, плавно на стыке сезонов, как и свет: летом больше ясных дней и гроз, осенью — дождя и тумана, в зимние сезоны — пасмурной погоды, в оттепель — тумана. Ваши веса в Atmospherics остаются основой, которую он смещает. У погоды базовой игры нет шансов, которые можно было бы сместить.</text>
 	</string>
+	<string id="ui_mcm_seasons_zone_inverno">
+		<text>INVERNO следует сезону</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_inverno_desc">
+		<text>Снег и туман Project INVERNO идут только в зимние сезоны. С обновлением зимних механик INVERNO берёт температуру у этого мода, по реальной погоде, и мороз пробирает только ниже -10 °C, в самые холодные ночи. Без этого обновления его холод действует только в дни с морозом. Параметр INVERNO, выключенный на его собственной странице, остаётся выключенным.</text>
+	</string>
 
 	<!-- The per-mod checkboxes on the season pages are GENERATED into
 	     ui_mcm_seasons_mods.xml by _tools/season.py, one pair per installed seasonal mod,

@@ -221,8 +221,9 @@ those sections are gone:
 
 - current Modded Exes delete the mod's items from a save as it loads; they are lost;
 - exes from before July 2023 crash loading such a save;
-- an item of the mod's on a quick-use slot stops every load, of any save, with
-  `Can't open section`: the slots are kept in `user.ltx`, not in the save.
+- a save made with an item of the mod's on a quick-use slot stops loading with
+  `Can't open section`: each save keeps its own slots, and the HUD looks the item up as
+  the save comes up.
 
 So before switching a seasonal mod, `play.bat` looks through its files for:
 
@@ -256,9 +257,10 @@ quest lines, tasks and dialogs can leave a save needing a mod as well.
 
 **After a mod with items went off:**
 
-- *Every load stops with `Can't open section` and an item of that mod.* Close the game, open
-  `appdata\user.ltx` in the Anomaly folder, and delete the `slot_0` to `slot_3` line naming
-  that item. Every save loads again, without that item on the slot.
+- *A save stops loading with `Can't open section` and an item of that mod.* That save has
+  the item on a quick-use slot. Load it with the mod on (enable it in MO2 and start from
+  MO2, since `play.bat` would switch it off again), put something else on that slot, and
+  save. Editing `user.ltx` doesn't help: a save puts its own slots back as it loads.
 - *A save loads without the mod's items.* They were deleted as it loaded; don't save over
   it. To have them back, load it with the mod on: enable the mod in MO2 and start from MO2,
   since `play.bat` would switch it off again, or wait for its season.

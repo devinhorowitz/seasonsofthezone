@@ -190,6 +190,12 @@ local function page_main()
     add({id = "do_wet",   type = "check", val = 1, def = true})
     -- tips Atmospherics' odds for each sky by the season; off, its own odds stand
     add({id = "wx_season", type = "check", val = 1, def = false})
+    -- Project INVERNO's snow, fog and cold by the season and the temperature (sotz_inverno),
+    -- offered only when INVERNO is installed
+    local okv, inverno = pcall(function() return sotz_inverno.present() end)
+    if okv and inverno then
+        add({id = "inverno", type = "check", val = 1, def = true})
+    end
 
     add({id = "line2", type = "line"})
     -- what play.bat switches at launch; each seasonal mod's checkbox is on a season page

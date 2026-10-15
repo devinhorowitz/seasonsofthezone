@@ -1,0 +1,106 @@
+-- Seasons of the Zone, for Project INVERNO's winter.
+--
+-- INVERNO is FabioConte's, licensed for ModDB only, so none of it is shipped here. This file
+-- only changes, while the game runs, where INVERNO takes its temperature from and when its
+-- snowfall may run. Nothing is written to INVERNO's options, and an option the player turned
+-- off there stays off. MCM's "INVERNO follows the season" (main/inverno) or this mod's master
+-- switch, either off, leaves INVERNO as it ships.
+--
+-- Snowfall. INVERNO's snow and the fog that comes with it run only while the season has snow,
+-- the factor this mod's snowfall patch reads, so a winter pinned in MCM has it too.
+--
+-- Temperature. INVERNO rolls each game day at random, always cold. With its winter mechanics
+-- update (October 2026) it takes this mod's reading instead: the real weather, or the
+-- climate, on the game's clock and moved by the sky, the number the PDA shows. INVERNO's own
+-- rule still decides what that costs: outdoors at -10 C or below you freeze, above it you
+-- warm. INVERNO 1.09 without the update freezes at any temperature, since it takes the
+-- absolute value, so it keeps its own numbers, and its cold runs only on a day that freezes.
+--
+-- When this mod can't say, INVERNO's own value stands: a gate that doesn't know returns nil.
+
+local ON_MS = 1000
+local on_cached, on_until = true, -1
+
+-- this mod's master switch and the INVERNO switch, read once a second: INVERNO asks for its
+-- options several times a frame
+local function on()
+    local tg = time_global()
+    if tg < on_until then return on_cached end
+    on_until = tg + ON_MS
+    local v = true
+    if ui_mcm and ui_mcm.get then
+        for _, path in ipairs({"seasons_zone/main/enabled", "seasons_zone/main/inverno"}) do
+            local ok, set = pcall(ui_mcm.get, path)
+            if ok and set == false then v = false end
+        end
+    end
+    on_cached = v
+    return v
+end
+
+-- The air temperature now in Celsius, unrounded: the first hour of the curve the PDA draws,
+-- which sotz_api gives in the player's unit
+local function celsius()
+    local t = sotz_api.temperature()
+    local c = t and t.curve and t.curve[1]
+    if type(c) ~= "number" then return nil end
+    if t.unit == "F" then c = (c - 32) * 5 / 9 end
+    return c
+end
+
+-- the day dips below zero; sotz_api decides the flag in Celsius, whatever the unit
+local function freezing_day()
+    local t = sotz_api.temperature()
+    if not t then return nil end
+    return t.frost == true
+end
+
+local function snow_season()
+    local s = sotz_api.season()
+    if not s then return nil end
+    return (s.snow or 0) > 0
+end
+
+-- INVERNO is here: its options, which every file of it reads
+function present()
+    return project_inverno_mcm ~= nil and type(project_inverno_mcm.get_config) == "function"
+end
+
+-- An option this mod holds off: false while its gate is shut, the player's own value
+-- otherwise. INVERNO reads every option through get_config, its own file included, by the
+-- name in that file's table.
+local function gate_options(mcm, gates)
+    local get = mcm.get_config
+    mcm.get_config = function(key, ...)
+        local v = get(key, ...)
+        local gate = gates[key]
+        if gate and on() and gate() == false then return false end
+        return v
+    end
+end
+
+-- INVERNO's actor_on_update calls update_ambient_temperature by name, so the one in its
+-- file's table is the one that runs
+local function feed_temperature(mech)
+    local roll = mech.update_ambient_temperature
+    mech.update_ambient_temperature = function(...)
+        local c = on() and celsius()
+        if not c then return roll(...) end
+        mech.current_temperature_c = math.floor(c * 10 + 0.5) / 10
+    end
+end
+
+function on_game_start()
+    if not present() then return end
+    local gates = {enable_snowfall = snow_season, enable_fog = snow_season}
+    local mech = inverno_freezing_mechanic
+    if mech and type(mech.update_ambient_temperature) == "function" then
+        -- the update added save_state; 1.09 had none
+        if type(mech.save_state) == "function" then
+            feed_temperature(mech)
+        else
+            gates.enable_inverno_mechanics = freezing_day
+        end
+    end
+    gate_options(project_inverno_mcm, gates)
+end

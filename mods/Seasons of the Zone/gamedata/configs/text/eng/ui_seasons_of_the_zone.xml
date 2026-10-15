@@ -147,6 +147,12 @@
 	<string id="ui_mcm_seasons_zone_wx_season_desc">
 		<text>With Atmospherics 2.69, the season tips its odds for each sky, blended across a turn like the light: summer brings more clear days and thunderstorms, autumn more rain and fog, the winters more overcast, the thaw more fog. Your Atmospherics weights stay the base it tips. The base game's weather has no odds to tip.</text>
 	</string>
+	<string id="ui_mcm_seasons_zone_inverno">
+		<text>INVERNO follows the season</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_inverno_desc">
+		<text>Project INVERNO's snow and fog fall only in the winters. With INVERNO's winter mechanics update, its temperature is this mod's, from the real weather, so its cold bites only below -10 C, on the coldest real nights. Without that update, its cold runs only on days that freeze. An INVERNO option you turn off on its own page stays off.</text>
+	</string>
 
 	<!-- The per-mod checkboxes on the season pages are GENERATED into
 	     ui_mcm_seasons_mods.xml by _tools/season.py, one pair per installed seasonal mod,

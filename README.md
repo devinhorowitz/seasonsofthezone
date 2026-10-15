@@ -546,9 +546,9 @@ If MO2 can mount it as a folder, it can be seasonal: footstep audio, menu art, a
 **Switch with care.** Switching a mod off is safe for one that changes how the Zone looks
 and sounds: textures, shaders, grass, weather. A mod that adds locations, quest lines or
 items leaves them in your saves. Once `play.bat` turns it off, a save made while it was on
-loses that mod's items as it loads (exes from before July 2023 crash instead), and an item
-of the mod's on a quick-use slot stops every load until you delete its `slot_N` line in
-`appdata\user.ltx`. So `play.bat` looks through each seasonal mod's files first, and leaves
+loses that mod's items as it loads (exes from before July 2023 crash instead), and one made
+with an item of the mod's on a quick-use slot won't load at all: each save keeps its own
+slots. So `play.bat` looks through each seasonal mod's files first, and leaves
 one that adds items, trader stock, spawns or objects as it is in MO2, naming the files;
 `"save_content": True` in its entry switches it anyway. Locations and quest lines it can't
 see: make a mod like that seasonal only on purpose.
@@ -647,20 +647,25 @@ if you want the survival system, keep it in a mod of its own that stays on all y
   and the survival system's own textures: `ui_inverno.dds` and `ui_icon_heating_pad.dds` in
   `gamedata\textures\ui`, and the three `item_tx4` files in
   `gamedata\textures\usable_items\injectors`. With nothing else in it, the Zone isn't white
-  in July. Gate it by season instead:
+  in July.
 
-```
-py _tools\configure.py mcm project_inverno/enable_inverno_mechanics --in winter "deep winter" "late winter" --to true --else false
-```
+From there, this mod runs INVERNO by the season: **INVERNO follows the season** on MCM's
+Main page, on by default and shown when INVERNO is installed.
 
-Drinks that froze stay frozen while the mechanics are off: thawing at a campfire is part of
-them. Its snowfall and fog are options of their own, `project_inverno/enable_snowfall` and
-`project_inverno/enable_fog`, and run all year unless gated the same way. With the patched
-addon, turn them off in INVERNO's MCM page, or the two snows stack.
+- Its snowfall and fog run only in the three winters.
+- With INVERNO's winter mechanics update (October 2026, linked from its ModDB page), its
+  temperature is this mod's, the one the PDA shows: the real weather on the game's clock.
+  INVERNO's own rule does the rest: outdoors at -10 °C or below you freeze, above it you
+  warm. So the cold bites only on the coldest real nights.
+- Without that update, INVERNO keeps its own temperatures, always below zero, and its cold
+  runs only on days that freeze.
 
-The mechanics are on as INVERNO installs, so a character can start freezing with no
-warning. **Winter Mechanics for Project INVERNO** on its MCM page turns them off; that is
-the option the command above sets, and turning it off mid-game is safe.
+None of INVERNO's options is written: one you turn off on its MCM page stays off. Its
+mechanics are on as it installs, so a character can start freezing with no warning;
+**Winter Mechanics for Project INVERNO** turns them off, safely mid-game, though drinks
+that froze stay frozen until it is back on, since thawing at a campfire is part of them.
+With the patched addon, turn INVERNO's snowfall off on its MCM page, or the two snows
+stack.
 
 ---
 

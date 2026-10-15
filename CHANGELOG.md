@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- **INVERNO follows the season.** With Project INVERNO installed, MCM's Main page has
+  **INVERNO follows the season**, on by default. INVERNO's snowfall and fog run only in the
+  winters. With INVERNO's winter mechanics update, its temperature is this mod's, from the
+  real weather, so its cold bites only on the coldest real nights; INVERNO 1.09 alone keeps
+  its own temperatures, and its cold runs only on days that freeze. Nothing is written to
+  INVERNO's options, and none of its files is shipped here.
+- **Fixed in the docs: each save keeps its own quick-use slots.** A save made with a
+  switched-off mod's item on a quick-use slot won't load, and editing `user.ltx` doesn't
+  help, since the save puts its slots back. `docs/CONFIGURING.md` now says to load it with
+  the mod on and put something else on that slot.
+- **README:** *Trying a season*, and INVERNO's survival switch, on as it installs. The
+  install guide suggests a desktop shortcut to `play.bat`.
+
 ## 2.5.0 — 2026-10-15
 
 - **A seasonal mod that puts things into saves is left as it is.** A save keeps each object

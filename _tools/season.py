@@ -1372,12 +1372,12 @@ def change_text(was, now):
 # A save keeps each object in it by its section's name. A mod that adds items, puts them in
 # traders' stock or a loadout, adds spawns, or creates objects from its scripts leaves
 # those in the saves made while it is on. Once it is off, the sections are gone: current
-# Modded Exes delete such objects as a save loads, older exes crash on them, and one on a
-# quick-use slot stops every load ("Can't open section"). So each seasonal mod's files are
-# looked through before it is switched, and a mod with any of that is left as it is in
-# MO2, unless its entry says "save_content": True. The look costs a walk of the folder and
-# a read of its configs, scripts and .db file lists: 0.06 s for thirteen mods and 3,200
-# files, so it is not cached between runs.
+# Modded Exes delete such objects as a save loads, older exes crash on them, and a save
+# with one on a quick-use slot won't load ("Can't open section"): each save keeps its own
+# slots. So each seasonal mod's files are looked through before it is switched, and a mod
+# with any of that is left as it is in MO2, unless its entry says "save_content": True.
+# The look costs a walk of the folder and a read of its configs, scripts and .db file
+# lists: 0.06 s for thirteen mods and 3,200 files, so it is not cached between runs.
 
 SAVE_CONTENT = "save_content"
 
