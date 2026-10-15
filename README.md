@@ -356,6 +356,14 @@ season your calendar has on: seven pages with the default calendar.
   each one's PDA message: when it is on as the game starts, and when it begins while you
   play.
 
+### Trying a season
+
+To see a season now, pick it under **Season** on MCM's Main page. The color, foliage,
+fog, wind and wetness change within seconds. Texture sets, grass and the other seasonal
+mods follow the next time you start through `play.bat`, since they can only switch
+before the game starts; with none set up, the atmosphere is all that changes. Set
+**Season** back to automatic to return to the calendar.
+
 ---
 
 ## Making a mod seasonal
@@ -649,6 +657,10 @@ Drinks that froze stay frozen while the mechanics are off: thawing at a campfire
 them. Its snowfall and fog are options of their own, `project_inverno/enable_snowfall` and
 `project_inverno/enable_fog`, and run all year unless gated the same way. With the patched
 addon, turn them off in INVERNO's MCM page, or the two snows stack.
+
+The mechanics are on as INVERNO installs, so a character can start freezing with no
+warning. **Winter Mechanics for Project INVERNO** on its MCM page turns them off; that is
+the option the command above sets, and turning it off mid-game is safe.
 
 ---
 

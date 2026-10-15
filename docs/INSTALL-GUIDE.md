@@ -170,6 +170,10 @@ Most later launches have nothing to switch and go straight to the game. Starting
 game from MO2 still works: `play.bat` is what moves the seasonal mods along with the
 date. Without a connection it uses the forecast it last fetched, 16 days of it.
 
+For a one-click start, right-click `play.bat` and choose **Send to → Desktop (create
+shortcut)**; on Windows 11 it's under **Show more options**. Don't add it to MO2's
+executables: started from MO2, it finds MO2 open and can't switch the mods.
+
 ## 5. Changing it later
 
 Open `configure.bat` in your GAMMA folder again. It opens to a summary.
