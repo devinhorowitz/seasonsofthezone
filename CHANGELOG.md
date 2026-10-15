@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.5.0 — 2026-10-15
 
 - **A seasonal mod that puts things into saves is left as it is.** A save keeps each object
   by its section's name. Once a mod with items is switched off, current Modded Exes delete
