@@ -148,7 +148,8 @@ the day it staged: the kinds of weather it found and the spells on. Beside it,
 calendar's switches, rewritten with it.
 
 The season pages are built from that list, which is why a mod added to `TOGGLE_MODS`
-appears in the menu by itself.
+appears in the menu by itself, unless its files put things into saves and `play.bat` leaves
+it as it is.
 
 ## MCM details
 

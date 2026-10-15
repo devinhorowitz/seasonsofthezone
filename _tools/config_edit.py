@@ -1726,10 +1726,18 @@ def apply_preset(cal, inst, preset, parts):
                          or anchor_for(inst, name, when, dict(toggle, **{name: c}))[0] or above)
                 moved.append(_("%(mod)s (now wins over %(other)s)")
                              % {"mod": name, "other": above})
-            toggle[name] = {"when": when, "above": above, "extra": []}
+            # the setup's own keys beside when and above stay, "save_content" among them:
+            # a preset never brings one
+            toggle[name] = {"when": when, "above": above,
+                            "extra": list(cal.toggle.get(name, {}).get("extra", []))}
         cal.toggle = toggle
         said.append(ngettext("seasonal mods: %d", "seasonal mods: %d", len(toggle))
                     % len(toggle))
+        held = [n for n, c in toggle.items() if season.mod_save_content(n)
+                and dict(c["extra"]).get(season.SAVE_CONTENT) is not True]
+        if held:
+            said.append("  " + _("put things into saves, so play.bat leaves them as they are "
+                                 "until their entries allow it: %s") % commas(held))
         if "mcm" in preset:
             for key, spec in preset["mcm"].items():
                 for p in spec:

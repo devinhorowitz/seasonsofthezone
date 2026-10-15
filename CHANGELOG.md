@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+- **A seasonal mod that puts things into saves is left as it is.** A save keeps each object
+  by its section's name. Once a mod with items is switched off, current Modded Exes delete
+  its items as a save loads, older exes crash, and one on a quick-use slot stops every load
+  with "Can't open section". INVERNO 1.09's base module is such a mod: its frozen drinks
+  take the place of your water and beer, and its heating injector is in traders' stock and
+  new games. `play.bat` now looks through each seasonal mod's files before it switches it:
+  item sections, trade and loadout configs, spawns, scripts that create objects, and the
+  file lists of its `.db` archives. A mod with any of them stays as it is in MO2, and
+  `play.bat` and `season.py status` name the files. `"save_content": True` in its entry
+  switches it anyway. `configure.py add` and `list`, the setup's Seasonal mods step, its
+  dialog and Review, and the advanced editor say so too, and the MCM page leaves out the
+  checkbox that couldn't switch it.
+- **The warnings say what happens to a save**, in the setup and the docs, and
+  `docs/CONFIGURING.md` says how to get one back: delete the item's quick-use slot line from
+  `user.ltx`, or load the save with the mod on.
+- **README: INVERNO 1.09's textures seasonal, its survival system on all year.** How to
+  split the install, and how to gate the survival system by season with
+  `configure.py mcm project_inverno/enable_inverno_mechanics`.
+
 ## 2.4.2 — 2026-10-11
 
 - **Fixed: a load with a Seasons page open in its own window crashed the game.** Quickloading

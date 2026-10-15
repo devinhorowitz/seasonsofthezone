@@ -377,6 +377,11 @@ msgstr "в \"above\" указан сам этот мод. Укажите мод,
 
 #: season.py
 #, python-format
+msgid "\"%s\" is True or False, without quotes. True lets play.bat switch a mod that puts things into saves."
+msgstr "\"%s\" — это True или False, без кавычек. True разрешает play.bat переключать мод, который добавляет в сохранения свои объекты."
+
+#: season.py
+#, python-format
 msgid "%s each win over the next, in a circle, so play.bat would move them at every launch. Make one of them win over a different mod."
 msgstr "%s — каждый перекрывает следующий, по кругу, поэтому play.bat будет переставлять их при каждом запуске. Пусть один из них перекрывает другой мод."
 
@@ -664,6 +669,58 @@ msgstr "выключен -> включён"
 #: season.py
 msgid "enabled -> disabled"
 msgstr "включён -> выключен"
+
+#. a list cut short, as in "a, b, c, d and 2 more"
+#: season.py config_edit.py
+#, python-format
+msgid "%(names)s and %(more)d more"
+msgid_plural "%(names)s and %(more)d more"
+msgstr[0] "%(names)s и ещё %(more)d"
+msgstr[1] "%(names)s и ещё %(more)d"
+msgstr[2] "%(names)s и ещё %(more)d"
+
+#: season.py
+#, python-format
+msgid "defines items or other objects: %s"
+msgstr "задаёт предметы или другие объекты: %s"
+
+#: season.py
+msgid "puts items in traders' stock"
+msgstr "добавляет предметы в товар торговцев"
+
+#: season.py
+msgid "puts items in loadouts"
+msgstr "добавляет предметы в наборы снаряжения"
+
+#: season.py
+msgid "adds spawns to the world"
+msgstr "добавляет в мир свой спавн"
+
+#: season.py
+#, python-format
+msgid "creates objects (line %(line)d: %(call)s)"
+msgstr "создаёт объекты (строка %(line)d: %(call)s)"
+
+#: season.py
+#, python-format
+msgid "holds %(file)s, which can't be checked inside a .db"
+msgid_plural "holds %(file)s and others like it, %(n)d in all, which can't be checked inside a .db"
+msgstr[0] "содержит %(file)s (скриптов и конфигов в нём: %(n)d), а внутри .db их не проверить"
+msgstr[1] "содержит %(file)s (скриптов и конфигов в нём: %(n)d), а внутри .db их не проверить"
+msgstr[2] "содержит %(file)s (скриптов и конфигов в нём: %(n)d), а внутри .db их не проверить"
+
+#: season.py
+#, python-format
+msgid "a .db whose list of files can't be read (%s), so what it holds is unknown"
+msgstr "файл .db, список файлов которого не читается (%s), поэтому неизвестно, что в нём"
+
+#: season.py
+#, python-format
+msgid "and %d more file"
+msgid_plural "and %d more files"
+msgstr[0] "и ещё %d файл"
+msgstr[1] "и ещё %d файла"
+msgstr[2] "и ещё %d файлов"
 
 #: season.py
 #, python-format
@@ -1691,6 +1748,10 @@ msgid "(no folder with that name in mods)"
 msgstr "(в mods нет папки с таким именем)"
 
 #: season.py
+msgid "(left as it is: it puts things into saves)"
+msgstr "(оставлен как есть: добавляет в сохранения свои объекты)"
+
+#: season.py
 msgid "(today: off)"
 msgstr "(сегодня: выключен)"
 
@@ -1714,6 +1775,24 @@ msgstr "(сегодня: выключен — для этого сезона с�
 #, python-format
 msgid "%(mod)s is on only in %(seasons)s, which your calendar has off, so it never switches on."
 msgstr "%(mod)s включается только в сезоны, выключенные в вашем календаре (%(seasons)s), так что он никогда не включится."
+
+#: season.py
+#, python-format
+msgid "%s is left as it is in MO2: its files put things into saves, and a save made while it is on can lose them, or not load, once it is off."
+msgstr "%s оставлен в MO2 как есть: его файлы добавляют в сохранения свои объекты, и сохранение, сделанное при включённом моде, после его выключения может их потерять или не загрузиться."
+
+#: season.py
+#, python-format
+msgid "To switch it anyway, give its entry \"%s\": True in seasons_config.py."
+msgstr "Чтобы он всё равно переключался, добавьте в его запись в seasons_config.py \"%s\": True."
+
+#: season.py
+#, python-format
+msgid "%(mod)s puts things into saves (%(n)d file); its entry says \"%(key)s\": True, so play.bat switches it all the same."
+msgid_plural "%(mod)s puts things into saves (%(n)d files); its entry says \"%(key)s\": True, so play.bat switches it all the same."
+msgstr[0] "%(mod)s добавляет в сохранения свои объекты (%(n)d файл); в его записи стоит \"%(key)s\": True, поэтому play.bat всё равно его переключает."
+msgstr[1] "%(mod)s добавляет в сохранения свои объекты (%(n)d файла); в его записи стоит \"%(key)s\": True, поэтому play.bat всё равно его переключает."
+msgstr[2] "%(mod)s добавляет в сохранения свои объекты (%(n)d файлов); в его записи стоит \"%(key)s\": True, поэтому play.bat всё равно его переключает."
 
 #: season.py
 msgctxt "report"
@@ -2249,6 +2328,11 @@ msgstr[2] "сезонные моды: %d"
 
 #: config_edit.py
 #, python-format
+msgid "put things into saves, so play.bat leaves them as they are until their entries allow it: %s"
+msgstr "добавляют в сохранения свои объекты, поэтому play.bat оставляет их как есть, пока их записи этого не разрешат: %s"
+
+#: config_edit.py
+#, python-format
 msgid "MCM settings: %d"
 msgid_plural "MCM settings: %d"
 msgstr[0] "настройки MCM: %d"
@@ -2340,15 +2424,6 @@ msgstr "обычные названия"
 #, python-format
 msgid "%(dates)s; %(names)s"
 msgstr "%(dates)s; %(names)s"
-
-#. a list cut short, as in "a, b, c, d and 2 more"
-#: config_edit.py
-#, python-format
-msgid "%(names)s and %(more)d more"
-msgid_plural "%(names)s and %(more)d more"
-msgstr[0] "%(names)s и ещё %(more)d"
-msgstr[1] "%(names)s и ещё %(more)d"
-msgstr[2] "%(names)s и ещё %(more)d"
 
 #: config_edit.py
 msgid "Calendar: the same as yours."
@@ -2594,6 +2669,11 @@ msgstr "<-- нет в списке модов MO2"
 #, python-format
 msgid "on in %s"
 msgstr "включён: %s"
+
+#: configure.py
+#, python-format
+msgid "left as it is: its files put things into saves (%s says which)"
+msgstr "оставлен как есть: его файлы добавляют в сохранения свои объекты (какие — покажет %s)"
 
 #: configure.py
 msgid "wins over (none set)"
@@ -3423,8 +3503,16 @@ msgid "the high reaches 28°C"
 msgstr "максимум доходит до 28°C"
 
 #: configure.py
-msgid "Switching a mod off is safe for one that changes how the Zone looks and sounds: textures, shaders, grass, weather. A mod that adds locations, quest lines or items can leave a save needing it: one made while it is on may not load once play.bat turns it off, until its season comes back. Make a mod like that seasonal only on purpose."
-msgstr "Выключать мод безопасно, если он меняет то, как Зона выглядит и звучит: текстуры, шейдеры, траву, погоду. Мод, который добавляет локации, цепочки квестов или предметы, может сделать сохранение зависимым от себя: сохранение, сделанное при включённом моде, может не загрузиться после того, как play.bat его выключит, — пока не вернётся его сезон. Делайте такой мод сезонным только намеренно."
+msgid "Switching a mod off is safe for one that changes how the Zone looks and sounds: textures, shaders, grass, weather. A mod that adds locations, quest lines or items leaves them in your saves. Once play.bat turns it off, a save made while it was on loses that mod's items, and won't load at all if one is on a quick-use slot. play.bat leaves a mod whose files add items, trader stock, spawns or objects as it is, unless its entry allows it; what it can't see is yours to judge."
+msgstr "Выключать мод безопасно, если он меняет то, как Зона выглядит и звучит: текстуры, шейдеры, траву, погоду. Мод, который добавляет локации, цепочки квестов или предметы, оставляет их в ваших сохранениях. Когда play.bat его выключит, сохранение, сделанное при включённом моде, потеряет предметы этого мода, а если такой предмет лежит в слоте быстрого доступа, вовсе не загрузится. play.bat оставляет как есть мод, чьи файлы добавляют предметы, товар торговцев, спавн или объекты, если его запись этого не разрешает; то, чего play.bat не видит, решать вам."
+
+#: configure.py
+msgid "Its files put things into saves, so play.bat leaves it as it is in MO2 until its entry in seasons_config.py says \"save_content\": True. A save made while it is on can lose those things, or not load, once it is off."
+msgstr "Его файлы добавляют в сохранения свои объекты, поэтому play.bat оставляет его в MO2 как есть, пока в его записи в seasons_config.py не будет \"save_content\": True. Сохранение, сделанное при включённом моде, после его выключения может их потерять или не загрузиться."
+
+#: configure.py
+msgid "Its files put things into saves. Its entry in seasons_config.py says \"save_content\": True, so play.bat switches it all the same."
+msgstr "Его файлы добавляют в сохранения свои объекты. В его записи в seasons_config.py стоит \"save_content\": True, поэтому play.bat всё равно его переключает."
 
 #: configure.py
 msgid "Seasons of the Zone setup"
@@ -5415,6 +5503,10 @@ msgid "not in MO2's mod list"
 msgstr "нет в списке модов MO2"
 
 #: guide.py
+msgid "puts things into saves, so play.bat leaves it as it is (Change... says why)"
+msgstr "добавляет в сохранения свои объекты, поэтому play.bat оставляет его как есть (почему — в «Изменить...»)"
+
+#: guide.py
 msgid "Add another mod..."
 msgstr "Добавить ещё мод..."
 
@@ -5658,6 +5750,11 @@ msgid "%s, pinned in MCM"
 msgstr "%s (сезон закреплён в MCM)"
 
 #: guide.py
+#, python-format
+msgid "Today is %s."
+msgstr "Сейчас %s."
+
+#: guide.py
 msgid "With no seasonal mods, play.bat has nothing to switch. The seasonal atmosphere runs all the same."
 msgstr "Сезонных модов нет, поэтому play.bat нечего переключать. Сезонная атмосфера всё равно работает."
 
@@ -5694,11 +5791,6 @@ msgstr[2] "Сейчас %(season)s. С этой настройкой play.bat д
 
 #: guide.py
 #, python-format
-msgid "Today is %s."
-msgstr "Сейчас %s."
-
-#: guide.py
-#, python-format
 msgid "%s is unchecked in MCM for this season, so it stays off."
 msgstr "%s не отмечен в MCM для этого сезона, поэтому остаётся выключенным."
 
@@ -5706,6 +5798,16 @@ msgstr "%s не отмечен в MCM для этого сезона, поэто
 #, python-format
 msgid "%s are unchecked in MCM for this season, so they stay off."
 msgstr "%s не отмечены в MCM для этого сезона, поэтому остаются выключенными."
+
+#: guide.py
+#, python-format
+msgid "%s puts things into saves, so play.bat leaves it as it is."
+msgstr "%s добавляет в сохранения свои объекты, поэтому play.bat оставляет его как есть."
+
+#: guide.py
+#, python-format
+msgid "%s put things into saves, so play.bat leaves them as they are."
+msgstr "%s добавляют в сохранения свои объекты, поэтому play.bat оставляет их как есть."
 
 #: guide.py
 msgid "Fix these first; play.bat would refuse the setup as it is:"
@@ -6800,6 +6902,9 @@ msgstr "ЯСНО"
 msgctxt "the barometer's face"
 msgid "DRY"
 msgstr "СУШЬ"
+
+#~ msgid "Switching a mod off is safe for one that changes how the Zone looks and sounds: textures, shaders, grass, weather. A mod that adds locations, quest lines or items can leave a save needing it: one made while it is on may not load once play.bat turns it off, until its season comes back. Make a mod like that seasonal only on purpose."
+#~ msgstr "Выключать мод безопасно, если он меняет то, как Зона выглядит и звучит: текстуры, шейдеры, траву, погоду. Мод, который добавляет локации, цепочки квестов или предметы, может сделать сохранение зависимым от себя: сохранение, сделанное при включённом моде, может не загрузиться после того, как play.bat его выключит, — пока не вернётся его сезон. Делайте такой мод сезонным только намеренно."
 
 #~ msgid "To take the soundscape from it instead: %s"
 #~ msgstr "Чтобы брать фоновые звуки из него: %s"

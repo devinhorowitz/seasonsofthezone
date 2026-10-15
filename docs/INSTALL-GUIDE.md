@@ -72,8 +72,10 @@ until the Review step.
 ![Step 2: the seasonal mods](images/install-04-mods.png)
 
 1. **Switch with care.** Switching a mod off is safe for one that changes how the Zone
-   looks and sounds. One that adds locations, quest lines or items can leave a save that
-   won't load until its season comes back. Make a mod like that seasonal only on purpose.
+   looks and sounds. One that adds locations, quest lines or items leaves them in your
+   saves, which can lose them, or not load, once it is off. `play.bat` won't switch a mod
+   whose files add items, trader stock, spawns or objects, and the list marks one in red;
+   the rest is yours to judge.
 2. The checklist: each checked mod and the seasons it's on in. `play.bat` switches it on
    in those seasons and off the rest of the year. Uncheck one to leave it as it is in MO2.
 3. **Change...** sets when that mod is on (next screenshot).

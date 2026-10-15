@@ -40,6 +40,7 @@ import json
 import os
 import random
 import shutil
+import struct
 import subprocess
 import sys
 import time
@@ -591,6 +592,10 @@ def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=No
                                                  "wins over (%s).")
                                 % command("season.py", "whowins <a file it ships> --for "
                                           "\"%s\"" % name))
+            if SAVE_CONTENT in cfg and not isinstance(cfg[SAVE_CONTENT], bool):
+                problems.append(where + ": " + _("\"%s\" is True or False, without quotes. "
+                                                 "True lets play.bat switch a mod that puts "
+                                                 "things into saves.") % SAVE_CONTENT)
         # A above B and B above A: each launch would move one above the other, for ever
         looped = set()
         for start in toggle_mods:
@@ -1362,10 +1367,437 @@ def change_text(was, now):
                 (was, now)]
 
 
+# --- what a seasonal mod leaves in saves ------------------------------------------------
+#
+# A save keeps each object in it by its section's name. A mod that adds items, puts them in
+# traders' stock or a loadout, adds spawns, or creates objects from its scripts leaves
+# those in the saves made while it is on. Once it is off, the sections are gone: current
+# Modded Exes delete such objects as a save loads, older exes crash on them, and one on a
+# quick-use slot stops every load ("Can't open section"). So each seasonal mod's files are
+# looked through before it is switched, and a mod with any of that is left as it is in
+# MO2, unless its entry says "save_content": True. The look costs a walk of the folder and
+# a read of its configs, scripts and .db file lists: 0.06 s for thirteen mods and 3,200
+# files, so it is not cached between runs.
+
+SAVE_CONTENT = "save_content"
+
+# X-Ray's LZHUF, which packs a .db's file list (xrCore's LzHuf.cpp): Okumura's, with N 4096,
+# F 60 and THRESHOLD 2, the unpacked size first as a u32, and the tree rebuilt at 0x4000
+_LZ_N, _LZ_F, _LZ_THRESHOLD = 4096, 60, 2
+_LZ_CHARS = 256 - _LZ_THRESHOLD + _LZ_F
+_LZ_T = _LZ_CHARS * 2 - 1
+_LZ_R = _LZ_T - 1
+_LZ_MAX_FREQ = 0x4000
+
+
+def _lz_positions():
+    """The upper 6 bits of a match's position, and its code's length, by the 8 bits its code
+    starts with."""
+    code, length = [], []
+    for v in range(64):
+        n = (3 if v == 0 else 4 if v < 4 else 5 if v < 12 else 6 if v < 24 else 7 if v < 48
+             else 8)
+        code += [v] * (1 << (8 - n))
+        length += [n] * (1 << (8 - n))
+    return code, length
+
+
+_LZ_D_CODE, _LZ_D_LEN = _lz_positions()
+
+
+def lzhuf_unpack(src):
+    """Bytes X-Ray's LZHUF packed, unpacked. ValueError for bytes that don't unpack."""
+    T, R, CHARS = _LZ_T, _LZ_R, _LZ_CHARS
+    if len(src) < 4:
+        raise ValueError("too short to be packed")
+    size = struct.unpack_from("<I", src)[0]
+    if size > 64 << 20:
+        raise ValueError("unpacks to %d bytes" % size)
+    data, end = src[4:], len(src) - 4
+    freq = [1] * CHARS + [0] * (T + 1 - CHARS)
+    prnt = [0] * (T + CHARS)
+    son = [0] * T
+    for i in range(CHARS):
+        son[i] = i + T
+        prnt[i + T] = i
+    i, j = 0, CHARS
+    while j <= R:
+        freq[j] = freq[i] + freq[i + 1]
+        son[j] = i
+        prnt[i] = prnt[i + 1] = j
+        i += 2
+        j += 1
+    freq[T] = 0xFFFF
+    prnt[R] = 0
+    pos, buf, have = 0, 0, 0            # bytes read; the bit buffer, 16 bits; bits in it
+
+    def bits(n):
+        """The next n bits, n at most 8, as a number."""
+        nonlocal pos, buf, have
+        while have <= 8:
+            buf |= (data[pos] if pos < end else 0) << (8 - have)
+            pos += 1
+            have += 8
+        v = buf >> (16 - n)
+        buf = (buf << n) & 0xFFFF
+        have -= n
+        return v
+
+    def rebuild():
+        k = 0
+        for i in range(T):
+            if son[i] >= T:
+                freq[k] = (freq[i] + 1) // 2
+                son[k] = son[i]
+                k += 1
+        i, j = 0, CHARS
+        while j < T:
+            f = freq[i] + freq[i + 1]
+            freq[j] = f
+            k = j - 1
+            while f < freq[k]:
+                k -= 1
+            k += 1
+            freq[k + 1:j + 1] = freq[k:j]
+            freq[k] = f
+            son[k + 1:j + 1] = son[k:j]
+            son[k] = i
+            i += 2
+            j += 1
+        for i in range(T):
+            k = son[i]
+            if k >= T:
+                prnt[k] = i
+            else:
+                prnt[k] = prnt[k + 1] = i
+
+    def update(c):
+        if freq[R] == _LZ_MAX_FREQ:
+            rebuild()
+        c = prnt[c + T]
+        while True:
+            freq[c] += 1
+            k = freq[c]
+            n = c + 1
+            if k > freq[n]:
+                n += 1
+                while k > freq[n]:
+                    n += 1
+                n -= 1
+                freq[c] = freq[n]
+                freq[n] = k
+                i = son[c]
+                prnt[i] = n
+                if i < T:
+                    prnt[i + 1] = n
+                j = son[n]
+                son[n] = i
+                prnt[j] = c
+                if j < T:
+                    prnt[j + 1] = c
+                son[c] = j
+                c = n
+            c = prnt[c]
+            if c == 0:
+                break
+
+    out = bytearray()
+    text = bytearray(b" " * _LZ_N)
+    r = _LZ_N - _LZ_F
+    while len(out) < size:
+        if pos > end + 2:
+            raise ValueError("the packed bytes end early")
+        c = son[R]
+        while c < T:
+            c = son[c + bits(1)]
+        c -= T
+        update(c)
+        if c < 256:
+            out.append(c)
+            text[r] = c
+            r = (r + 1) & (_LZ_N - 1)
+            continue
+        i = bits(8)
+        hi, n = _LZ_D_CODE[i] << 6, _LZ_D_LEN[i] - 2
+        i = (i << n) | bits(n) if n else i
+        start = (r - (hi | (i & 0x3F)) - 1) & (_LZ_N - 1)
+        for k in range(c - 255 + _LZ_THRESHOLD):
+            b = text[(start + k) & (_LZ_N - 1)]
+            out.append(b)
+            text[r] = b
+            r = (r + 1) & (_LZ_N - 1)
+    return bytes(out[:size])
+
+
+def db_files(path):
+    """The files an X-Ray .db holds, by the path each is mounted at, with forward slashes:
+    read from its file list alone, nothing unpacked. A .db is chunks, [u32 id][u32 size]
+    [data]; chunk 1 is the file list, LZHUF-packed when the id's top bit is set, and each
+    entry is u16 length, u32 size, u32 packed size, u32 crc, the name, u32 offset.
+    ValueError for a file that doesn't read as one."""
+    table = None
+    with open(path, "rb") as f:
+        f.seek(0, 2)
+        total = f.tell()
+        f.seek(0)
+        while True:
+            head = f.read(8)
+            if not head:
+                break
+            if len(head) < 8:
+                raise ValueError("a chunk is cut short")
+            cid, size = struct.unpack("<II", head)
+            if f.tell() + size > total:
+                raise ValueError("a chunk runs past the end")
+            if cid & 0x7FFFFFFF == 1:
+                table = f.read(size)
+                if cid & 0x80000000:
+                    table = lzhuf_unpack(table)
+                break
+            f.seek(size, 1)
+    if table is None:
+        raise ValueError("no file list")
+    names, p = [], 0
+    while p + 2 <= len(table):
+        n = struct.unpack_from("<H", table, p)[0]
+        if n < 16 or p + 2 + n > len(table):
+            raise ValueError("a file list that doesn't read")
+        names.append(table[p + 14:p + n - 2].decode("cp1251", "replace").replace("\\", "/"))
+        p += 2 + n
+    if p != len(table):
+        raise ValueError("a file list that doesn't read")
+    return [n for n in names if n and not n.endswith("/")]
+
+
+def _ltx_line(line):
+    """An .ltx line as the game reads it: trimmed, and a comment (; or //) taken off unless
+    it starts inside quotes."""
+    s = line.strip()
+    cut = min([x for x in (s.find(";"), s.find("//")) if x >= 0] or [len(s)])
+    if cut < len(s):
+        q = s.find('"')
+        if not (0 <= q < cut < s.find('"', q + 1)):
+            s = s[:cut]
+    return s.strip()
+
+
+_LTX_HEAD = re.compile(r"^(!!|!|@)?\[([^\]]*)\]\s*(?::(.*))?$")
+
+
+def ltx_objects(text):
+    """The sections in an .ltx's text that make an object a save can hold: one with
+    $spawn, or one with an inventory key (inv_...) and a class, its own or a parent's.
+    DLTX's ![...] and !![...] change or delete a section defined elsewhere, so they don't
+    count; its @[...] can make one, so it does."""
+    out, name, keys, parents = [], None, set(), False
+
+    def close():
+        if name and ("$spawn" in keys or ((parents or "class" in keys)
+                                          and any(k.startswith("inv_") for k in keys))):
+            out.append(name)
+    for line in text.splitlines():
+        s = _ltx_line(line)
+        m = _LTX_HEAD.match(s)
+        if m:
+            close()
+            name = m.group(2).strip() if m.group(1) in (None, "@") else None
+            parents, keys = bool((m.group(3) or "").strip()), set()
+        elif name is not None and s and s[0] not in "!#":
+            keys.add(s.split("=", 1)[0].strip().lower())
+    close()
+    return out
+
+
+# Lua that creates an object: alife():create() and the rest of the family, on alife() or
+# on a name it is kept in (`local sim = alife()`), and the helpers that call them
+_CREATES = re.compile(r"\balife\s*\(\s*\)\s*:\s*create\w*\s*\("
+                      r"|\b\w+\s*:\s*create(?:_ammo)?\s*\("
+                      r"|\b(?:alife_create\w*|alife_clone\w*|create_ammo|create_squad|"
+                      r"spawn_item|buy_supplies)\s*\(")
+_LUA_SKIP = re.compile(r"--|[\"']|\[=*\[")
+_LUA_LONG = re.compile(r"\[(=*)\[")
+
+
+def lua_code(text):
+    """Lua source with its comments and strings blanked and its line breaks kept: what is
+    left is the code, on the lines it was on."""
+    out, i, n = [], 0, len(text)
+    while i < n:
+        m = _LUA_SKIP.search(text, i)
+        if not m:
+            out.append(text[i:])
+            break
+        out.append(text[i:m.start()])
+        i, tok = m.start(), m.group()
+        if tok == "--":
+            long = _LUA_LONG.match(text, i + 2)
+            if long:
+                close = text.find("]" + long.group(1) + "]", long.end())
+                end = n if close < 0 else close + len(long.group(1)) + 2
+            else:
+                end = text.find("\n", i)
+                end = n if end < 0 else end
+        elif tok in "\"'":
+            j = i + 1
+            while j < n and text[j] != tok and text[j] != "\n":
+                j += 2 if text[j] == "\\" else 1
+            end = min(j + 1, n)
+        else:
+            close = text.find("]" + tok[1:-1] + "]", i + len(tok))
+            end = n if close < 0 else close + len(tok)
+        out.append(re.sub(r"[^\n]", " ", text[i:end]))
+        i = end
+    return "".join(out)
+
+
+def lua_creates(text):
+    """(line, call) for the first call in Lua source that creates an object, like (189,
+    "sim:create"), or None. A function of that name being defined is not a call."""
+    code = lua_code(text)
+    for m in _CREATES.finditer(code):
+        start = code.rfind("\n", 0, m.start()) + 1
+        if re.search(r"\bfunction\s+[\w.:]*$", code[start:m.start()]):
+            continue
+        return code.count("\n", 0, m.start()) + 1, re.sub(r"\s+", "", m.group())[:-1]
+    return None
+
+
+def save_content(folder):
+    """What in the mod folder `folder` ties a save to the mod: [(file, kind, detail)], each
+    file by its path in the mod with forward slashes. The kinds:
+      "items"    an .ltx in configs/ with sections that make objects; detail, their names
+      "trade"    traders' stock: configs/items/trade/, or "trade" a word in the name
+      "loadout"  a loadout, a new game's or NPCs': "loadout(s)" a word in the name
+      "spawns"   spawns/, or a .spawn
+      "script"   a script that creates objects; detail, (line, call)
+      "db"       a .db holding a script, a config or spawns, which can't be read from
+                 outside; detail, (the first, how many)
+      "db?"      a .db whose file list can't be read; detail, why
+    Only what the game loads from a mod counts: gamedata/, and the archives in db/. The
+    sections are not checked against the game's own, so a mod that only ships a full copy
+    of a game file counts too."""
+    found = []
+    for root, dirs, files in os.walk(folder):
+        dirs.sort()
+        for f in sorted(files):
+            p = os.path.join(root, f)
+            rel = os.path.relpath(p, folder).replace(os.sep, "/")
+            low = rel.lower()
+            if low.startswith("db/") and re.search(r"\.x?db\w*$", low) and \
+                    f.lower() != "thumbs.db":
+                try:
+                    inside = db_files(p)
+                except (OSError, ValueError) as e:
+                    found.append((rel, "db?", str(e)))
+                    continue
+                held = [n for n in inside if re.match(
+                    r"(?:gamedata/)?(?:.*\.(?:script|spawn)$|spawns/|configs/.*\.ltx$)",
+                    n.lower())]
+                if held:
+                    found.append((rel, "db", (held[0], len(held))))
+                continue
+            if not low.startswith("gamedata/"):
+                continue
+            g = low[len("gamedata/"):]
+            words = re.split(r"[^a-z0-9]+", g.rsplit("/", 1)[-1])
+            if g.startswith("spawns/") or g.endswith(".spawn"):
+                found.append((rel, "spawns", None))
+            elif g.startswith("configs/") and g.endswith(".ltx"):
+                if g.startswith("configs/items/trade/") or "trade" in words:
+                    found.append((rel, "trade", None))
+                elif "loadout" in words or "loadouts" in words:
+                    found.append((rel, "loadout", None))
+                else:
+                    try:
+                        names = ltx_objects(io.open(p, encoding="cp1251",
+                                                    errors="replace").read())
+                    except OSError:
+                        continue
+                    if names:
+                        found.append((rel, "items", names))
+            elif g.startswith("scripts/") and g.endswith(".script"):
+                try:
+                    hit = lua_creates(io.open(p, encoding="cp1251", errors="replace").read())
+                except OSError:
+                    continue
+                if hit:
+                    found.append((rel, "script", hit))
+    return sorted(found, key=lambda x: x[0].lower())
+
+
+_SAVE_SCANS = {}                        # a mod folder's save_content(), once a run
+
+
+def mod_save_content(name):
+    """save_content() for the mod `name` in mods/, looked through once a run; [] for one
+    that isn't there."""
+    folder = os.path.join(MODS, name)
+    if folder not in _SAVE_SCANS:
+        if not os.path.isdir(folder):
+            return []
+        _SAVE_SCANS[folder] = save_content(folder)
+    return _SAVE_SCANS[folder]
+
+
+def saves_allowed(cfg):
+    """Does a TOGGLE_MODS entry let play.bat switch a mod that puts things into saves?"""
+    return isinstance(cfg, dict) and cfg.get(SAVE_CONTENT) is True
+
+
+def held_for_saves(name, cfg):
+    """What in the seasonal mod `name` puts things into saves when its entry `cfg` doesn't
+    allow switching it, so play.bat leaves it as it is; [] when it can be switched."""
+    return [] if saves_allowed(cfg) else mod_save_content(name)
+
+
+def _names_text(names, most=3):
+    """Names in a list, cut short past `most`."""
+    head = pgettext("between words in a list", ", ").join(names[:most])
+    more = len(names) - most
+    if more <= 0:
+        return head
+    # translators: a list cut short, as in "a, b, c, d and 2 more"
+    return ngettext("%(names)s and %(more)d more", "%(names)s and %(more)d more",
+                    more) % {"names": head, "more": more}
+
+
+def save_content_text(kind, detail):
+    """What a file found by save_content() puts into saves, in words."""
+    if kind == "items":
+        return _("defines items or other objects: %s") % _names_text(detail)
+    if kind == "trade":
+        return _("puts items in traders' stock")
+    if kind == "loadout":
+        return _("puts items in loadouts")
+    if kind == "spawns":
+        return _("adds spawns to the world")
+    if kind == "script":
+        return _("creates objects (line %(line)d: %(call)s)") % {"line": detail[0],
+                                                                 "call": detail[1]}
+    if kind == "db":
+        return ngettext("holds %(file)s, which can't be checked inside a .db",
+                        "holds %(file)s and others like it, %(n)d in all, which can't be "
+                        "checked inside a .db", detail[1]) % {"file": detail[0],
+                                                               "n": detail[1]}
+    return _("a .db whose list of files can't be read (%s), so what it holds is unknown") \
+        % detail
+
+
+def save_content_lines(found, most=5):
+    """save_content()'s findings as lines, "file: what it does", cut short past `most`."""
+    out = ["%s: %s" % (rel, save_content_text(kind, detail))
+           for rel, kind, detail in found[:most]]
+    if len(found) > most:
+        out.append(ngettext("and %d more file", "and %d more files", len(found) - most)
+                   % (len(found) - most))
+    return out
+
+
 def apply_toggles(active, dry_run=False, prefs=None):
     """Enable or disable the seasonal mods and put each just above the mod it wins over.
     Returns [(name, from, to)] for what changed. With the texture layer off, every
-    seasonal mod is disabled."""
+    seasonal mod is disabled. A mod that puts things into saves is left as it is, unless
+    its entry allows switching it (held_for_saves)."""
     prefs = prefs if prefs is not None else read_prefs()
     active = [active] if isinstance(active, str) else list(active)
     base, active_set = active[0], set(active)
@@ -1386,6 +1818,9 @@ def apply_toggles(active, dry_run=False, prefs=None):
     del RENAMED[:]
     for name, cfg in TOGGLE_MODS.items():
         if name not in folders:
+            continue
+        if held_for_saves(name, cfg):
+            SKIPPED.append(name)            # the status lines above say why
             continue
         # A mod is on if ANY period it is scoped to is active today - that is what
         # makes an event additive on top of its season. MCM holds are per base
@@ -1452,7 +1887,9 @@ def near_folder(name, folders=None):
 
 def toggle_status(active, prefs=None):
     """[(name, installed, state, wanted, held)] for each seasonal mod. `held` is why a
-    wanted mod stays off: "off" (texture layer off), "mod" (unchecked in MCM), None."""
+    wanted mod stays off: "off" (texture layer off), "mod" (unchecked in MCM), None; or
+    "saves" for a mod play.bat leaves as it is, on or off, since it puts things into saves
+    (held_for_saves)."""
     prefs = prefs if prefs is not None else read_prefs()
     active = [active] if isinstance(active, str) else list(active)
     base, active_set = active[0], set(active)
@@ -1464,7 +1901,9 @@ def toggle_status(active, prefs=None):
         installed = name in folders
         state = next((l[:1] for l in body if l[:1] in ("+", "-") and l[1:] == name), None)
         held = None
-        if not prefs["stage_textures"]:
+        if installed and held_for_saves(name, cfg):
+            held = "saves"
+        elif not prefs["stage_textures"]:
             held = "off"
         elif keys[name] in prefs["off"].get(base, set()):
             held = "mod"
@@ -1717,7 +2156,8 @@ def write_mod_panel(active, prefs=None):
     rows, keys = [], mod_keys()
     for name, cfg in TOGGLE_MODS.items():
         inst, state, want, held = status[name]
-        if not inst:
+        # a mod play.bat leaves as it is gets no checkbox, which could not switch it
+        if not inst or held == "saves":
             continue
         n, b = _mod_weight(os.path.join(MODS, name))
         rows.append({
@@ -3453,8 +3893,11 @@ def shadow_check(force=False):
     if lines is None:
         return []
     body = [l for l in lines if l[:1] in ("+", "-")]
+    folders = _mod_folders()
+    # the mods apply leaves as they are, since they put things into saves
+    held = sorted(n for n, c in TOGGLE_MODS.items() if n in folders and held_for_saves(n, c))
     key = hashlib.md5(("|".join(body) + "|" + repr(sorted(
-        (n, _when(c), c.get("above")) for n, c in TOGGLE_MODS.items())))
+        (n, _when(c), c.get("above")) for n, c in TOGGLE_MODS.items())) + "|" + repr(held))
                       .encode("utf-8", "replace")).hexdigest()
     if not force and os.path.isfile(SHADOW_CACHE):
         try:
@@ -3464,9 +3907,8 @@ def shadow_check(force=False):
             pass
 
     # the moves apply makes: a mod it is about to put above another is not losing to it
-    folders = _mod_folders()
     for name, cfg in TOGGLE_MODS.items():
-        if name in folders:
+        if name in folders and name not in held:
             i = _find(body, name)
             _place(body, name, cfg["above"], body[i][:1] if i is not None else "-")
 
@@ -3488,7 +3930,7 @@ def shadow_check(force=False):
     shadowed, dormant, notes = [], {}, []
     for name, cfg in TOGGLE_MODS.items():
         base = os.path.join(MODS, name, "gamedata")
-        if name not in index or not os.path.isdir(base):
+        if name not in index or not os.path.isdir(base) or name in held:
             continue
         rels = []
         for r, __, fs in os.walk(base):
@@ -3833,7 +4275,8 @@ def main():
                     _("(MO2 has \"%s\"; use that name exactly)") % near if near
                     else _("(no folder with that name in mods)")))
             else:
-                due = (_("(today: off)") if not should else _("(today: on)") if not held else
+                due = (_("(left as it is: it puts things into saves)") if held == "saves" else
+                       _("(today: off)") if not should else _("(today: on)") if not held else
                        _("(today: off - texture swapping is off for this run "
                          "(--no-textures))") if held == "off" and a.no_textures else
                        _("(today: off - texture swapping is off in MCM)") if held == "off"
@@ -3843,11 +4286,30 @@ def main():
         # nothing else would
         for name, cfg in TOGGLE_MODS.items():
             w = set(_when(cfg))
-            if w and w <= (set(SEASONS) - set(on)):
+            if w and w <= (set(SEASONS) - set(on)) and not held_for_saves(name, cfg):
                 print("  - " + _("%(mod)s is on only in %(seasons)s, which your calendar has "
                                  "off, so it never switches on.")
                       % {"mod": name[:40], "seasons": seasons_text(sorted(w,
                                                                           key=SEASONS.index))})
+        # what a seasonal mod puts into saves: why it is left as it is, or, in status, that
+        # its entry lets it be switched all the same
+        for name, cfg in TOGGLE_MODS.items():
+            found = mod_save_content(name) if name in folders else []
+            if found and not saves_allowed(cfg):
+                print("  ! " + _("%s is left as it is in MO2: its files put things into "
+                                 "saves, and a save made while it is on can lose them, or not "
+                                 "load, once it is off.") % name[:40])
+                for line in save_content_lines(found):
+                    print("      " + line)
+                print("    " + _("To switch it anyway, give its entry \"%s\": True in "
+                                 "seasons_config.py.") % SAVE_CONTENT)
+            elif found and a.cmd == "status":
+                print("  - " + ngettext(
+                    "%(mod)s puts things into saves (%(n)d file); its entry says \"%(key)s\": "
+                    "True, so play.bat switches it all the same.",
+                    "%(mod)s puts things into saves (%(n)d files); its entry says \"%(key)s\": "
+                    "True, so play.bat switches it all the same.", len(found))
+                    % {"mod": name[:40], "n": len(found), "key": SAVE_CONTENT})
         for line in shadow_check(force=(a.cmd == "status")):
             print(line)
         sound_now = soundscape_installed()

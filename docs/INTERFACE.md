@@ -139,7 +139,8 @@ rebuilt each time the page is opened, so reopen it after Apply to see a preset t
 own checkbox. Unchecking one leaves it out of *that* season only — a mod used in every
 winter can stay on for deep winter and off for the other two. The choice persists. Hover
 text gives the mod's full span, file count and size. `play.bat` writes the list, so until
-the first start with it the page asks for one instead.
+the first start with it the page asks for one instead. A mod `play.bat` leaves as it is,
+since its files put things into saves, is not listed.
 
 ![The Autumn page](images/mcm-season-autumn.png)
 

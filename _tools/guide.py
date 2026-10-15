@@ -112,12 +112,24 @@ def season_on(day, dates):
     return now
 
 
+def left_as_is(cal):
+    """The seasonal mods in the setup `cal` holds that play.bat leaves as they are: their
+    files put things into saves, and their entries don't allow switching them."""
+    out = []
+    for name in cal.toggle:
+        note = cf.saves_note(name, cal)
+        if note and not note[2]:
+            out.append(name)
+    return sorted(out, key=str.casefold)
+
+
 def on_today(cal, prefs=None):
     """(the season today, the seasonal mods on today, those unchecked in MCM for it, and
     "pinned", "off" or None) for the setup `cal` holds, as play.bat would have them: by its
     calendar, events, seasons of one's own and spells, and the MCM choices - a pinned
     season, the texture switch ("off": every seasonal mod stays off) and the mods unchecked
-    for a season. Weather days are left out: they come with play.bat's fetch."""
+    for a season. Weather days are left out: they come with play.bat's fetch, and so are
+    the mods play.bat leaves as they are (left_as_is)."""
     prefs = season.read_prefs() if prefs is None else prefs
     # the real date, or the Zone's when MCM's calendar runs on the game's clock
     today = season.clock_today(prefs)[0]
@@ -131,7 +143,8 @@ def on_today(cal, prefs=None):
     now = pinned or next((b for _, b in spell if b), None) or now
     names.add(now)
     keys = season.mod_keys(cal.toggle)
-    due = sorted((n for n, c in cal.toggle.items() if names & set(c["when"])),
+    kept = left_as_is(cal)
+    due = sorted((n for n, c in cal.toggle.items() if names & set(c["when"]) and n not in kept),
                  key=str.casefold)
     held = [n for n in due if keys[n] in prefs["off"].get(now, set())]
     on = [n for n in due if n not in held] if prefs["stage_textures"] else []
@@ -539,12 +552,18 @@ class Guide(object):
                                                    padx=(14, 0))
                 ttk.Button(grid, text=_("Change..."), command=lambda n=name:
                            ModDialog(self, n)).grid(row=row, column=2, padx=(14, 0))
+                note = cf.saves_note(name, self.cal)
                 if name not in self.inst.names:
                     new = os.path.isdir(os.path.join(season.MODS, name))
                     ttk.Label(grid, text=_("new: play.bat adds it to MO2's mod list") if new
                               else _("not in MO2's mod list"),
                               foreground=cf.GREY if new else cf.RED).grid(
                         row=row, column=3, sticky="w", padx=(10, 0))
+                elif note and not note[2]:
+                    ttk.Label(grid, text=_("puts things into saves, so play.bat leaves it as "
+                                           "it is (Change... says why)"),
+                              foreground=cf.RED).grid(row=row, column=3, sticky="w",
+                                                      padx=(10, 0))
                 row += 1
         grid.columnconfigure(1, weight=1)
         row = ttk.Frame(box)
@@ -1278,12 +1297,15 @@ class Guide(object):
             ttk.Label(grid, text=text, wraplength=680, justify="left").grid(
                 row=i, column=1, sticky="w", padx=(18, 0), pady=3)
         now, on, held, why = on_today(self.cal)
-        n = len(self.cal.toggle)
+        kept = left_as_is(self.cal)
+        n = len(self.cal.toggle) - len(kept)
         season_words = cf.label(now, self.cal)
         rest = n - len(on) - len(held)          # off until their seasons
         if why == "pinned":
             season_words = _("%s, pinned in MCM") % season_words
-        if not n:
+        if not n and kept:
+            text = _("Today is %s.") % season_words
+        elif not n:
             text = _("With no seasonal mods, play.bat has nothing to switch. The seasonal "
                      "atmosphere runs all the same.")
         elif why == "off":
@@ -1316,6 +1338,11 @@ class Guide(object):
                            if len(held) == 1 else
                            _("%s are unchecked in MCM for this season, so they stay off.")
                            ) % ce.few(held, 3)
+        if kept:
+            text += " " + (_("%s puts things into saves, so play.bat leaves it as it is.")
+                           if len(kept) == 1 else
+                           _("%s put things into saves, so play.bat leaves them as they are.")
+                           ) % ce.few(kept, 3)
         self.para(text, pad=(16, 0))
         problems = raw_problems(self.cal)
         if problems:
@@ -1697,11 +1724,16 @@ class ModDialog(object):
             self.names = [n for n in sorted(guide.inst.names, key=str.casefold)
                           if n not in cal.toggle and n not in own]
             self.fill()
+            self.list.bind("<<ListboxSelect>>", self.on_pick)
             focus = e
         if name not in cal.toggle:
             # a mod joining the rotation: what to know first
             ttk.Label(f, text=_(cf.SWITCH_CAUTION), foreground=cf.AMBER, wraplength=520,
                       justify="left").pack(anchor="w", pady=(10, 0))
+        # what this mod's files put into saves, when they do
+        self.saves = ttk.Frame(f)
+        self.saves.pack(anchor="w", fill="x")
+        self.show_saves(name)
         ttk.Label(f, text=_("On in these seasons"), style="Head.TLabel").pack(anchor="w",
                                                                               pady=(12, 4))
         grid = ttk.Frame(f)
@@ -1777,6 +1809,29 @@ class ModDialog(object):
         self.list.delete(0, "end")
         for n in self.shown:
             self.list.insert("end", n)
+        if hasattr(self, "saves"):
+            self.show_saves(None)
+
+    def picked(self):
+        """The mod picked in the list, or None."""
+        sel = self.list.curselection()
+        return self.shown[sel[0]] if sel else None
+
+    def on_pick(self, event=None):
+        """A mod picked in the list: what its files put into saves, when they do."""
+        self.show_saves(self.picked())
+
+    def show_saves(self, name):
+        """What `name`'s files put into saves, and so what play.bat does with it; nothing
+        for a mod whose files don't."""
+        for w in self.saves.winfo_children():
+            w.destroy()
+        note = cf.saves_note(name, self.g.cal) if name else None
+        if note:
+            text, files, allowed = note
+            self.g.ttk.Label(self.saves, text="\n".join([text] + ["  " + l for l in files[:3]]),
+                             foreground=cf.GREY if allowed else cf.RED, wraplength=520,
+                             justify="left").pack(anchor="w", pady=(10, 0))
 
     def show_more(self):
         if self.more.get():

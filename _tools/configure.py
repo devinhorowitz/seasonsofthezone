@@ -105,6 +105,19 @@ def fail(*lines):
     raise SystemExit(1)
 
 
+def saves_note(name, cal):
+    """(what to say, the files, allowed) for a mod whose files put things into saves, as the
+    commands and the windows say it; None for a mod with none. `allowed` is whether its
+    entry lets play.bat switch it all the same."""
+    found = season.mod_save_content(name)
+    if not found:
+        return None
+    extra = dict((cal.toggle.get(name) or {}).get("extra") or [])
+    allowed = extra.get(season.SAVE_CONTENT) is True
+    return (_(SAVES_ALLOWED) if allowed else _(SAVES_HELD),
+            season.save_content_lines(found), allowed)
+
+
 def stopped_lines(gone):
     """What a removal says of the mods it took off the calendar, on in nothing else."""
     if not gone:
@@ -246,6 +259,11 @@ def cmd_list(a):
     for name, c in cal.toggle.items():
         mark = "" if name in inst.names else gone
         print("  %-*s  %s%s" % (width, name, _("on in %s") % when_text(c["when"], cal), mark))
+        note = saves_note(name, cal)
+        if note and not note[2]:
+            print("  %-*s  %s" % (width, "", _("left as it is: its files put things into saves "
+                                               "(%s says which)")
+                                  % season.command("season.py", "status")))
         if not c["above"]:
             print("  %-*s  %s" % (width, "", _("wins over (none set)")))
         else:
@@ -402,6 +420,15 @@ def cmd_add(a):
                                                     "command": on}))
     if not was:
         print("  %-9s %s" % (pgettext("start of a line", "careful"), _(SWITCH_CAUTION)))
+    note = saves_note(name, cal)
+    if note:
+        text, files, allowed = note
+        print("  %-9s %s" % (pgettext("start of a line", "note") if allowed
+                             else pgettext("start of a line", "careful"), text))
+        for line in files:
+            print("  %-9s   %s" % ("", line))
+        if not allowed:
+            return
     print("  " + _("play.bat switches it from the next launch."))
 
 
@@ -1189,13 +1216,22 @@ WEATHER_TEXT = {"freezing": N_("the low is 0°C or below"),
                 "thaw": N_("it freezes overnight and climbs above 0°C by afternoon"),
                 "heat": N_("the high reaches 28°C")}
 GREY, RED, AMBER = "#666666", "#b03020", "#9a5b00"
-# what to know before making a mod seasonal; no list could keep up with which mods a save
-# comes to depend on, so the player decides, knowing what is at stake
+# what to know before making a mod seasonal. season.py finds the files that put things
+# into saves; locations and quest lines it can't see, so the player decides, knowing what
+# is at stake
 SWITCH_CAUTION = N_("Switching a mod off is safe for one that changes how the Zone looks and "
                     "sounds: textures, shaders, grass, weather. A mod that adds locations, "
-                    "quest lines or items can leave a save needing it: one made while it is on "
-                    "may not load once play.bat turns it off, until its season comes back. "
-                    "Make a mod like that seasonal only on purpose.")
+                    "quest lines or items leaves them in your saves. Once play.bat turns it "
+                    "off, a save made while it was on loses that mod's items, and won't load "
+                    "at all if one is on a quick-use slot. play.bat leaves a mod whose files "
+                    "add items, trader stock, spawns or objects as it is, unless its entry "
+                    "allows it; what it can't see is yours to judge.")
+# a mod whose files put things into saves (season.save_content), its entry allowing it or not
+SAVES_HELD = N_("Its files put things into saves, so play.bat leaves it as it is in MO2 until "
+                "its entry in seasons_config.py says \"save_content\": True. A save made while "
+                "it is on can lose those things, or not load, once it is off.")
+SAVES_ALLOWED = N_("Its files put things into saves. Its entry in seasons_config.py says "
+                   "\"save_content\": True, so play.bat switches it all the same.")
 TITLE = N_("Seasons of the Zone setup")
 SEP = "|sep|"               # a list row that is a separator; no mod folder holds a |
 
@@ -1659,6 +1695,11 @@ class App(object):
             self.label(_("Not in MO2's mod list, so play.bat can't switch it. Stop switching it "
                          "below, or put the mod back in MO2."), RED).pack(anchor="w",
                                                                             pady=(0, 8))
+        note = saves_note(name, self.cal)
+        if note:
+            text, files, allowed = note
+            self.label("\n".join([text] + ["  " + l for l in files[:3]]),
+                       GREY if allowed else RED).pack(anchor="w", pady=(0, 8))
         self.vars, self.checks = {}, {}
 
         box = ttk.LabelFrame(self.side, text=_("On in these seasons"), padding=8)

@@ -497,7 +497,7 @@ a fresh install.
 
 | Mod | Seasons | Notes |
 |---|---|---|
-| [Project I.N.V.E.R.N.O](https://www.moddb.com/mods/stalker-anomaly/addons/inverno-fx), winter textures | `winter`, `winter_snow`, `late_winter` | Terrain, flora and levels. Must win over your grass mod and Atmospherics/SSS; it carries its own shader headers. Version 1.09 also brings a cold-survival system with items of its own; see [seasonal snowfall](#optional-seasonal-snowfall). |
+| [Project I.N.V.E.R.N.O](https://www.moddb.com/mods/stalker-anomaly/addons/inverno-fx), winter textures | `winter`, `winter_snow`, `late_winter` | Terrain, flora and levels. Must win over your grass mod and Atmospherics/SSS; it carries its own shader headers. Make only its textures seasonal: 1.09's base module also holds a cold-survival system whose items stay in saves, and `play.bat` won't switch a mod that holds it. For the survival system, see [seasonal snowfall](#optional-seasonal-snowfall). |
 | INVERNO's "Partly snowy textures", in its [extras folder](https://drive.google.com/drive/folders/1C2Ny5ULVsHmVEpWImK8dhYzrw8fzTboa) | `winter`, `late_winter` | Patchy ground while the snow arrives and while it melts. Wins over the base INVERNO. |
 | [C Consciousness Grass & Trees](https://www.moddb.com/mods/stalker-anomaly/addons/ccon-grass-n-trees) | `spring` / `summer` / `autumn` / the three winters | Four sets, one entry each; the Dead set covers all three winters, under the snow and through the thaw. Its grass placement does not change with the season, so that part stays mounted year-round and is not a seasonal entry. |
 | [Grizzly's CCon Overhaul](https://www.moddb.com/mods/stalker-anomaly/addons/grizzlys-ccon-overhaul) | `spring` / `summer` / `autumn` / the three winters | A standalone overhaul of C Consciousness, so it replaces it. Install it once per season, naming each install for its season, and give each install one entry; Dead covers all three winters. Each install carries its own grass placement, so the warm ones can take Overgrown (grass on the roads too) while Dead keeps the Default. |
@@ -537,9 +537,15 @@ If MO2 can mount it as a folder, it can be seasonal: footstep audio, menu art, a
 
 **Switch with care.** Switching a mod off is safe for one that changes how the Zone looks
 and sounds: textures, shaders, grass, weather. A mod that adds locations, quest lines or
-items can leave your save needing it: a save made while it is on may not load once
-`play.bat` turns it off, until its season comes back. The setup says so whenever a mod
-joins the rotation. Make a mod like that seasonal only on purpose.
+items leaves them in your saves. Once `play.bat` turns it off, a save made while it was on
+loses that mod's items as it loads (exes from before July 2023 crash instead), and an item
+of the mod's on a quick-use slot stops every load until you delete its `slot_N` line in
+`appdata\user.ltx`. So `play.bat` looks through each seasonal mod's files first, and leaves
+one that adds items, trader stock, spawns or objects as it is in MO2, naming the files;
+`"save_content": True` in its entry switches it anyway. Locations and quest lines it can't
+see: make a mod like that seasonal only on purpose.
+[CONFIGURING.md](docs/CONFIGURING.md#what-a-mod-leaves-in-saves-save_content) has what it
+looks for, and how to get a save back.
 
 ### MCM settings that follow the season
 
@@ -617,11 +623,32 @@ The addon also ships an old `level_weathers.script`. Remove it: the patcher warn
 `--disable-weathers` renames it. See [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
 
 **INVERNO 1.09's own snowfall** is part of a cold-survival system in its base module: a
-freezing mechanic, an MCM page, frozen drinks, and a heating injector that traders sell.
-The patch does not apply to it. Set up as a seasonal mod, INVERNO and its snow are only on
-in the winters, but its items can tie a save to it: a save that holds them may not load once
-INVERNO is off in spring (see **Switch with care** under
-[Making a mod seasonal](#making-a-mod-seasonal)).
+freezing mechanic, an MCM page, frozen drinks that take the place of your water and beer,
+and a heating injector that traders sell and new games start with. The patch does not apply
+to it. Those items stay in your saves, so `play.bat` won't switch a mod that holds the
+survival system (see **Switch with care** under
+[Making a mod seasonal](#making-a-mod-seasonal)). Make only INVERNO's textures seasonal, and
+if you want the survival system, keep it in a mod of its own that stays on all year:
+
+- **The seasonal textures:** delete `gamedata\scripts`, `gamedata\anims`,
+  `gamedata\configs\items`, `gamedata\configs\text` and
+  `gamedata\configs\mod_system_trade_inverno.ltx` from it. `py _tools\season.py status`
+  names anything left that puts things into saves.
+- **The survival system**, on all year and not a seasonal mod: a second install of the base
+  module that keeps only those, with `gamedata\particles`, `db\addons\inverno_textures.db`
+  and the survival system's own textures: `ui_inverno.dds` and `ui_icon_heating_pad.dds` in
+  `gamedata\textures\ui`, and the three `item_tx4` files in
+  `gamedata\textures\usable_items\injectors`. With nothing else in it, the Zone isn't white
+  in July. Gate it by season instead:
+
+```
+py _tools\configure.py mcm project_inverno/enable_inverno_mechanics --in winter "deep winter" "late winter" --to true --else false
+```
+
+Drinks that froze stay frozen while the mechanics are off: thawing at a campfire is part of
+them. Its snowfall and fog are options of their own, `project_inverno/enable_snowfall` and
+`project_inverno/enable_fog`, and run all year unless gated the same way. With the patched
+addon, turn them off in INVERNO's MCM page, or the two snows stack.
 
 ---
 

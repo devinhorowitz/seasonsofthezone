@@ -200,6 +200,7 @@ TOGGLE_MODS = {
 | *key* | The mod folder name under `mods/`. A folder that is not installed is skipped. |
 | `when` | When the mod is enabled: any mix of seasons (`spring`, `summer`, `autumn`, `winter`, `winter_snow`, `late_winter`), your events and periods, and the kinds of weather `freezing`, `thaw` and `heat`. One name needs the trailing comma: `("winter",)`. `seasons` is the original spelling of this key and still works. |
 | `above` | The mod this one wins over. `play.bat` keeps it just above that mod in `modlist.txt` - just below it in MO2's left pane - so where both ship a file, this one's is used. `configure.bat` picks it for you. |
+| `save_content` | `True` lets `play.bat` switch a mod whose files put things into saves; see [What a mod leaves in saves](#what-a-mod-leaves-in-saves-save_content). Without it, such a mod is left as it is in MO2. Written by hand. |
 
 The weather comes from the real forecast `play.bat` fetches at each launch, for the place
 set in `configure.bat`: `freezing` is a day whose low is 0°C or below, `thaw` one that also
@@ -207,16 +208,61 @@ climbs above 0°C by afternoon, and `heat` one whose high reaches 28°C. Like an
 weather day is added to whatever season is running. A launch without a connection uses
 the forecast the last fetch kept, 16 days of it; past that, none of them is on.
 
-**Switch with care.** Switching a mod off is safe for one that changes how the Zone looks
-and sounds: textures, shaders, grass, weather. A mod that adds locations, quest lines or
-items can leave a save needing it: a save made while it is on may not load once
-`play.bat` turns it off, until its season comes back. No list could keep up with which
-mods do; `configure.bat` says this whenever a mod joins the rotation, and the choice is
-yours.
-
 Each seasonal mod gets its own checkbox on the MCM page of every season it is on in, with
 its file count and size. Unchecking it there means "never mount this in that season"; the
 same mod can stay on for another season.
+
+### What a mod leaves in saves (`save_content`)
+
+Switching a mod off is safe for one that changes how the Zone looks and sounds: textures,
+shaders, grass, weather. A save keeps each object in it by its section's name, so a mod
+that adds items leaves them in the saves made while it is on. Once `play.bat` turns it off,
+those sections are gone:
+
+- current Modded Exes delete the mod's items from a save as it loads; they are lost;
+- exes from before July 2023 crash loading such a save;
+- an item of the mod's on a quick-use slot stops every load, of any save, with
+  `Can't open section`: the slots are kept in `user.ltx`, not in the save.
+
+So before switching a seasonal mod, `play.bat` looks through its files for:
+
+| What | Found by |
+|---|---|
+| Items and other objects | an `.ltx` in `configs/` with a section that has `$spawn`, or an inventory key (`inv_...`) and a class, its own or a parent's. DLTX's `![...]` and `!![...]` change or delete another file's section, so they don't count. |
+| Traders' stock | `configs/items/trade/`, or `trade` as a word in an `.ltx`'s name |
+| Loadouts, a new game's or NPCs' | `loadout` or `loadouts` as a word in an `.ltx`'s name |
+| Spawns | `spawns/`, or a `.spawn` |
+| Scripts that create objects | `alife():create` and the rest of its family, on `alife()` or a name it is kept in, and `alife_create`, `alife_create_item`, `alife_clone_weapon`, `create_ammo`, `create_squad`, `spawn_item`, `buy_supplies`. Comments, strings and a function's own definition don't count. |
+| `.db` archives in `db/` | a script, config or spawn in one, by its file list; a `.db` whose list can't be read counts too |
+
+A mod with any of these is left as it is in MO2, on or off, with a `!` line naming the
+files in `play.bat` and `season.py status`. Its MCM checkbox goes, since unchecking it would
+do nothing. `configure.py add`, `list`, and both windows say so for that mod. To switch it
+anyway, add the key to its entry by hand:
+
+```python
+    "My Winter Mod": {
+        "when": ("winter", "winter_snow"),
+        "above": "...",
+        "save_content": True,       # its items stay in my saves; I switch it knowing that
+    },
+```
+
+The tools keep it when they change the entry; a preset never brings one. The check reads
+the mod's files, not the game's, so a mod that ships a whole copy of a game file - a
+weapon or creature config, say - counts too, though the game has those sections without
+it. If that is all it is, allow it. What the check can't see is yours to judge: locations,
+quest lines, tasks and dialogs can leave a save needing a mod as well.
+
+**After a mod with items went off:**
+
+- *Every load stops with `Can't open section` and an item of that mod.* Close the game, open
+  `appdata\user.ltx` in the Anomaly folder, and delete the `slot_0` to `slot_3` line naming
+  that item. Every save loads again, without that item on the slot.
+- *A save loads without the mod's items.* They were deleted as it loaded; don't save over
+  it. To have them back, load it with the mod on: enable the mod in MO2 and start from MO2,
+  since `play.bat` would switch it off again, or wait for its season.
+- *A save crashes as it loads, older exes.* Load it with the mod on, as above.
 
 ### Which mod it wins over (`above`)
 
@@ -606,6 +652,11 @@ on a file the mod ships, and make it win over the mod named there.
 
 **`! <mod> skipped: the mod it wins over, "...", is not in MO2's mod list.`** That mod was
 renamed or removed. Pick another in the mod's **Wins over** box in `configure.bat`.
+
+**`! <mod> is left as it is in MO2: its files put things into saves`.** The lines under it
+name the files. See [What a mod leaves in saves](#what-a-mod-leaves-in-saves-save_content):
+make only the part of the mod that changes looks and sounds seasonal, or allow it with
+`"save_content": True`.
 
 **`seasons_config.py is not saved as UTF-8`.** Notepad saves as ANSI or UTF-16 when asked
 to; the tools read UTF-8. In Notepad, File > Save as, set Encoding to UTF-8, then Save.

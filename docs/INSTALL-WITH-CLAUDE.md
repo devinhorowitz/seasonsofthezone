@@ -122,9 +122,13 @@ window if the player prefers that.
   winter"). For each, named as in MO2's list:
   `py -3 _tools\configure.py add "<mod>" --when <seasons>`. It picks the mod it has to win over
   from the files they share; if it can't, show the player what it said. Switching is safe for
-  mods that change how the Zone looks or sounds. A mod that adds locations, quests or items can
-  leave a save that won't load while it is off: tell the player before adding one. The README's
-  *Mods that work well this way* lists packs and their seasons.
+  mods that change how the Zone looks or sounds. A mod that adds locations, quests or items
+  leaves them in saves, which lose them, or don't load, while it is off: tell the player
+  before adding one. When `add` says a mod's files put things into saves, `play.bat` leaves
+  it as it is; show the player the files it names, and add `"save_content": True` to its
+  entry only if they ask. A full INVERNO 1.09 install is such a mod: only its textures go
+  seasonal (the README's *Optional: seasonal snowfall* says how). The README's *Mods that
+  work well this way* lists packs and their seasons.
 - **Seasonal ambient sound:** `py -3 _tools\configure.py sound` shows which mod the soundscape
   comes from, and `sound "<mod>"` sets one. Set it only if the player wants it.
 - **Presets:** `py -3 _tools\configure.py preset` lists them; `GAMMA example` is the setup the
