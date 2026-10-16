@@ -6,6 +6,11 @@
   Space Shaders' ICE option, which GAMMA and ROMEO don't include, and says to skip the step
   without it: the file would only make your own steps in water sound like ice. It also says
   to make the `materials` folder, which the ICE option doesn't have.
+- **README: keep only Partly snowy's textures.** INVERNO's "Partly snowy textures" ships more
+  than its ground textures: footstep sounds and a `materials` file that take over the
+  footsteps, and its own puddle shader header. One player's copy also held a script that
+  `play.bat` wouldn't switch. Its row in the mod table now says to keep only
+  `gamedata\textures`.
 
 ## 2.7.1 — 2026-10-16
 
