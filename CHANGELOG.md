@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.7.3 — 2026-10-16
 
 - **A launch that would crash on a particle is stopped.** A script that makes particles
   outside its functions makes them as a save loads, and one the game doesn't have crashes
