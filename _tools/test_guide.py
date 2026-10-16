@@ -788,6 +788,226 @@ def t_the_example_s_source_is_offered_only_when_it_can_be():
     return "the example's own when it can be one; the pack on top when it is disabled"
 
 
+NO_RAIN = "No Rain in Winter (seasonal)"
+WINTER_PACK = 'TOGGLE_MODS = {"Winter Pack": {"when": ("winter",), "above": "Grass Compat"}}\n'
+RAIN_SET_UP = ('TOGGLE_MODS = {"Winter Pack": {"when": ("winter",), "above": "Grass Compat"}, '
+               '"%s": {"when": ("winter", "winter_snow"), "above": "Some Weathers"}}\n'
+               % NO_RAIN)
+W = "configs/environment/weathers/"
+# a mod with two weathers, one that rains, at the top of MO2's list; then the usual mods
+RAIN_MODS = [("Some Weathers", True, [W + "w_rain1.ltx", W + "w_clear1.ltx"])] + tc.MODS
+RAIN1 = ("[00:00:00]\r\n        rain_density                     = 0.8\r\n\r\n"
+         "[12:00:00]\r\n        rain_density                     = 0.5 ; heaviest\r\n")
+CLEAR1 = "[00:00:00]\r\n        rain_density                     = 0\r\n"
+ON_IN = "No Rain in Winter takes the rain out of the weathers in winter, deep winter."
+RAIN_DRIVER = r"""
+import os
+import season
+from tkinter import ttk
+busy = []
+season.running = lambda: list(busy)
+def page():
+    g.edit("mods")
+    settle()
+def box():
+    found = [c for c in widgets(g.body) if isinstance(c, ttk.Checkbutton)
+             and str(c.cget("text")).startswith("Snow, not rain")]
+    return found[0] if found else None
+def note():
+    return [t for t in texts(g.rain_note) if t]
+def listed():
+    return [str(c.cget("text")) for c in widgets(g.body) if isinstance(c, ttk.Checkbutton)]
+def built():
+    p = os.path.join(season.MODS, "No Rain in Winter (seasonal)", "gamedata", "configs",
+                     "environment", "weathers")
+    return sorted(os.listdir(p)) if os.path.isdir(p) else None
+page()
+"""
+
+
+def rainy(d, where=("mods", "Some Weathers")):
+    """The scratch weathers: w_rain1 rains at both hours, w_clear1 doesn't."""
+    w = os.path.join(d, *where + ("gamedata",) + tuple(W.strip("/").split("/")))
+    os.makedirs(w, exist_ok=True)
+    for f, text in (("w_rain1.ltx", RAIN1), ("w_clear1.ltx", CLEAR1)):
+        io.open(os.path.join(w, f), "w", encoding="latin-1", newline="").write(text)
+
+
+def made_in_mo2(d):
+    """No Rain in Winter made, as configure.py rain --build makes it, and enabled at the top
+    of MO2's list, as play.bat has it in a winter."""
+    sys.path.insert(0, HERE)
+    import winter_rain
+    p = os.path.join(d, "profiles", "Default", "modlist.txt")
+    raw = io.open(p, encoding="utf-8", newline="").read()
+    order = [(l[1:], l[0] == "+") for l in raw.split("\r\n")[1:] if l[:1] in "+-" and l]
+    winter_rain.build(os.path.join(d, "mods"), order)
+    head, rest = raw.split("\r\n", 1)
+    io.open(p, "w", encoding="utf-8", newline="").write(
+        head + "\r\n+" + NO_RAIN + "\r\n" + rest)
+
+
+def modlist_line(d):
+    raw = io.open(os.path.join(d, "profiles", "Default", "modlist.txt"), encoding="utf-8").read()
+    return [l for l in raw.splitlines() if l[1:] == NO_RAIN]
+
+
+@case
+def t_the_rain_box_makes_no_rain_in_winter():
+    """A weather that rains here: the Seasonal mods page has the rain box, unchecked.
+    Checked, No Rain in Winter goes on the calendar for winter and deep winter, above the
+    mod the weather comes from, out of the mods list and their count, with its own review
+    row, and the note says saving makes it. Saved with MO2 closed: the copy has no rain, the
+    dry weather has none, season.py takes the file, and the summary and the page say it is
+    on."""
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config=WINTER_PACK, mods=RAIN_MODS)
+        rainy(d)
+        rc, out = drive(d, RAIN_DRIVER + r"""
+print("BOX", box() is not None, box().instate(["selected"]), note())
+box().invoke()
+settle()
+print("ENTRY", g.cal.toggle.get("No Rain in Winter (seasonal)"))
+print("NOTE", note())
+print("LISTED", "No Rain in Winter (seasonal)" in listed(), g.mods_count.cget("text"))
+print("REVIEW", [r for r in g.review_rows() if r[0] in ("Seasonal mods", "Rain in the winters")])
+g.save_edit()
+settle()
+print("SAVED", said[-1][0] if said else None, [l for l in g.saved_lines if "rain" in l])
+print("BUILT", built())
+print("SUMMARY", [t for t in texts(g.body) if t.startswith("No Rain in Winter")])
+page()
+print("AGAIN", box().instate(["selected"]), note())
+""")
+        assert rc == 0, out
+        assert "BOX True False []" in out, out
+        assert ("ENTRY {'when': ['winter', 'winter_snow'], 'above': 'Some Weathers', "
+                "'extra': []}") in out, out
+        assert "NOTE ['Saving makes it from the 1 weather that rains here.']" in out, out
+        assert "LISTED False 1 seasonal mod checked." in out, out
+        assert ("REVIEW [('Seasonal mods', '1: Winter Pack'), ('Rain in the winters', %r)]"
+                % ON_IN) in out, out
+        assert ("SAVED showinfo ['took the rain out of 1 weather (2 lines), in \"%s\"']"
+                % NO_RAIN) in out, out
+        assert "BUILT ['w_rain1.ltx']" in out, out
+        assert "SUMMARY [%r]" % ON_IN in out, out
+        assert "AGAIN True [%r]" % ON_IN in out, out
+        copy = io.open(os.path.join(d, "mods", NO_RAIN, "gamedata", *W.strip("/").split("/"),
+                                    "w_rain1.ltx"), encoding="latin-1").read()
+        assert "rain_density                     = 0\n" in copy, copy
+        assert "rain_density                     = 0 ; heaviest" in copy, copy
+        assert "sotz_rain_density                = 0.8" in copy, copy
+        entry = table(d)["TOGGLE_MODS"][NO_RAIN]
+        assert list(entry["when"]) == ["winter", "winter_snow"], entry
+        assert entry["above"] == "Some Weathers", entry
+        tc.accepted(d)
+    return ("checked: on the calendar, out of the list, its own row; saved, the copy is made, "
+            "dry, and accepted; then shown on")
+
+
+@case
+def t_the_rain_box_takes_it_off_and_disables_it():
+    """Set up and on in MO2: the box is checked, with when it is on, and the mods list
+    leaves it out. Unchecked, the note says saving takes it off the calendar and disables
+    it in MO2; saved with MO2 closed, it is off the calendar and off in MO2."""
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config=RAIN_SET_UP, mods=RAIN_MODS)
+        rainy(d)
+        made_in_mo2(d)
+        rc, out = drive(d, RAIN_DRIVER + r"""
+print("BOX", box().instate(["selected"]), note())
+print("LISTED", "No Rain in Winter (seasonal)" in listed(), g.mods_count.cget("text"))
+box().invoke()
+settle()
+print("OFF", "No Rain in Winter (seasonal)" in g.cal.toggle, note())
+g.save_edit()
+settle()
+print("SAVED", said[-1][0] if said else None, [l for l in g.saved_lines if "Rain" in l])
+""")
+        assert rc == 0, out
+        assert "BOX True [%r]" % ON_IN in out, out
+        assert "LISTED False 1 seasonal mod checked." in out, out
+        assert ("OFF False ['Saving takes it off the calendar and disables it in MO2.']"
+                in out), out
+        assert "SAVED showinfo ['No Rain in Winter is disabled in MO2.']" in out, out
+        assert modlist_line(d) == ["-" + NO_RAIN], modlist_line(d)
+        assert NO_RAIN not in table(d)["TOGGLE_MODS"], table(d)
+        tc.accepted(d)
+    return "checked as set up; unchecked and saved, off the calendar and disabled in MO2"
+
+
+@case
+def t_with_mo2_open_play_bat_makes_it_and_mo2_s_list_is_left():
+    """With MO2 open, saving puts it on the calendar but makes no copy, and says play.bat
+    makes it at the next launch; taken off then, while on in MO2, it says to uncheck it
+    there, and MO2's list is left as it is. Off in MO2 already, nothing is said."""
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config=WINTER_PACK, mods=RAIN_MODS)
+        rainy(d)
+        rc, out = drive(d, RAIN_DRIVER + r"""
+busy.append("modorganizer.exe")
+box().invoke()
+settle()
+g.save_edit()
+settle()
+print("SAVED", [l for l in g.saved_lines if "Rain" in l], built())
+page()
+box().invoke()
+settle()
+g.save_edit()
+settle()
+print("UNADDED", [l for l in g.saved_lines if "Rain" in l])
+""")
+        assert rc == 0, out
+        assert ("SAVED ['No Rain in Winter is made at the next launch with modorganizer.exe "
+                "closed.'] None") in out, out
+        assert "UNADDED []" in out, out
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config=RAIN_SET_UP, mods=RAIN_MODS)
+        rainy(d)
+        made_in_mo2(d)
+        rc, out = drive(d, RAIN_DRIVER + r"""
+busy.append("modorganizer.exe")
+box().invoke()
+settle()
+g.save_edit()
+settle()
+print("OFF", [l for l in g.saved_lines if "Rain" in l])
+""")
+        assert rc == 0, out
+        assert ("OFF [\"No Rain in Winter is still on in MO2: close modorganizer.exe, then "
+                "uncheck it in MO2's mod list.\"]") in out, out
+        assert modlist_line(d) == ["+" + NO_RAIN], modlist_line(d)
+        assert NO_RAIN not in table(d)["TOGGLE_MODS"], table(d)
+    return "made at the next launch; on in MO2, told to uncheck it there; not added, nothing said"
+
+
+@case
+def t_no_rain_to_take_out_no_box():
+    """With no weather that rains, the page has no rain box; with every rainy weather in
+    MO2's overwrite folder, checking it is refused, the box is unchecked again and nothing
+    goes on the calendar."""
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config=WINTER_PACK)
+        rc, out = drive(d, RAIN_DRIVER + r"""
+print("BOX", box() is None, "Rain in the winters" in texts(g.body))
+""")
+        assert rc == 0, out
+        assert "BOX True False" in out, out
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d, config=WINTER_PACK)
+        rainy(d, where=("overwrite",))
+        rc, out = drive(d, RAIN_DRIVER + r"""
+box().invoke()
+settle()
+print("REFUSED", [f for f, t in said if "overwrite folder" in t], box().instate(["selected"]),
+      "No Rain in Winter (seasonal)" in g.cal.toggle)
+""")
+        assert rc == 0, out
+        assert "REFUSED ['showerror'] False False" in out, out
+    return "no rain, no box; only the overwrite folder's, refused and unchecked"
+
+
 if __name__ == "__main__":
     print("  the guided setup")
     bad = 0

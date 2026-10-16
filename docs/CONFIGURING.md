@@ -411,6 +411,13 @@ and nothing else changed. It goes into `TOGGLE_MODS` for winter and deep winter,
 highest mod with a weather it copies. Late winter, the thaw, keeps its rain; `add` changes
 when it is on, as for any seasonal mod, and a later `rain --build` keeps that.
 
+`configure.bat`'s Seasonal mods step has the same switch, **Snow, not rain**, under *Rain in
+the winters*; the step's list of seasonal mods leaves the mod out. Ticked and saved, it goes
+on the calendar and the copies are made, as `rain --build` does; with MO2 or the game open,
+`play.bat` makes them at the next launch instead. Unticked and saved, it comes off the
+calendar and is disabled in MO2; with MO2 open, which would write its list over that, the
+window says to uncheck it there.
+
 Each copy's first line names the mod it came from and that file's SHA-256. When one of them
 changes, as an Atmospherics update changes them, or a weather pack is added or disabled,
 `play.bat` makes the mod again before switching it, and `season.py status` says it is out

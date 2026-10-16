@@ -3375,7 +3375,7 @@ msgid_plural "%d weathers"
 msgstr[0] ""
 msgstr[1] ""
 
-#: configure.py
+#: configure.py guide.py
 msgid "MO2's overwrite folder wins over every mod, so the weathers in it rain in the winters all the same. Move them into a mod of their own in MO2."
 msgstr ""
 
@@ -3383,12 +3383,12 @@ msgstr ""
 msgid "Give --build or --off, not both."
 msgstr ""
 
-#: configure.py
+#: configure.py guide.py
 #, python-format
 msgid "No Rain in Winter takes the rain out of the weathers in %s."
 msgstr ""
 
-#: configure.py
+#: configure.py guide.py
 #, python-format
 msgid "%d weather changed since it was made; play.bat makes it again at the next launch."
 msgid_plural "%d weathers changed since it was made; play.bat makes it again at the next launch."
@@ -3408,7 +3408,7 @@ msgstr ""
 msgid "stopped taking the rain out of the weathers in the winters"
 msgstr ""
 
-#: configure.py
+#: configure.py guide.py
 msgid "No Rain in Winter is disabled in MO2."
 msgstr ""
 
@@ -3416,11 +3416,11 @@ msgstr ""
 msgid "No enabled mod has a weather that rains, so there is no rain to take out."
 msgstr ""
 
-#: configure.py
+#: configure.py guide.py
 msgid "Every weather that rains is in MO2's overwrite folder, which wins over every mod. Move them into a mod of their own in MO2 first."
 msgstr ""
 
-#: configure.py
+#: configure.py guide.py
 #, python-format
 msgid "took the rain out of %(n)d weather (%(lines)d lines), in \"%(mod)s\""
 msgid_plural "took the rain out of %(n)d weathers (%(lines)d lines), in \"%(mod)s\""
@@ -5327,6 +5327,10 @@ msgid "Holds its %s."
 msgstr ""
 
 #: guide.py
+msgid "Rain in the winters"
+msgstr ""
+
+#: guide.py
 #, python-format
 msgctxt "a step's number and name: 1. Start"
 msgid "%(n)d. %(step)s"
@@ -5524,6 +5528,35 @@ msgstr ""
 
 #: guide.py
 msgid "Pick it in the list to take the soundscape from it instead."
+msgstr ""
+
+#: guide.py
+msgid "Snow falls in the rain and storm weathers, but each weather's own rain falls with it. This makes No Rain in Winter: copies of the weathers that rain, with the rain set to 0, on in winter and deep winter."
+msgstr ""
+
+#: guide.py
+msgid "Snow, not rain: take the rain out of the weathers in the winters"
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "Saving makes it from the %d weather that rains here."
+msgid_plural "Saving makes it from the %d weathers that rain here."
+msgstr[0] ""
+msgstr[1] ""
+
+#: guide.py
+msgid "Saving takes it off the calendar and disables it in MO2."
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "No Rain in Winter is made at the next launch with %s closed."
+msgstr ""
+
+#: guide.py
+#, python-format
+msgid "No Rain in Winter is still on in MO2: close %s, then uncheck it in MO2's mod list."
 msgstr ""
 
 #: guide.py

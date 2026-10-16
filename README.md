@@ -265,6 +265,13 @@ drive, game folder and profile are read rather than assumed. To see what the nex
 will do without starting anything, use **Preview the next launch** in `configure.bat`, or
 run `py _tools\season.py status` in the GAMMA folder.
 
+**Running a command:** the commands here run in a Command Prompt opened in your GAMMA
+folder, the one with `ModOrganizer.exe` and `play.bat`. In File Explorer, open that folder,
+click the path at the top, type `cmd` over it and press Enter. A Command Prompt from the
+Start menu opens in your user folder instead, where `_tools` isn't. If `py` isn't found, use
+`python`. If a command says `invalid choice`, the tools in your GAMMA folder are older than
+it: open `configure.bat` from the mod's folder to update them, as under **Updating**.
+
 **Updating:** install the new zip over the old one and choose **Replace**, then open
 `configure.bat` from the mod's folder again, as in step 2. It updates the tools in your
 GAMMA folder and keeps your setup and the MO2 entry `play.bat` starts. Versions before
@@ -687,7 +694,8 @@ stack.
 
 **Snow, not rain.** Snow falls in the rain and storm weathers, and they keep raining: a
 weather's rain is set in its own file, where no script reaches it. To take it out in the
-winters, in your GAMMA folder:
+winters, tick **Snow, not rain** under *Rain in the winters* on `configure.bat`'s Seasonal
+mods step and save, or run this in your GAMMA folder:
 
 ```
 py _tools\configure.py rain --build
@@ -697,7 +705,7 @@ That makes **No Rain in Winter (seasonal)**: copies of every installed weather t
 with the rain set to 0 and nothing else changed, on in winter and deep winter. Late winter,
 the thaw, keeps its rain. `play.bat` makes it again when one of those weathers changes, as
 an Atmospherics update would, and keeps it above them in MO2. `configure.py rain` shows what
-it copies; `rain --off` takes it off the calendar and disables it.
+it copies; unticking the box, or `rain --off`, takes it off the calendar and disables it.
 
 The PDA's forecast says what falls: while the patched addon snows, a rain sky reads Snow and
 a storm Snowstorm, and with only No Rain in Winter, a rain sky reads Overcast.

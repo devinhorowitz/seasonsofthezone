@@ -24,6 +24,7 @@ import configure as cf
 import installer
 import lang
 import season
+import winter_rain
 from lang import _, ngettext, pgettext
 
 STEPS = ("start", "mods", "seasons", "weather", "review", "done")
@@ -201,6 +202,22 @@ def setup_words(cal):
 def parts_words(preset):
     return _("Holds its %s.") % comma_list(_(ce.PART_TEXT[p])
                                             for p in ce.preset_parts(preset))
+
+
+def mod_names(cal):
+    """The seasonal mods the setup `cal` holds, but No Rain in Winter: the window gives it a
+    line and a row of its own."""
+    return [n for n in cal.toggle if n != winter_rain.MOD]
+
+
+def rain_row(cal):
+    """(label, words) for No Rain in Winter when the setup `cal` has it, else None."""
+    entry = cal.toggle.get(winter_rain.MOD)
+    if not entry:
+        return None
+    return (_("Rain in the winters"),
+            _("No Rain in Winter takes the rain out of the weathers in %s.")
+            % cf.when_text(entry["when"], cal))
 
 
 def raw_problems(cal):
@@ -521,10 +538,12 @@ class Guide(object):
                     "load a mod while it's off."))
         self.para(_(cf.SWITCH_CAUTION), color=cf.AMBER, pad=(6, 0))
         box = self.page
-        chosen = sorted(set(self.cal.toggle) | set(self.kept), key=str.casefold)
+        # No Rain in Winter has a line of its own, under the ambient sound
+        chosen = sorted((set(self.cal.toggle) | set(self.kept)) - {winter_rain.MOD},
+                        key=str.casefold)
         known = (self.default or {}).get("mods", {})
-        suggest = sorted((n for n in known if n in self.inst.names and n not in chosen),
-                         key=str.casefold)
+        suggest = sorted((n for n in known if n in self.inst.names and n not in chosen
+                          and n != winter_rain.MOD), key=str.casefold)
         grid = ttk.Frame(box)
         grid.pack(fill="x", pady=(8, 0))
         row = 0
@@ -572,6 +591,7 @@ class Guide(object):
         self.button(row, _("Install one from an archive..."), self.pick_archive)
         self.found_archives(box)
         self.mods_extras(box)
+        self.rain_box(box)
         self.mcm_box(box)
         self.mods_count = ttk.Label(box, text="", foreground=cf.GREY)
         self.mods_count.pack(anchor="w", pady=(12, 0))
@@ -731,6 +751,110 @@ class Guide(object):
             self.para(_("Pick it in the list to take the soundscape from it instead."),
                       parent=note, color=cf.AMBER, pad=(0, 0), indent=24)
 
+    def rain_box(self, box):
+        """No Rain in Winter, on or off: the weathers that rain, copied with no rain for the
+        winters, as configure.py rain --build makes them. Saving makes the copies; shown
+        while a weather rains or the setup has it."""
+        tk, ttk = self.tk, self.ttk
+        want = winter_rain.wanted(season.MODS, self.inst.order)
+        if not (want or winter_rain.MOD in self.cal.toggle or winter_rain.MOD in self.kept):
+            return
+        self.subhead(_("Rain in the winters"), parent=box)
+        self.para(_("Snow falls in the rain and storm weathers, but each weather's own rain "
+                    "falls with it. This makes No Rain in Winter: copies of the weathers that "
+                    "rain, with the rain set to 0, on in winter and deep winter."), parent=box,
+                  pad=(0, 0))
+        on = tk.BooleanVar(value=winter_rain.MOD in self.cal.toggle)
+        self.rain_check = ttk.Checkbutton(
+            box, text=_("Snow, not rain: take the rain out of the weathers in the winters"),
+            variable=on, command=lambda: self.set_rain(on, want))
+        self.rain_check.pack(anchor="w", pady=(6, 1))
+        self.rain_note = ttk.Frame(box)
+        self.rain_note.pack(anchor="w", fill="x")
+        self.show_rain_note(on, want)
+
+    def set_rain(self, on, want):
+        from tkinter import messagebox
+        if on.get():
+            entry = self.kept.pop(winter_rain.MOD, None)
+            if entry is None:
+                above = winter_rain.anchor(season.MODS, self.inst.order, list(want))
+                if not above:
+                    messagebox.showerror(_(cf.TITLE), _(
+                        "Every weather that rains is in MO2's overwrite folder, which wins over "
+                        "every mod. Move them into a mod of their own in MO2 first."),
+                        parent=self.root)
+                    on.set(False)
+                    return
+                entry = {"when": list(winter_rain.WHEN), "above": above}
+            self.cal.put(winter_rain.MOD, entry["when"], entry["above"])
+        elif winter_rain.MOD in self.cal.toggle:
+            self.kept[winter_rain.MOD] = self.cal.toggle[winter_rain.MOD]
+            self.cal.take(winter_rain.MOD)
+        self.show_rain_note(on, want)
+
+    def show_rain_note(self, on, want):
+        """Under the rain box: what saving does with it now, or, while the saved setup has it,
+        the seasons it is on in and whether a weather changed since it was made."""
+        note = self.rain_note
+        for w in note.winfo_children():
+            w.destroy()
+        saved = winter_rain.MOD in ce.Calendar().toggle
+        entry = self.cal.toggle.get(winter_rain.MOD)
+        if entry and not saved:
+            self.para(ngettext("Saving makes it from the %d weather that rains here.",
+                               "Saving makes it from the %d weathers that rain here.",
+                               len(want)) % len(want), parent=note, color=cf.GREY, pad=(0, 0),
+                      indent=24)
+        elif entry:
+            self.para(_("No Rain in Winter takes the rain out of the weathers in %s.")
+                      % cf.when_text(entry["when"], self.cal), parent=note, color=cf.GREY,
+                      pad=(0, 0), indent=24)
+            n = sum(len(x) for x in winter_rain.stale(season.MODS, self.inst.order))
+            if n:
+                self.para(ngettext(
+                    "%d weather changed since it was made; play.bat makes it again at the next "
+                    "launch.",
+                    "%d weathers changed since it was made; play.bat makes it again at the next "
+                    "launch.", n) % n, parent=note, color=cf.AMBER, pad=(0, 0), indent=24)
+        elif saved:
+            self.para(_("Saving takes it off the calendar and disables it in MO2."),
+                      parent=note, color=cf.GREY, pad=(0, 0), indent=24)
+        if on.get() and any(m == winter_rain.OVERWRITE for m, _p, _s in want.values()):
+            self.para(_("MO2's overwrite folder wins over every mod, so the weathers in it rain "
+                        "in the winters all the same. Move them into a mod of their own in "
+                        "MO2."), parent=note, color=cf.AMBER, pad=(0, 0), indent=24)
+
+    def rain_saved(self, was, now):
+        """After a save: No Rain in Winter made when it is on and its copies aren't current,
+        or disabled in MO2 when it was just turned off, as configure.py rain does it. With
+        MO2 or the game open, play.bat makes it at the next launch instead; a mod can't be
+        disabled then, since MO2 writes its list over the change when it closes. The lines
+        to show."""
+        if not (was or now):
+            return []
+        inst = ce.Install()
+        if not now and winter_rain.MOD not in inst.enabled:
+            return []                       # off in MO2 already, or never added to it
+        busy = season.running()
+        if now:
+            if not any(winter_rain.stale(season.MODS, inst.order)):
+                return []
+            if busy:
+                return [_("No Rain in Winter is made at the next launch with %s closed.")
+                        % season._and(busy)]
+            sources, lines = winter_rain.build(season.MODS, inst.order)
+            n = sum(len(f) for f in sources.values())
+            return [ngettext("took the rain out of %(n)d weather (%(lines)d lines), in "
+                             "\"%(mod)s\"",
+                             "took the rain out of %(n)d weathers (%(lines)d lines), in "
+                             "\"%(mod)s\"", n) % {"n": n, "lines": lines, "mod": winter_rain.MOD}]
+        if busy:
+            return [_("No Rain in Winter is still on in MO2: close %s, then uncheck it in MO2's "
+                      "mod list.") % season._and(busy)]
+        return [_("No Rain in Winter is disabled in MO2.")] if season.disable_mod(
+            winter_rain.MOD) else []
+
     def mcm_box(self, box):
         """Other mods' MCM options that follow the season: each to change or take off, and
         a way to add one."""
@@ -798,7 +922,7 @@ class Guide(object):
             self.kept_layout[name] = self.cal.layout.pop(name)
 
     def count_mods(self):
-        n = len(self.cal.toggle)
+        n = len(mod_names(self.cal))
         if getattr(self, "mods_count", None) and self.mods_count.winfo_exists():
             self.mods_count.configure(text=ngettext("%d seasonal mod checked.",
                                                     "%d seasonal mods checked.", n) % n)
@@ -1359,12 +1483,15 @@ class Guide(object):
 
     def review_rows(self):
         cal = self.cal
-        rows = [(_("Seasonal mods"), "%d: %s" % (len(cal.toggle), ce.few(cal.toggle, 3))
-                 if cal.toggle else _("none"))]
+        mods = mod_names(cal)
+        rows = [(_("Seasonal mods"), "%d: %s" % (len(mods), ce.few(mods, 3))
+                 if mods else _("none"))]
         if cal.layout:
             rows.append((_("Texture sets"), ce.few(cal.layout, 3)))
         if cal.sound_src:
             rows.append((_("Ambient sound"), _("follows the season, from %s") % cal.sound_src))
+        if rain_row(cal):
+            rows.append(rain_row(cal))
         rows.append((_("Seasons"), seasons_words(cal)))
         if cal.own:
             rows.append((_("Seasons of your own"), own_words(cal)))
@@ -1474,12 +1601,16 @@ class Guide(object):
             return False
         moved, placed = cf.calendar_moved(self.cal), self.cal.place_changed()
         yours = self.cal.yours_changed()
+        rain_was = winter_rain.MOD in ce.Calendar().toggle
         saved, lines = self.cal.save()
         if not saved:
             messagebox.showerror(pgettext("dialog title", "Save"),
                                  "\n".join(cf.plain(l) for l in lines), parent=self.root)
             return False
         extra = []
+        rain = self.rain_saved(rain_was, winter_rain.MOD in self.cal.toggle)
+        if rain:
+            extra += [""] + rain
         if self.cal.wrote:
             self.root.configure(cursor="watch")
             self.root.update()
@@ -1539,8 +1670,11 @@ class Guide(object):
         grid = ttk.Frame(self.page)
         grid.pack(anchor="w", fill="x", pady=(14, 0))
         cal = self.cal
-        rows = [(_("Seasonal mods"), "%d: %s" % (len(cal.toggle), ce.few(cal.toggle, 3))
-                 if cal.toggle else _("none yet"), lambda: self.edit("mods"))]
+        mods = mod_names(cal)
+        rows = [(_("Seasonal mods"), "%d: %s" % (len(mods), ce.few(mods, 3))
+                 if mods else _("none yet"), lambda: self.edit("mods"))]
+        if rain_row(cal):
+            rows.append(rain_row(cal) + (lambda: self.edit("mods"),))
         if cal.layout or cal.sound_src:
             if cal.layout and cal.sound_src:
                 # translators: %(sets)s is a list of the mods whose texture sets are swapped

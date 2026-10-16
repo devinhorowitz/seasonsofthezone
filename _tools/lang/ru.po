@@ -3452,7 +3452,7 @@ msgstr[0] "%d погода"
 msgstr[1] "%d погоды"
 msgstr[2] "%d погод"
 
-#: configure.py
+#: configure.py guide.py
 msgid "MO2's overwrite folder wins over every mod, so the weathers in it rain in the winters all the same. Move them into a mod of their own in MO2."
 msgstr "Папка overwrite в MO2 перекрывает все моды, поэтому погоды в ней дают дождь и зимой. Перенесите их в отдельный мод в MO2."
 
@@ -3460,12 +3460,12 @@ msgstr "Папка overwrite в MO2 перекрывает все моды, по
 msgid "Give --build or --off, not both."
 msgstr "Укажите --build или --off, но не то и другое сразу."
 
-#: configure.py
+#: configure.py guide.py
 #, python-format
 msgid "No Rain in Winter takes the rain out of the weathers in %s."
 msgstr "No Rain in Winter убирает дождь из погод в эти сезоны: %s."
 
-#: configure.py
+#: configure.py guide.py
 #, python-format
 msgid "%d weather changed since it was made; play.bat makes it again at the next launch."
 msgid_plural "%d weathers changed since it was made; play.bat makes it again at the next launch."
@@ -3486,7 +3486,7 @@ msgstr "No Rain in Winter не настроен, так что выключат�
 msgid "stopped taking the rain out of the weathers in the winters"
 msgstr "дождь из погод зимой больше не убирается"
 
-#: configure.py
+#: configure.py guide.py
 msgid "No Rain in Winter is disabled in MO2."
 msgstr "No Rain in Winter выключен в MO2."
 
@@ -3494,11 +3494,11 @@ msgstr "No Rain in Winter выключен в MO2."
 msgid "No enabled mod has a weather that rains, so there is no rain to take out."
 msgstr "Ни в одном включённом моде нет погоды с дождём, так что убирать нечего."
 
-#: configure.py
+#: configure.py guide.py
 msgid "Every weather that rains is in MO2's overwrite folder, which wins over every mod. Move them into a mod of their own in MO2 first."
 msgstr "Все погоды с дождём лежат в папке overwrite в MO2, а она перекрывает все моды. Сначала перенесите их в отдельный мод в MO2."
 
-#: configure.py
+#: configure.py guide.py
 #, python-format
 msgid "took the rain out of %(n)d weather (%(lines)d lines), in \"%(mod)s\""
 msgid_plural "took the rain out of %(n)d weathers (%(lines)d lines), in \"%(mod)s\""
@@ -5516,6 +5516,10 @@ msgid "Holds its %s."
 msgstr "Содержит: %s."
 
 #: guide.py
+msgid "Rain in the winters"
+msgstr "Дождь зимой"
+
+#: guide.py
 #, python-format
 msgctxt "a step's number and name: 1. Start"
 msgid "%(n)d. %(step)s"
@@ -5721,6 +5725,36 @@ msgstr "Фоновые звуки меняются с сезоном, из мо�
 #: guide.py
 msgid "Pick it in the list to take the soundscape from it instead."
 msgstr "Выберите его в списке, чтобы брать фоновые звуки из него."
+
+#: guide.py
+msgid "Snow falls in the rain and storm weathers, but each weather's own rain falls with it. This makes No Rain in Winter: copies of the weathers that rain, with the rain set to 0, on in winter and deep winter."
+msgstr "В дождливых и грозовых погодах идёт снег, но вместе с ним идёт и собственный дождь погоды. Так собирается No Rain in Winter: копии погод с дождём, где дождь обнулён, включённые зимой и в разгар зимы."
+
+#: guide.py
+msgid "Snow, not rain: take the rain out of the weathers in the winters"
+msgstr "Снег, а не дождь: убрать дождь из погод зимой"
+
+#: guide.py
+#, python-format
+msgid "Saving makes it from the %d weather that rains here."
+msgid_plural "Saving makes it from the %d weathers that rain here."
+msgstr[0] "При сохранении он будет собран из %d погоды с дождём."
+msgstr[1] "При сохранении он будет собран из %d погод с дождём."
+msgstr[2] "При сохранении он будет собран из %d погод с дождём."
+
+#: guide.py
+msgid "Saving takes it off the calendar and disables it in MO2."
+msgstr "При сохранении он будет убран из календаря и выключен в MO2."
+
+#: guide.py
+#, python-format
+msgid "No Rain in Winter is made at the next launch with %s closed."
+msgstr "No Rain in Winter соберут при следующем запуске, когда будет закрыто: %s."
+
+#: guide.py
+#, python-format
+msgid "No Rain in Winter is still on in MO2: close %s, then uncheck it in MO2's mod list."
+msgstr "No Rain in Winter всё ещё включён в MO2: закройте %s, а затем снимите с него галочку в списке модов MO2."
 
 #: guide.py
 msgid "MCM settings that follow the season"

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **configure.bat takes the rain out.** The Seasonal mods step has *Rain in the winters*: a
+  box, **Snow, not rain**, that makes No Rain in Winter as `configure.py rain --build` does,
+  and takes it off again, so no command is needed. With MO2 or the game open, `play.bat`
+  makes it at the next launch instead. The mod has its own row in the summary and the review,
+  and the list of seasonal mods leaves it out.
+- **README: running a command.** Where to open a Command Prompt so `py _tools\...` finds the
+  tools (the GAMMA folder, not the user folder a Start-menu prompt opens in), and what
+  `invalid choice` means: tools older than the command, updated from the mod's
+  `configure.bat`.
 - **README: which mod the ice-steps file is for.** *Ice under your own feet* now names Screen
   Space Shaders' ICE option, which GAMMA and ROMEO don't include, and says to skip the step
   without it: the file would only make your own steps in water sound like ice. It also says
