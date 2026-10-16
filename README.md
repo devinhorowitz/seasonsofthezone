@@ -625,7 +625,8 @@ py "mods\Seasons of the Zone\patches\apply_seasonal_snowfall.py"
 It finds the script under `mods/`, backs it up to `yawm_snowfall.script.orig`, and inserts
 the layer. `--revert` restores the backup. Run it again after updating this mod to bring
 the layer up to date; on a current copy it does nothing. It refuses a file that does not
-look like INVERNO's script.
+look like INVERNO's script. A weather the addon doesn't know, like Weather Expansion's extra
+rain and storm weathers, snows as the others of its kind do.
 
 The addon also ships an old `level_weathers.script`. Remove it: the patcher warns, and
 `--disable-weathers` renames it. See [docs/LOAD-ORDER.md](docs/LOAD-ORDER.md).
@@ -666,6 +667,20 @@ mechanics are on as it installs, so a character can start freezing with no warni
 that froze stay frozen until it is back on, since thawing at a campfire is part of them.
 With the patched addon, turn INVERNO's snowfall off on its MCM page, or the two snows
 stack.
+
+**Snow, not rain.** Snow falls in the rain and storm weathers, and they keep raining: a
+weather's rain is set in its own file, where no script reaches it. To take it out in the
+winters, in your GAMMA folder:
+
+```
+py _tools\configure.py rain --build
+```
+
+That makes **No Rain in Winter (seasonal)**: copies of every installed weather that rains,
+with the rain set to 0 and nothing else changed, on in winter and deep winter. Late winter,
+the thaw, keeps its rain. `play.bat` makes it again when one of those weathers changes, as
+an Atmospherics update would, and keeps it above them in MO2. `configure.py rain` shows what
+it copies; `rain --off` takes it off the calendar and disables it.
 
 ---
 

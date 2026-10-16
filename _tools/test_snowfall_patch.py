@@ -218,6 +218,59 @@ def t_revert_restores_the_original():
     return "the backup comes back byte for byte"
 
 
+def table_fixture(names):
+    """A stand-in whose weather table is filled the way INVERNO's is: a global, one entry per
+    weather it names (each tagged with its own name here) and the all-off entry at 0."""
+    head, tail = fixture().split("local weather_to_particles = {}")
+    rows = ['\t["%s"] = {id = "%s"},' % (n, n) for n in names]
+    return head + "\n".join(["weather_to_particles = {", '\t[0] = {id = "off"},'] + rows + ["}"]) + tail
+
+
+def run_lua(text, with_seasons):
+    """Load a patched script in the game's Lua, with stubs for what it calls at load."""
+    from lua_runtime import LuaRuntime
+    lua = LuaRuntime(unpack_returned_tuples=True)
+    lua.execute("function particles_object(n) return {} end\n"
+                "function RegisterScriptCallback() end\n"
+                "function printf() end\n"
+                "level = {get_weather = function() return 'w_rain1' end}")
+    if with_seasons:
+        lua.execute("zzz_seasons_of_the_zone = {snow_factor = function() return 1 end}")
+    lua.execute(text)
+    return lua
+
+
+@case
+def t_a_weather_the_table_lacks_takes_its_family():
+    """Weather Expansion's w_rain5-7 and w_storm4-6 (and RC7.6's w_rain4) are not in
+    INVERNO's table; with nothing to play on them, their rain fell all winter."""
+    names = ["w_clear1", "w_clear2", "w_clear3", "w_cloudy1", "w_cloudy2", "w_cloudy3",
+             "w_cloudy2_dark", "w_cloudy3_dark", "w_rain1", "w_rain2", "w_rain3",
+             "w_storm1", "w_storm2", "w_foggy1"]
+    with tempfile.TemporaryDirectory() as d:
+        p = put(d, table_fixture(names))
+        rc, out = run(PATCHER, p)
+        assert rc == 0, out
+        text = data(p).decode("latin-1")
+    want = {"w_rain7": "w_rain2", "w_rain4": "w_rain2", "w_storm5": "w_storm1",
+            "w_cloudy5": "w_cloudy2", "w_cloudy4_dark": "w_cloudy2_dark", "w_clear4": "w_clear2",
+            "w_foggy3": "w_foggy1", "w_rain1": "w_rain1", "w_storm2": "w_storm2",
+            "fx_blowout_day": None, "w_indoor_default": None, "w_partly_vasgen": None,
+            "w_snow1": None}
+    lua = run_lua(text, with_seasons=True)
+    get = lua.eval("function(k) local e = weather_to_particles[k]; return e and e.id or nil end")
+    got = {k: get(k) for k in want}
+    assert got == want, "with Seasons of the Zone: %s" % got
+    assert lua.eval("weather_to_particles[0].id") == "off", "the all-off entry moved"
+    alone = run_lua(text, with_seasons=False)
+    get = alone.eval("function(k) local e = weather_to_particles[k]; return e and e.id or nil end")
+    got = {k: get(k) for k in ("w_rain7", "w_storm5", "w_rain1")}
+    assert got == {"w_rain7": None, "w_storm5": None, "w_rain1": "w_rain1"}, \
+        "without Seasons of the Zone the table must answer as shipped: %s" % got
+    return "%d names resolved by family; as shipped without Seasons of the Zone" % sum(
+        1 for k, v in want.items() if v and k != v)
+
+
 @case
 def t_every_particle_season_exists():
     """A misspelt season in SEASON_OF never matches season_mix(), so that particle would

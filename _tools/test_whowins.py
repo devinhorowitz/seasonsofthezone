@@ -25,7 +25,7 @@ def install(root, mods, config=None):
     """mods: [(name, enabled, ships FILE)], highest priority first, as modlist.txt lists
     them."""
     os.makedirs(os.path.join(root, "_tools"))
-    for f in ("season.py", "lang.py"):
+    for f in ("season.py", "lang.py", "winter_rain.py"):
         shutil.copy2(os.path.join(HERE, f), os.path.join(root, "_tools", f))
     if config is not None:
         io.open(os.path.join(root, "_tools", "seasons_config.py"), "w",

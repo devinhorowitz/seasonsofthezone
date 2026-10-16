@@ -205,6 +205,35 @@ local function seasonal(tbl, weight)
     end
     return out
 end
+
+-- WEATHER PACKS. weather_to_particles names Atmospherics' own weathers only. Weathers a pack
+-- adds - Weather Expansion's w_rain5 to w_rain7 and w_storm4 to w_storm6, RC7.6's own w_rain4
+-- and w_storm3 - found no entry, so nothing played on them and their rain fell as rain all
+-- winter. With Seasons of the Zone installed, a name the table lacks takes the entry of its
+-- family, the middle of the same w_<family> (or w_<family>N_dark) names in name order:
+-- w_rain2 for rain, w_storm1 for storms. Without it the table answers exactly as shipped.
+local family_pick = {}
+
+local function family_of(name)
+    local f, dark = string.match(name, "^w_(%a+)%d*(_dark)$")
+    if f then return f .. dark end
+    return string.match(name, "^w_(%a+)%d*$")
+end
+
+setmetatable(weather_to_particles, {__index = function(t, name)
+    if type(name) ~= "string" or not zzz_seasons_of_the_zone then return nil end
+    local fam = family_of(name)
+    if not fam then return nil end
+    if family_pick[fam] == nil then
+        local names = {}
+        for k in pairs(t) do
+            if type(k) == "string" and family_of(k) == fam then names[#names + 1] = k end
+        end
+        table.sort(names)
+        family_pick[fam] = names[math.ceil(#names / 2)] or false
+    end
+    return family_pick[fam] and rawget(t, family_pick[fam]) or nil
+end})
 """
 
 

@@ -41,6 +41,9 @@ GAMMA folder (use python in place of py if that is how your Python starts):
   py _tools\configure.py sound                   the ambient sound mod the soundscape is
                                                 taken from, and the others there are
   py _tools\configure.py sound "<mod>" | sound --off  take it from that mod, or none
+  py _tools\configure.py rain                    the weathers that rain, and whether the
+                                                winters take their rain out
+  py _tools\configure.py rain --build | rain --off  take it out in the winters, or stop
   py _tools\configure.py --advanced              the tabbed editor, not the guided setup
   py mods\<the mod>\_tools\configure.py install  put the tools in the GAMMA folder, or
                                                 update them there (configure.bat does it
@@ -66,6 +69,7 @@ import sys
 import config_edit as ce
 import lang
 import season
+import winter_rain
 from lang import _, N_, ngettext, pgettext
 
 EVENT_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -1094,6 +1098,88 @@ def cmd_sound(a):
     cal.sound_src = src
     save(cal, [_("the soundscape is taken from \"%s\"; play.bat stages it at the next "
                  "launch") % src if src else _("the seasonal soundscape is off")])
+
+
+def rain_lines(want, inst):
+    """The weathers that rain, counted by the mod MO2 takes each from, highest first."""
+    by = {}
+    for mod, path, digest in want.values():
+        by.setdefault(mod, []).append(path)
+    if not by:
+        return [_("No enabled mod has a weather that rains.")]
+    rank = {n: i for i, (n, on) in enumerate(inst.order)}
+    out = [_("Weathers that rain, by the mod MO2 takes them from, highest first:")]
+    for mod in sorted(by, key=lambda m: rank.get(m, -1)):
+        n = len(by[mod])
+        out.append("  %-58s %s" % (mod[:58], ngettext("%d weather", "%d weathers", n) % n))
+    if winter_rain.OVERWRITE in by:
+        out.append("! " + _("MO2's overwrite folder wins over every mod, so the weathers in it "
+                            "rain in the winters all the same. Move them into a mod of their "
+                            "own in MO2."))
+    return out
+
+
+def cmd_rain(a):
+    cal = loaded()
+    inst = ce.Install()
+    want = winter_rain.wanted(season.MODS, inst.order)
+    have = cal.toggle.get(winter_rain.MOD)
+    if a.build and a.off:
+        fail(_("Give --build or --off, not both."))
+    if not (a.build or a.off):
+        if have:
+            print("  " + _("No Rain in Winter takes the rain out of the weathers in %s.")
+                  % when_text(have["when"], cal))
+            n = sum(len(x) for x in winter_rain.stale(season.MODS, inst.order))
+            if n:
+                print("  - " + ngettext(
+                    "%d weather changed since it was made; play.bat makes it again at the next "
+                    "launch.",
+                    "%d weathers changed since it was made; play.bat makes it again at the next "
+                    "launch.", n) % n)
+        else:
+            print("  " + _("The weathers rain in the winters as at any other time. To take the "
+                           "rain out of them then, run %s")
+                  % season.command("configure.py", "rain --build"))
+        for line in rain_lines(want, inst):
+            print("  " + line)
+        return
+    # MO2 maps a mod's files when it starts, and writes its list over an edit when it closes
+    busy = season.running()
+    if busy:
+        fail(_("Close %s first. Nothing was changed.") % season._and(busy))
+    if a.off:
+        if not have:
+            fail(_("No Rain in Winter is not set up, so there is nothing to stop."))
+        cal.take(winter_rain.MOD)
+        if save(cal, [_("stopped taking the rain out of the weathers in the winters")]):
+            if season.disable_mod(winter_rain.MOD):
+                print("  " + _("No Rain in Winter is disabled in MO2."))
+        return
+    if not want:
+        fail(_("No enabled mod has a weather that rains, so there is no rain to take out."))
+    above = winter_rain.anchor(season.MODS, inst.order, list(want))
+    if not above:
+        fail(_("Every weather that rains is in MO2's overwrite folder, which wins over every "
+               "mod. Move them into a mod of their own in MO2 first."))
+    sources, lines = winter_rain.build(season.MODS, inst.order)
+    n = sum(len(f) for f in sources.values())
+    when = have["when"] if have else list(winter_rain.WHEN)
+    summary = [ngettext("took the rain out of %(n)d weather (%(lines)d lines), in \"%(mod)s\"",
+                        "took the rain out of %(n)d weathers (%(lines)d lines), in \"%(mod)s\"",
+                        n) % {"n": n, "lines": lines, "mod": winter_rain.MOD},
+               "%-9s %s" % (pgettext("start of a line", "on in"), when_text(when, cal)),
+               "%-9s %s" % (pgettext("start of a line", "wins over"), above)]
+    if have and have["above"] == above:
+        for line in summary:                # the calendar has it so already
+            print("  " + line)
+    else:
+        cal.put(winter_rain.MOD, when, above)
+        save(cal, summary)
+    for line in rain_lines(want, inst)[1:]:
+        print("  " + line)
+    print("  " + _("play.bat switches it from the next launch, and makes it again when one of "
+                   "those weathers changes."))
 
 
 def found_text(f):
@@ -3902,6 +3988,9 @@ GAMMA folder (use python in place of py if that is how your Python starts):
   py _tools\configure.py sound                   the ambient sound mod the soundscape is
                                                 taken from, and the others there are
   py _tools\configure.py sound "<mod>" | sound --off  take it from that mod, or none
+  py _tools\configure.py rain                    the weathers that rain, and whether the
+                                                winters take their rain out
+  py _tools\configure.py rain --build | rain --off  take it out in the winters, or stop
   py _tools\configure.py --advanced              the tabbed editor, not the guided setup
   py mods\<the mod>\_tools\configure.py install  put the tools in the GAMMA folder, or
                                                 update them there (configure.bat does it
@@ -4030,6 +4119,13 @@ def main():
                                        "from"))
     p.add_argument("mod", nargs="?", help=_("an ambient sound mod, as MO2's list names it"))
     p.add_argument("--off", action="store_true", help=_("no seasonal soundscape"))
+    p = sub.add_parser("rain", help=_("show the weathers that rain, or take their rain out in "
+                                      "the winters"))
+    p.add_argument("--build", action="store_true",
+                   help=_("make No Rain in Winter from the weathers that win in MO2, and put "
+                          "it on the calendar"))
+    p.add_argument("--off", action="store_true",
+                   help=_("take it off the calendar and disable it in MO2"))
     p = sub.add_parser("install", help=_("copy the tools from the mod's folder into the "
                                          "GAMMA folder, or update them there; configure.bat "
                                          "does this when opened from the mod's folder"))
@@ -4050,7 +4146,7 @@ def main():
     {"list": cmd_list, "add": cmd_add, "remove": cmd_remove, "event": cmd_event,
      "season": cmd_season, "spell": cmd_spell, "mcm": cmd_mcm, "calendar": cmd_calendar,
      "dice": cmd_dice, "name": cmd_name, "preset": cmd_preset, "place": cmd_place, "sound": cmd_sound,
-     "install": lambda a: __import__("installer").main(a),
+     "rain": cmd_rain, "install": lambda a: __import__("installer").main(a),
      None: lambda a: window(a.advanced)}[a.cmd](a)
 
 

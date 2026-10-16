@@ -50,6 +50,7 @@ import types
 import zlib
 
 import lang
+import winter_rain
 from lang import _, N_, ngettext, pgettext        # noqa: F401 - used as the strings are marked
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -1860,12 +1861,32 @@ def apply_toggles(active, dry_run=False, prefs=None):
         busy = running()
         if busy:
             raise SystemExit(close_first(busy))
-        bk = os.path.join(ROOT, "_baseline", "modfile-backups")
-        os.makedirs(bk, exist_ok=True)
-        shutil.copy2(p, os.path.join(bk, "modlist-%s-pre-toggle.txt"
-                                     % datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
+        _keep_modlist(p)
         io.open(p, "w", encoding="utf-8", newline="").write(nl.join([head] + body))
     return changed
+
+
+def _keep_modlist(p):
+    """A copy of MO2's list as it was, before season.py writes it."""
+    bk = os.path.join(ROOT, "_baseline", "modfile-backups")
+    os.makedirs(bk, exist_ok=True)
+    shutil.copy2(p, os.path.join(bk, "modlist-%s-pre-toggle.txt"
+                                 % datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
+
+
+def disable_mod(name):
+    """Disable `name` in MO2's list, which has to be closed. True when it was enabled."""
+    p = _modlist_path()
+    raw = io.open(p, encoding="utf-8", errors="replace", newline="").read()
+    nl = _detect_nl(raw)
+    lines = raw.split(nl)
+    i = _find(lines, name)
+    if i is None or lines[i][:1] != "+":
+        return False
+    lines[i] = "-" + name
+    _keep_modlist(p)
+    io.open(p, "w", encoding="utf-8", newline="").write(nl.join(lines))
+    return True
 
 
 def _mod_folders():
@@ -1908,6 +1929,56 @@ def toggle_status(active, prefs=None):
         elif keys[name] in prefs["off"].get(base, set()):
             held = "mod"
         out.append((name, installed, state, bool(set(_when(cfg)) & active_set), held))
+    return out
+
+
+# --- no rain in the winters ---------------------------------------------------------------
+#
+# winter_rain.py makes a mod of the installed weathers that rain, with their rain taken out,
+# and configure.py rain --build puts it on the calendar. Each copy names the copy it was
+# made from, so a weather mod's update is caught here and the mod made again before the
+# toggles switch it.
+
+def rain_refresh(writing):
+    """Make No Rain in Winter again when a weather it was made from has changed, and keep
+    it above every mod it copies. The lines to print; none when it is current or not set
+    up."""
+    cfg = TOGGLE_MODS.get(winter_rain.MOD)
+    if cfg is None:
+        return []
+    order = [(l[1:], l[:1] == "+") for l in (_modlist_lines() or [])[1:] if l[:1] in ("+", "-")]
+    n = sum(len(x) for x in winter_rain.stale(MODS, order))
+    out = []
+    if n and writing:
+        busy = running()
+        if busy:
+            # MO2 maps a mod's files when it starts: a copy added now would not reach the game
+            out.append("  - " + ngettext(
+                "No Rain in Winter is out of date (%(n)d weather changed since it was made), "
+                "and is made again at a launch with %(what)s closed.",
+                "No Rain in Winter is out of date (%(n)d weathers changed since it was made), "
+                "and is made again at a launch with %(what)s closed.", n)
+                % {"n": n, "what": _and(busy)})
+        else:
+            winter_rain.build(MODS, order)
+            out.append("  " + ngettext(
+                "No Rain in Winter made again: %d weather changed since it was made.",
+                "No Rain in Winter made again: %d weathers changed since it was made.", n) % n)
+    elif n:
+        out.append("  - " + ngettext(
+            "No Rain in Winter is out of date: %d weather changed since it was made. play.bat "
+            "makes it again.",
+            "No Rain in Winter is out of date: %d weathers changed since it was made. play.bat "
+            "makes it again.", n) % n)
+    above = winter_rain.anchor(MODS, order, list(winter_rain.wanted(MODS, order)))
+    if above and above != cfg["above"]:
+        # it has to win over the highest mod with a weather it copies, or that mod's rain wins
+        out.append("  ~ " + _("No Rain in Winter wins over \"%(now)s\" for this launch: that is "
+                              "now the highest mod with a weather it copies, not \"%(was)s\".")
+                   % {"now": above, "was": cfg["above"]})
+        out.append("    " + _("To keep it that way, run %s") % command("configure.py",
+                                                                       "rain --build"))
+        cfg["above"] = above
     return out
 
 
@@ -4266,6 +4337,9 @@ def main():
                       % season_label(want))
         print()
 
+        # before the toggles: they switch a seasonal mod only when its folder is there
+        for line in rain_refresh(writing):
+            print(line)
         folders = _mod_folders()
         for name, inst, state, should, held in toggle_status(active, prefs):
             if not inst:

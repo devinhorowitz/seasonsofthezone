@@ -394,6 +394,33 @@ next launch. Leave `SOUND_SRC = None` to skip the layer.
 
 ---
 
+## No Rain in Winter
+
+```bash
+py _tools\configure.py rain           # the weathers that rain, by the mod MO2 takes each from
+py _tools\configure.py rain --build   # make the mod, and put it on the calendar
+py _tools\configure.py rain --off     # take it off the calendar, and disable it in MO2
+```
+
+A weather's rain is its `rain_density`, set hour by hour in its file under
+`configs/environment/weathers/`. It makes the engine draw rain, play its sound and wet the
+ground, and no script can change it, so the snowfall layer snows into rain. `rain --build`
+makes a mod, `No Rain in Winter (seasonal)`, of copies of every installed weather that
+rains at any hour, each from the mod MO2 takes it from, with every `rain_density` set to 0
+and nothing else changed. It goes into `TOGGLE_MODS` for winter and deep winter, above the
+highest mod with a weather it copies. Late winter, the thaw, keeps its rain; `add` changes
+when it is on, as for any seasonal mod, and a later `rain --build` keeps that.
+
+Each copy's first line names the mod it came from and that file's SHA-256. When one of them
+changes, as an Atmospherics update changes them, or a weather pack is added or disabled,
+`play.bat` makes the mod again before switching it, and `season.py status` says it is out
+of date. A pack added above the mods it copies is won over from the next launch, with a
+line saying to run `rain --build` to keep it so. A weather in MO2's overwrite folder wins
+over every mod and rains all the same; `rain` says so. DLTX can't do this: the game loads
+every `.ltx` in the weathers folder as a weather of its own.
+
+---
+
 ## `CALENDAR`
 
 ```python

@@ -67,6 +67,7 @@ TOOL_FILES = [
     "build_season_headers.py",
     "build_seasons_ltx.py",
     "build_chart_parts.py",
+    "winter_rain.py",
 ]
 # the translations and what they are made from; the language picked in the window stays
 LANG_FILES = (".po", ".pot")

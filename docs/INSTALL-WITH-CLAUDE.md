@@ -131,6 +131,10 @@ window if the player prefers that.
   work well this way* lists packs and their seasons.
 - **Seasonal ambient sound:** `py -3 _tools\configure.py sound` shows which mod the soundscape
   comes from, and `sound "<mod>"` sets one. Set it only if the player wants it.
+- **No rain in the winters**, for a player with a snowfall layer (the README's *Optional:
+  seasonal snowfall*): `py -3 _tools\configure.py rain` shows the weathers that rain, and
+  `rain --build` makes a mod of them without their rain, on in winter and deep winter. MO2
+  has to be closed. Build it only if the player wants it.
 - **Presets:** `py -3 _tools\configure.py preset` lists them; `GAMMA example` is the setup the
   tools were made on, and leaves out the mods the player doesn't have.
   `py -3 _tools\configure.py preset load "<name>"` loads one. If it says it would replace part

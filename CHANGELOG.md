@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **Snow, not rain, in the winters.** The snowfall layer snows in the rain and storm
+  weathers, and those weathers kept raining. `configure.py rain --build` makes **No Rain in
+  Winter (seasonal)**: copies of every installed weather that rains, with the rain set to 0
+  and nothing else changed, on in winter and deep winter. `play.bat` makes it again when one
+  of those weathers changes, and keeps it above them in MO2. `configure.py rain` shows what
+  it copies, and `rain --off` takes it off the calendar and disables it.
+- **Fixed: no snow in weathers the snowfall addon doesn't know.** Weather Expansion's rain
+  and storm weathers had none. The patched layer now gives such a weather the snow of
+  others of its kind; run `apply_seasonal_snowfall.py` again to bring a patched copy up to
+  date.
+
 ## 2.6.0 — 2026-10-15
 
 - **INVERNO follows the season.** With Project INVERNO installed, MCM's Main page has

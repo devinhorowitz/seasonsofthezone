@@ -737,6 +737,37 @@ msgstr ""
 
 #: season.py
 #, python-format
+msgid "No Rain in Winter is out of date (%(n)d weather changed since it was made), and is made again at a launch with %(what)s closed."
+msgid_plural "No Rain in Winter is out of date (%(n)d weathers changed since it was made), and is made again at a launch with %(what)s closed."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "No Rain in Winter made again: %d weather changed since it was made."
+msgid_plural "No Rain in Winter made again: %d weathers changed since it was made."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "No Rain in Winter is out of date: %d weather changed since it was made. play.bat makes it again."
+msgid_plural "No Rain in Winter is out of date: %d weathers changed since it was made. play.bat makes it again."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "No Rain in Winter wins over \"%(now)s\" for this launch: that is now the highest mod with a weather it copies, not \"%(was)s\"."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "To keep it that way, run %s"
+msgstr ""
+
+#: season.py
+#, python-format
 msgid "\"%(mod)s\" is above \"%(src)s\" and wins %(won)d of its %(total)d ambient sound file, so the seasons don't reach those places."
 msgid_plural "\"%(mod)s\" is above \"%(src)s\" and wins %(won)d of its %(total)d ambient sound files, so the seasons don't reach those places."
 msgstr[0] ""
@@ -1204,7 +1235,7 @@ msgstr ""
 msgid "%s (path unreadable, assumed this install)"
 msgstr ""
 
-#: season.py
+#: season.py configure.py
 #, python-format
 msgid "Close %s first. Nothing was changed."
 msgstr ""
@@ -3330,6 +3361,77 @@ msgid "the seasonal soundscape is off"
 msgstr ""
 
 #: configure.py
+msgid "No enabled mod has a weather that rains."
+msgstr ""
+
+#: configure.py
+msgid "Weathers that rain, by the mod MO2 takes them from, highest first:"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%d weather"
+msgid_plural "%d weathers"
+msgstr[0] ""
+msgstr[1] ""
+
+#: configure.py
+msgid "MO2's overwrite folder wins over every mod, so the weathers in it rain in the winters all the same. Move them into a mod of their own in MO2."
+msgstr ""
+
+#: configure.py
+msgid "Give --build or --off, not both."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "No Rain in Winter takes the rain out of the weathers in %s."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%d weather changed since it was made; play.bat makes it again at the next launch."
+msgid_plural "%d weathers changed since it was made; play.bat makes it again at the next launch."
+msgstr[0] ""
+msgstr[1] ""
+
+#: configure.py
+#, python-format
+msgid "The weathers rain in the winters as at any other time. To take the rain out of them then, run %s"
+msgstr ""
+
+#: configure.py
+msgid "No Rain in Winter is not set up, so there is nothing to stop."
+msgstr ""
+
+#: configure.py
+msgid "stopped taking the rain out of the weathers in the winters"
+msgstr ""
+
+#: configure.py
+msgid "No Rain in Winter is disabled in MO2."
+msgstr ""
+
+#: configure.py
+msgid "No enabled mod has a weather that rains, so there is no rain to take out."
+msgstr ""
+
+#: configure.py
+msgid "Every weather that rains is in MO2's overwrite folder, which wins over every mod. Move them into a mod of their own in MO2 first."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "took the rain out of %(n)d weather (%(lines)d lines), in \"%(mod)s\""
+msgid_plural "took the rain out of %(n)d weathers (%(lines)d lines), in \"%(mod)s\""
+msgstr[0] ""
+msgstr[1] ""
+
+#: configure.py
+msgid "play.bat switches it from the next launch, and makes it again when one of those weathers changes."
+msgstr ""
+
+#: configure.py
 #, python-format
 msgid "No presets yet. Save one with: %s"
 msgstr ""
@@ -4835,6 +4937,9 @@ msgid ""
 "  py _tools\\configure.py sound                   the ambient sound mod the soundscape is\n"
 "                                                taken from, and the others there are\n"
 "  py _tools\\configure.py sound \"<mod>\" | sound --off  take it from that mod, or none\n"
+"  py _tools\\configure.py rain                    the weathers that rain, and whether the\n"
+"                                                winters take their rain out\n"
+"  py _tools\\configure.py rain --build | rain --off  take it out in the winters, or stop\n"
 "  py _tools\\configure.py --advanced              the tabbed editor, not the guided setup\n"
 "  py mods\\<the mod>\\_tools\\configure.py install  put the tools in the GAMMA folder, or\n"
 "                                                update them there (configure.bat does it\n"
@@ -5101,6 +5206,18 @@ msgstr ""
 
 #: configure.py
 msgid "no seasonal soundscape"
+msgstr ""
+
+#: configure.py
+msgid "show the weathers that rain, or take their rain out in the winters"
+msgstr ""
+
+#: configure.py
+msgid "make No Rain in Winter from the weathers that win in MO2, and put it on the calendar"
+msgstr ""
+
+#: configure.py
+msgid "take it off the calendar and disable it in MO2"
 msgstr ""
 
 #: configure.py
