@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.7.4 — 2026-10-16
 
 - **Sleet on the forecast.** Where the snowfall addon snows and the weather still rains, as in
   late winter, when No Rain in Winter is off, the PDA's forecast called it Snow. It now reads
