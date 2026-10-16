@@ -154,6 +154,43 @@ def g_snowstorm():
     return im
 
 
+def drop(dr, x, y, length=20):
+    """One stroke of rain, slanted as the rain glyph's are."""
+    s = SS
+    dr.line([(N * s * x, y), (N * s * (x - 0.05), y + length * s)], fill=RAIN,
+            width=int(4.5 * s))
+
+
+def g_sleet():
+    """Snow with the rain still in it, as in late winter: the rain's cloud, a drop and a
+    flake by turns."""
+    im, dr = canvas()
+    cloud(dr, N * SS * 0.50, N * SS * 0.40, 48)
+    for i, x in enumerate((0.33, 0.46, 0.59, 0.72)):
+        y = N * SS * (0.68 if i % 2 == 0 else 0.72)
+        if i % 2 == 0:
+            drop(dr, x, y)
+        else:
+            flake(dr, N * SS * x, y + 10 * SS, 7)
+    return im
+
+
+def g_sleetstorm():
+    """A storm with sleet: the storm's cloud, and drops and flakes in two rows."""
+    im, dr = canvas()
+    cloud(dr, N * SS * 0.50, N * SS * 0.38, 48, hi=(168, 178, 186, 255),
+          lo=(104, 116, 128, 255))
+    for i, x in enumerate((0.28, 0.42, 0.56, 0.70)):
+        y = N * SS * (0.66 if i % 2 == 0 else 0.70)
+        if i % 2 == 0:
+            drop(dr, x, y, 18)
+        else:
+            flake(dr, N * SS * x, y + 9 * SS, 6)
+    flake(dr, N * SS * 0.35, N * SS * 0.91, 6)
+    drop(dr, 0.63, N * SS * 0.84, 18)
+    return im
+
+
 def g_frost():
     """Shown when the real Zone's low dips below zero. A six-arm crystal, because a
     snowflake with any more detail than this turns to mush at 34px."""
@@ -192,6 +229,7 @@ GLYPHS = [
     ("clear", g_clear), ("partly", g_partly), ("cloudy", g_cloudy),
     ("foggy", g_foggy), ("rain", g_rain), ("storm", g_storm),
     ("snow", g_snow), ("snowstorm", g_snowstorm),
+    ("sleet", g_sleet), ("sleetstorm", g_sleetstorm),
     ("frost", g_frost), ("arrow", g_arrow),
 ]
 

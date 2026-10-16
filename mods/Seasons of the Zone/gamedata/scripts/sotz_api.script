@@ -505,8 +505,9 @@ end
 --         `odds` is stock only: {cycle, chance (0-1)} for each sky the next change can
 --         bring, exact, since the stock scheduler draws it at random from that list.
 --         `falls` is what the rain and storm cycles bring now: "rain", "snow" (the
---         snowfall addon in the winters) or "none" (No Rain in Winter, nothing in its
---         place). Cycle names stay Atmospherics' either way.
+--         snowfall addon in the winters), "sleet" (snow, and the weather still rains) or
+--         "none" (No Rain in Winter, nothing in its place). Cycle names stay Atmospherics'
+--         either way.
 function weather()
     return cached("weather", function()
         local page = zzz_seasons_of_the_zone.forecast_page()

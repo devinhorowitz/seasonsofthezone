@@ -183,10 +183,11 @@ means the next cycle isn't known yet.
 Cycle names are `clear`, `partly`, `cloudy`, `foggy`, `rain`, and `storm` under both.
 
 `falls` (2.7.1) is what the `rain` and `storm` cycles bring now, under both: `"rain"`,
-`"snow"` while INVERNO's old snowfall addon snows in the winters, or `"none"` when No Rain
-in Winter has taken their rain out and nothing falls in its place. The cycle names don't
-change with it. The PDA page reads it: a `rain` cycle shows as Snow or Overcast, a `storm`
-as Snowstorm. INVERNO 1.09's own snowfall isn't tied to a cycle, so it never shows here.
+`"snow"` while INVERNO's old snowfall addon snows in the winters, `"sleet"` (2.7.4) while it
+snows and the weather still rains as well, or `"none"` when No Rain in Winter has taken
+their rain out and nothing falls in its place. The cycle names don't change with it. The PDA
+page reads it: a `rain` cycle shows as Snow, Sleet or Overcast, a `storm` as Snowstorm or
+Sleet storm. INVERNO 1.09's own snowfall isn't tied to a cycle, so it never shows here.
 
 ## `blowout()`
 

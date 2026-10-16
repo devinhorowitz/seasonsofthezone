@@ -59,6 +59,8 @@ local CYCLE = {
     storm     = "st_sotz_sky_storm",
     snow      = "st_sotz_sky_snow",
     snowstorm = "st_sotz_sky_snowstorm",
+    sleet     = "st_sotz_sky_sleet",
+    sleetstorm = "st_sotz_sky_sleetstorm",
 }
 
 local function cycle_name(c)
@@ -68,15 +70,19 @@ local function cycle_name(c)
 end
 
 -- The sky a cycle brings, by what falls in rain and storm now (forecast_page's `falls`):
--- in the winters the snowfall addon makes them snow and a snowstorm, and with their rain
--- taken out and nothing in its place a rain cycle is an overcast sky. The barometer still
--- reads the cycle itself: the pressure is the same whatever falls.
+-- in the winters the snowfall addon makes them snow and a snowstorm, or sleet and a sleet
+-- storm where the weather still rains as well, and with their rain taken out and nothing
+-- in its place a rain cycle is an overcast sky. The barometer still reads the cycle itself:
+-- the pressure is the same whatever falls.
+local SKY_RAIN = {snow = "snow", sleet = "sleet", none = "cloudy"}
+local SKY_STORM = {snow = "snowstorm", sleet = "sleetstorm"}
+
 local function sky(cycle, falls)
     cycle = tostring(cycle or "")
     if cycle == "rain" then
-        return (falls == "snow" and "snow") or (falls == "none" and "cloudy") or cycle
+        return SKY_RAIN[tostring(falls)] or cycle
     elseif cycle == "storm" then
-        return falls == "snow" and "snowstorm" or cycle
+        return SKY_STORM[tostring(falls)] or cycle
     end
     return cycle
 end
@@ -103,6 +109,7 @@ local WX_GLYPH = {
     clear = "sotz_wx_clear", partly = "sotz_wx_partly", cloudy = "sotz_wx_cloudy",
     foggy = "sotz_wx_foggy", rain = "sotz_wx_rain",     storm  = "sotz_wx_storm",
     snow  = "sotz_wx_snow",  snowstorm = "sotz_wx_snowstorm",
+    sleet = "sotz_wx_sleet", sleetstorm = "sotz_wx_sleetstorm",
 }
 
 local function wx_tex(cycle)
@@ -133,6 +140,8 @@ local CYCLE_RGB = {
     storm  = { 74,  94, 120},
     snow   = {196, 210, 224},
     snowstorm = {124, 142, 168},
+    sleet  = {150, 168, 186},           -- halfway between rain and snow
+    sleetstorm = { 99, 118, 144},       -- and between storm and snowstorm
 }
 
 -- The coarse tier's whole job is to warn without timing. These are what a reading relayed
@@ -250,14 +259,15 @@ end
 -- The stock odds, summed the way a forecast states them: wet first, because "will it rain"
 -- is the question. Each group is named by the skies in it that can still come, so a group
 -- with one possible sky says just that one. The skies are sky()'s, so in the winters the
--- wet group is snow, and a rain cycle with its rain taken out counts as gray.
+-- wet group is snow or sleet, and a rain cycle with its rain taken out counts as gray.
 local ODDS_GROUPS = {
-    {"st_sotz_sky_wet",  {"rain", "storm", "snow", "snowstorm"}},
+    {"st_sotz_sky_wet",  {"rain", "storm", "snow", "snowstorm", "sleet", "sleetstorm"}},
     {"st_sotz_sky_gray", {"cloudy", "foggy"}},
     {"st_sotz_sky_fair", {"clear", "partly"}},
 }
 -- the wet group's name when both of its skies can come, by what falls
-local WET_NAME = {snow = "st_sotz_sky_wet_snow", none = "st_sotz_sky_storm"}
+local WET_NAME = {snow = "st_sotz_sky_wet_snow", sleet = "st_sotz_sky_wet_sleet",
+                  none = "st_sotz_sky_storm"}
 
 local function odds_rows(odds, falls)
     if not (odds and #odds > 0) then return nil end

@@ -1161,10 +1161,11 @@ function snow_factor()
     return v
 end
 
--- What the rain and storm cycles bring now: "rain", "snow" or "none". Atmospherics names
--- its cycles for summer. In the winters the snowfall addon (yawm_snowfall, with this mod's
--- layer) snows in them while snow_factor() is over its thinnest snow, and No Rain in Winter,
--- which play.bat switches on then, takes their rain out; with neither, it rains. The rain
+-- What the rain and storm cycles bring now: "rain", "snow", "sleet" or "none". Atmospherics
+-- names its cycles for summer. In the winters the snowfall addon (yawm_snowfall, with this
+-- mod's layer) snows in them while snow_factor() is over its thinnest snow, and No Rain in
+-- Winter, which play.bat switches on then, takes their rain out. Snow with the rain still in
+-- it, in late winter or without No Rain in Winter, is sleet; with neither, it rains. The rain
 -- is read off the cycle's first weather file, the copy MO2 serves, once a load.
 local SNOWS_OVER = 0.02             -- the snowfall layer's own floor for its flakes
 local wet_weather = nil             -- does the rain cycle's weather rain, once a load
@@ -1198,8 +1199,9 @@ function falls()
         return getFS():exist("$game_scripts$", "yawm_snowfall.script")
             and snow_factor() > SNOWS_OVER
     end)
-    if ok and snowing then return "snow" end
-    return rain_cycle_rains() and "rain" or "none"
+    local rains = rain_cycle_rains()
+    if ok and snowing then return rains and "sleet" or "snow" end
+    return rains and "rain" or "none"
 end
 
 -- --- the rain gameplay still goes by ------------------------------------------------------

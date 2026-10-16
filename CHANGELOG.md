@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Sleet on the forecast.** Where the snowfall addon snows and the weather still rains, as in
+  late winter, when No Rain in Winter is off, the PDA's forecast called it Snow. It now reads
+  Sleet, and a storm Sleet storm, with icons and ribbon colors of their own; the odds read
+  "Sleet or sleet storm". `sotz_api.weather().falls` is `"sleet"` then. With No Rain in
+  Winter's dry weather it still reads Snow.
+
 ## 2.7.3 — 2026-10-16
 
 - **A launch that would crash on a particle is stopped.** A script that makes particles

@@ -23,6 +23,12 @@
 	<file name="ui_sotz_wx_snowstorm">
 		<texture id="sotz_wx_snowstorm" x="0" y="0" width="128" height="128" />
 	</file>
+	<file name="ui_sotz_wx_sleet">
+		<texture id="sotz_wx_sleet" x="0" y="0" width="128" height="128" />
+	</file>
+	<file name="ui_sotz_wx_sleetstorm">
+		<texture id="sotz_wx_sleetstorm" x="0" y="0" width="128" height="128" />
+	</file>
 	<file name="ui_sotz_wx_frost">
 		<texture id="sotz_wx_frost" x="0" y="0" width="128" height="128" />
 	</file>

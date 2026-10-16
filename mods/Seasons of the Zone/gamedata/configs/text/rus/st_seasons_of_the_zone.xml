@@ -108,9 +108,12 @@
 	<string id="st_sotz_sky_storm"><text>Гроза</text></string>
 	<string id="st_sotz_sky_snow"><text>Снег</text></string>
 	<string id="st_sotz_sky_snowstorm"><text>Метель</text></string>
+	<string id="st_sotz_sky_sleet"><text>Мокрый снег</text></string>
+	<string id="st_sotz_sky_sleetstorm"><text>Гроза со снегом</text></string>
 	<!-- шансы следующего неба, тремя группами -->
 	<string id="st_sotz_sky_wet"><text>Дождь, гроза</text></string>
 	<string id="st_sotz_sky_wet_snow"><text>Снег, метель</text></string>
+	<string id="st_sotz_sky_wet_sleet"><text>Мокрый снег, гроза</text></string>
 	<string id="st_sotz_sky_gray"><text>Хмуро, туман</text></string>
 	<string id="st_sotz_sky_fair"><text>Ясно, облачно</text></string>
 	<!-- знак градуса добавляет игра: «12» и единица читаются как 12 °С -->

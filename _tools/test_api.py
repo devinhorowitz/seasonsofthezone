@@ -226,10 +226,11 @@ def t_weather_says_what_falls():
         g.zzz_seasons_of_the_zone.snow_factor = lambda: factor
         w = g.sotz_api.weather()
         return F(w, "falls"), F(w, "now"), F(F(w, "next"), "cycle")
-    assert read(True, 1.0, False) == ("snow", "clear", "rain"), read(True, 1.0, False)
+    assert read(True, 1.0, True) == ("snow", "clear", "rain"), read(True, 1.0, True)
+    assert read(True, 1.0, False) == ("sleet", "clear", "rain"), read(True, 1.0, False)
     assert read(False, 1.0, True) == ("none", "clear", "rain"), read(False, 1.0, True)
     assert read(True, 0.0, False) == ("rain", "clear", "rain"), read(True, 0.0, False)
-    return "snow, none and rain come through; the next cycle is still called rain"
+    return "snow, sleet, none and rain come through; the next cycle is still called rain"
 
 
 def t_model_is_labelled():

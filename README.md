@@ -712,7 +712,9 @@ an Atmospherics update would, and keeps it above them in MO2. `configure.py rain
 it copies; unticking the box, or `rain --off`, takes it off the calendar and disables it.
 
 The PDA's forecast says what falls: while the patched addon snows, a rain sky reads Snow and
-a storm Snowstorm, and with only No Rain in Winter, a rain sky reads Overcast.
+a storm Snowstorm, or Sleet and Sleet storm where the weather still rains too, as in late
+winter, when No Rain in Winter is off. With only No Rain in Winter, a rain sky reads
+Overcast.
 
 Gameplay that goes by rain still feels it: NPCs' shorter sight in a storm, guns jamming,
 campfires and the AI taking cover. Each copy keeps the rain it took out, and Seasons of the

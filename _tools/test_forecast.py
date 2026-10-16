@@ -995,8 +995,10 @@ def t_falls_reads_the_season_and_the_weather():
         lua, g = build(standing=0, surge_left=HOUR, psi_left=HOUR)
         wet(lua, g, **k)
         return g.falls()
-    assert falls() == "snow", "the snowfall addon in deep winter is not snow"
-    assert falls(rain=(0, 0)) == "snow", "snow needs no rain in the weather file"
+    assert falls() == "sleet", "snow with the weather's rain still falling is not sleet"
+    assert falls(rain=(0, 0)) == "snow", "No Rain in Winter's dry weather under snow is not snow"
+    assert falls(rain=(0, 0.01)) == "sleet", "one wet hour under the snow did not count"
+    assert falls(file=False, rain=(0, 0)) == "sleet", "no weather file read as dry under snow"
     assert falls(factor=0.0) == "rain", "the addon snowed in summer"
     assert falls(factor=0.02) == "rain", "the addon's own floor counted as snow"
     assert falls(addon=False) == "rain", "snow with no snowfall addon"
@@ -1012,23 +1014,38 @@ def t_falls_reads_the_season_and_the_weather():
         lua, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, stock=stock)
         wet(lua, g, addon=False, rain=(0, 0))
         assert field(field(g.forecast_page(), "weather"), "falls") == "none", stock
-    return "snow with the addon over its floor; none from a dry weather file; rain otherwise"
+    return ("snow with the addon over its floor and a dry weather file, sleet with a wet one; "
+            "none from a dry file alone; rain otherwise")
 
 
 def t_the_page_names_what_falls():
     lua, _, fx = expose("ui_seasons_forecast.script",
                         ["sky", "visible", "odds_rows", "cycle_name", "wx_tex", "CYCLE_RGB"])
     for cycle, falls, want in (("rain", "snow", "snow"), ("storm", "snow", "snowstorm"),
+                               ("rain", "sleet", "sleet"), ("storm", "sleet", "sleetstorm"),
                                ("rain", "none", "cloudy"), ("storm", "none", "storm"),
                                ("rain", "rain", "rain"), ("rain", None, "rain"),
-                               ("cloudy", "snow", "cloudy"), ("clear", "none", "clear")):
+                               ("cloudy", "snow", "cloudy"), ("cloudy", "sleet", "cloudy"),
+                               ("clear", "none", "clear")):
         assert fx.sky(cycle, falls) == want, (cycle, falls, fx.sky(cycle, falls))
     assert fx.cycle_name(fx.sky("storm", "snow")) == "Snowstorm"
     assert fx.cycle_name(fx.sky("rain", "snow")) == "Snow"
+    assert fx.cycle_name(fx.sky("rain", "sleet")) == "Sleet"
+    assert fx.cycle_name(fx.sky("storm", "sleet")) == "Sleet storm"
     assert fx.cycle_name(fx.sky("rain", "none")) == "Overcast"
     assert fx.wx_tex(fx.sky("rain", "snow")) == "sotz_wx_snow"
     assert fx.wx_tex(fx.sky("storm", "snow")) == "sotz_wx_snowstorm"
-    assert fx.CYCLE_RGB["snow"] and fx.CYCLE_RGB["snowstorm"], "no ribbon color for snow"
+    assert fx.wx_tex(fx.sky("rain", "sleet")) == "sotz_wx_sleet"
+    assert fx.wx_tex(fx.sky("storm", "sleet")) == "sotz_wx_sleetstorm"
+    for c in ("snow", "snowstorm", "sleet", "sleetstorm"):
+        assert fx.CYCLE_RGB[c], "no ribbon color for " + c
+    # each glyph the page asks for is drawn and declared
+    gd = os.path.dirname(os.path.dirname(SRC))
+    descr = io.open(os.path.join(gd, "configs", "ui", "textures_descr", "ui_sotz_weather.xml"),
+                    encoding="utf-8").read()
+    for c in ("sleet", "sleetstorm"):
+        assert os.path.isfile(os.path.join(gd, "textures", "ui_sotz_wx_%s.dds" % c)), c
+        assert 'id="sotz_wx_%s"' % c in descr, "sotz_wx_%s is not declared" % c
 
     def rows(pairs, falls):
         t = lua.table_from([lua.table_from({"cycle": c, "chance": p}) for c, p in pairs])
@@ -1040,6 +1057,9 @@ def t_the_page_names_what_falls():
     assert rows([("rain", .5), ("clear", .5)], "none")[0] == ("Storm", 0)
     assert rows([("clear", .5), ("partly", .5)], "snow")[0] == ("Snow or snowstorm", 0)
     assert rows([("clear", .5), ("partly", .5)], "rain")[0] == ("Rain or storm", 0)
+    got = rows([("rain", .2), ("storm", .2), ("cloudy", .2), ("clear", .4)], "sleet")
+    assert got == [("Sleet or sleet storm", 40), ("Overcast", 20), ("Clear", 40)], got
+    assert rows([("rain", .5), ("clear", .5)], "sleet")[0] == ("Sleet", 50)
 
     def changes(now, cycles, falls):
         t = lua.table_from([lua.table_from({"cycle": c, "at": i}) for i, c in enumerate(cycles)])
@@ -1048,7 +1068,9 @@ def t_the_page_names_what_falls():
     assert changes("cloudy", ["rain", "storm", "cloudy", "rain"], "rain") == \
         ["rain", "storm", "cloudy", "rain"]
     assert changes("rain", ["cloudy", "storm"], "snow") == ["cloudy", "storm"]
-    return "rain reads snow, storm snowstorm, a dry rain overcast; unseen changes dropped"
+    assert changes("rain", ["storm", "rain"], "sleet") == ["storm", "rain"]
+    return ("rain reads snow or sleet, storm snowstorm or sleet storm, a dry rain overcast; "
+            "unseen changes dropped")
 
 
 def t_the_filled_page_says_what_falls():
@@ -1059,19 +1081,28 @@ def t_the_filled_page_says_what_falls():
 
     def texts(**k):
         return [str(t) for t in page(world(mcm=exact, **k), "SeasonsForecast")]
-    sky_words = ("Rain", "Storm", "Snow", "Snowstorm", "Overcast")
+    sky_words = ("Rain", "Storm", "Snow", "Snowstorm", "Sleet", "Sleet storm", "Overcast")
 
     def skies(t):
         """The sky words on the page: whole labels, and the next one's "Sky, when"."""
         return sorted({s.split(",")[0] for s in t if s.split(",")[0] in sky_words})
     deep = (2027, 1, 15)
-    got = skies(texts(date=deep, snowfall=True, rain_file={"12:00:00": 0.7}, cycle="storm",
+    # snow with No Rain in Winter's dry weather
+    got = skies(texts(date=deep, snowfall=True, rain_file={"12:00:00": 0.0}, cycle="storm",
                       plan=[(690, "rain"), (1000, "cloudy")]))
     assert got == ["Overcast", "Snow", "Snowstorm"], got
+    # snow with the weather's own rain still in it: sleet
+    got = skies(texts(date=deep, snowfall=True, rain_file={"12:00:00": 0.7}, cycle="storm",
+                      plan=[(690, "rain"), (1000, "cloudy")]))
+    assert got == ["Overcast", "Sleet", "Sleet storm"], got
     # the rain later in the day, so it is a row of the list, not the next sky
     got = skies(texts(date=deep, snowfall=True, rain_file={"12:00:00": 0.7}, cycle="storm",
                       plan=[(690, "cloudy"), (1000, "rain")]))
-    assert got == ["Overcast", "Snow", "Snowstorm"], got
+    assert got == ["Overcast", "Sleet", "Sleet storm"], got
+    # late winter, the thaw: lighter snow, the rain left in
+    got = skies(texts(date=(2027, 3, 20), snowfall=True, rain_file={"12:00:00": 0.7},
+                      cycle="rain", plan=[(690, "storm"), (1000, "cloudy")]))
+    assert got == ["Overcast", "Sleet", "Sleet storm"], got
     t = texts(date=deep, rain_file={"12:00:00": 0.0}, cycle="cloudy",
               plan=[(690, "rain"), (1000, "storm")])
     assert skies(t) == ["Overcast", "Storm"], skies(t)
@@ -1081,7 +1112,41 @@ def t_the_filled_page_says_what_falls():
     got = skies(texts(date=(2027, 7, 15), snowfall=True, rain_file={"12:00:00": 0.7},
                       cycle="storm", plan=[(690, "rain"), (1000, "cloudy")]))
     assert got == ["Overcast", "Rain", "Storm"], got
-    return "deep winter reads Snowstorm and Snow; a dry rain reads Overcast; summer rains"
+    return ("deep winter reads Snowstorm and Snow, or Sleet with the rain left in, as late "
+            "winter does; a dry rain reads Overcast; summer rains")
+
+
+def t_sleet_in_russian_and_each_glyph_as_drawn():
+    """Sleet's names come from the string tables, not the key spelled out: in Russian they
+    are Russian. Every glyph the page asks for is one build_weather_icons.py draws, shipped
+    as it draws it and declared."""
+    russian = dict(table("eng"), **table("rus"))
+
+    def ru(lua, g):
+        g.game["translate_string"] = lambda s: russian.get(s, s)
+    lua, _, fx = expose("ui_seasons_forecast.script", ["sky", "cycle_name", "odds_rows",
+                                                       "WX_GLYPH"], ru)
+    assert fx.cycle_name(fx.sky("rain", "sleet")) == "Мокрый снег"
+    assert fx.cycle_name(fx.sky("storm", "sleet")) == "Гроза со снегом"
+    t = lua.table_from([lua.table_from({"cycle": c, "chance": .5}) for c in ("rain", "storm")])
+    assert seq(fx.odds_rows(t, "sleet"))[0]["label"] == "Мокрый снег, гроза"
+
+    import build_weather_icons as b
+    from PIL import Image
+    drawn = dict(b.GLYPHS)
+    gd = os.path.dirname(os.path.dirname(SRC))
+    descr = io.open(os.path.join(gd, "configs", "ui", "textures_descr", "ui_sotz_weather.xml"),
+                    encoding="utf-8").read()
+    wanted = sorted(set(fx.WX_GLYPH[k] for k in fx.WX_GLYPH))
+    for tex in wanted:
+        key = tex[len("sotz_wx_"):]
+        assert key in drawn, "%s is asked for and never drawn" % tex
+        buf = io.BytesIO()
+        drawn[key]().resize((b.N, b.N), Image.LANCZOS).save(buf, "DDS")
+        shipped = open(os.path.join(gd, "textures", "ui_%s.dds" % tex), "rb").read()
+        assert buf.getvalue() == shipped, "ui_%s.dds is not what the code draws" % tex
+        assert 'id="%s"' % tex in descr, "%s is not declared" % tex
+    return "sleet and sleet storm in Russian; %d glyphs shipped as drawn and declared" % len(wanted)
 
 
 def t_countdown_text():
@@ -1160,6 +1225,7 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("what falls", t_falls_reads_the_season_and_the_weather),
              ("snow on the page", t_the_page_names_what_falls),
              ("the page filled", t_the_filled_page_says_what_falls),
+             ("sleet in russian", t_sleet_in_russian_and_each_glyph_as_drawn),
              ("countdown text", t_countdown_text),
              ("barometer words", t_barometer_language)):
     case(n, f)
