@@ -266,6 +266,30 @@ quest lines, tasks and dialogs can leave a save needing a mod as well.
   since `play.bat` would switch it off again, or wait for its season.
 - *A save crashes as it loads, older exes.* Load it with the mod on, as above.
 
+### Particles a script makes as a save loads
+
+The game loads every script in `gamedata\scripts` as a game starts. A script that calls
+`particles_object()` outside its functions makes those particles then, and a particle the
+game doesn't have is a crash no script can catch: `Particle effect or group doesn't exist`.
+INVERNO 1.09's snowfall is such a script. So once the season is staged, `play.bat` reads
+the scripts the game will load for particles that only mods off for this launch have, and
+stops before the launch:
+
+```
+  ! Inverno_snowfall_system.script, in "Project INVERNO mechanics (update)", makes 7
+    particle effects as a save loads that only mods off for this launch have: graupel\dust,
+    graupel\snowflakes, graupel\snow_light_left and 4 more. The game crashes on the first
+    ("Particle effect or group doesn't exist").
+    Copy gamedata\particles from "INVERNO (seasonal)" into "Project INVERNO mechanics
+    (update)", the mod with the script, so the game has them whenever it loads the script.
+```
+
+A particle is there when it is a loose `.pe` or `.pg` under `gamedata\particles` in a mod
+that is on or in MO2's overwrite, in a `.db` of a mod that is on, or in the `particles.xr`
+that wins. With no loose `particles.xr`, the game's own, inside its `.db` archives, may
+have it, so the line starts with `-` and the launch goes ahead. `season.py status` shows
+the same lines. A particle a script makes inside a function, once it runs, isn't checked.
+
 ### Which mod it wins over (`above`)
 
 MO2 gives a shared file to the enabled mod with the highest priority that ships it: the
@@ -709,6 +733,11 @@ renamed or removed. Pick another in the mod's **Wins over** box in `configure.ba
 name the files. See [What a mod leaves in saves](#what-a-mod-leaves-in-saves-save_content):
 make only the part of the mod that changes looks and sounds seasonal, or allow it with
 `"save_content": True`.
+
+**`! <script>, in "<mod>", makes particle effects as a save loads that only mods off for
+this launch have`.** Copy `gamedata\particles` from the mod the next line names into the
+script's mod, so the particles are there whenever the script is. See [Particles a script
+makes as a save loads](#particles-a-script-makes-as-a-save-loads).
 
 **`seasons_config.py is not saved as UTF-8`.** Notepad saves as ANSI or UTF-16 when asked
 to; the tools read UTF-8. In Notepad, File > Save as, set Encoding to UTF-8, then Save.

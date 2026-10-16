@@ -142,6 +142,9 @@ window if the player prefers that.
   setup is kept as `seasons_config.py.bak`).
 
 Then run `py -3 _tools\season.py status` and show the player what the next launch will switch.
+A `!` line about particle effects means a script that stays on makes particles that only a mod
+switched off has, and `play.bat` will stop before that launch: show the player the line, and
+copy the `gamedata\particles` it names only if they agree.
 
 ## 8. First launch
 

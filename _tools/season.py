@@ -4071,6 +4071,249 @@ def shadow_check(force=False):
     return out
 
 
+# --- particles a script makes as a save loads ---------------------------------------------
+#
+# The game loads every script in gamedata\scripts as a game starts, so a script that calls
+# particles_object() outside its functions does so as a save loads, and a particle the game
+# doesn't have is a fatal error no Lua can catch ("Particle effect or group doesn't
+# exist"). INVERNO 1.09's snowfall makes its particles that way, from the ones its base
+# module carries: with the script in a mod that stays on and the particles only in a
+# seasonal one, every launch outside the winters crashed as the save loaded. So each launch
+# looks for particles such a script needs that only mods off for it have.
+#
+# The game's particles are the .pe and .pg files under gamedata\particles, named by their
+# paths (graupel\dust is particles\graupel\dust.pg), and the effects and groups of the
+# particles.xr that wins (CPSLibrary::Load in the Modded Exes). One inside a .db can't be
+# read from outside, so with no loose particles.xr the game's own may have a name, and
+# play.bat only warns.
+
+_PARTICLE_EXT = (".pe", ".pg")
+
+
+def particle_files(folder):
+    """The particles the loose gamedata\\particles in `folder` holds, by the names the game
+    gives them, in lower case: graupel\\dust for particles/graupel/dust.pg."""
+    base = os.path.join(folder, "gamedata", "particles")
+    out = set()
+    for root, __, files in os.walk(base):
+        for f in files:
+            stem, ext = os.path.splitext(f)
+            if ext.lower() in _PARTICLE_EXT:
+                rel = os.path.relpath(os.path.join(root, stem), base)
+                out.add(rel.replace(os.sep, "\\").lower())
+    return out
+
+
+def _chunks(data):
+    """X-Ray chunks laid end to end, [u32 id][u32 size][data], as [(id, data)]. ValueError
+    when they don't fill `data` exactly."""
+    out, p = [], 0
+    while p < len(data):
+        if p + 8 > len(data):
+            raise ValueError("a chunk is cut short")
+        cid, size = struct.unpack_from("<II", data, p)
+        if p + 8 + size > len(data):
+            raise ValueError("a chunk runs past the end")
+        out.append((cid, data[p + 8:p + 8 + size]))
+        p += 8 + size
+    return out
+
+
+def xr_particles(path):
+    """The effects and groups a particles.xr defines, by name, in lower case. Its chunk 1
+    holds its version, 3 its effects and 4 its groups, each in a chunk of its own whose
+    chunk 2 is its name. ValueError for a file that doesn't read as one, or of a version
+    the game skips."""
+    with open(path, "rb") as f:
+        top = _chunks(f.read())
+    ver = [d for cid, d in top if cid == 1]
+    if len(ver) != 1 or len(ver[0]) != 2 or struct.unpack("<H", ver[0])[0] != 1:
+        raise ValueError("not a particles.xr the game reads")
+    names = set()
+    for cid, d in top:
+        if cid & 0x7FFFFFFF in (3, 4):
+            if cid & 0x80000000:
+                raise ValueError("packed")
+            for __, one in _chunks(d):
+                names.update(v.split(b"\0")[0].decode("cp1251", "replace").lower()
+                             for k, v in _chunks(one) if k == 2)
+    return names
+
+
+_LUA_WORDS = re.compile(r"\b(?:function|if|while|for|do|repeat|until|end|particles_object)\b")
+_LUA_NOT_CALL = re.compile(r"(?:[.:]|\bfunction)\s*$")
+_LUA_PAREN = re.compile(r"\s*\(")
+_LUA_ARG = re.compile(r"\s*(?:\"((?:[^\"\\\n]|\\.)*)\"|'((?:[^'\\\n]|\\.)*)'"
+                      r"|\[(=*)\[\n?(.*?)\]\3\])\s*\)", re.S)
+_LUA_ESCAPES = {"n": "\n", "t": "\t", "r": "\r", "a": "\a", "b": "\b", "f": "\f", "v": "\v"}
+
+
+def _lua_unescape(s):
+    return re.sub(r"\\(\d{1,3}|.)", lambda m: chr(int(m.group(1)) % 256) if m.group(1).isdigit()
+                  else _LUA_ESCAPES.get(m.group(1), m.group(1)), s)
+
+
+def loaded_particles(text):
+    """[(line, name)] for each particles_object() a Lua script calls with a plain string
+    outside its functions, which it does as it loads; the names in lower case. None when its
+    blocks don't add up, so where a call stands can't be told."""
+    code = lua_code(text)
+    blocks, out = [], []
+    for m in _LUA_WORDS.finditer(code):
+        w = m.group()
+        if w in ("function", "if", "repeat"):
+            blocks.append(w)
+        elif w in ("while", "for"):
+            blocks.append("loop")                   # its `do` opens the body
+        elif w == "do":
+            if blocks and blocks[-1] == "loop":
+                blocks[-1] = "loop do"
+            else:
+                blocks.append("do")
+        elif w == "until":
+            if not blocks or blocks.pop() != "repeat":
+                return None
+        elif w == "end":
+            if not blocks or blocks.pop() in ("loop", "repeat"):
+                return None
+        elif "function" not in blocks and not _LUA_NOT_CALL.search(
+                code, max(0, m.start() - 40), m.start()):
+            paren = _LUA_PAREN.match(code, m.end())
+            arg = paren and _LUA_ARG.match(text, paren.end())
+            if arg:
+                name = (arg.group(4) if arg.group(3) is not None else
+                        _lua_unescape(arg.group(1) if arg.group(1) is not None
+                                      else arg.group(2)))
+                out.append((code.count("\n", 0, m.start()) + 1, name.lower()))
+    return None if blocks else out
+
+
+def launch_order(active, prefs=None, switch=True):
+    """MO2's mod list as [(name, on)], the top first. With `switch`, each seasonal mod is on
+    or off as apply switches it for `active`, where it stands now."""
+    flip = {name: bool(should and not held)
+            for name, inst, __, should, held in toggle_status(active, prefs)
+            if inst and held != "saves"} if switch else {}
+    return [(l[1:], flip.get(l[1:], l[:1] == "+")) for l in (_modlist_lines() or [])[1:]
+            if l[:1] in ("+", "-")]
+
+
+def particle_gaps(order):
+    """Particles that scripts make as a save loads and only mods that are off have, in the
+    mod list `order`, [(name, on)] with the top first: ([(script, mod, [(line, name)],
+    holders)], sure). Each script is the copy the game loads, from `mod`, and `holders` are
+    the mods off that have its particles. `sure` is False when the particles.xr that wins
+    can't be read, or a .db in a mod that is on can't: either may have them."""
+    off = {}
+    for name, on in order:
+        if not on:
+            for p in particle_files(os.path.join(MODS, name)):
+                off.setdefault(p, []).append(name)
+    if not off:
+        return [], True
+    # where the game takes files from, the winner first: MO2's overwrite, the mods on, and
+    # the game's own folder
+    layers = ([("overwrite", os.path.join(ROOT, "overwrite"))]
+              + [(name, os.path.join(MODS, name)) for name, on in order if on])
+    every = layers + [(None, game_dir())]
+    want = set(off)
+    for __, folder in every:
+        want -= particle_files(folder)
+        if not want:
+            break
+    sure = True
+    if want:
+        xr = next((p for p in (os.path.join(f, "gamedata", "particles.xr") for __, f in every)
+                   if os.path.isfile(p)), None)
+        try:
+            if xr is None:
+                raise ValueError("the game's own, in its .db")
+            want -= xr_particles(xr)
+        except (OSError, ValueError):
+            sure = False
+    if not want:
+        return [], True
+
+    found, seen = [], set()
+    for mod, folder in layers:
+        d = os.path.join(folder, "gamedata", "scripts")
+        try:
+            names = sorted(os.listdir(d))
+        except OSError:
+            continue
+        for f in names:
+            low = f.lower()
+            if not low.endswith(".script") or low in seen:
+                continue
+            seen.add(low)
+            try:
+                raw = open(os.path.join(d, f), "rb").read()
+            except OSError:
+                continue
+            hits = (loaded_particles(raw.decode("cp1251", "replace"))
+                    if b"particles_object" in raw else None)
+            hits = [(line, n) for line, n in hits or [] if n in want]
+            if hits:
+                found.append((f, mod, hits))
+    if found:
+        # a .db in a mod on may hold them, packed
+        for __, folder in layers[1:]:
+            for root, __, files in os.walk(os.path.join(folder, "db")):
+                for f in files:
+                    if not re.search(r"\.x?db\w*$", f.lower()) or f.lower() == "thumbs.db":
+                        continue
+                    try:
+                        held = db_files(os.path.join(root, f))
+                    except (OSError, ValueError):
+                        sure = False
+                        continue
+                    for n in held:
+                        n = n.lower()
+                        n = n[len("gamedata/"):] if n.startswith("gamedata/") else n
+                        stem, ext = os.path.splitext(n)
+                        if n.startswith("particles/") and ext in _PARTICLE_EXT:
+                            want.discard(stem[len("particles/"):].replace("/", "\\"))
+    rank = {name: i for i, (name, __) in enumerate(order)}
+    out = []
+    for f, mod, hits in found:
+        hits = [(line, n) for line, n in hits if n in want]
+        if hits:
+            holders = sorted({h for __, n in hits for h in off[n]}, key=rank.get)
+            out.append((f, mod, hits, holders))
+    return out, sure
+
+
+def particle_lines(found, sure):
+    """particle_gaps()'s findings as lines: "!" when the game will crash, "-" when the
+    game's own particles.xr may have the names."""
+    out = []
+    for f, mod, hits, holders in found:
+        names = list(dict.fromkeys(n for __, n in hits))
+        if sure:
+            said = ngettext(
+                "%(script)s, in \"%(mod)s\", makes a particle effect as a save loads that only "
+                "mods off for this launch have: %(names)s. The game crashes on it (\"Particle "
+                "effect or group doesn't exist\").",
+                "%(script)s, in \"%(mod)s\", makes %(n)d particle effects as a save loads that "
+                "only mods off for this launch have: %(names)s. The game crashes on the first "
+                "(\"Particle effect or group doesn't exist\").", len(names))
+        else:
+            said = ngettext(
+                "%(script)s, in \"%(mod)s\", makes a particle effect as a save loads that only "
+                "mods off for this launch have: %(names)s. Unless the game's own particles.xr "
+                "has it, the game crashes on it.",
+                "%(script)s, in \"%(mod)s\", makes %(n)d particle effects as a save loads that "
+                "only mods off for this launch have: %(names)s. Unless the game's own "
+                "particles.xr has them, the game crashes on the first.", len(names))
+        out.append(("  ! " if sure else "  - ") + said % {
+            "script": f, "mod": mod, "n": len(names), "names": _names_text(names)})
+        out.append("    " + _("Copy gamedata\\particles from %(holders)s into \"%(mod)s\", the "
+                              "mod with the script, so the game has them whenever it loads "
+                              "the script.")
+                   % {"holders": _and(["\"%s\"" % h for h in holders]), "mod": mod})
+    return out
+
+
 def _check_install():
     """Stop with a plain message when not run from a Mod Organizer install."""
     ini = os.path.join(ROOT, "ModOrganizer.ini")
@@ -4457,6 +4700,20 @@ def main():
                 return
             print("  => " + said)
 
+        def particle_check():
+            """Say what in this launch's mods makes particles as a save loads that the game
+            won't have; in a launch, stop before the crash. Last, so all else is staged."""
+            found, sure = particle_gaps(launch_order(active, prefs, switch=not writing))
+            if not found:
+                return
+            print()
+            for line in particle_lines(found, sure):
+                print(line)
+            if writing and sure:
+                raise SystemExit("  ** " + _("Stopped before the launch: the game would crash as "
+                                             "the save loads. Fix it as the lines above say, "
+                                             "then run play.bat again.") + " **")
+
         # With the texture layer off, whatever is staged stays.
         tex_ok = True if not stage_tex else all(v == want for v in installed.values())
         _ssrc = _sound_src_dir()
@@ -4506,6 +4763,7 @@ def main():
                              stage_tex)
                 write_mod_panel(active, prefs)
                 send_spell()
+            particle_check()
             return
         if not tex_ok:
             # translators: a texture set, restaged: "Tex Mod (summer) -> autumn"
@@ -4528,6 +4786,7 @@ def main():
 
         if a.cmd == "status" or a.dry_run:
             say_skipped()
+            particle_check()
             if a.dry_run:
                 print("  " + _("(dry run, so nothing was changed)"))
             return
@@ -4618,6 +4877,7 @@ def main():
                  "what": pgettext("between words in a list", ", ").join(
                      words[w] for w in dict.fromkeys(done)) or _("nothing to do")})
         say_skipped()
+        particle_check()
     except OSError as e:
         # a file locked, read-only or out of room: said as the other stops are
         raise SystemExit("  ** " + _("Stopped: %s. Run play.bat again.") % e + " **")

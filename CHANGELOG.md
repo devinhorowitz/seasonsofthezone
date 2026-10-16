@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **A launch that would crash on a particle is stopped.** A script that makes particles
+  outside its functions makes them as a save loads, and one the game doesn't have crashes
+  it (`Particle effect or group doesn't exist`). INVERNO 1.09's snowfall does this: with its
+  script in a mod on all year and its particles only in the seasonal one, every launch
+  outside the winters crashed. Once the season is staged, `play.bat` now looks for particles
+  such a script needs that only mods off for the launch have. It names the script, its mod
+  and the particles, says to copy `gamedata\particles` into the mod with the script, and
+  stops before the launch; `season.py status` says the same. With no loose `particles.xr`
+  the game's own may have them, so it only warns.
+
 ## 2.7.2 — 2026-10-16
 
 - **configure.bat takes the rain out.** The Seasonal mods step has *Rain in the winters*: a

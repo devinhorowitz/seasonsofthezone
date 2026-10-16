@@ -1472,6 +1472,25 @@ msgid "Fine if that is the intent; if not, make %(mod)s win over \"%(other)s\" i
 msgstr ""
 
 #: season.py
+#, python-format
+msgid "%(script)s, in \"%(mod)s\", makes a particle effect as a save loads that only mods off for this launch have: %(names)s. The game crashes on it (\"Particle effect or group doesn't exist\")."
+msgid_plural "%(script)s, in \"%(mod)s\", makes %(n)d particle effects as a save loads that only mods off for this launch have: %(names)s. The game crashes on the first (\"Particle effect or group doesn't exist\")."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "%(script)s, in \"%(mod)s\", makes a particle effect as a save loads that only mods off for this launch have: %(names)s. Unless the game's own particles.xr has it, the game crashes on it."
+msgid_plural "%(script)s, in \"%(mod)s\", makes %(n)d particle effects as a save loads that only mods off for this launch have: %(names)s. Unless the game's own particles.xr has them, the game crashes on the first."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "Copy gamedata\\particles from %(holders)s into \"%(mod)s\", the mod with the script, so the game has them whenever it loads the script."
+msgstr ""
+
+#: season.py
 msgid "This does not look like a Mod Organizer install."
 msgstr ""
 
@@ -1875,6 +1894,10 @@ msgid "%(season)s: %(n)d texture set skipped; the ! lines above say why."
 msgid_plural "%(season)s: %(n)d texture sets skipped; the ! lines above say why."
 msgstr[0] ""
 msgstr[1] ""
+
+#: season.py
+msgid "Stopped before the launch: the game would crash as the save loads. Fix it as the lines above say, then run play.bat again."
+msgstr ""
 
 #: season.py
 #, python-format

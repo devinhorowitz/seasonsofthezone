@@ -1508,6 +1508,27 @@ msgid "Fine if that is the intent; if not, make %(mod)s win over \"%(other)s\" i
 msgstr "Если так и задумано, всё в порядке; если нет, сделайте в configure.bat так, чтобы %(mod)s перекрывал \"%(other)s\"."
 
 #: season.py
+#, python-format
+msgid "%(script)s, in \"%(mod)s\", makes a particle effect as a save loads that only mods off for this launch have: %(names)s. The game crashes on it (\"Particle effect or group doesn't exist\")."
+msgid_plural "%(script)s, in \"%(mod)s\", makes %(n)d particle effects as a save loads that only mods off for this launch have: %(names)s. The game crashes on the first (\"Particle effect or group doesn't exist\")."
+msgstr[0] "Скрипт %(script)s из мода \"%(mod)s\" при загрузке сохранения создаёт %(n)d эффект частиц, который есть только в модах, выключенных для этого запуска: %(names)s. Игра на нём вылетает (\"Particle effect or group doesn't exist\")."
+msgstr[1] "Скрипт %(script)s из мода \"%(mod)s\" при загрузке сохранения создаёт %(n)d эффекта частиц, которые есть только в модах, выключенных для этого запуска: %(names)s. Игра вылетает на первом же из них (\"Particle effect or group doesn't exist\")."
+msgstr[2] "Скрипт %(script)s из мода \"%(mod)s\" при загрузке сохранения создаёт %(n)d эффектов частиц, которые есть только в модах, выключенных для этого запуска: %(names)s. Игра вылетает на первом же из них (\"Particle effect or group doesn't exist\")."
+
+#: season.py
+#, python-format
+msgid "%(script)s, in \"%(mod)s\", makes a particle effect as a save loads that only mods off for this launch have: %(names)s. Unless the game's own particles.xr has it, the game crashes on it."
+msgid_plural "%(script)s, in \"%(mod)s\", makes %(n)d particle effects as a save loads that only mods off for this launch have: %(names)s. Unless the game's own particles.xr has them, the game crashes on the first."
+msgstr[0] "Скрипт %(script)s из мода \"%(mod)s\" при загрузке сохранения создаёт %(n)d эффект частиц, который есть только в модах, выключенных для этого запуска: %(names)s. Если в собственном particles.xr игры такого эффекта нет, игра на нём вылетает."
+msgstr[1] "Скрипт %(script)s из мода \"%(mod)s\" при загрузке сохранения создаёт %(n)d эффекта частиц, которые есть только в модах, выключенных для этого запуска: %(names)s. Если в собственном particles.xr игры таких эффектов нет, игра вылетает на первом же из них."
+msgstr[2] "Скрипт %(script)s из мода \"%(mod)s\" при загрузке сохранения создаёт %(n)d эффектов частиц, которые есть только в модах, выключенных для этого запуска: %(names)s. Если в собственном particles.xr игры таких эффектов нет, игра вылетает на первом же из них."
+
+#: season.py
+#, python-format
+msgid "Copy gamedata\\particles from %(holders)s into \"%(mod)s\", the mod with the script, so the game has them whenever it loads the script."
+msgstr "Скопируйте gamedata\\particles из %(holders)s в \"%(mod)s\", мод со скриптом, чтобы эффекты были у игры всякий раз, когда она загружает скрипт."
+
+#: season.py
 msgid "This does not look like a Mod Organizer install."
 msgstr "Это не похоже на установку Mod Organizer."
 
@@ -1925,6 +1946,10 @@ msgid_plural "%(season)s: %(n)d texture sets skipped; the ! lines above say why.
 msgstr[0] "%(season)s: %(n)d набор текстур пропущен; объяснение — в строках с ! выше."
 msgstr[1] "%(season)s: %(n)d набора текстур пропущены; объяснение — в строках с ! выше."
 msgstr[2] "%(season)s: %(n)d наборов текстур пропущено; объяснение — в строках с ! выше."
+
+#: season.py
+msgid "Stopped before the launch: the game would crash as the save loads. Fix it as the lines above say, then run play.bat again."
+msgstr "Остановлено перед запуском: игра вылетела бы при загрузке сохранения. Исправьте, как сказано в строках выше, и запустите play.bat ещё раз."
 
 #: season.py
 #, python-format
