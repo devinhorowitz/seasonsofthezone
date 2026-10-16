@@ -534,13 +534,18 @@ those, put Glossy's own copy in its place with `G_PUDDLES_GLOBAL_SIZE` set to `0
 INVERNO's `settings_screenspace_TERRAIN.h`: it sets the terrain parallax up for INVERNO's
 textures, and Glossy ships no copy of it.
 
-**Ice under your own feet.** The Modded Exes read `gamedata/materials/material_pairs_*.ltx`
-after `gamemtl.xr`, and some sound mods use that to set the player's steps on water to
-splashes: Oleh's MSIG and MovementSFX ship `material_pairs_actor_collide.ltx`, Dark Signal
-Amplified Footsteps ships `material_pairs_water_collide.ltx`. Then NPCs and mutants walk on
-ice and you splash. The files are read in name order, so one more in the ICE mod's own
-folder, named to come last, puts your steps back to ice, and only while the ice is on.
-Save this as `gamedata/materials/material_pairs_zz_ice_actor_steps.ltx` in the ICE mod:
+**Ice under your own feet.** This is for the ICE mod only: Screen Space Shaders' "04 - SSR
+Water - [ ICE VERSION ]" option from the table above, installed as a seasonal mod of its
+own. It is not INVERNO, and GAMMA and ROMEO don't include it. Without it, skip this: the
+file below would only make your own steps in water sound like ice. The Modded Exes read
+`gamedata/materials/material_pairs_*.ltx` after `gamemtl.xr`, and some sound mods use that
+to set the player's steps on water to splashes: Oleh's MSIG and MovementSFX ship
+`material_pairs_actor_collide.ltx`, Dark Signal Amplified Footsteps ships
+`material_pairs_water_collide.ltx`. Then NPCs and mutants walk on ice and you splash. The
+files are read in name order, so one more in the ICE mod's own folder, named to come last,
+puts your steps back to ice, and only while the ice is on. The ICE mod has no `materials`
+folder, so make `gamedata\materials\` in its folder and save this there as
+`material_pairs_zz_ice_actor_steps.ltx`:
 
 ```ini
 @[creatures\actor@materials\water]

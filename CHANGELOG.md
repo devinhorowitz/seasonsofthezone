@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **README: which mod the ice-steps file is for.** *Ice under your own feet* now names Screen
+  Space Shaders' ICE option, which GAMMA and ROMEO don't include, and says to skip the step
+  without it: the file would only make your own steps in water sound like ice. It also says
+  to make the `materials` folder, which the ICE option doesn't have.
+
 ## 2.7.1 — 2026-10-16
 
 - **Rain for gameplay in the winters.** With No Rain in Winter, scripts that use rain for
