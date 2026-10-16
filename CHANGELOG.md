@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.7.1 — 2026-10-16
 
 - **Rain for gameplay in the winters.** With No Rain in Winter, scripts that use rain for
   gameplay read it as dry: NPCs saw as far in a storm, guns jammed no more, campfires burned
