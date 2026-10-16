@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **README: INVERNO with Glossy Puddles Overhaul.** INVERNO's puddle shader header crashes
+  every winter load with Glossy Puddles Overhaul v2.1, which ROMEO ships, once INVERNO sits
+  above it in MO2. The README says to delete that header and keep INVERNO's terrain header;
+  LOAD-ORDER.md points there.
+
 ## 2.7.0 — 2026-10-15
 
 - **Snow, not rain, in the winters.** The snowfall layer snows in the rain and storm

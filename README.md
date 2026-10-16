@@ -505,7 +505,7 @@ a fresh install.
 
 | Mod | Seasons | Notes |
 |---|---|---|
-| [Project I.N.V.E.R.N.O](https://www.moddb.com/mods/stalker-anomaly/addons/inverno-fx), winter textures | `winter`, `winter_snow`, `late_winter` | Terrain, flora and levels. Must win over your grass mod and Atmospherics/SSS; it carries its own shader headers. Make only its textures seasonal: 1.09's base module also holds a cold-survival system whose items stay in saves, and `play.bat` won't switch a mod that holds it. For the survival system, see [seasonal snowfall](#optional-seasonal-snowfall). |
+| [Project I.N.V.E.R.N.O](https://www.moddb.com/mods/stalker-anomaly/addons/inverno-fx), winter textures | `winter`, `winter_snow`, `late_winter` | Terrain, flora and levels. Must win over your grass mod and Atmospherics/SSS; it carries its own shader headers, and with Glossy Puddles Overhaul one of them has to go (see below). Make only its textures seasonal: 1.09's base module also holds a cold-survival system whose items stay in saves, and `play.bat` won't switch a mod that holds it. For the survival system, see [seasonal snowfall](#optional-seasonal-snowfall). |
 | INVERNO's "Partly snowy textures", in its [extras folder](https://drive.google.com/drive/folders/1C2Ny5ULVsHmVEpWImK8dhYzrw8fzTboa) | `winter`, `late_winter` | Patchy ground while the snow arrives and while it melts. Wins over the base INVERNO. |
 | [C Consciousness Grass & Trees](https://www.moddb.com/mods/stalker-anomaly/addons/ccon-grass-n-trees) | `spring` / `summer` / `autumn` / the three winters | Four sets, one entry each; the Dead set covers all three winters, under the snow and through the thaw. Its grass placement does not change with the season, so that part stays mounted year-round and is not a seasonal entry. |
 | [Grizzly's CCon Overhaul](https://www.moddb.com/mods/stalker-anomaly/addons/grizzlys-ccon-overhaul) | `spring` / `summer` / `autumn` / the three winters | A standalone overhaul of C Consciousness, so it replaces it. Install it once per season, naming each install for its season, and give each install one entry; Dead covers all three winters. Each install carries its own grass placement, so the warm ones can take Overgrown (grass on the roads too) while Dead keeps the Default. |
@@ -521,6 +521,18 @@ a fresh install.
 
 The last five come from players' own setups. The extras folder is the Google Drive folder
 INVERNO's ModDB page links to.
+
+**INVERNO with Glossy Puddles Overhaul.** INVERNO's texture part ships
+`gamedata\shaders\r3\settings_screenspace_PUDDLES.h`, written for stock SSS. Glossy Puddles
+Overhaul v2.1, which ROMEO ships, has its own copy, and its terrain shader needs it. Once
+INVERNO sits above Glossy in MO2 (above every footstep mod, say, or freshly installed at the
+top), INVERNO's copy wins, the terrain shader fails to compile, and every winter load
+crashes. There is no crash message; the log's last lines read
+`undeclared identifier 'G_PUDDLES_TERRAIN_EDGE'`. Delete INVERNO's
+`settings_screenspace_PUDDLES.h`, which costs only its smaller winter puddles. To keep
+those, put Glossy's own copy in its place with `G_PUDDLES_GLOBAL_SIZE` set to `0.05f`. Keep
+INVERNO's `settings_screenspace_TERRAIN.h`: it sets the terrain parallax up for INVERNO's
+textures, and Glossy ships no copy of it.
 
 **Ice under your own feet.** The Modded Exes read `gamedata/materials/material_pairs_*.ltx`
 after `gamemtl.xr`, and some sound mods use that to set the player's steps on water to

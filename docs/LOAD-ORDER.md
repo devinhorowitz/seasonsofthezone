@@ -81,7 +81,7 @@ What each wins over on the reference install:
 
 | Mod | Wins over | Why |
 |---|---|---|
-| INVERNO Winter Textures | `388- Aydins Grass Tweaks SSS Terrain LOD Compatibility` | 14 shared `textures/terrain/*_lod_textures.dds`. INVERNO also carries `settings_screenspace_TERRAIN.h` / `_PUDDLES.h`, so it must win over SSS and Atmospherics too, and 388 already does. |
+| INVERNO Winter Textures | `388- Aydins Grass Tweaks SSS Terrain LOD Compatibility` | 14 shared `textures/terrain/*_lod_textures.dds`. INVERNO also carries `settings_screenspace_TERRAIN.h` / `_PUDDLES.h`, so it must win over SSS and Atmospherics too, and 388 already does. With Glossy Puddles Overhaul v2.1, delete its `_PUDDLES.h`, or every winter load crashes (README, *INVERNO with Glossy Puddles Overhaul*). |
 | INVERNO Partly Snowy | `INVERNO Winter Textures` | All 52 of its files are also in base INVERNO; it is an overlay. |
 | Winter PDA Maps | `INVERNO Partly Snowy` | Wins over both INVERNO mods: INVERNO ships its own `textures/ui/ui_global_map.dds` and is on in the same seasons. |
 | PanceRide Summer / Autumn | `388- Aydins …` | Shares no file with 388. It works because 388 wins over Atmospherics, SSS 24 and the Aydin base pack. |
