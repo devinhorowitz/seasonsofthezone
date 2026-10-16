@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.7.0 — 2026-10-15
 
 - **Snow, not rain, in the winters.** The snowfall layer snows in the rain and storm
   weathers, and those weathers kept raining. `configure.py rain --build` makes **No Rain in
