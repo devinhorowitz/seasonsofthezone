@@ -651,9 +651,11 @@ class World(object):
 
 def world(date=(2026, 9, 22), mcm=None, standing=0, surge_left=4 * HOUR, weather="plan",
           cycle="storm", plan=None, period=6, elapsed_h=1.0, observed=False, calendar=None,
-          mods=None, mac=True, units=None, asked=None, strings=None, year=2026):
+          mods=None, mac=True, units=None, asked=None, strings=None, year=2026,
+          snowfall=False, rain_file=None):
     """Every script the mod ships, loaded as X-Ray loads them, over stubs for what they
-    reach for."""
+    reach for. `snowfall` puts the snowfall addon's script on disk; `rain_file` is the rain
+    cycle's first weather file as {hour section: rain_density}, or None for none."""
     w = World()
     # latin-1 hands every byte through as it is: the pages draw the degree sign as \176
     w.lua = lua = LuaRuntime(unpack_returned_tuples=True, encoding="latin-1")
@@ -716,6 +718,11 @@ def world(date=(2026, 9, 22), mcm=None, standing=0, surge_left=4 * HOUR, weather
             calendar if isinstance(calendar, str) else
             "[calendar]\n" + "".join("%s = %s\n" % kv for kv in calendar.items()))
         files[("$game_config$", "season_calendar.ltx")] = path
+    rain_ltx = "environment\\weathers\\w_rain1.ltx"
+    if snowfall:
+        files[("$game_scripts$", "yawm_snowfall.script")] = "yawm_snowfall.script"
+    if rain_file is not None:
+        files[("$game_config$", rain_ltx)] = rain_ltx
     g.getFS = lambda: lua.table_from({
         "exist": lambda self, alias, name: (alias, name) in files,
         "update_path": lambda self, alias, name: files.get((alias, name), name),
@@ -732,7 +739,9 @@ def world(date=(2026, 9, 22), mcm=None, standing=0, surge_left=4 * HOUR, weather
 
     def ini_file(name):
         secs = {"seasons_of_the_zone.ltx": table_ltx, "season_weather.ltx": weather_ltx,
-                "season_mods.ltx": mods or {}}.get(str(name), {})
+                "season_mods.ltx": mods or {},
+                rain_ltx: {h: {"rain_density": v} for h, v in (rain_file or {}).items()},
+                }.get(str(name), {})
 
         def num(self, s, k):
             v = secs.get(s, {}).get(k)

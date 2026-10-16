@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **Rain for gameplay in the winters.** With No Rain in Winter, scripts that use rain for
+  gameplay read it as dry: NPCs saw as far in a storm, guns jammed no more, campfires burned
+  on and the AI's rain conditions never held. Each copy now keeps the rain it took out, and
+  those scripts alone read it back through `level.rain_factor()`, so the rain's sound and
+  drops stay off. Useful Idiots' combat range, which NPC sight goes by in GAMMA, reads it
+  too. Copies made by 2.7.0 are made again at the next launch.
+- **The forecast says what falls.** Atmospherics calls its skies rain and storm all year. In
+  the winters, while the patched snowfall addon snows, the PDA's forecast now reads them Snow
+  and Snowstorm, with their own icons and colors; with No Rain in Winter and no snowfall, a
+  rain sky reads Overcast, and a change to it from overcast isn't listed as one. The
+  barometer still reads the pressure. `sotz_api.weather()` has `falls`: `"rain"`, `"snow"` or
+  `"none"`; the cycle names stay Atmospherics'.
 - **README: INVERNO with Glossy Puddles Overhaul.** INVERNO's puddle shader header crashes
   every winter load with Glossy Puddles Overhaul v2.1, which ROMEO ships, once INVERNO sits
   above it in MO2. The README says to delete that header and keep INVERNO's terrain header;

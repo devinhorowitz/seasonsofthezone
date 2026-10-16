@@ -124,6 +124,36 @@ def g_storm():
     return im
 
 
+def flake(dr, cx, cy, r):
+    """Three strokes crossing: a flake that still reads as one at 34px."""
+    s = SS
+    for i in range(3):
+        a = math.radians(90 + i * 60.0)
+        dx, dy = math.cos(a) * r * s, math.sin(a) * r * s
+        dr.line([(cx - dx, cy - dy), (cx + dx, cy + dy)], fill=ICE, width=int(3.5 * s))
+
+
+def g_snow():
+    """A rain cycle in the winters, when the snowfall addon makes it snow."""
+    im, dr = canvas()
+    cloud(dr, N * SS * 0.50, N * SS * 0.40, 48)
+    for i, x in enumerate((0.33, 0.50, 0.67)):
+        flake(dr, N * SS * x, N * SS * (0.74 if i % 2 == 0 else 0.84), 7)
+    return im
+
+
+def g_snowstorm():
+    """A storm in the winters: the storm's cloud, and snow too thick to see through."""
+    im, dr = canvas()
+    cloud(dr, N * SS * 0.50, N * SS * 0.38, 48, hi=(168, 178, 186, 255),
+          lo=(104, 116, 128, 255))
+    for i, x in enumerate((0.28, 0.42, 0.56, 0.70)):
+        flake(dr, N * SS * x, N * SS * (0.70 if i % 2 == 0 else 0.80), 6)
+    for x in (0.35, 0.63):
+        flake(dr, N * SS * x, N * SS * 0.91, 6)
+    return im
+
+
 def g_frost():
     """Shown when the real Zone's low dips below zero. A six-arm crystal, because a
     snowflake with any more detail than this turns to mush at 34px."""
@@ -161,6 +191,7 @@ def g_arrow():
 GLYPHS = [
     ("clear", g_clear), ("partly", g_partly), ("cloudy", g_cloudy),
     ("foggy", g_foggy), ("rain", g_rain), ("storm", g_storm),
+    ("snow", g_snow), ("snowstorm", g_snowstorm),
     ("frost", g_frost), ("arrow", g_arrow),
 ]
 

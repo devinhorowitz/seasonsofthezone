@@ -9,6 +9,7 @@ weather files with rain_density lines the way Atmospherics writes them.
 import hashlib
 import io
 import os
+import re
 import sys
 import tempfile
 
@@ -63,6 +64,21 @@ def copy_of(mods, f):
     return open(os.path.join(mods, wr.MOD, *wr.WEATHERS, f), "rb").read()
 
 
+def kept_dry(src):
+    """The copy's body as it should be, worked out here: each rain_density over 0 set to 0,
+    its comment kept, and under it the rain it had as sotz_rain_density, '=' in place."""
+    nl = "\r\n" if "\r\n" in src else "\n"
+    out = []
+    for line in src.split(nl):
+        m = re.match(r"^( +rain_density +=  ?)([0-9.]+)( ;.*)?$", line)
+        if m and float(m.group(2)) > 0:
+            out.append(m.group(1) + "0" + (m.group(3) or ""))
+            out.append(m.group(1).replace("rain_density     ", "sotz_rain_density") + m.group(2))
+        else:
+            out.append(line)
+    return nl.join(out)
+
+
 def sha(text):
     return hashlib.sha256(text.encode("latin-1")).hexdigest()
 
@@ -94,12 +110,12 @@ def t_the_winning_rainy_weathers_are_copied_dry():
             got = copy_of(mods, f).decode("latin-1")
             first, body = got.split(nl, 1)
             assert first == wr.head_line(mod, sha(src)), "%s: first line %r" % (f, first)
-            want = (src.replace("= 0.8\n", "= 0\n").replace("= 0.66\r\n", "= 0\r\n")
-                    .replace("= 1\r\n", "= 0\r\n").replace("= 0.5 ;", "= 0 ;")
-                    .replace("= 1 ;", "= 0 ;").replace("= 0.9 ;", "= 0 ;"))
+            assert ", format %d." % wr.FORMAT in first, first
+            want = kept_dry(src)
             assert body == want, "%s: the copy differs beyond its rain\n%r\n%r" % (f, body, want)
             assert ";       rain_density                     = 0.9" in body, "a comment changed"
-            assert body.count("\r\n") == src.count("\r\n"), "%s: line endings changed" % f
+            assert body.count(nl) == src.count(nl) + 2, "%s: not one kept line per change" % f
+            assert "\n" not in body.replace("\r\n", "") or nl == "\n", "line endings mixed"
         names = sorted(os.listdir(os.path.join(mods, wr.MOD, *wr.WEATHERS)))
         assert names == ["w_rain1.ltx", "w_rain5.ltx", "w_storm1.ltx"], (
             "a dry weather, a losing copy or a disabled mod's was copied: %s" % names)
@@ -194,8 +210,29 @@ def t_rain_lines_are_read_as_numbers():
                        ("rain_density = ", False)):
         assert wr.rains(text) is want, "%r read as %s" % (text, not want)
     body, n = wr.dry("a = 1\nrain_density = 0.7 ; wet\nrain_density = 0\n")
-    assert (body, n) == ("a = 1\nrain_density = 0 ; wet\nrain_density = 0\n", 1), (body, n)
-    return "zero, blank, commented and longer keys don't rain; one line changed"
+    assert (body, n) == ("a = 1\nrain_density = 0 ; wet\nsotz_rain_density = 0.7\n"
+                         "rain_density = 0\n", 1), (body, n)
+    assert not wr.rains(body), "the kept rain counts as rain"
+    return "zero, blank, commented and longer keys don't rain; one line changed, its rain kept"
+
+
+@case
+def t_an_older_format_is_made_again():
+    with tempfile.TemporaryDirectory() as d:
+        mods = tree(d, LAYOUT)
+        wr.build(mods, ORDER)
+        p = os.path.join(mods, wr.MOD, *wr.WEATHERS, "w_rain5.ltx")
+        raw = open(p, "rb").read().decode("latin-1")
+        first, rest = raw.split("\r\n", 1)
+        old = first.replace(", format %d." % wr.FORMAT, ".")
+        assert old != first, "no format on the first line"
+        open(p, "wb").write((old + "\r\n" + rest).encode("latin-1"))
+        assert wr.made(mods)["w_rain5.ltx"][3] == 1, "a line without a format is not format 1"
+        assert wr.stale(mods, ORDER) == ([], ["w_rain5.ltx"], []), wr.stale(mods, ORDER)
+        wr.build(mods, ORDER)
+        assert wr.made(mods)["w_rain5.ltx"][3] == wr.FORMAT
+        assert wr.stale(mods, ORDER) == ([], [], []), "still stale after the rebuild"
+    return "a 2.7.0 copy reads as changed, and the build brings it to format %d" % wr.FORMAT
 
 
 # --- configure.py rain and play.bat, run as shipped against a scratch install -------------

@@ -47,16 +47,18 @@ local function tex(name)
     return (name:gsub("%.dds$", ""))
 end
 
--- Atmospherics' internal cycle names, as a stalker would say them. Snow is the real
--- weather's, which tomorrow's row can carry; a cycle not listed shows under its own name.
+-- Atmospherics' internal cycle names, as a stalker would say them, and the skies sky()
+-- turns rain and storm into. Snow is also the real weather's, which tomorrow's row can
+-- carry; a cycle not listed shows under its own name.
 local CYCLE = {
-    clear   = "st_sotz_sky_clear",
-    partly  = "st_sotz_sky_partly",
-    cloudy  = "st_sotz_sky_cloudy",
-    foggy   = "st_sotz_sky_foggy",
-    rain    = "st_sotz_sky_rain",
-    storm   = "st_sotz_sky_storm",
-    snow    = "st_sotz_sky_snow",
+    clear     = "st_sotz_sky_clear",
+    partly    = "st_sotz_sky_partly",
+    cloudy    = "st_sotz_sky_cloudy",
+    foggy     = "st_sotz_sky_foggy",
+    rain      = "st_sotz_sky_rain",
+    storm     = "st_sotz_sky_storm",
+    snow      = "st_sotz_sky_snow",
+    snowstorm = "st_sotz_sky_snowstorm",
 }
 
 local function cycle_name(c)
@@ -65,12 +67,42 @@ local function cycle_name(c)
     return c:sub(1, 1):upper() .. c:sub(2)
 end
 
--- The glyph for each Atmospherics cycle. Anything the engine hands back that is not in
--- here falls to cloudy rather than drawing nothing, because a blank square next to an
--- arrow reads as a bug.
+-- The sky a cycle brings, by what falls in rain and storm now (forecast_page's `falls`):
+-- in the winters the snowfall addon makes them snow and a snowstorm, and with their rain
+-- taken out and nothing in its place a rain cycle is an overcast sky. The barometer still
+-- reads the cycle itself: the pressure is the same whatever falls.
+local function sky(cycle, falls)
+    cycle = tostring(cycle or "")
+    if cycle == "rain" then
+        return (falls == "snow" and "snow") or (falls == "none" and "cloudy") or cycle
+    elseif cycle == "storm" then
+        return falls == "snow" and "snowstorm" or cycle
+    end
+    return cycle
+end
+
+-- The changes the player can see, in order: one whose sky reads the same as the sky
+-- before it is dropped, since with the rain taken out, cloudy to rain is overcast to
+-- overcast.
+local function visible(now, changes, falls)
+    local kept, prev = {}, sky(now, falls)
+    for _, seg in ipairs(changes) do
+        local s = sky(seg.cycle, falls)
+        if s ~= prev then
+            kept[#kept + 1] = seg
+            prev = s
+        end
+    end
+    return kept
+end
+
+-- The glyph for each sky. Anything the engine hands back that is not in here falls to
+-- cloudy rather than drawing nothing, because a blank square next to an arrow reads as a
+-- bug.
 local WX_GLYPH = {
     clear = "sotz_wx_clear", partly = "sotz_wx_partly", cloudy = "sotz_wx_cloudy",
     foggy = "sotz_wx_foggy", rain = "sotz_wx_rain",     storm  = "sotz_wx_storm",
+    snow  = "sotz_wx_snow",  snowstorm = "sotz_wx_snowstorm",
 }
 
 local function wx_tex(cycle)
@@ -99,6 +131,8 @@ local CYCLE_RGB = {
     foggy  = {132, 142, 140},
     rain   = {104, 126, 148},
     storm  = { 74,  94, 120},
+    snow   = {196, 210, 224},
+    snowstorm = {124, 142, 168},
 }
 
 -- The coarse tier's whole job is to warn without timing. These are what a reading relayed
@@ -215,18 +249,21 @@ end
 
 -- The stock odds, summed the way a forecast states them: wet first, because "will it rain"
 -- is the question. Each group is named by the skies in it that can still come, so a group
--- with one possible sky says just that one.
+-- with one possible sky says just that one. The skies are sky()'s, so in the winters the
+-- wet group is snow, and a rain cycle with its rain taken out counts as gray.
 local ODDS_GROUPS = {
-    {"st_sotz_sky_wet",  {"rain", "storm"}},
+    {"st_sotz_sky_wet",  {"rain", "storm", "snow", "snowstorm"}},
     {"st_sotz_sky_gray", {"cloudy", "foggy"}},
     {"st_sotz_sky_fair", {"clear", "partly"}},
 }
+-- the wet group's name when both of its skies can come, by what falls
+local WET_NAME = {snow = "st_sotz_sky_wet_snow", none = "st_sotz_sky_storm"}
 
-local function odds_rows(odds)
+local function odds_rows(odds, falls)
     if not (odds and #odds > 0) then return nil end
     local p = {}
     for _, o in ipairs(odds) do
-        local c = tostring(o.cycle)
+        local c = sky(o.cycle, falls)
         p[c] = (p[c] or 0) + (o.chance or 0)
     end
     local rows, grouped = {}, {}
@@ -239,7 +276,8 @@ local function odds_rows(odds)
                 names[#names + 1] = cycle_name(c)
             end
         end
-        rows[i] = {label = (#names == 1) and names[1] or sotz_text.text(g[1]),
+        local name = (i == 1 and WET_NAME[tostring(falls)]) or g[1]
+        rows[i] = {label = (#names == 1) and names[1] or sotz_text.text(name),
                    chance = sum}
     end
     -- a sky outside the three groups is still a chance of something; count it as gray
@@ -819,7 +857,7 @@ function SeasonsForecast:DrawChart(d, temp, shown)
     -- window, then nothing. Drawing it to the edge would say "this all day", which is the
     -- one thing the stock manager is certain NOT to do.
     if w and w.source == "stock" then
-        local c = CYCLE_RGB[tostring(w.now)] or CYCLE_RGB.cloudy
+        local c = CYCLE_RGB[sky(w.now, w.falls)] or CYCLE_RGB.cloudy
         local lo = math.min((w.window and w.window.lo) or 0, SPAN_MIN)
         local hi = math.min((w.window and w.window.hi) or 0, SPAN_MIN)
         if lo > 0 then
@@ -843,7 +881,7 @@ function SeasonsForecast:DrawChart(d, temp, shown)
             marks[#marks + 1] = {from = at, to = SPAN_MIN, cycle = cur}
         end
         for _, m in ipairs(marks) do
-            local c = CYCLE_RGB[tostring(m.cycle)] or CYCLE_RGB.cloudy
+            local c = CYCLE_RGB[sky(m.cycle, w.falls)] or CYCLE_RGB.cloudy
             self:Bar(px(m.from), RIBBON_Y, px(m.to) - px(m.from), RIBBON_H,
                      c[1], c[2], c[3], 235)
         end
@@ -991,16 +1029,21 @@ function SeasonsForecast:Fill()
     -- when MCM asks for exact. The glyph, the rows and the ribbon all read it, so they
     -- cannot disagree.
     local shown = w and (((w.exact or not w.forecast) and w.segments) or w.forecast)
+    -- the plan itself, or a forecaster's calls on it; each has its own sentences
+    local planned = (shown == (w and w.segments))
+    if shown then shown = visible(w.now, shown, w.falls) end
     local nxt = shown and shown[1]
     if self.wx_now then
-        pcall(function() self.wx_now:InitTexture(wx_tex(w and w.now)) end)
+        pcall(function() self.wx_now:InitTexture(wx_tex(w and sky(w.now, w.falls))) end)
         self.wx_now:Show(w ~= nil)
     end
-    put(self.wx_now_label, w and cycle_name(w.now) or "")
+    put(self.wx_now_label, w and cycle_name(sky(w.now, w.falls)) or "")
 
     if self.wx_arrow then self.wx_arrow:Show(nxt ~= nil) end
     if self.wx_next then
-        if nxt then pcall(function() self.wx_next:InitTexture(wx_tex(nxt.cycle)) end) end
+        if nxt then
+            pcall(function() self.wx_next:InitTexture(wx_tex(sky(nxt.cycle, w.falls))) end)
+        end
         self.wx_next:Show(nxt ~= nil)
     end
     -- how sure the call is, beside its glyph the way a TV forecast shows it; the plan
@@ -1010,8 +1053,8 @@ function SeasonsForecast:Fill()
     -- window, and saying "settled" would promise a sky that is certain to change.
     local next_text = ""
     if nxt then
-        next_text = sotz_text.text("st_sotz_fc_next", {sky = cycle_name(nxt.cycle),
-                                                       when = lead(nxt.away)})
+        next_text = sotz_text.text("st_sotz_fc_next", {
+            sky = cycle_name(sky(nxt.cycle, w.falls)), when = lead(nxt.away)})
     elseif w and w.source == "stock" then
         next_text = window_text(w.window)
     elseif w then
@@ -1045,14 +1088,12 @@ function SeasonsForecast:Fill()
     -- The next change is already stated under the glyphs, so the list starts after it.
     -- Stock weather draws the next sky at random when it turns, so its section is the
     -- odds of each, which are exact.
-    local odds = (w and w.source == "stock") and odds_rows(w.odds) or nil
-    -- the plan itself, or a forecaster's calls on it; each has its own sentences
-    local planned = (shown == (w and w.segments))
+    local odds = (w and w.source == "stock") and odds_rows(w.odds, w.falls) or nil
     self:Head(1, sotz_text.text(odds and "st_sotz_fc_next_sky" or "st_sotz_fc_next_24h"))
     if shown and #shown > 1 then
         for i = 2, #shown do
             local seg = shown[i]
-            self:Put(1, {{0, seg.at}, {76, cycle_name(seg.cycle)},
+            self:Put(1, {{0, seg.at}, {76, cycle_name(sky(seg.cycle, w.falls))},
                          {184, seg.chance and percent(seg.chance) or ""},
                          {232, lead(seg.away)}})
         end

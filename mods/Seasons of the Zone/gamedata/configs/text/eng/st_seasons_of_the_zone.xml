@@ -114,8 +114,10 @@
 	<string id="st_sotz_sky_rain"><text>Rain</text></string>
 	<string id="st_sotz_sky_storm"><text>Storm</text></string>
 	<string id="st_sotz_sky_snow"><text>Snow</text></string>
+	<string id="st_sotz_sky_snowstorm"><text>Snowstorm</text></string>
 	<!-- the odds for the next sky, in three groups -->
 	<string id="st_sotz_sky_wet"><text>Rain or storm</text></string>
+	<string id="st_sotz_sky_wet_snow"><text>Snow or snowstorm</text></string>
 	<string id="st_sotz_sky_gray"><text>Overcast or fog</text></string>
 	<string id="st_sotz_sky_fair"><text>Clear or partly cloudy</text></string>
 	<!-- the degree sign comes from the game: "12" and the unit read as 12 degrees C -->

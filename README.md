@@ -694,6 +694,13 @@ the thaw, keeps its rain. `play.bat` makes it again when one of those weathers c
 an Atmospherics update would, and keeps it above them in MO2. `configure.py rain` shows what
 it copies; `rain --off` takes it off the calendar and disables it.
 
+The PDA's forecast says what falls: while the patched addon snows, a rain sky reads Snow and
+a storm Snowstorm, and with only No Rain in Winter, a rain sky reads Overcast.
+
+Gameplay that goes by rain still feels it: NPCs' shorter sight in a storm, guns jamming,
+campfires and the AI taking cover. Each copy keeps the rain it took out, and Seasons of the
+Zone hands it to those scripts alone, so the rain's sound and drops stay off.
+
 ---
 
 ## Optional: color grade presets

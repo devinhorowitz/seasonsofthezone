@@ -419,6 +419,22 @@ line saying to run `rain --build` to keep it so. A weather in MO2's overwrite fo
 over every mod and rains all the same; `rain` says so. DLTX can't do this: the game loads
 every `.ltx` in the weathers folder as a weather of its own.
 
+**Rain for gameplay (2.7.1).** Scripts read the rain with `level.rain_factor()`, and with the
+rain taken out it reads 0. So each copy keeps what it had, as `sotz_rain_density` on the line
+under each zeroed `rain_density`; the engine never reads that key. At each load Seasons of
+the Zone gives a `level` of their own to the scripts that use rain for gameplay, and their
+`rain_factor()` reads it back, blended across the hour: `xr_combat_ignore` (NPCs see less far
+in a storm), `arti_jamming` (rain jams guns), `bind_campfire`, `xr_conditions` (the AI's rain
+conditions), and Stealth Overhaul Reworked's `stealth_noise` and `visual_memory_manager`.
+Useful Idiots replaces `xr_combat_ignore`'s enemy check with its own, loaded with `require`,
+so the functions of `illish.patches.xr_combat_ignore` get that `level` too; in GAMMA, NPC
+sight goes by that one. A script whose loose file never mentions `rain_factor` is left
+alone, since another mod's copy of the same name may not read rain. The log says which it
+reached ("rain for gameplay through: ..."). Everything else, the engine included, still
+sees no rain, so rain's sound, puddles and drops stay off. Immersive Identification's
+weather takes `level` from `_G` itself, and reads the dry value. A copy made by 2.7.0 has
+no kept rain; `play.bat` makes it again.
+
 ---
 
 ## `CALENDAR`

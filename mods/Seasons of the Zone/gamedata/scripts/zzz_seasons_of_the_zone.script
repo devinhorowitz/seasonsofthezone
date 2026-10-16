@@ -1161,6 +1161,173 @@ function snow_factor()
     return v
 end
 
+-- What the rain and storm cycles bring now: "rain", "snow" or "none". Atmospherics names
+-- its cycles for summer. In the winters the snowfall addon (yawm_snowfall, with this mod's
+-- layer) snows in them while snow_factor() is over its thinnest snow, and No Rain in Winter,
+-- which play.bat switches on then, takes their rain out; with neither, it rains. The rain
+-- is read off the cycle's first weather file, the copy MO2 serves, once a load.
+local SNOWS_OVER = 0.02             -- the snowfall layer's own floor for its flakes
+local wet_weather = nil             -- does the rain cycle's weather rain, once a load
+
+local function rain_cycle_rains()
+    if wet_weather ~= nil then return wet_weather end
+    wet_weather = true
+    pcall(function()
+        for i = 1, 9 do
+            local f = "environment\\weathers\\w_rain" .. i .. ".ltx"
+            if getFS():exist("$game_config$", f) then
+                local ini = ini_file(f)
+                local wet = false
+                for h = 0, 23 do
+                    local sec = string.format("%02d:00:00", h)
+                    if ini:section_exist(sec) and (ini:r_float_ex(sec, "rain_density") or 0) > 0 then
+                        wet = true
+                        break
+                    end
+                end
+                wet_weather = wet
+                return
+            end
+        end
+    end)
+    return wet_weather
+end
+
+function falls()
+    local ok, snowing = pcall(function()
+        return getFS():exist("$game_scripts$", "yawm_snowfall.script")
+            and snow_factor() > SNOWS_OVER
+    end)
+    if ok and snowing then return "snow" end
+    return rain_cycle_rains() and "rain" or "none"
+end
+
+-- --- the rain gameplay still goes by ------------------------------------------------------
+--
+-- With No Rain in Winter, level.rain_factor() reads 0 in a winter storm, and the scripts that
+-- use rain for gameplay act as if it were dry: NPCs see as far in a storm (xr_combat_ignore),
+-- guns jam no more (arti_jamming), campfires burn on (bind_campfire), the AI's rain
+-- conditions never hold (xr_conditions). Each copy keeps the rain it took out as
+-- sotz_rain_density, so those scripts, and only those, get a `level` of their own whose
+-- rain_factor() reads it back. Every other script reads the real level, so rain's sound and
+-- drops stay off. A script that takes `level` from _G itself (Immersive Identification's
+-- weather) can't be reached this way, and reads the dry value.
+local WET_READERS = {"xr_combat_ignore", "arti_jamming", "bind_campfire", "xr_conditions",
+                     "stealth_noise", "visual_memory_manager"}
+-- Gameplay readers loaded with require, which run in _G: Useful Idiots' combat range, which
+-- replaces xr_combat_ignore.is_enemy, so in GAMMA it is the one NPC sight goes by.
+local WET_MODULES = {{"illish.patches.xr_combat_ignore", "illish\\patches\\xr_combat_ignore.lua"}}
+local real_rain_factor = level and level.rain_factor
+local kept_rows = {}                -- weather name -> its sections' kept rain, or false
+local wet_value, wet_until = 0, 0
+
+-- A weather's sections in time order with the rain each kept, read once a load; false
+-- when the file holds no kept rain, as every weather does but No Rain in Winter's copies.
+local function kept_table(weather)
+    if kept_rows[weather] ~= nil then return kept_rows[weather] end
+    kept_rows[weather] = false
+    pcall(function()
+        local f = "environment\\weathers\\" .. weather .. ".ltx"
+        if not getFS():exist("$game_config$", f) then return end
+        local ini = ini_file(f)
+        local rows, kept = {}, false
+        ini:section_for_each(function(sec)
+            local h, m, s = string.match(sec, "^(%d+):(%d+):(%d+)$")
+            if h then
+                local v = ini:r_float_ex(sec, "sotz_rain_density")
+                kept = kept or v ~= nil
+                rows[#rows + 1] = {at = tonumber(h) * 3600 + tonumber(m) * 60 + tonumber(s),
+                                   rain = v or 0}
+            end
+        end)
+        if kept then
+            table.sort(rows, function(a, b) return a.at < b.at end)
+            kept_rows[weather] = rows
+        end
+    end)
+    return kept_rows[weather]
+end
+
+-- The rain the current weather's copy kept, now: blended between the sections on either
+-- side of the hour, as the engine blends them. nil for a weather that is not a copy.
+local function kept_now()
+    local w = level.get_weather()
+    local rows = w and kept_table(w)
+    if not rows then return nil end
+    local t = level.get_time_hours() * 3600 + level.get_time_minutes() * 60
+    local at = 0
+    for i = 1, #rows do
+        if rows[i].at <= t then at = i end
+    end
+    local a = rows[at > 0 and at or #rows]
+    local b = rows[at % #rows + 1]
+    local span = (b.at - a.at) % 86400
+    if span == 0 then return a.rain end
+    return a.rain + (b.rain - a.rain) * (((t - a.at) % 86400) / span)
+end
+
+-- level.rain_factor() as the gameplay scripts see it: the real rain while any falls, else
+-- the rain the weather's copy kept. Worked out at most every two seconds.
+function wet_rain_factor()
+    local real = real_rain_factor()
+    if real > 0 then return real end
+    local tg = time_global()
+    if tg >= wet_until then
+        wet_until = tg + 2000
+        local ok, v = pcall(kept_now)
+        wet_value = (ok and v and v > 0) and v or 0
+    end
+    return wet_value > 0 and wet_value or real
+end
+
+-- Whether a script file's text reads rain_factor, as another mod's copy of the same name
+-- may not. A file that can't be read (packed in a .db) counts as one that does.
+local function reads_rain(file)
+    local ok, src = pcall(function()
+        local f = io.open(getFS():update_path("$game_scripts$", file), "rb")
+        if not f then return nil end
+        local s = f:read("*a")
+        f:close()
+        return s
+    end)
+    return not (ok and src) or src:find("rain_factor", 1, true) ~= nil
+end
+
+-- Each gameplay script on disk gets its own `level`, the real one but for rain_factor; each
+-- function of a module loaded with require gets an environment that is _G but for `level`.
+-- Returns the names it reached; a script that set a `level` of its own is left alone.
+function wet_readers()
+    if not real_rain_factor then return {} end
+    local own = setmetatable({rain_factor = wet_rain_factor}, {__index = level})
+    local done = {}
+    for _, name in ipairs(WET_READERS) do
+        pcall(function()
+            if not getFS():exist("$game_scripts$", name .. ".script") then return end
+            if not reads_rain(name .. ".script") then return end
+            local env = _G[name]
+            if type(env) == "table" and rawget(env, "level") == nil then
+                env.level = own
+                done[#done + 1] = name
+            end
+        end)
+    end
+    local wet_env = setmetatable({level = own}, {__index = _G, __newindex = _G})
+    for _, m in ipairs(WET_MODULES) do
+        pcall(function()
+            local mod = package.loaded[m[1]]
+            if type(mod) ~= "table" or not reads_rain(m[2]) then return end
+            local n = 0
+            for _, f in pairs(mod) do
+                if type(f) == "function" and getfenv(f) == _G and pcall(setfenv, f, wet_env) then
+                    n = n + 1
+                end
+            end
+            if n > 0 then done[#done + 1] = m[1] end
+        end)
+    end
+    return done
+end
+
 
 -- The current blend as a weight per season, summing to 1, for other seasonal effects
 -- (seeds in spring, leaves in autumn). Cached: called every frame.
@@ -3109,7 +3276,7 @@ function forecast_page()
         pcall(function()
             local wm = level_weathers.get_weather_manager()
             if not (wm and wm.cycle) then return end
-            local w = {now = wm.cycle, segments = {}, source = "stock"}
+            local w = {now = wm.cycle, segments = {}, source = "stock", falls = falls()}
             local okp, len = pcall(function()
                 return ui_options.get("video/weather/" .. tostring(wm.cycle) .. "_period")
             end)
@@ -3137,7 +3304,7 @@ function forecast_page()
         if not (wm and wm.day_plan and wm.abs_schedule_minute) then return end
 
         local now = wm:abs_schedule_minute()
-        local w   = {now = wm.cycle, segments = {}, source = "plan"}
+        local w   = {now = wm.cycle, segments = {}, source = "plan", falls = falls()}
         local last = wm.cycle
         for i = (wm.day_plan_index or 1), #wm.day_plan do
             local seg = wm.day_plan[i]
@@ -3168,4 +3335,6 @@ function on_game_start()
     RegisterScriptCallback("on_option_change", on_option_change)
     say(string.format("armed - re-assert %ds, calendar re-check %dmin",
         CHECK_MS / 1000, DATE_MS / 60000))
+    local wet = wet_readers()
+    if #wet > 0 then say("rain for gameplay through: " .. table.concat(wet, ", ")) end
 end

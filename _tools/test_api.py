@@ -25,17 +25,21 @@ HOUR = 3600
 
 def build(hour=12.0, cycle="clear", month=None, day=15, standing=900,
           surge_left=4 * HOUR, psi_left=9 * HOUR, clock_ms=0, observed=None,
-          units=None):
+          units=None, level_extra=None):
+    """`level_extra` adds functions to `level` before the scripts load, as the engine's are
+    there when they do."""
     lua = LuaRuntime(unpack_returned_tuples=True)
     g = lua.globals()
 
     g.printf = lambda *a: None
     g.time_global = lambda: clock_ms
-    g.level = lua.table_from({
+    lv = {
         "get_time_hours": lambda: int(hour),
         "get_time_minutes": lambda: int(round((hour - int(hour)) * 60)),
         "name": lambda: "l01_escape",
-    })
+    }
+    lv.update(level_extra or {})
+    g.level = lua.table_from(lv)
     g.db = lua.table_from({"actor": lua.table_from({"id": lambda self: 0})})
     g.relation_registry = lua.table_from({
         "community_goodwill": lambda faction, aid: standing})
@@ -205,6 +209,27 @@ def t_weather_compresses():
     assert ss < cs, (cs, ss)
     assert F(storm, "high") < F(clear, "high"), (clear, storm)
     return "storm narrows the swing %d -> %d and cools the day" % (cs, ss)
+
+
+def t_weather_says_what_falls():
+    """weather().falls is what the rain and storm cycles bring, read across the two files
+    the way the engine resolves them; the cycle names stay Atmospherics' either way."""
+    def read(addon, factor, dry):
+        lua, g = build(hour=12.0, cycle="clear")
+        g.getFS = lambda: lua.table_from({"exist": lambda self, alias, name: (
+            addon if name == "yawm_snowfall.script" else name.endswith("w_rain1.ltx"))})
+        hours = {"12:00:00": 0.0 if dry else 0.7}
+        weather = lua.table_from({"section_exist": lambda self, s: s in hours,
+                                  "r_float_ex": lambda self, s, k: hours.get(s)})
+        others = g.ini_file
+        g.ini_file = lambda name: weather if "w_rain1" in str(name) else others(name)
+        g.zzz_seasons_of_the_zone.snow_factor = lambda: factor
+        w = g.sotz_api.weather()
+        return F(w, "falls"), F(w, "now"), F(F(w, "next"), "cycle")
+    assert read(True, 1.0, False) == ("snow", "clear", "rain"), read(True, 1.0, False)
+    assert read(False, 1.0, True) == ("none", "clear", "rain"), read(False, 1.0, True)
+    assert read(True, 0.0, False) == ("rain", "clear", "rain"), read(True, 0.0, False)
+    return "snow, none and rain come through; the next cycle is still called rain"
 
 
 def t_model_is_labelled():
@@ -545,6 +570,7 @@ CASES = [
     ("seasonal", t_seasonal),
     ("month blend", t_month_blend),
     ("weather swing", t_weather_compresses),
+    ("what falls", t_weather_says_what_falls),
     ("model labelled", t_model_is_labelled),
     ("blowout fraction", t_blowout_fraction),
     ("fraction moves", t_blowout_fraction_moves),

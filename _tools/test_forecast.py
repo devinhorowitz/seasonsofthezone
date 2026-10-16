@@ -973,6 +973,117 @@ def t_stock_odds_rows():
     return "odds read wet, gray, fair, each named by the skies that can still come"
 
 
+def wet(lua, g, addon=True, factor=1.0, file=True, rain=(0.0, 0.6)):
+    """The engine as falls() reads it: the snowfall addon's script on disk or not, the
+    season's snow factor, and the rain cycle's first weather file with rain_density at two
+    hours (`rain`), or none."""
+    def exist(self, alias, name):
+        if name == "yawm_snowfall.script":
+            return addon
+        return file and name.endswith("w_rain1.ltx")
+    g.getFS = lambda: lua.table_from({"exist": exist})
+    hours = {"06:00:00": rain[0], "12:00:00": rain[1]}
+    g.ini_file = lambda path: lua.table_from({
+        "section_exist": lambda self, sec: sec in hours,
+        "r_float_ex": lambda self, sec, key: hours[sec] if key == "rain_density" else None,
+    })
+    g.snow_factor = lambda: factor
+
+
+def t_falls_reads_the_season_and_the_weather():
+    def falls(**k):
+        lua, g = build(standing=0, surge_left=HOUR, psi_left=HOUR)
+        wet(lua, g, **k)
+        return g.falls()
+    assert falls() == "snow", "the snowfall addon in deep winter is not snow"
+    assert falls(rain=(0, 0)) == "snow", "snow needs no rain in the weather file"
+    assert falls(factor=0.0) == "rain", "the addon snowed in summer"
+    assert falls(factor=0.02) == "rain", "the addon's own floor counted as snow"
+    assert falls(addon=False) == "rain", "snow with no snowfall addon"
+    assert falls(addon=False, rain=(0, 0)) == "none", "No Rain in Winter's dry weather rained"
+    assert falls(addon=False, rain=(0, 0.01)) == "rain", "one wet hour did not count"
+    assert falls(addon=False, file=False, rain=(0, 0)) == "rain", "no weather file read as dry"
+    lua, g = build(standing=0, surge_left=HOUR, psi_left=HOUR)
+    wet(lua, g, addon=False, rain=(0, 0))
+    g.ini_file = lambda path: lua.table_from({})       # an ini the binding can't read
+    assert g.falls() == "rain", "an unreadable weather file read as dry"
+    # the page carries it, from the planner and from base Anomaly's manager
+    for stock in (False, True):
+        lua, g = build(standing=0, surge_left=HOUR, psi_left=HOUR, stock=stock)
+        wet(lua, g, addon=False, rain=(0, 0))
+        assert field(field(g.forecast_page(), "weather"), "falls") == "none", stock
+    return "snow with the addon over its floor; none from a dry weather file; rain otherwise"
+
+
+def t_the_page_names_what_falls():
+    lua, _, fx = expose("ui_seasons_forecast.script",
+                        ["sky", "visible", "odds_rows", "cycle_name", "wx_tex", "CYCLE_RGB"])
+    for cycle, falls, want in (("rain", "snow", "snow"), ("storm", "snow", "snowstorm"),
+                               ("rain", "none", "cloudy"), ("storm", "none", "storm"),
+                               ("rain", "rain", "rain"), ("rain", None, "rain"),
+                               ("cloudy", "snow", "cloudy"), ("clear", "none", "clear")):
+        assert fx.sky(cycle, falls) == want, (cycle, falls, fx.sky(cycle, falls))
+    assert fx.cycle_name(fx.sky("storm", "snow")) == "Snowstorm"
+    assert fx.cycle_name(fx.sky("rain", "snow")) == "Snow"
+    assert fx.cycle_name(fx.sky("rain", "none")) == "Overcast"
+    assert fx.wx_tex(fx.sky("rain", "snow")) == "sotz_wx_snow"
+    assert fx.wx_tex(fx.sky("storm", "snow")) == "sotz_wx_snowstorm"
+    assert fx.CYCLE_RGB["snow"] and fx.CYCLE_RGB["snowstorm"], "no ribbon color for snow"
+
+    def rows(pairs, falls):
+        t = lua.table_from([lua.table_from({"cycle": c, "chance": p}) for c, p in pairs])
+        return [(r["label"], r["pct"]) for r in seq(fx.odds_rows(t, falls))]
+    got = rows([("rain", .2), ("storm", .2), ("cloudy", .2), ("clear", .4)], "snow")
+    assert got == [("Snow or snowstorm", 40), ("Overcast", 20), ("Clear", 40)], got
+    got = rows([("rain", .25), ("storm", .25), ("foggy", .25), ("clear", .25)], "none")
+    assert got == [("Storm", 25), ("Overcast or fog", 50), ("Clear", 25)], got
+    assert rows([("rain", .5), ("clear", .5)], "none")[0] == ("Storm", 0)
+    assert rows([("clear", .5), ("partly", .5)], "snow")[0] == ("Snow or snowstorm", 0)
+    assert rows([("clear", .5), ("partly", .5)], "rain")[0] == ("Rain or storm", 0)
+
+    def changes(now, cycles, falls):
+        t = lua.table_from([lua.table_from({"cycle": c, "at": i}) for i, c in enumerate(cycles)])
+        return [s["cycle"] for s in seq(fx.visible(now, t, falls))]
+    assert changes("cloudy", ["rain", "storm", "cloudy", "rain"], "none") == ["storm", "cloudy"]
+    assert changes("cloudy", ["rain", "storm", "cloudy", "rain"], "rain") == \
+        ["rain", "storm", "cloudy", "rain"]
+    assert changes("rain", ["cloudy", "storm"], "snow") == ["cloudy", "storm"]
+    return "rain reads snow, storm snowstorm, a dry rain overcast; unseen changes dropped"
+
+
+def t_the_filled_page_says_what_falls():
+    """The page as it fills: the label under each glyph and the rows say what falls, and
+    the control, a summer with the same weather, still says rain."""
+    from test_strings import world, page
+    exact = {"seasons_zone/main/wx_exact": True}       # the plan as is, no wrong calls
+
+    def texts(**k):
+        return [str(t) for t in page(world(mcm=exact, **k), "SeasonsForecast")]
+    sky_words = ("Rain", "Storm", "Snow", "Snowstorm", "Overcast")
+
+    def skies(t):
+        """The sky words on the page: whole labels, and the next one's "Sky, when"."""
+        return sorted({s.split(",")[0] for s in t if s.split(",")[0] in sky_words})
+    deep = (2027, 1, 15)
+    got = skies(texts(date=deep, snowfall=True, rain_file={"12:00:00": 0.7}, cycle="storm",
+                      plan=[(690, "rain"), (1000, "cloudy")]))
+    assert got == ["Overcast", "Snow", "Snowstorm"], got
+    # the rain later in the day, so it is a row of the list, not the next sky
+    got = skies(texts(date=deep, snowfall=True, rain_file={"12:00:00": 0.7}, cycle="storm",
+                      plan=[(690, "cloudy"), (1000, "rain")]))
+    assert got == ["Overcast", "Snow", "Snowstorm"], got
+    t = texts(date=deep, rain_file={"12:00:00": 0.0}, cycle="cloudy",
+              plan=[(690, "rain"), (1000, "storm")])
+    assert skies(t) == ["Overcast", "Storm"], skies(t)
+    # cloudy to a dry rain is no change: the next sky is the storm after it
+    nexts = [s.split(",")[0] for s in t if "," in s and s.split(",")[0] in sky_words]
+    assert nexts == ["Storm"], nexts
+    got = skies(texts(date=(2027, 7, 15), snowfall=True, rain_file={"12:00:00": 0.7},
+                      cycle="storm", plan=[(690, "rain"), (1000, "cloudy")]))
+    assert got == ["Overcast", "Rain", "Storm"], got
+    return "deep winter reads Snowstorm and Snow; a dry rain reads Overcast; summer rains"
+
+
 def t_countdown_text():
     """At CLEARED the panel reads "Emission: <countdown>". A bare "2 hours" there read as
     how long the emission lasts, so every countdown says when."""
@@ -1046,6 +1157,9 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("exact mode", t_forecast_exact_mode),
              ("stock odds", t_stock_odds),
              ("stock odds rows", t_stock_odds_rows),
+             ("what falls", t_falls_reads_the_season_and_the_weather),
+             ("snow on the page", t_the_page_names_what_falls),
+             ("the page filled", t_the_filled_page_says_what_falls),
              ("countdown text", t_countdown_text),
              ("barometer words", t_barometer_language)):
     case(n, f)

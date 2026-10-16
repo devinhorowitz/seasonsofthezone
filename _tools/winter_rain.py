@@ -11,6 +11,13 @@ DLTX can't do it: the game loads every .ltx in the weathers folder as a weather 
 
 Each copy names the mod it was made from and that copy's SHA-256 on its first line, so a
 copy whose source has changed since can be told apart; play.bat makes the mod again then.
+
+Each zeroed line keeps the rain it had on the next line, as sotz_rain_density, which the
+engine never reads (CEnvDescriptor::load reads its keys by name). The game's gameplay
+scripts that go by rain (NPC sight in a storm, weapons jamming, campfires, the AI taking
+cover) read it back through Seasons of the Zone, while rain's sound and drops stay off.
+FORMAT is on the first line too: a copy of an older format reads as changed, and is made
+again.
 """
 import hashlib
 import io
@@ -21,8 +28,11 @@ MOD = "No Rain in Winter (seasonal)"
 WHEN = ("winter", "winter_snow")
 WEATHERS = ("gamedata", "configs", "environment", "weathers")
 MARK = "; Seasons of the Zone: "
-HEAD = re.compile(r'^; Seasons of the Zone: rain off for the winters, from "(.+)", sha256 ([0-9a-f]{64})\.')
+FORMAT = 2
+HEAD = re.compile(r'^; Seasons of the Zone: rain off for the winters, from "(.+)", sha256 '
+                  r'([0-9a-f]{64})(?:, format (\d+))?\.')
 RAIN = re.compile(r"^([ \t]*rain_density[ \t]*=[ \t]*)([^;\r\n]*?)([ \t]*(?:;.*)?)$")
+KEPT = "sotz_rain_density"
 
 META = (
     "[General]\n"
@@ -80,23 +90,36 @@ def rains(text):
     return False
 
 
+def _kept_key(prefix):
+    """A rain_density line's start with the key renamed to KEPT, its '=' left in the same
+    column when the spaces before it allow."""
+    m = re.match(r"^([ \t]*)rain_density( *)(=.*)$", prefix)
+    pad = len(KEPT) - len("rain_density")
+    if m and len(m.group(2)) > pad:
+        return m.group(1) + KEPT + m.group(2)[pad:] + m.group(3)
+    return prefix.replace("rain_density", KEPT, 1)
+
+
 def dry(text):
-    """The weather with every rain_density set to 0, every other character as it was, and
-    the count of lines changed."""
+    """The weather with every rain_density set to 0 and the rain it had kept on the next
+    line as KEPT, every other character as it was, and the count of lines changed."""
     nl = _nl(text)
     out, n = [], 0
     for line in text.split(nl):
         m = RAIN.match(line)
         if m and _value(m.group(2)) not in (None, 0.0):
-            line = m.group(1) + "0" + m.group(3)
+            out.append(m.group(1) + "0" + m.group(3))
+            out.append(_kept_key(m.group(1)) + m.group(2).strip())
             n += 1
+            continue
         out.append(line)
     return nl.join(out), n
 
 
 def head_line(mod, digest):
-    return (MARK + 'rain off for the winters, from "%s", sha256 %s. Made by configure.py rain '
-            '--build; play.bat makes it again when that copy changes.' % (mod, digest))
+    return (MARK + 'rain off for the winters, from "%s", sha256 %s, format %d. Made by '
+            'configure.py rain --build; play.bat makes it again when that copy changes.'
+            % (mod, digest, FORMAT))
 
 
 def _read(path):
@@ -115,8 +138,9 @@ def wanted(mods, order):
 
 
 def made(mods):
-    """{file name lower case: (mod, sha256, file name)} for the copies in this mod now, as
-    their first lines say; a file without that line is not one of ours and is left out."""
+    """{file name lower case: (mod, sha256, file name, format)} for the copies in this mod
+    now, as their first lines say (a line without a format is format 1); a file without
+    that line is not one of ours and is left out."""
     d = os.path.join(mods, MOD, *WEATHERS)
     out = {}
     try:
@@ -130,16 +154,17 @@ def made(mods):
             continue
         m = HEAD.match(first)
         if m:
-            out[f.lower()] = (m.group(1), m.group(2), f)
+            out[f.lower()] = (m.group(1), m.group(2), f, int(m.group(3) or 1))
     return out
 
 
 def stale(mods, order):
     """What a build would change: (new, changed, gone), lists of file names. All empty when
-    the mod is current."""
+    the mod is current. A copy of an older FORMAT counts as changed."""
     want, have = wanted(mods, order), made(mods)
     new = sorted(f for f in want if f not in have)
-    changed = sorted(f for f in want if f in have and have[f][:2] != (want[f][0], want[f][2]))
+    changed = sorted(f for f in want if f in have and (
+        have[f][:2] != (want[f][0], want[f][2]) or have[f][3] != FORMAT))
     gone = sorted(f for f in have if f not in want)
     return new, changed, gone
 
@@ -152,7 +177,7 @@ def build(mods, order):
     d = os.path.join(folder, *WEATHERS)
     os.makedirs(d, exist_ok=True)
     want = wanted(mods, order)
-    for low, (_, _, f) in made(mods).items():
+    for low, (_, _, f, _) in made(mods).items():
         if low not in want:
             os.remove(os.path.join(d, f))
     sources, lines = {}, 0
