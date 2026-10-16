@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **README: five more mods for the winters.** *Mods that work well this way* now lists
+  Winterized Zone's PDA maps, MIDWINTER AURORA's trees, Snow Asphalt, Winter Mutants and
+  Fragger's winter main menu, each with the seasons and the mod it wins over, and what needs
+  fixing first: Snow Asphalt's and Winter Mutants' textures have no mipmaps, and 33 of
+  MIDWINTER AURORA's `.thm` files name bump maps that don't exist. The row for INVERNO's
+  "Partly snowy textures" says which of its textures are leaf litter, and how to keep them
+  out of the thaw.
+
 ## 2.7.4 — 2026-10-16
 
 - **Sleet on the forecast.** Where the snowfall addon snows and the weather still rains, as in
