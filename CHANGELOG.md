@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.7.2 — 2026-10-16
 
 - **configure.bat takes the rain out.** The Seasonal mods step has *Rain in the winters*: a
   box, **Snow, not rain**, that makes No Rain in Winter as `configure.py rain --build` does,
