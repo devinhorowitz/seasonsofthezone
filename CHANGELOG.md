@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **The weather messages wait two minutes.** A new sky is told once it has held for two
+  minutes, not one. Rain that stopped for six game minutes and came back still sent "The rain
+  has stopped." and "Rain is setting in." a minute apart; now it says nothing.
+
 ## 2.8.0 — 2026-10-17
 
 - **PDA messages as the weather turns.** A new switch on MCM's Main page, off as it ships:

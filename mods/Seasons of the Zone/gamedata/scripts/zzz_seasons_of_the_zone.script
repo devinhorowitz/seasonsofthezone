@@ -2887,8 +2887,8 @@ end
 -- With MCM's "PDA messages as the weather turns" on, a PDA message as the sky changes in
 -- play: rain setting in, the sky clearing, snow or sleet starting. Each sky is named as the
 -- Forecast page names it, so a change the page wouldn't show says nothing: cloud to a rain
--- with its rain taken out is overcast either way. A new sky is told once it has held for a
--- minute, so a sky that gives way again at once, rain stopping for a few minutes, says
+-- with its rain taken out is overcast either way. A new sky is told once it has held for two
+-- minutes, so a sky that gives way again soon, rain stopping for a few game minutes, says
 -- nothing. None while an emission or a psi storm plays, none underground, and none for the
 -- sky a game loads under, which the greeting comes in on. Off by default.
 
@@ -2933,7 +2933,7 @@ function weather_message(was, now)
     return table.concat(parts, " ")
 end
 
-local WX_HOLD_MS = 60000           -- how long a new sky holds before it is told
+local WX_HOLD_MS = 120000          -- how long a new sky holds before it is told
 local wx_told = nil                -- the sky last told, or the one a game loads under
 local wx_new, wx_since = nil, 0    -- the sky it is turning to, and since when
 

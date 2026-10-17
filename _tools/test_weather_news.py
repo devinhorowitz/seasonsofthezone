@@ -18,7 +18,7 @@ import test_calendar as tcal                                    # noqa: E402
 
 CASES = []
 ON = {"seasons_zone/main/pda_weather": True}
-HOLD = 60000                # ms a new sky holds before it is told (WX_HOLD_MS)
+HOLD = 120000               # ms a new sky holds before it is told (WX_HOLD_MS)
 
 
 def case(fn):
@@ -119,9 +119,9 @@ def t_the_winters_say_snow_or_sleet():
 
 
 @case
-def t_a_new_sky_is_told_once_it_has_held_a_minute():
+def t_a_new_sky_is_told_once_it_has_held_two_minutes():
     """Atmospherics' planner can stop the rain for a few minutes and bring it back. A new sky
-    is told once it has held for a minute, against the sky last told, so a pause like that
+    is told once it has held for two minutes, against the sky last told, so a pause like that
     says nothing, and a sky that came and went on the way isn't named."""
     tell = sky()
     tell("rain", wait=0)                                # the sky the game loads under
@@ -136,7 +136,25 @@ def t_a_new_sky_is_told_once_it_has_held_a_minute():
     # a minute to the millisecond
     assert tell("partly", wait=HOLD - 1) == []
     assert tell(wait=1) == ["Clouds are gathering."]
-    return "a pause says nothing; told once, a minute on, against the sky last told"
+    return "a pause says nothing; told once, two minutes on, against the sky last told"
+
+
+@case
+def t_the_pause_seen_in_game_says_nothing():
+    """The test game of 2026-10-17: the rain stopped for 63 s, six game minutes, and came back.
+    A one-minute hold still told both; two minutes tells neither."""
+    tell = sky()
+    tell("rain", wait=0)                                # the sky the game loaded under
+    got = []
+    for _ in range(13):                                 # cloudy, seen every 5 s for 60 s
+        tell.clock["t"] += 5000
+        got += tell("cloudy", wait=0)
+    tell.clock["t"] += 3000
+    for _ in range(40):                                 # and the rain back for good
+        got += tell("rain", wait=0)
+        tell.clock["t"] += 5000
+    assert got == [], "the pause was told: %s" % got
+    return "63 s of cloud between rains: nothing"
 
 
 @case
