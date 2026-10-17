@@ -1491,6 +1491,25 @@ msgid "Copy gamedata\\particles from %(holders)s into \"%(mod)s\", the mod with 
 msgstr ""
 
 #: season.py
+#, python-format
+msgid "%(script)s, in \"%(mod)s\", makes particles as a save loads that draw with a texture the game won't find in this launch: %(textures)s. Where they play, the game draws squares."
+msgid_plural "%(script)s, in \"%(mod)s\", makes particles as a save loads that draw with %(n)d textures the game won't find in this launch: %(textures)s. Where they play, the game draws squares."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "Copy %(files)s from \"%(holder)s\", off for this launch, to the same place in \"%(mod)s\", the mod with the script."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "No mod in MO2's list has %(textures)s. It comes with the mod the particles are from: copy it into \"%(mod)s\", the mod with the script."
+msgid_plural "No mod in MO2's list has %(textures)s. They come with the mod the particles are from: copy them into \"%(mod)s\", the mod with the script."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
 msgid "This does not look like a Mod Organizer install."
 msgstr ""
 

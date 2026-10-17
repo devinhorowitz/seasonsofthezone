@@ -582,7 +582,8 @@ one that adds items, trader stock, spawns or objects as it is in MO2, naming the
 `"save_content": True` in its entry switches it anyway. Locations and quest lines it can't
 see: make a mod like that seasonal only on purpose. A script that makes particles as a save
 loads crashes the game without them, so `play.bat` also stops a launch where such a script
-is on and its particles are only in a mod that is off, and names them.
+is on and its particles are only in a mod that is off, and names them. It warns, too, when
+those particles draw with textures the game won't find, which show as squares.
 [CONFIGURING.md](docs/CONFIGURING.md#what-a-mod-leaves-in-saves-save_content) has what it
 looks for, and how to get a save back.
 
@@ -680,8 +681,9 @@ if you want the survival system, keep it in a mod of its own that stays on all y
   `gamedata\textures\ui`, and the three `item_tx4` files in
   `gamedata\textures\usable_items\injectors`. With nothing else in it, the Zone isn't white
   in July. Keep `gamedata\particles` in it: its snowfall script makes those particles as a
-  save loads, and a load without them crashes. `play.bat` stops a launch like that and
-  says what to copy.
+  save loads, and a load without them crashes. Keep the `.db` too, or the snow falls as
+  squares. `play.bat` stops a launch without the particles, warns about one without the
+  textures, and says what to copy.
 
 From there, this mod runs INVERNO by the season: **INVERNO follows the season** on MCM's
 Main page, on by default and shown when INVERNO is installed.

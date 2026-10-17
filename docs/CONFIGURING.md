@@ -290,6 +290,26 @@ that wins. With no loose `particles.xr`, the game's own, inside its `.db` archiv
 have it, so the line starts with `-` and the launch goes ahead. `season.py status` shows
 the same lines. A particle a script makes inside a function, once it runs, isn't checked.
 
+The textures those particles draw with are looked for too. A texture the game can't find
+crashes nothing, but the particles draw as squares where they play, so `play.bat` warns
+and launches:
+
+```
+  - Inverno_snowfall_system.script, in "Project INVERNO mechanics (update)", makes
+    particles as a save loads that draw with 6 textures the game won't find in this
+    launch: grpl\pfx_smoke_a, grpl\pfx_yawm_flake_grid, grpl\pfx_yawm_snowflakes_light
+    and 3 more. Where they play, the game draws squares.
+    Copy db\addons\inverno_textures.db from "INVERNO (seasonal)", off for this launch,
+    to the same place in "Project INVERNO mechanics (update)", the mod with the script.
+```
+
+A texture is there when it is loose under `gamedata\textures` in a mod that is on, in MO2's
+overwrite or in the game's folder, or in a `.db` of a mod that is on or of the game. The
+particles are read from their loose `.pe` and `.pg` files; those of a `particles.xr` come
+with their own textures and aren't. When no mod has a texture, the line says so: it comes
+with the mod the particles are from. When a `.db` it would look in can't be read, it says
+nothing, since that one may have them.
+
 ### Which mod it wins over (`above`)
 
 MO2 gives a shared file to the enabled mod with the highest priority that ships it: the
@@ -741,6 +761,13 @@ make only the part of the mod that changes looks and sounds seasonal, or allow i
 this launch have`.** Copy `gamedata\particles` from the mod the next line names into the
 script's mod, so the particles are there whenever the script is. See [Particles a script
 makes as a save loads](#particles-a-script-makes-as-a-save-loads).
+
+**`- <script>, in "<mod>", makes particles as a save loads that draw with textures the
+game won't find`.** Those particles draw as squares; the launch goes ahead. Copy the file
+the next line names into the script's mod, at the same path: for INVERNO, its
+`db\addons\inverno_textures.db`. When no mod has them, they come with the mod the
+particles are from. See [Particles a script makes as a save
+loads](#particles-a-script-makes-as-a-save-loads).
 
 **`seasons_config.py is not saved as UTF-8`.** Notepad saves as ANSI or UTF-16 when asked
 to; the tools read UTF-8. In Notepad, File > Save as, set Encoding to UTF-8, then Save.

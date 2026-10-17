@@ -4198,6 +4198,51 @@ def launch_order(active, prefs=None, switch=True):
             if l[:1] in ("+", "-")]
 
 
+def _db_archives(folder):
+    """The .db archives under `folder`\\db, which MO2 maps into the game's db folder."""
+    for root, __, files in os.walk(os.path.join(folder, "db")):
+        for f in files:
+            if re.search(r"\.x?db\w*$", f.lower()) and f.lower() != "thumbs.db":
+                yield os.path.join(root, f)
+
+
+def _db_paths(path):
+    """The files the .db `path` holds, by their paths under gamedata, in lower case with
+    backslashes. OSError or ValueError when it can't be read."""
+    out = set()
+    for n in db_files(path):
+        n = n.lower()
+        out.add((n[len("gamedata/"):] if n.startswith("gamedata/") else n).replace("/", "\\"))
+    return out
+
+
+def loaded_particle_calls(layers):
+    """[(script, mod, [(line, name)])] for the scripts the game loads from `layers`,
+    [(mod, folder)] with the winner first, that make particles as a save loads: each the
+    copy the game loads, from `mod`."""
+    found, seen = [], set()
+    for mod, folder in layers:
+        d = os.path.join(folder, "gamedata", "scripts")
+        try:
+            names = sorted(os.listdir(d))
+        except OSError:
+            continue
+        for f in names:
+            low = f.lower()
+            if not low.endswith(".script") or low in seen:
+                continue
+            seen.add(low)
+            try:
+                raw = open(os.path.join(d, f), "rb").read()
+            except OSError:
+                continue
+            hits = (loaded_particles(raw.decode("cp1251", "replace"))
+                    if b"particles_object" in raw else None)
+            if hits:
+                found.append((f, mod, hits))
+    return found
+
+
 def particle_gaps(order):
     """Particles that scripts make as a save loads and only mods that are off have, in the
     mod list `order`, [(name, on)] with the top first: ([(script, mod, [(line, name)],
@@ -4234,45 +4279,22 @@ def particle_gaps(order):
     if not want:
         return [], True
 
-    found, seen = [], set()
-    for mod, folder in layers:
-        d = os.path.join(folder, "gamedata", "scripts")
-        try:
-            names = sorted(os.listdir(d))
-        except OSError:
-            continue
-        for f in names:
-            low = f.lower()
-            if not low.endswith(".script") or low in seen:
-                continue
-            seen.add(low)
-            try:
-                raw = open(os.path.join(d, f), "rb").read()
-            except OSError:
-                continue
-            hits = (loaded_particles(raw.decode("cp1251", "replace"))
-                    if b"particles_object" in raw else None)
-            hits = [(line, n) for line, n in hits or [] if n in want]
-            if hits:
-                found.append((f, mod, hits))
+    found = [(f, mod, [(line, n) for line, n in hits if n in want])
+             for f, mod, hits in loaded_particle_calls(layers)]
+    found = [(f, mod, hits) for f, mod, hits in found if hits]
     if found:
         # a .db in a mod on may hold them, packed
         for __, folder in layers[1:]:
-            for root, __, files in os.walk(os.path.join(folder, "db")):
-                for f in files:
-                    if not re.search(r"\.x?db\w*$", f.lower()) or f.lower() == "thumbs.db":
-                        continue
-                    try:
-                        held = db_files(os.path.join(root, f))
-                    except (OSError, ValueError):
-                        sure = False
-                        continue
-                    for n in held:
-                        n = n.lower()
-                        n = n[len("gamedata/"):] if n.startswith("gamedata/") else n
-                        stem, ext = os.path.splitext(n)
-                        if n.startswith("particles/") and ext in _PARTICLE_EXT:
-                            want.discard(stem[len("particles/"):].replace("/", "\\"))
+            for path in _db_archives(folder):
+                try:
+                    held = _db_paths(path)
+                except (OSError, ValueError):
+                    sure = False
+                    continue
+                for n in held:
+                    stem, ext = os.path.splitext(n)
+                    if n.startswith("particles\\") and ext in _PARTICLE_EXT:
+                        want.discard(stem[len("particles\\"):])
     rank = {name: i for i, (name, __) in enumerate(order)}
     out = []
     for f, mod, hits in found:
@@ -4311,6 +4333,216 @@ def particle_lines(found, sure):
                               "mod with the script, so the game has them whenever it loads "
                               "the script.")
                    % {"holders": _and(["\"%s\"" % h for h in holders]), "mod": mod})
+    return out
+
+
+# --- the textures those particles draw with -------------------------------------------------
+#
+# An effect draws with the texture its [sprite] names when its flags have the sprite bit,
+# and a group draws its effects (CPEDef::Load2 and CPGDef::Load2 in the Modded Exes). A
+# texture the game can't find crashes nothing: the log says "Can't find texture" and the
+# effect draws a stand-in, in squares. INVERNO's snowfall fell as squares that way, for a
+# player whose mod with its particles had no db\addons\inverno_textures.db. So each launch
+# also reads the loose files that define the particles scripts make as a save loads, and
+# looks for their textures where the game does: loose under gamedata\textures, or in a
+# .db. The effects of a particles.xr aren't read; a pack's textures come with it.
+
+_SPRITE = 1                                         # dfSprite: the effect draws a sprite
+_TEXTURE_EXT = (".dds", ".seq", ".ogm", ".avi")     # what CTexture::Load looks for
+
+
+def _ini_sections(path):
+    """A loose .pe or .pg, read as the game reads an .ltx: {section: {key: value}}, the
+    names and keys in lower case. {} for a file that can't be read."""
+    try:
+        with open(path, "rb") as f:
+            text = f.read().decode("cp1251", "replace")
+    except OSError:
+        return {}
+    out, keys = {}, None
+    for line in text.splitlines():
+        s = _ltx_line(line)
+        m = _LTX_HEAD.match(s)
+        if m:
+            keys = out.setdefault(m.group(2).strip().lower(), {})
+        elif keys is not None and "=" in s:
+            k, v = s.split("=", 1)
+            keys[k.strip().lower()] = v.strip()
+    return out
+
+
+def _ini_number(s):
+    try:
+        return int(s)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _particle_file(name, folders, exts=_PARTICLE_EXT):
+    """The loose file that defines particle `name`, from the first of `folders` that has
+    one: an effect (.pe) before a group (.pg), as the game looks a name up. None when no
+    folder has one."""
+    for ext in exts:
+        for folder in folders:
+            p = os.path.join(folder, "gamedata", "particles", *(name + ext).split("\\"))
+            if os.path.isfile(p):
+                return p
+    return None
+
+
+def particle_textures(name, folders):
+    """The textures particle `name` draws with, in lower case, by the loose .pe and .pg
+    files in `folders`, the winner first: an effect's own, and a group's effects'. None
+    when no loose file defines it."""
+    p = _particle_file(name, folders)
+    if p is None:
+        return None
+    effects = [p]
+    if p.lower().endswith(".pg"):
+        ini, effects = _ini_sections(p), []
+        for i in range(_ini_number(ini.get("_group", {}).get("effects_count"))):
+            one = ini.get("effect_%04d" % i, {})
+            for key in ("effect_name", "on_play_child", "on_birth_child", "on_death_child"):
+                pe = one.get(key) and _particle_file(one[key].lower(), folders, (".pe",))
+                if pe:
+                    effects.append(pe)
+    out = []
+    for pe in effects:
+        ini = _ini_sections(pe)
+        sprite = ini.get("sprite", {})
+        if not (_ini_number(ini.get("_effect", {}).get("flags")) & _SPRITE
+                and sprite.get("shader")):
+            continue
+        for t in sprite.get("texture", "").split(","):
+            t = t.strip().lower().replace("/", "\\")
+            stem, ext = os.path.splitext(t)
+            t = stem if ext in (".dds", ".tga", ".bmp", ".ogm") else t     # fix_texture_name
+            if t and t not in out:
+                out.append(t)
+    return out
+
+
+def _loose_textures(folders, textures):
+    """{texture: its file} for those of `textures` that one of `folders` has loose under
+    gamedata\\textures, the file from the first that has it, under its folder."""
+    dirs = {}
+    for t in textures:
+        d, __, f = t.rpartition("\\")
+        dirs.setdefault(d, set()).add(f)
+    out = {}
+    for d, files in dirs.items():
+        rel = os.path.join("gamedata", "textures", *(d.split("\\") if d else []))
+        for folder in folders:
+            try:
+                there = {x.lower(): x for x in os.listdir(os.path.join(folder, rel))}
+            except OSError:
+                continue
+            for f in files:
+                t = d + "\\" + f if d else f
+                hit = next((there[f + ext] for ext in _TEXTURE_EXT if f + ext in there), None)
+                if hit and t not in out:
+                    out[t] = os.path.join(rel, hit)
+    return out
+
+
+def _db_textures(path):
+    """The textures the .db `path` holds, by the names the game asks for them by."""
+    out = set()
+    for n in _db_paths(path):
+        stem, ext = os.path.splitext(n)
+        if n.startswith("textures\\") and ext in _TEXTURE_EXT:
+            out.add(stem[len("textures\\"):])
+    return out
+
+
+def texture_gaps(order):
+    """Textures that the particles scripts make as a save loads draw with and the game won't
+    find, in the mod list `order`, [(name, on)] with the top first: [(script, mod, textures,
+    holders, nowhere)]. Each script is the copy the game loads, from `mod`; `holders` are
+    the mods off that have its textures, [(mod, [file])], each file loose or a .db, under
+    the mod's folder, and `nowhere` the textures no mod has. [] when the game has them all,
+    or when a .db it would look in can't be read, since that one may have them."""
+    layers = ([("overwrite", os.path.join(ROOT, "overwrite"))]
+              + [(name, os.path.join(MODS, name)) for name, on in order if on])
+    folders = [f for __, f in layers] + [game_dir()]
+    uses, drawn = [], {}
+    for f, mod, hits in loaded_particle_calls(layers):
+        tex = []
+        for __, n in hits:
+            if n not in drawn:
+                drawn[n] = particle_textures(n, folders) or []
+            tex += [t for t in drawn[n] if t not in tex]
+        if tex:
+            uses.append((f, mod, tex))
+    missing = {t for __, __, tex in uses for t in tex}
+    missing -= set(_loose_textures(folders, missing))
+    # then in the .db files the game mounts: those of the mods on, and its own, each
+    # folder's under db\textures first, where the game keeps its own
+    for folder in folders[1:]:
+        paths = sorted(_db_archives(folder) if missing else (),
+                       key=lambda p: "textures" not in os.path.relpath(
+                           p, os.path.join(folder, "db")).lower().split(os.sep)[:-1])
+        for path in paths:
+            try:
+                missing -= _db_textures(path)
+            except (OSError, ValueError):
+                return []
+            if not missing:
+                break
+    if not missing:
+        return []
+    have = []
+    for name, on in order:
+        if on:
+            continue
+        folder = os.path.join(MODS, name)
+        loose = _loose_textures([folder], missing)
+        got, files = set(loose), sorted(loose.values())
+        for path in _db_archives(folder):
+            try:
+                held = missing & _db_textures(path)
+            except (OSError, ValueError):
+                continue
+            if held:
+                got |= held
+                files.append(os.path.relpath(path, folder))
+        if got:
+            have.append((name, got, files))
+    out = []
+    for f, mod, tex in uses:
+        tex = [t for t in tex if t in missing]
+        if tex:
+            holders = [(h, files) for h, got, files in have if got.intersection(tex)]
+            held = set().union(*[got for __, got, __ in have])
+            out.append((f, mod, tex, holders, [t for t in tex if t not in held]))
+    return out
+
+
+def texture_lines(found):
+    """texture_gaps()'s findings as lines, warnings all: a texture the game can't find
+    draws as squares and crashes nothing."""
+    out = []
+    for f, mod, tex, holders, nowhere in found:
+        out.append("  - " + ngettext(
+            "%(script)s, in \"%(mod)s\", makes particles as a save loads that draw with a "
+            "texture the game won't find in this launch: %(textures)s. Where they play, the "
+            "game draws squares.",
+            "%(script)s, in \"%(mod)s\", makes particles as a save loads that draw with "
+            "%(n)d textures the game won't find in this launch: %(textures)s. Where they "
+            "play, the game draws squares.", len(tex))
+            % {"script": f, "mod": mod, "n": len(tex), "textures": _names_text(tex)})
+        for holder, files in holders:
+            out.append("    " + _("Copy %(files)s from \"%(holder)s\", off for this launch, "
+                                  "to the same place in \"%(mod)s\", the mod with the "
+                                  "script.")
+                       % {"files": _and(files), "holder": holder, "mod": mod})
+        if nowhere:
+            out.append("    " + ngettext(
+                "No mod in MO2's list has %(textures)s. It comes with the mod the particles "
+                "are from: copy it into \"%(mod)s\", the mod with the script.",
+                "No mod in MO2's list has %(textures)s. They come with the mod the particles "
+                "are from: copy them into \"%(mod)s\", the mod with the script.", len(nowhere))
+                % {"textures": _names_text(nowhere), "mod": mod, "n": len(nowhere)})
     return out
 
 
@@ -4702,14 +4934,17 @@ def main():
 
         def particle_check():
             """Say what in this launch's mods makes particles as a save loads that the game
-            won't have; in a launch, stop before the crash. Last, so all else is staged."""
-            found, sure = particle_gaps(launch_order(active, prefs, switch=not writing))
-            if not found:
+            won't have, or that draw with textures it won't find; in a launch, stop before
+            the crash. Last, so all else is staged."""
+            order = launch_order(active, prefs, switch=not writing)
+            found, sure = particle_gaps(order)
+            lines = particle_lines(found, sure) + texture_lines(texture_gaps(order))
+            if not lines:
                 return
             print()
-            for line in particle_lines(found, sure):
+            for line in lines:
                 print(line)
-            if writing and sure:
+            if found and writing and sure:
                 raise SystemExit("  ** " + _("Stopped before the launch: the game would crash as "
                                              "the save loads. Fix it as the lines above say, "
                                              "then run play.bat again.") + " **")

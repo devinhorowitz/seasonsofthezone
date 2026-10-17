@@ -7,6 +7,10 @@ module carries, so with the script in a mod that stays on and the base module se
 every launch outside the winters crashed as the save loaded. These cases build that install
 and the places a particle can come from, and run the shipped tools on them.
 
+A texture those particles draw with that the game can't find crashes nothing, but they draw
+as squares, as INVERNO's snowfall did for a player whose mod with its particles had no
+inverno_textures.db: the later cases warn about that, and stop nothing.
+
   python _tools/test_particle_check.py
 """
 import io
@@ -409,6 +413,249 @@ def t_loose_particles_are_named_by_their_paths():
         got = season.particle_files(d)
     assert got == {"graupel\\dust", "graupel\\effects\\dust", "yawm\\snow\\yawm_snow_light"}, got
     return "graupel\\dust for particles/graupel/dust.pg; .pe and .pg in any case, nothing else"
+
+
+# --- the textures those particles draw with -------------------------------------------------
+
+def effect(texture, flags=4097, shader="particles\\alpha_add"):
+    """A loose .pe as the particle editor writes one: a sprite drawn with `texture` when
+    `flags` has the sprite bit."""
+    return ("[_effect]\n    action_count = 0\n    flags = %d\n    max_particles = 20\n"
+            "    version = 1\n\n[sprite]\n    shader = %s\n    texture = %s\n"
+            % (flags, shader, texture))
+
+
+def group(*effects):
+    """A loose .pg with an effect_NNNN section for each (effect_name, on_birth_child)."""
+    out = "[_group]\n    effects_count = %d\n    flags = 0\n    timelimit = 0.0\n" % len(effects)
+    for i, (name, birth) in enumerate(effects):
+        out += ("\n[effect_%04d]\n    effect_name = %s\n    flags = 4\n    on_birth_child = %s\n"
+                "    on_death_child =\n    on_play_child =\n    time0 = 0.0\n    time1 = 0.0\n"
+                % (i, name, birth))
+    return out
+
+
+TEXTURED = {
+    "graupel/dust.pg": group(("graupel\\effects\\dust", "")),
+    "graupel/effects/dust.pe": effect("grpl\\pfx_smoke_a"),
+    "graupel/snowflakes.pg": group(("graupel\\effects\\snowflakes",
+                                    "graupel\\effects\\flake_birth")),
+    "graupel/effects/snowflakes.pe": effect("grpl\\pfx_yawm_flake_grid.dds, grpl/pfx_gradient"),
+    "graupel/effects/flake_birth.pe": effect("GRPL\\pfx_birth"),
+}
+TEXTURES = ["grpl/pfx_smoke_a", "grpl/pfx_yawm_flake_grid", "grpl/pfx_gradient",
+            "grpl/pfx_birth"]
+TEX_DB = "db\\addons\\inverno_textures.db"
+TEX_SAID = ("- %s, in \"INVERNO mechanics\", makes particles as a save loads that draw with 4 "
+            "textures the game won't find in this launch: grpl\\pfx_smoke_a, "
+            "grpl\\pfx_yawm_flake_grid, grpl\\pfx_gradient and 1 more. Where they play, the "
+            "game draws squares." % SCRIPT)
+TEX_FIX = ("Copy %s from \"%s\", off for this launch, to the same place in \"INVERNO "
+           "mechanics\", the mod with the script." % (TEX_DB, SEASONAL))
+NOWHERE = ("No mod in MO2's list has grpl\\pfx_smoke_a, grpl\\pfx_yawm_flake_grid, "
+           "grpl\\pfx_gradient and 1 more. They come with the mod the particles are from: "
+           "copy them into \"INVERNO mechanics\", the mod with the script.")
+NO_MOD = "No mod in MO2's list has"
+WONT = "the game won't find"
+
+
+def install_textured(root):
+    """The squares: the script and its particles in a mod on all year, and the textures they
+    draw with only in the seasonal mod's .db, as INVERNO's base module carries them."""
+    install(root)
+    for rel, text in TEXTURED.items():
+        p = mod(root, "INVERNO mechanics", "particles", *rel.split("/"))
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        io.open(p, "w", encoding="cp1251").write(text)
+    tsc.xdb(os.path.join(root, "mods", SEASONAL, *TEX_DB.split("\\")),
+            ["textures/%s.dds" % t for t in TEXTURES] + ["textures/terrain/t_snow.dds"])
+
+
+def game_folder(root):
+    """The game's own folder, where MO2's ini says it is."""
+    game = os.path.join(root, "ANOMALY")
+    io.open(os.path.join(root, "ModOrganizer.ini"), "a", encoding="utf-8").write(
+        "gamePath=@ByteArray(%s)\r\n" % game.replace("\\", "\\\\"))
+    os.makedirs(game, exist_ok=True)
+    return game
+
+
+def loose_textures(folder, names, ext=".dds", upper=False):
+    for n in names:
+        p = os.path.join(folder, "gamedata", "textures",
+                         *(n.upper() if upper else n).split("/")) + ext
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        io.open(p, "w").write("")
+
+
+@case
+def t_textures_only_a_mod_off_has_are_named_and_the_launch_goes_ahead():
+    """The particles are there, and the textures they draw with only in a mod off: a
+    warning names the script, its textures and the .db to copy, and stops nothing. In
+    winter the mod is on and nothing is said; the copy it names clears it."""
+    with tempfile.TemporaryDirectory() as d:
+        install_textured(d)
+        rc, out = run(d, "apply", "--season", "autumn")
+        assert rc == 0 and TEX_SAID in out and TEX_FIX in out and STOP not in out, out
+        assert "particle effect" not in out and NO_MOD not in out, out
+        assert "-" + SEASONAL in modlist(d), modlist(d)
+        rc, out = run(d, "status", "--season", "autumn")
+        assert rc == 0 and TEX_SAID in out and TEX_FIX in out, out
+        rc, out = run(d, "apply", "--season", "winter")
+        assert rc == 0 and WONT not in out, out
+        db = os.path.join(d, "mods", "INVERNO mechanics", *TEX_DB.split("\\"))
+        os.makedirs(os.path.dirname(db))
+        shutil.copy2(os.path.join(d, "mods", SEASONAL, *TEX_DB.split("\\")), db)
+        rc, out = run(d, "apply", "--season", "autumn")
+        assert rc == 0 and WONT not in out, out
+    return "autumn: warned, the .db named, launched; winter: nothing; the .db copied: nothing"
+
+
+@case
+def t_a_texture_from_anywhere_the_game_reads_is_fine():
+    """Loose in a mod on, in any case, or in MO2's overwrite, as a .seq too; in a .db of a
+    mod on; loose in the game's own folder or in its .db. Each place alone clears it."""
+    places = [
+        ("a mod on", lambda d: loose_textures(os.path.join(d, "mods", "Base Grass"),
+                                              TEXTURES, upper=True)),
+        ("overwrite", lambda d: loose_textures(os.path.join(d, "overwrite"), TEXTURES)),
+        (".seq", lambda d: loose_textures(os.path.join(d, "mods", "Base Grass"), TEXTURES,
+                                          ".seq")),
+        ("a mod's .db", lambda d: tsc.xdb(
+            os.path.join(d, "mods", "Base Textures", "db", "mods", "fx.db"),
+            ["gamedata/textures/%s.dds" % t for t in TEXTURES])),
+        ("the game's folder", lambda d: loose_textures(game_folder(d), TEXTURES)),
+        ("the game's .db", lambda d: tsc.xdb(
+            os.path.join(game_folder(d), "db", "textures", "textures.db0"),
+            ["textures/%s.dds" % t for t in TEXTURES])),
+    ]
+    for label, put in places:
+        with tempfile.TemporaryDirectory() as d:
+            install_textured(d)
+            put(d)
+            rc, out = run(d, "status", "--season", "autumn")
+            assert rc == 0 and WONT not in out, (label, out)
+    with tempfile.TemporaryDirectory() as d:
+        install_textured(d)
+        tsc.xdb(os.path.join(game_folder(d), "db", "textures", "textures.db0"),
+                ["textures/%s.dds" % t for t in TEXTURES[1:]] + ["textures/pfx/other.dds"])
+        rc, out = run(d, "status", "--season", "autumn")
+        said = ("draw with a texture the game won't find in this launch: grpl\\pfx_smoke_a. "
+                "Where they play")
+        assert rc == 0 and said in out and TEX_FIX in out, out
+    return "a mod on (any case), overwrite, a .seq, a mod's .db, the game's folder and .db"
+
+
+@case
+def t_where_the_textures_are_is_named():
+    """Loose in a mod off, the line names its files; the ones no mod has, a line names."""
+    with tempfile.TemporaryDirectory() as d:
+        install_textured(d)
+        os.remove(os.path.join(d, "mods", SEASONAL, *TEX_DB.split("\\")))
+        rc, out = run(d, "status", "--season", "autumn")
+        assert rc == 0 and TEX_SAID in out and NOWHERE in out and "Copy " not in out, out
+        loose_textures(os.path.join(d, "mods", "Unused Fog"), TEXTURES[:2])
+        rc, out = run(d, "status", "--season", "autumn")
+        fix = ("Copy gamedata\\textures\\grpl\\pfx_smoke_a.dds and "
+               "gamedata\\textures\\grpl\\pfx_yawm_flake_grid.dds from \"Unused Fog\", off for "
+               "this launch, to the same place in \"INVERNO mechanics\", the mod with the script.")
+        rest = ("No mod in MO2's list has grpl\\pfx_gradient, grpl\\pfx_birth. They come with "
+                "the mod the particles are from: copy them into \"INVERNO mechanics\"")
+        assert rc == 0 and TEX_SAID in out and fix in out and rest in out, out
+        loose_textures(os.path.join(d, "mods", "Unused Fog"), TEXTURES[2:3])
+        rc, out = run(d, "status", "--season", "autumn")
+        one = ("No mod in MO2's list has grpl\\pfx_birth. It comes with the mod the particles "
+               "are from: copy it into \"INVERNO mechanics\", the mod with the script.")
+        assert rc == 0 and one in out, out
+    return "no mod has them: said so; loose in a mod off: its files named, the rest said"
+
+
+@case
+def t_a_db_that_can_t_be_read_keeps_it_quiet():
+    """A .db the game would look in that can't be read may have the textures, so nothing
+    is said. Thumbs.db is not one."""
+    with tempfile.TemporaryDirectory() as d:
+        install_textured(d)
+        db = os.path.join(d, "mods", "Base Textures", "db", "addons")
+        os.makedirs(db)
+        io.open(os.path.join(db, "Thumbs.db"), "wb").write(b"not an archive")
+        rc, out = run(d, "status", "--season", "autumn")
+        assert rc == 0 and TEX_SAID in out, "Thumbs.db kept it quiet: " + out
+        io.open(os.path.join(db, "broken.db"), "wb").write(b"\x01\x00\x00\x80\xff\xff\x00\x00")
+        rc, out = run(d, "status", "--season", "autumn")
+        assert rc == 0 and WONT not in out, out
+    return "a .db that can't be read: nothing said; Thumbs.db: still said"
+
+
+@case
+def t_each_script_names_where_its_own_textures_are():
+    with tempfile.TemporaryDirectory() as d:
+        install_textured(d)
+        os.makedirs(mod(d, "Base Textures", "scripts"))
+        io.open(mod(d, "Base Textures", "scripts", "other_snow.script"), "w").write(
+            "local p = particles_object(\"x\\\\other\")\n")
+        p = mod(d, "Base Textures", "particles", "x", "other.pe")
+        os.makedirs(os.path.dirname(p))
+        io.open(p, "w").write(effect("other\\tex"))
+        loose_textures(os.path.join(d, "mods", "Unused Fog"), ["other/tex"])
+        rc, out = run(d, "status", "--season", "autumn")
+        other = ("- other_snow.script, in \"Base Textures\", makes particles as a save loads "
+                 "that draw with a texture the game won't find in this launch: other\\tex.")
+        fix = ("Copy gamedata\\textures\\other\\tex.dds from \"Unused Fog\", off for this "
+               "launch, to the same place in \"Base Textures\", the mod with the script.")
+        assert rc == 0 and TEX_SAID in out and TEX_FIX in out and other in out, out
+        assert out.count("Copy ") == 2 and fix in out, out
+        assert out.index(TEX_FIX) < out.index(other) < out.index(fix), out
+    return "two scripts, two mods off: each script's line names its own"
+
+
+@case
+def t_a_crash_and_squares_are_both_said_and_only_the_crash_stops_it():
+    with tempfile.TemporaryDirectory() as d:
+        install_textured(d)
+        os.remove(mod(d, "INVERNO mechanics", "particles", "graupel", "snowflakes.pg"))
+        rc, out = run(d, "apply", "--season", "autumn")
+        crash = ("! %s, in \"INVERNO mechanics\", makes a particle effect as a save loads that "
+                 "only mods off for this launch have: graupel\\snowflakes." % SCRIPT)
+        tex = ("- %s, in \"INVERNO mechanics\", makes particles as a save loads that draw with "
+               "a texture the game won't find in this launch: grpl\\pfx_smoke_a." % SCRIPT)
+        assert rc == 1 and crash in out and tex in out and STOP in out, out
+        assert out.index(crash) < out.index(tex) < out.index(STOP), out
+    return "the crash, then the squares, then the stop"
+
+
+@case
+def t_what_a_particle_draws_with_is_read_as_the_game_reads_it():
+    """A group draws its effects and their children, each the winning copy; a name is an
+    effect before it is a group; an effect without the sprite bit or a shader draws no
+    texture; a list of textures, an extension and a comment are read as the game does."""
+    with tempfile.TemporaryDirectory() as d:
+        a, b = os.path.join(d, "a"), os.path.join(d, "b")
+        files = {
+            (a, "x/group.pg"): group(("x\\fx\\one", "x\\fx\\birth"), ("x\\fx\\in_xr", ""))
+            + "\n[effect_0002]\n    effect_name = x\\fx\\beyond\n",
+            (a, "x/fx/one.pe"): effect("X\\FX\\One.dds"),
+            (b, "x/fx/one.pe"): effect("loses"),
+            (b, "x/fx/birth.pe"): effect("a, b/c   ; a comment"),
+            (a, "x/fx/beyond.pe"): effect("beyond"),
+            (a, "x/fx/no_sprite.pe"): effect("never", flags=4096),
+            (a, "x/fx/no_shader.pe"): effect("never", shader=""),
+            (a, "x/both.pg"): group(("x\\fx\\one", "")),
+            (b, "x/both.pe"): effect("from_the_effect"),
+        }
+        for (root, rel), text in files.items():
+            p = os.path.join(root, "gamedata", "particles", *rel.split("/"))
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            io.open(p, "w", encoding="cp1251").write(text)
+        got = season.particle_textures("x\\group", [a, b])
+        assert got == ["x\\fx\\one", "a", "b\\c"], got
+        got = season.particle_textures("x\\both", [a, b])
+        assert got == ["from_the_effect"], got
+        for name in ("x\\fx\\no_sprite", "x\\fx\\no_shader"):
+            got = season.particle_textures(name, [a, b])
+            assert got == [], (name, got)
+        assert season.particle_textures("x\\fx\\in_xr", [a, b]) is None
+    return "a group's effects and children, the winning copy, an effect first, the sprite bit"
 
 
 if __name__ == "__main__":

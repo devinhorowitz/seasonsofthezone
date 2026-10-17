@@ -1529,6 +1529,27 @@ msgid "Copy gamedata\\particles from %(holders)s into \"%(mod)s\", the mod with 
 msgstr "Скопируйте gamedata\\particles из %(holders)s в \"%(mod)s\", мод со скриптом, чтобы эффекты были у игры всякий раз, когда она загружает скрипт."
 
 #: season.py
+#, python-format
+msgid "%(script)s, in \"%(mod)s\", makes particles as a save loads that draw with a texture the game won't find in this launch: %(textures)s. Where they play, the game draws squares."
+msgid_plural "%(script)s, in \"%(mod)s\", makes particles as a save loads that draw with %(n)d textures the game won't find in this launch: %(textures)s. Where they play, the game draws squares."
+msgstr[0] "Скрипт %(script)s из мода \"%(mod)s\" при загрузке сохранения создаёт частицы, которым нужна %(n)d текстура, которую игра в этом запуске не найдёт: %(textures)s. Там, где эти частицы появляются, игра рисует квадраты."
+msgstr[1] "Скрипт %(script)s из мода \"%(mod)s\" при загрузке сохранения создаёт частицы, которым нужны %(n)d текстуры, которые игра в этом запуске не найдёт: %(textures)s. Там, где эти частицы появляются, игра рисует квадраты."
+msgstr[2] "Скрипт %(script)s из мода \"%(mod)s\" при загрузке сохранения создаёт частицы, которым нужно %(n)d текстур, которые игра в этом запуске не найдёт: %(textures)s. Там, где эти частицы появляются, игра рисует квадраты."
+
+#: season.py
+#, python-format
+msgid "Copy %(files)s from \"%(holder)s\", off for this launch, to the same place in \"%(mod)s\", the mod with the script."
+msgstr "Скопируйте %(files)s из мода \"%(holder)s\", выключенного для этого запуска, по тому же пути в \"%(mod)s\", мод со скриптом."
+
+#: season.py
+#, python-format
+msgid "No mod in MO2's list has %(textures)s. It comes with the mod the particles are from: copy it into \"%(mod)s\", the mod with the script."
+msgid_plural "No mod in MO2's list has %(textures)s. They come with the mod the particles are from: copy them into \"%(mod)s\", the mod with the script."
+msgstr[0] "Ни в одном моде из списка MO2 нет текстуры %(textures)s. Она идёт в комплекте с модом, из которого взяты частицы: скопируйте её в \"%(mod)s\", мод со скриптом."
+msgstr[1] "Ни в одном моде из списка MO2 нет текстур %(textures)s. Они идут в комплекте с модом, из которого взяты частицы: скопируйте их в \"%(mod)s\", мод со скриптом."
+msgstr[2] "Ни в одном моде из списка MO2 нет текстур %(textures)s. Они идут в комплекте с модом, из которого взяты частицы: скопируйте их в \"%(mod)s\", мод со скриптом."
+
+#: season.py
 msgid "This does not look like a Mod Organizer install."
 msgstr "Это не похоже на установку Mod Organizer."
 

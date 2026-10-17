@@ -172,7 +172,7 @@ If you own the all-in-one FOMOD (v1.08.4) instead:
 - The addon's particle textures are in INVERNO's base-module archive
   `db/addons/inverno_textures.db`. That archive, and the `particles/graupel` and
   `particles/yawm` definitions, must be in a mod that is enabled all year, never in a
-  seasonal INVERNO texture mod.
+  seasonal INVERNO texture mod. `play.bat` warns when the textures are missing.
 
 ---
 

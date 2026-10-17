@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **Particles that would fall as squares are named.** `play.bat` already reads the scripts
+  that make particles as a save loads; now it looks for those particles' textures too. A
+  texture the game can't find crashes nothing, but the particles draw as squares where
+  they play, as INVERNO's snowfall did for a player whose mod with its particles had no
+  `db\addons\inverno_textures.db`. `play.bat` and `season.py status` name the script, the
+  textures and the file to copy from a mod that is off, or say that no mod has them. It
+  only warns: the launch goes ahead.
+
 ## 2.8.2 — 2026-10-17
 
 - **Rain for gameplay reaches REDone Combat AI.** With No Rain in Winter, REDone's NPC
