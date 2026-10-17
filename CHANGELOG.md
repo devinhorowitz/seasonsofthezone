@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.8.0 — 2026-10-17
 
 - **PDA messages as the weather turns.** A new switch on MCM's Main page, off as it ships:
   while you play, your PDA says when the sky changes, as it says when the season turns. Rain
