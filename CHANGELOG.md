@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.9.0 — 2026-10-17
 
 - **Grass by the season.** The grass thins out in the cold. Each season's MCM page has
   **Grass this season (%)**, from 20 to 100: by default spring keeps 80, summer and autumn

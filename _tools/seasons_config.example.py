@@ -183,6 +183,10 @@ TOGGLE_MODS = {
         "when": ("late_winter",),
         "above": "INVERNO Partly Snowy (winter only)",
     },
+    "Frosted Winter Mask Overlay (seasonal)": {
+        "when": ("winter", "winter_snow"),
+        "above": "190- Screen Space Shaders 24 - Ascii1457",
+    },
 }
 
 SOUND_SRC = "304- Dark Signal Weather and Ambiance Audio - Shrike"
