@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.8.2 — 2026-10-17
 
 - **Rain for gameplay reaches REDone Combat AI.** With No Rain in Winter, REDone's NPC
   sight and detection scripts (in ROMEO) still read a winter storm as dry: each keeps `level`
