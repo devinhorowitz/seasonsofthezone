@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.8.3 — 2026-10-17
 
 - **Particles that would fall as squares are named.** `play.bat` already reads the scripts
   that make particles as a save loads; now it looks for those particles' textures too. A
