@@ -27,6 +27,15 @@ choose Open in Explorer.
                  {"weekdays": ("sat", "sun")}. See docs/SCHEDULING.md.
   CALENDAR       the day each season starts, and which are on; None is Polesia's six.
   NAMES          names of your own for the seasons; None keeps the usual ones.
+  WEATHER_PLACE  where the real weather comes from; None is Chornobyl.
+  OWN_SEASONS    seasons of your own: name: ((m, d) first, (m, d) last), a week or
+                 longer, up to 52, each laid over the season it falls in, as an event is.
+  SPELLS         short stretches that start by chance: name: {"in": (seasons...),
+                 "chance": percent a day, "days": (fewest, most), 1 to 6, "as": the season
+                 it brings, or None}. See docs/SCHEDULING.md.
+  MCM_SETTINGS   other mods' MCM options that follow the season: "page/option": {name:
+                 its value then, ..., "else": the rest of the year}. play.bat sets them
+                 in MCM's saved options before the game starts.
 """
 
 # mod folder -> archive in downloads/, and per season the option folders to overlay
@@ -81,53 +90,97 @@ TOGGLE_MODS = {
     },
     # A pack that ships several seasonal variants of the SAME files is the easy case:
     # install each variant as its own mod and give it one season here. Only one can
-    # ever be mounted, so they cannot fight each other. C Consciousness ships four -
-    # Spring, Summer, Autumn and Dead - as the same 202 texture paths repainted.
+    # ever be mounted, so they cannot fight each other. Grizzly's CCon Overhaul (v0.3,
+    # since 2026-10-10; its entries end this table) ships four - Spring, Summer, Autumn
+    # and Dead - over the same tree and grass texture paths. The four sit below INVERNO,
+    # so snow still wins the winters, and above the Aydin packs, which is what 388
+    # anchors. RedDead, its Red Forest set, goes over the three warm sets, as its
+    # installer lays it. Barks and the grass bump maps come with every season, so they
+    # stay mounted year-round and are not listed here.
     #
-    # Its grass placement (23 level.details) does not change with the season, so that
-    # is a separate mod that stays mounted year-round and is not listed here at all.
-    # These four sit below INVERNO, so snow still wins both winters, and above the
-    # Aydin packs, which is what 388 anchors.
-    "CCon Spring (seasonal)": {
-        "seasons": ("spring",),
-        "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
-    },
-    "CCon Summer (seasonal)": {
-        "seasons": ("summer",),
-        "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
-    },
-    "CCon Autumn (seasonal)": {
-        "seasons": ("autumn",),
-        "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
-    },
-    # Bare, dead foliage under INVERNO's snow, until the green-up.
-    "CCon Dead (seasonal)": {
-        "seasons": ("winter", "winter_snow", "late_winter"),
-        "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
-    },
-
-    # PanceRide's Summer and Autumn sets were listed here until 2026-09-20, on the same
-    # anchor, until CCon replaced them: two seasons and textures only, against four
-    # seasons plus placement. Swapping one pack for another is editing these entries -
-    # nothing is copied and nothing else has to change.
+    # Grass placement doesn't change with the season, except that the overhaul's
+    # Overgrown option (grass on roads too) runs spring to autumn over CCon Grass
+    # Placement. That one stays mounted year-round and is byte-identical to the
+    # overhaul's Default option, so the winters keep the roads clear.
+    #
+    # Earlier packs on these entries: PanceRide's Summer and Autumn sets until
+    # 2026-09-20; then C Consciousness 0.71's four sets, with Grizzly's Overgrown v0.6
+    # over them spring to autumn from 2026-10-02. Swapping one pack for another is
+    # editing these entries - nothing is copied and nothing else has to change.
 
     # Ground fog over standing water: the thaw and the spring after it, and cool nights
     # over warm water in autumn. Collides with nothing; the anchor only keeps it with
     # the visual mods.
     "Swamp Ground Fog (seasonal)": {
-        "seasons": ("late_winter", "spring", "autumn"),
-        "above": "Atmospherics 2.69 RC7.2 SSS24",
+        "when": ("spring", "autumn", "late_winter"),
+        "above": "Atmospherics 2.69 RC7.6 SSS24",
     },
     # Deep winter only: `winter` is first snowfall on bare ground. Four mods ship
     # actor/step sounds; this one is the highest.
     "Winter Footsteps (seasonal)": {
-        "seasons": ("winter_snow",),
-        "above": "472- Dark Signal Amplified Footsteps Extended - Shrike & oleh5230",
+        "when": ("winter_snow",),
+        "above": "MovementSFX 2026.09.27 - oleh5230",
     },
     # Above both INVERNO mods, not just the map mods: INVERNO ships its own grayscale
     # textures/ui/ui_global_map.dds and is on in the same seasons.
     "Winter PDA Maps (seasonal)": {
         "seasons": ("winter", "winter_snow", "late_winter"),
+        "above": "INVERNO Partly Snowy (winter only)",
+    },
+    "SSS24 ICE Module": {
+        "when": ("winter_snow",),
+        "above": "190- Screen Space Shaders 24 - Ascii1457",
+    },
+    "Grizzly's CCon Spring (seasonal)": {
+        "when": ("spring",),
+        "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
+    },
+    "Grizzly's CCon Summer (seasonal)": {
+        "when": ("summer",),
+        "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
+    },
+    "Grizzly's CCon Autumn (seasonal)": {
+        "when": ("autumn",),
+        "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
+    },
+    "Grizzly's CCon Dead (seasonal)": {
+        "when": ("winter", "winter_snow", "late_winter"),
+        "above": "388- Aydins Grass Tweaks SSS Terrain LOD Compatibility - aytabag",
+    },
+    "Grizzly's CCon RedDead (seasonal)": {
+        "when": ("spring", "summer", "autumn"),
+        "above": "Grizzly's CCon Spring (seasonal)",
+    },
+    "Grizzly's CCon Overgrown Placement (seasonal)": {
+        "when": ("spring", "summer", "autumn"),
+        "above": "CCon Grass Placement",
+    },
+    "Winter Mutants (seasonal)": {
+        "when": ("winter", "winter_snow", "late_winter"),
+        "above": "G.A.M.M.A. Large Files",
+    },
+    "Winter Main Menu (seasonal)": {
+        "when": ("winter", "winter_snow", "late_winter"),
+        "above": "G.A.M.M.A. New Main Menu",
+    },
+    "No Rain in Winter (seasonal)": {
+        "when": ("winter", "winter_snow"),
+        "above": "Weather Expansion for Atmospherics",
+    },
+    "Winterized Zone Maps (seasonal)": {
+        "when": ("winter", "winter_snow", "late_winter"),
+        "above": "Winter PDA Maps (seasonal)",
+    },
+    "Midwinter Trees (seasonal)": {
+        "when": ("winter", "late_winter"),
+        "above": "INVERNO Winter Textures (seasonal)",
+    },
+    "Snow Asphalt (seasonal)": {
+        "when": ("winter_snow", "late_winter"),
+        "above": "INVERNO Partly Snowy (winter only)",
+    },
+    "Thaw Ground (late winter)": {
+        "when": ("late_winter",),
         "above": "INVERNO Partly Snowy (winter only)",
     },
 }
