@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **PDA messages as the weather turns.** A new switch on MCM's Main page, off as it ships:
+  while you play, your PDA says when the sky changes, as it says when the season turns. Rain
+  setting in, a storm breaking, easing or passing, the rain stopping and the sky clearing, fog
+  rolling in; in the winters, snow, a snowstorm, sleet or a sleet storm, named as the Forecast
+  page names them. A new sky is told once it has held for a minute, so a short pause in the
+  rain says nothing. Nothing during an emission or a psi storm, underground, or for the
+  weather a game loads under, and nothing on screen but the PDA message. **PDA
+  notifications** and the Silence button quiet it with the rest.
 - **README: five more mods for the winters.** *Mods that work well this way* now lists
   Winterized Zone's PDA maps, MIDWINTER AURORA's trees, Snow Asphalt, Winter Mutants and
   Fragger's winter main menu, each with the seasons and the mod it wins over, and what needs

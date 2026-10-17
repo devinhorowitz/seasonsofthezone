@@ -2151,6 +2151,7 @@ function weather_tilt_tick()
 end
 
 local turn_failed = false          -- said once, not every five seconds
+local wx_failed = false
 
 local function actor_on_update()
     if not P then return end
@@ -2165,6 +2166,11 @@ local function actor_on_update()
         if not okt and not turn_failed then
             turn_failed = true
             say("!turn messages failed: " .. tostring(why))
+        end
+        local okw, whyw = pcall(weather_tick)
+        if not okw and not wx_failed then
+            wx_failed = true
+            say("!weather messages failed: " .. tostring(whyw))
         end
     end
     if tg >= next_date then
@@ -2874,6 +2880,93 @@ function turn_tick()
     end
     send_later(msgs, 1, 5)
     return msgs
+end
+
+-- --- the weather as it turns -------------------------------------------------------------
+--
+-- With MCM's "PDA messages as the weather turns" on, a PDA message as the sky changes in
+-- play: rain setting in, the sky clearing, snow or sleet starting. Each sky is named as the
+-- Forecast page names it, so a change the page wouldn't show says nothing: cloud to a rain
+-- with its rain taken out is overcast either way. A new sky is told once it has held for a
+-- minute, so a sky that gives way again at once, rain stopping for a few minutes, says
+-- nothing. None while an emission or a psi storm plays, none underground, and none for the
+-- sky a game loads under, which the greeting comes in on. Off by default.
+
+-- as ui_seasons_forecast's sky(); test_weather_news holds the two together
+local WX_RAIN = {snow = "snow", sleet = "sleet", none = "cloudy"}
+local WX_STORM = {snow = "snowstorm", sleet = "sleetstorm"}
+-- the skies a message is written for; another cycle a weather pack adds says nothing
+local WX_TOLD = {clear = true, partly = true, cloudy = true, foggy = true, rain = true,
+                 storm = true, snow = true, snowstorm = true, sleet = true, sleetstorm = true}
+-- what falls from a wet sky, so a storm easing into its own rain isn't "the rain stopped"
+local WX_FALL = {rain = "rain", storm = "rain", snow = "snow", snowstorm = "snow",
+                 sleet = "sleet", sleetstorm = "sleet"}
+local WX_STORMS = {storm = true, snowstorm = true, sleetstorm = true}
+-- what ends when a sky gives way; a storm, as one can be dry where No Rain in Winter is on
+local WX_ENDS = {rain = "stopped_rain", storm = "storm_passed", snow = "stopped_snow",
+                 snowstorm = "stopped_snow", sleet = "stopped_sleet", sleetstorm = "stopped_sleet",
+                 foggy = "fog_lifting"}
+
+--- The sky a weather cycle shows, by what falls in rain and storm now (falls()).
+function sky_of(cycle, how)
+    cycle = tostring(cycle or "")
+    if cycle == "rain" then return WX_RAIN[tostring(how)] or cycle end
+    if cycle == "storm" then return WX_STORM[tostring(how)] or cycle end
+    return cycle
+end
+
+--- The message for the sky turning from `was` to `now`, or nil: what ended, if something
+--  did, then what the sky does now, each its own sentence.
+function weather_message(was, now)
+    if not (was and now) or was == now or not WX_TOLD[now] then return nil end
+    local function say_wx(id) return sotz_text.text("st_sotz_news_wx_" .. id) end
+    if WX_FALL[was] and WX_FALL[was] == WX_FALL[now] then
+        -- the same fall, heavier or lighter
+        return say_wx((WX_STORMS[was] and not WX_STORMS[now]) and "easing" or now)
+    end
+    local parts = {}
+    if WX_ENDS[was] then
+        parts[1] = say_wx(WX_ENDS[was])
+        if now == "cloudy" then return parts[1] end         -- it was overcast all along
+    end
+    parts[#parts + 1] = say_wx((now == "partly" and was == "clear") and "partly_gather" or now)
+    return table.concat(parts, " ")
+end
+
+local WX_HOLD_MS = 60000           -- how long a new sky holds before it is told
+local wx_told = nil                -- the sky last told, or the one a game loads under
+local wx_new, wx_since = nil, 0    -- the sky it is turning to, and since when
+
+--- Look at the sky, and send what its turning brought. Returns the message, if any.
+function weather_tick()
+    if not mcm("pda_weather", false) then
+        wx_told, wx_new = nil, nil     -- turned on mid-game, it starts from the sky then
+        return nil
+    end
+    -- the sky an emission or a psi storm gives way to is told against the one before it
+    if level.is_wfx_playing and level.is_wfx_playing() then return nil end
+    if level_weathers and level_weathers.bLevelUnderground then return nil end
+    local ok, wm = pcall(function()
+        return level_weathers and level_weathers.get_weather_manager
+               and level_weathers.get_weather_manager()
+    end)
+    local cycle = ok and wm and wm.cycle
+    if not cycle then return nil end
+    local now, tg = sky_of(cycle, falls()), time_global()
+    if not wx_told or now == wx_told then
+        wx_told, wx_new = now, nil     -- the first look, or back to the sky last told
+        return nil
+    end
+    if now ~= wx_new then
+        wx_new, wx_since = now, tg     -- turning: it has to hold first
+        return nil
+    end
+    if tg - wx_since < WX_HOLD_MS then return nil end
+    -- told against the sky last told, so one that came and went between says nothing
+    local msg = weather_message(wx_told, now)
+    wx_told, wx_new = now, nil
+    if msg then send_later({msg}, 1, 5) end
+    return msg
 end
 
 

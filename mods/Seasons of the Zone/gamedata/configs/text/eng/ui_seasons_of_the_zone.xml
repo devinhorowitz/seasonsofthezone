@@ -246,6 +246,14 @@
 		<text>While you play, the day the seasons run on can move on: on the game's clock, or past midnight. Your PDA says when the next season draws near, and when it comes. A season pinned, rolled by the dice or brought by a spell has no turn to tell of.</text>
 	</string>
 
+	<string id="ui_mcm_seasons_zone_pda_weather">
+		<text>PDA messages as the weather turns</text>
+	</string>
+
+	<string id="ui_mcm_seasons_zone_pda_weather_desc">
+		<text>While you play, your PDA says when the sky changes: rain setting in, the sky clearing, snow or sleet starting, a storm breaking. Each sky is named as on the Forecast page. Nothing during an emission or a psi storm, nothing underground, and nothing for the weather a game loads under. Off by default: the sky can change every few hours.</text>
+	</string>
+
 	<string id="ui_mcm_seasons_zone_page_yours">
 		<text>Your calendar</text>
 	</string>

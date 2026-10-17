@@ -527,6 +527,11 @@ def families():
         # the kinds of weather play.bat finds, by name and in words
         "st_sotz_year_weather_": ["st_sotz_year_weather_%s%s" % (k, f)
                                   for k in ("freezing", "thaw", "heat") for f in ("", "_what")],
+        # the weather turning: the sky it turns to, and what ends (weather_message)
+        "st_sotz_news_wx_": ["st_sotz_news_wx_" + k for k in (
+            "clear", "partly", "partly_gather", "cloudy", "foggy", "rain", "storm", "snow",
+            "snowstorm", "sleet", "sleetstorm", "stopped_rain", "stopped_snow",
+            "stopped_sleet", "storm_passed", "fog_lifting", "easing")],
     }
 
 

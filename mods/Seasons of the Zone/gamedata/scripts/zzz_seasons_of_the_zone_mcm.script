@@ -249,6 +249,8 @@ local function page_main()
     add({id = "pda_delay", type = "track", val = 2, min = 3, max = 60, step = 1, def = 12})
     -- while playing: a PDA message as the next season draws near, and as it comes
     add({id = "pda_turns", type = "check", val = 1, def = true})
+    -- and, if asked for, one as the sky changes: off, since it can come every few hours
+    add({id = "pda_weather", type = "check", val = 1, def = false})
     return gr
 end
 
