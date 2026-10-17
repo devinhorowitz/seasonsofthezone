@@ -122,7 +122,8 @@ over it. `season.py whowins <path>` shows who owns a file. See
 `season.py` runs before the game exists, so it reads MCM's own store: MCM saves every
 setting through `axr_main.config` into `gamedata/configs/axr_options.ltx`, under `[mcm]`,
 one line per option as `<tree>/<page>/<option> = <value>` — the switches for launch are
-`seasons_zone/main/stage_textures` and `seasons_zone/main/stage_sound`, and a mod's
+`seasons_zone/main/stage_textures`, `seasons_zone/main/stage_sound` and
+`seasons_zone/main/stage_grass`, a season's grass is `seasons_zone/<season>/grass`, and a mod's
 per-season checkbox is `seasons_zone/<season>/mod_<name>`. MO2 maps that path to the mod that owns
 it (on GAMMA, "G.A.M.M.A. MCM values"). It is plain text, so a switch set in the menu is
 readable at the next launch.

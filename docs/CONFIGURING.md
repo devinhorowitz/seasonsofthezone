@@ -627,6 +627,41 @@ a miss. `status` and `--dry-run` give the chance and roll nothing.
 
 ---
 
+## Grass by the season
+
+The grass isn't in `seasons_config.py` either. Each season's MCM page has **Grass this
+season (%)**, from 20 to 100, and the Main page has **Grass follows the season**, on by
+default. `play.bat` reads them from MCM's file at each launch.
+
+The game spaces its grass by `r__detail_density` in `appdata\user.ltx`, the **Grass
+Density** slider of its advanced video options. Each 2 m patch of ground has a grid of places for
+grass, 2 ÷ density rounded up, plus one, along each side, so a higher value means less
+grass, in steps. A level reads the value as it loads, so before the game starts `play.bat`
+sets it to the step nearest the season's share of your grass. It never sets a value under
+yours, so the grass is never denser than you have it. At GAMMA's 0.25 the steps are 100,
+79, 60, 44, 31 and 20 percent:
+
+| | spring | summer | autumn | winter | deep winter | late winter |
+|---|---|---|---|---|---|---|
+| Default share | 80 | 100 | 100 | 60 | 40 | 60 |
+| At 0.25, set to | 0.29 | 0.25 | 0.25 | 0.34 | 0.4 | 0.34 |
+| Share it gives | 79 | 100 | 100 | 60 | 44 | 60 |
+
+`status` and the `grass` line of `play.bat`'s report give the share and the value. A
+period, event or season of your own that is staged in place of the six keeps all your grass.
+
+Your own value is what `user.ltx` held before `play.bat` first set it.
+`_baseline\season-grass.json` keeps it and the value written; a value `play.bat` didn't
+write, such as one you set with the slider, becomes your own from the next launch. With the
+switch off, the next launch puts your value back once, then leaves the line alone. Only that
+line changes, and the file is kept as it was in `_baseline\modfile-backups` first, the
+newest ten. Nothing is written while the game runs, since it saves `user.ltx` as it closes.
+
+Grass height and draw distance stay as you set them. GAMMA's height, 0.5, is already the
+game's lowest.
+
+---
+
 ## `MCM_SETTINGS`
 
 ```python

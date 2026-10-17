@@ -483,6 +483,36 @@ msgid "the rest of the year"
 msgstr ""
 
 #: season.py
+#, python-format
+msgid "as you set it: there is no user.ltx with %s in it yet"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "as you set it, %(cmd)s %(own)s (off in MCM)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "all of yours, %(cmd)s %(own)s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "about %(got)d%% of yours, %(cmd)s %(want)s (yours: %(own)s)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "(now %s)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "The grass waits for the next launch: %s is running, and would save its own over it."
+msgstr ""
+
+#: season.py
 msgctxt "season"
 msgid "spring"
 msgstr ""
@@ -1715,8 +1745,8 @@ msgid "OFF in MCM - seasonal mods disabled, texture sets kept; the seasonal atmo
 msgstr ""
 
 #: season.py
-#, python-format
-msgid "(now %s)"
+msgctxt "report"
+msgid "grass"
 msgstr ""
 
 #: season.py
@@ -1940,6 +1970,16 @@ msgstr ""
 
 #: season.py
 #, python-format
+msgid "%s: grass set. The game picks this up when it starts."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(season)s: the grass needs setting. Start the game with play.bat, or run %(command)s"
+msgstr ""
+
+#: season.py
+#, python-format
 msgid "%s: texture swapping is off for this run (--no-textures), nothing staged; the seasonal atmosphere still runs"
 msgstr ""
 
@@ -2070,6 +2110,11 @@ msgstr ""
 #: season.py
 msgctxt "staged"
 msgid "MCM settings"
+msgstr ""
+
+#: season.py
+msgctxt "staged"
+msgid "grass"
 msgstr ""
 
 #: season.py

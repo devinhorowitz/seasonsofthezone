@@ -294,7 +294,8 @@ yourself.
 The seasonal atmosphere changes in game, immediately. Terrain and grass textures can't: X-Ray
 loads them from MO2's virtual file system when a level loads and keeps them for the
 session. So seasonal mods have to be switched before the game starts, and that is what
-`play.bat` does, along with the texture sets, the ambient sound, a spell's season, MCM
+`play.bat` does, along with the texture sets, the ambient sound,
+[how much grass grows](#grass-by-the-season), a spell's season, MCM
 settings that follow the season, and [the dice](#rolling-the-season).
 
 It isn't needed to play. Started from MO2, everything else goes on by the date: the light
@@ -338,6 +339,21 @@ py _tools\configure.py dice on --chance 40
 py _tools\configure.py dice off
 ```
 
+### Grass by the season
+
+The grass thins out in the cold. Each season's MCM page has **Grass this season (%)**: how
+much of your grass it keeps, against the **Grass Density** set in the game's video options.
+By default spring keeps 80, summer and autumn all of it, winter and late winter 60, and deep
+winter 40. A level reads the density as it loads, so `play.bat` sets it in
+`appdata\user.ltx` before the game starts. The game lays grass out in steps, so `play.bat`
+takes the nearest and its report names it: at GAMMA's 0.25, deep winter comes out at about
+44%, `r__detail_density 0.4`. The grass is never made denser than yours, so it costs no
+frames.
+
+A density you set with the slider becomes yours from the next launch on. **Grass follows the
+season** on the Main page turns this off, and the next launch through `play.bat` puts your
+own value back. [CONFIGURING.md](docs/CONFIGURING.md#grass-by-the-season) has the details.
+
 ---
 
 ## The MCM pages
@@ -352,13 +368,14 @@ season your calendar has on: seven pages with the default calendar.
   fast;
   transition length (0 for a hard switch on the boundary date, 14 by default);
   intensity (0 is GAMMA's stock look, 1 the full season); one switch per layer: color,
-  foliage, fog, wind, and wetness; the two launch-time switches, for textures and
-  ambient sound; the PDA messages, on loading in, as the season turns while you play, and,
+  foliage, fog, wind, and wetness; the three launch-time switches, for textures, ambient
+  sound and grass; the PDA messages, on loading in, as the season turns while you play, and,
   if you turn it on, as the weather turns; and **PDA notifications**, which silences every
   one of them, as **Silence** at the foot of the app's pages does.
 - **Spring, Summer, Autumn, Winter, Deep winter, Late winter** — that season's color
-  grade preset, a read-out of the values it resolves to, and a checkbox for each
-  seasonal mod on in it. The pages take your own season names.
+  grade preset, [how much of your grass it keeps](#grass-by-the-season), a read-out of the
+  values it resolves to, and a checkbox for each seasonal mod on in it. The pages take your
+  own season names.
 - **Your calendar** — with seasons of your own, events, periods or spells, a switch for
   each one's PDA message: when it is on as the game starts, and when it begins while you
   play.

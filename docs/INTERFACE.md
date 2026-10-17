@@ -68,11 +68,12 @@ across a turn: more clear days and thunderstorms in summer, more rain and fog in
 more overcast in the winters, more fog in the thaw. Your Atmospherics weights stay the base
 it tips; the base game's weather has no odds to tip.
 
-Below those are the two switches for what `play.bat` changes at launch, which can't
+Below those are the three switches for what `play.bat` changes at launch, which can't
 change mid-session. **Swap textures with the season** is the master switch for seasonal
 mods and texture sets: off, `play.bat` disables every seasonal mod and leaves texture sets
 as they are, and the seasonal atmosphere carries on. **Seasonal ambient sound** is the
-soundscape's.
+soundscape's. **Grass follows the season** thins the grass by each season page's share;
+off, the next launch gives you back the density set in the game's video options.
 
 ### Days
 
@@ -139,6 +140,12 @@ Built-in (the mod's own grade for the season), the mod's own seven, then every o
 preset in `appdata/` —
 Atmospherics' Cold, Neutral and Warm, and any you have tuned yourself. Only the grade
 changes; it takes effect on Apply.
+
+**Grass this season (%)** is how much of your grass the season keeps, from 20 to 100,
+against the density set in the game's video options: by default 80 in spring, all of it in
+summer and autumn, 60 in winter and late winter, 40 in deep winter. A level reads the
+density as it loads, so `play.bat` sets it at the next launch; see
+[Grass by the season](CONFIGURING.md#grass-by-the-season).
 
 Under it is a read-out of what that season actually resolves to — grade, saturation, gamma,
 exposure, sun, tonemap, fog, wetness and wind — with the grade's source named in brackets,

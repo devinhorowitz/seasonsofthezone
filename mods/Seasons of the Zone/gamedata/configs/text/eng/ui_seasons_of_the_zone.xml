@@ -209,6 +209,18 @@
 	<string id="ui_mcm_seasons_zone_stage_sound_desc">
 		<text>Silences sound channels that do not belong to the season - insects under snow, marsh life in a frozen swamp. Spring drops the night crickets; summer keeps everything; autumn drops daytime insects and marsh birds; winter silences all insects; deep winter also silences daytime birds; late winter brings the marsh birds back while every insect is still silent. Crows and owls are kept year-round on purpose. Wind, storms and interiors are never touched. Off means the soundscape plays unchanged all year. Takes effect the next time you start with play.bat.</text>
 	</string>
+	<string id="ui_mcm_seasons_zone_stage_grass">
+		<text>Grass follows the season</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_stage_grass_desc">
+		<text>Thins the grass in the seasons that ask for less on their pages, from the grass density you set in the game's video options. play.bat sets it before the game starts, since a level reads it as it loads. A change you make in the video options becomes your own value. Off: the grass is as you set it there. Takes effect the next time you start with play.bat.</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_grass">
+		<text>Grass this season (%)</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_grass_desc">
+		<text>How much of your grass this season keeps, against the grass density in the game's video options: 100 keeps all of it, 40 about two blades in five. The game lays grass out in steps, so play.bat takes the nearest step, and its report says which. Needs Grass follows the season on the Main page. Takes effect the next time you start with play.bat.</text>
+	</string>
 
 	<string id="ui_mcm_seasons_zone_pda_news">
 		<text>PDA notifications</text>

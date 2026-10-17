@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **Grass by the season.** The grass thins out in the cold. Each season's MCM page has
+  **Grass this season (%)**, from 20 to 100: by default spring keeps 80, summer and autumn
+  all of it, winter and late winter 60, and deep winter 40. A level reads the grass density
+  as it loads, so `play.bat` sets `r__detail_density` in `user.ltx` before the game starts,
+  to the nearest step the game has, and its report names the share and the value. It counts
+  from the density in your video options, never makes the grass denser, and takes a density
+  you set with the slider as your own. **Grass follows the season** on the Main page turns
+  it off, and the next launch puts your own value back.
+
 ## 2.8.3 — 2026-10-17
 
 - **Particles that would fall as squares are named.** `play.bat` already reads the scripts

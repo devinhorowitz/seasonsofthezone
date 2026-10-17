@@ -37,6 +37,7 @@ import io
 import re
 import glob
 import json
+import math
 import os
 import random
 import shutil
@@ -893,6 +894,205 @@ def mcm_why(name):
     return season_label(name) if name in SEASONS else name
 
 
+# --- grass by the season ----------------------------------------------------------------
+#
+# The game spaces its grass by r__detail_density, a console setting in appdata's user.ltx,
+# and a level reads it as it loads, so it can't follow the season during play. play.bat sets
+# it before the game starts: the share of the player's grass the season's MCM page asks for
+# (seasons_zone/<season>/grass, in percent), with MCM's switch on the Main page
+# (seasons_zone/main/stage_grass). The player's own value is what user.ltx held before
+# play.bat first set it, or any value it holds that play.bat didn't write, so a change made
+# in the game's options becomes theirs. _baseline/season-grass.json keeps the two.
+GRASS_CMD = "r__detail_density"
+# each season page's default, in percent; zzz_seasons_of_the_zone_mcm.script has the same
+GRASS_SHARE = {"spring": 80, "summer": 100, "autumn": 100, "winter": 60,
+               "winter_snow": 40, "late_winter": 60}
+GRASS_LOWEST = 20                           # the pages' lowest share
+GRASS_RANGE = (0.04, 1.0)                   # what the console takes for r__detail_density
+GRASS_STATE = os.path.join(ROOT, "_baseline", "season-grass.json")
+DETAIL_SLOT = 2.0                           # a detail slot's side, in meters
+
+
+def grass_share(v, default=100):
+    """A season page's grass share as MCM saved it, a whole percent from GRASS_LOWEST to
+    100; `default` for anything else."""
+    try:
+        n = float(v)
+    except (TypeError, ValueError):
+        return default
+    if n != n:
+        return default
+    return int(min(100, max(GRASS_LOWEST, round(n))))
+
+
+def grass_points(density):
+    """The places a detail slot can put grass at this r__detail_density: the engine lays a
+    grid of ceil(2 / density) + 1 points along each side of a 2 m slot
+    (CDetailManager::cache_Decompress), so the count is that squared. It works in floats;
+    for a value of up to three decimals, doubles give the same."""
+    return (int(math.ceil(DETAIL_SLOT / density)) + 1) ** 2
+
+
+def grass_density(own, share):
+    """(r__detail_density, the share of `own`'s grass it gives, in percent) for about
+    `share` percent of the grass `own` gives. The grid comes in steps, so this is the value
+    on the 0.01 grid of the game's options, from `own` up, whose grid comes nearest; the
+    lowest of a tie. Never denser than `own`."""
+    lo, hi = GRASS_RANGE
+    own = min(max(own, lo), hi)
+    full = grass_points(own)
+    if share >= 100:
+        return own, 100
+    want = full * share / 100.0
+    best, gap = own, full - want
+    for c in range(int(math.floor(own * 100 + 1e-6)) + 1, int(round(hi * 100)) + 1):
+        v = c / 100.0
+        g = abs(grass_points(v) - want)
+        if g < gap - 1e-9:
+            best, gap = v, g
+    return best, int(round(100.0 * grass_points(best) / full))
+
+
+def _user_ltx():
+    """appdata's user.ltx as the game reads it, by MO2's rules: overwrite/ if it has one, else
+    the highest-priority enabled mod that ships one, else the game's own. None when there
+    is none yet: the game makes it the first time it closes."""
+    ow = os.path.join(ROOT, "overwrite", "appdata", "user.ltx")
+    if os.path.isfile(ow):
+        return ow
+    for line in _modlist_lines() or []:                 # the top of modlist.txt wins
+        if line[:1] == "+":
+            p = os.path.join(MODS, line[1:], "appdata", "user.ltx")
+            if os.path.isfile(p):
+                return p
+    p = os.path.join(APPDATA, "user.ltx")
+    return p if os.path.isfile(p) else None
+
+
+def console_value(path, cmd):
+    """A console setting's number in user.ltx, the last line of it as the console runs them;
+    None when there is no such line, or no number on it."""
+    try:
+        raw = io.open(path, encoding="latin-1", newline="").read()
+    except OSError:
+        return None
+    value = None
+    for line in raw.splitlines():
+        parts = line.split(None, 1)
+        if parts and parts[0] == cmd:
+            try:
+                value = float(parts[1]) if len(parts) == 2 else None
+            except ValueError:
+                value = None
+    return value
+
+
+def grass_state():
+    """{"own": the player's value, "wrote": what play.bat last set}, or None."""
+    try:
+        s = json.loads(io.open(GRASS_STATE, encoding="utf-8").read())
+        return {"own": float(s["own"]), "wrote": float(s["wrote"])}
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def _same(a, b):
+    return abs(a - b) < 0.0005
+
+
+def grass_plan(prefs, season, path=None):
+    """What the launch does with the grass: {"path", "now", "own", "want", "share", "got",
+    "on", "kept"}, or None with no user.ltx or no grass line in it. "now" is what user.ltx
+    holds; "own" the player's value; "want" what it should hold; "share" the percent the
+    season's page asks for (100 for anything else, and with the switch off); "got" what
+    "want" gives; "kept" whether play.bat keeps the grass: on, or set by it before."""
+    path = _user_ltx() if path is None else path
+    if not path:
+        return None
+    now = console_value(path, GRASS_CMD)
+    if now is None:
+        return None
+    st = grass_state()
+    own = st["own"] if st and _same(now, st["wrote"]) else now
+    on = prefs.get("grass", True)
+    # only the six seasons have pages; a period or event staged in their place keeps it all
+    share = prefs.get("grass_share", GRASS_SHARE).get(season, 100) if on else 100
+    want, got = grass_density(own, share)
+    return {"path": path, "now": now, "own": own, "want": want, "share": share, "got": got,
+            "on": on, "kept": on or st is not None}
+
+
+def grass_words(plan):
+    """The report's grass line."""
+    if plan is None:
+        return _("as you set it: there is no user.ltx with %s in it yet") % GRASS_CMD
+    shown = {"cmd": GRASS_CMD, "want": mcm_text(plan["want"]), "own": mcm_text(plan["own"])}
+    if not plan["on"]:
+        said = _("as you set it, %(cmd)s %(own)s (off in MCM)") % shown
+    elif plan["got"] >= 100:
+        said = _("all of yours, %(cmd)s %(own)s") % shown
+    else:
+        said = (_("about %(got)d%% of yours, %(cmd)s %(want)s (yours: %(own)s)")
+                % dict(shown, got=plan["got"]))
+    if not _same(plan["now"], plan["want"]):
+        said += "   " + _("(now %s)") % mcm_text(plan["now"])
+    return said
+
+
+def write_console(path, cmd, value):
+    """Set one console setting's line in user.ltx, the rest byte for byte, the file kept as
+    it was in _baseline/modfile-backups first, the newest ten. A file without the line gets
+    it after its last. Returns the text written for the value."""
+    data = open(path, "rb").read()
+    bk = os.path.join(ROOT, "_baseline", "modfile-backups")
+    os.makedirs(bk, exist_ok=True)
+    shutil.copy2(path, os.path.join(bk, "user-%s-pre-grass.ltx"
+                                    % datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
+    old = sorted(glob.glob(os.path.join(glob.escape(bk), "user-*-pre-grass.ltx")))
+    for p in old[:-10]:
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+    # latin-1 reads every byte as itself, so what isn't changed is written back unchanged
+    text = data.decode("latin-1")
+    nl = _detect_nl(text)
+    lines = text.split(nl)
+    said = mcm_text(value)
+    hits = [i for i, l in enumerate(lines) if l.split(None, 1)[:1] == [cmd]]
+    for i in hits:
+        lines[i] = cmd + " " + said
+    if not hits:
+        end = len(lines)
+        while end and not lines[end - 1].strip():
+            end -= 1
+        lines.insert(end, cmd + " " + said)
+    tmp = path + ".tmp"
+    with open(tmp, "wb") as f:
+        f.write(nl.join(lines).encode("latin-1"))
+    os.replace(tmp, path)
+    return said
+
+
+def send_grass(plan):
+    """Set the grass for this launch, and remember it; the change as (was, now), or None.
+    Not while the game runs: it saves its own over user.ltx as it closes."""
+    if plan is None or not plan["kept"]:
+        return None
+    change = None
+    if not _same(plan["now"], plan["want"]):
+        game = [p for p in running() if p.startswith("anomaly")]
+        if game:
+            print("  - " + _("The grass waits for the next launch: %s is running, and would "
+                             "save its own over it.") % _and(game))
+            return None
+        change = (mcm_text(plan["now"]), write_console(plan["path"], GRASS_CMD, plan["want"]))
+    os.makedirs(os.path.dirname(GRASS_STATE), exist_ok=True)
+    io.open(GRASS_STATE, "w", encoding="utf-8").write(json.dumps(
+        {"own": plan["own"], "wrote": plan["want"]}))
+    return change
+
+
 def _detect_nl(raw):
     crlf = chr(13) + chr(10)
     return crlf if crlf in raw else chr(10)
@@ -1205,11 +1405,13 @@ def seasons_english(seasons):
 
 def read_prefs():
     """The MCM choices, from MCM's store. Global switches are seasons_zone/main/<id>; a
-    per-season mod hold is seasons_zone/<season>/mod_<slug>. Returns {"stage_textures",
-    "stage_sound", "mode", "clock", "dice", "dice_chance", "off": {season: set(slug)}}. No
-    file yet means defaults."""
+    per-season mod hold is seasons_zone/<season>/mod_<slug>, and a season's grass
+    seasons_zone/<season>/grass. Returns {"stage_textures", "stage_sound", "mode", "clock",
+    "dice", "dice_chance", "grass", "grass_share": {season: percent}, "off": {season:
+    set(slug)}}. No file yet means defaults."""
     out = {"stage_textures": True, "stage_sound": True, "mode": "auto", "clock": "real",
-           "dice": False, "dice_chance": DICE_CHANCE, "off": {s: set() for s in SEASONS}}
+           "dice": False, "dice_chance": DICE_CHANCE, "grass": True,
+           "grass_share": dict(GRASS_SHARE), "off": {s: set() for s in SEASONS}}
     p = _axr_options()
     if not p:
         return out
@@ -1236,6 +1438,10 @@ def read_prefs():
             out["dice"] = not off
         elif page == "main" and o == "dice_chance":
             out["dice_chance"] = dice_chance(v)
+        elif page == "main" and o == "stage_grass":
+            out["grass"] = not off
+        elif o == "grass" and page in out["grass_share"]:
+            out["grass_share"][page] = grass_share(v, GRASS_SHARE[page])
         elif o.startswith("mod_") and off and page in out["off"]:
             out["off"][page].add(o[4:])       # a mod held for that one season
     return out
@@ -4757,6 +4963,10 @@ def main():
                 "the seasonal atmosphere still runs") if a.no_textures
          else _("OFF in MCM - seasonal mods disabled, texture sets kept; the seasonal "
                 "atmosphere still runs"))
+    # the grass for the season staged; a period with no MCM page of its own gets all of it
+    grass = grass_plan(prefs, want)
+    grass_pending = bool(grass and grass["kept"] and not _same(grass["now"], grass["want"]))
+    _row(pgettext("report", "grass"), grass_words(grass))
     # other mods' MCM options that follow the season, and what MCM's file has now
     mcm_now = mcm_values(active)
     mcm_want = {k: v for k, (v, _why) in mcm_now.items()}
@@ -4910,6 +5120,16 @@ def main():
                     "was": was if was is not None else _("not set"), "now": now}))
             return changes
 
+        def set_grass():
+            """Set the grass in user.ltx for the season staged, said; the change, or None."""
+            if not writing:
+                return None
+            change = send_grass(grass)
+            if change:
+                print("  %-58s %s" % ("%s (user.ltx)" % GRASS_CMD, _("%(was)s -> %(now)s")
+                                      % {"was": change[0], "now": change[1]}))
+            return change
+
         def say_skipped():
             mods, sets = len(SKIPPED), len(sets_skipped)
             if mods and sets:
@@ -4968,6 +5188,7 @@ def main():
             for name, was, now in tg:
                 print("  %-58s %s" % (name[:58], change_text(was, now)))
             mcm = send_mcm()
+            grassed = set_grass()
             if tg and writing:
                 print("  => " + _("%s: seasonal mods switched. The game picks this up when it "
                                   "starts.") % title)
@@ -4980,6 +5201,13 @@ def main():
                                   "starts.") % title)
             elif mcm_pending and not writing:
                 print("  => " + _("%(season)s: MCM settings need setting. Start the game with "
+                                  "play.bat, or run %(command)s")
+                      % {"season": title, "command": command("season.py", "apply")})
+            elif grassed:
+                print("  => " + _("%s: grass set. The game picks this up when it starts.")
+                      % title)
+            elif grass_pending and not writing:
+                print("  => " + _("%(season)s: the grass needs setting. Start the game with "
                                   "play.bat, or run %(command)s")
                       % {"season": title, "command": command("season.py", "apply")})
             elif SKIPPED or sets_skipped:
@@ -5101,11 +5329,14 @@ def main():
         send_spell()
         if send_mcm():
             done.append("MCM settings")
+        if set_grass():
+            done.append("grass")
         # each restaged texture set adds "textures"; say it once
         words = {"textures": pgettext("staged", "textures"),
                  "soundscape": pgettext("staged", "soundscape"),
                  "seasonal mods": pgettext("staged", "seasonal mods"),
-                 "MCM settings": pgettext("staged", "MCM settings")}
+                 "MCM settings": pgettext("staged", "MCM settings"),
+                 "grass": pgettext("staged", "grass")}
         print("  => " + _("%(season)s staged (%(what)s). The game picks this up when it "
                           "starts.")
               % {"season": title,

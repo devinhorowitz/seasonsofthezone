@@ -201,6 +201,8 @@ local function page_main()
     -- what play.bat switches at launch; each seasonal mod's checkbox is on a season page
     add({id = "stage_textures", type = "check", val = 1, def = true})
     add({id = "stage_sound", type = "check", val = 1, def = true})
+    -- the grass density in user.ltx, thinned by each season page's share
+    add({id = "stage_grass", type = "check", val = 1, def = true})
 
     add({id = "line_rem", type = "line"})
     -- Days of remembrance: April 26 and December 14. Each is a day laid over
@@ -280,8 +282,15 @@ local function page_yours(items)
     return gr
 end
 
--- A season page: a colored bar, the color grade preset dropdown, the resolved read-out,
--- and the seasonal mods active in this season, each with its own checkbox for this season.
+-- How much of the player's grass each season keeps, in percent: play.bat reads the page's
+-- value from MCM's file and sets user.ltx's grass density by it at launch. season.py's
+-- GRASS_SHARE holds the same defaults, for a page MCM hasn't saved yet.
+local GRASS_SHARE = {spring = 80, summer = 100, autumn = 100, winter = 60,
+                     winter_snow = 40, late_winter = 60}
+
+-- A season page: a colored bar, the color grade preset dropdown, the season's grass, the
+-- resolved read-out, and the seasonal mods active in this season, each with its own
+-- checkbox for this season.
 --
 -- The list comes from season_mods.ltx, which play.bat writes. It ships as a stub with
 -- staged_for = none and no mods, so until the first play.bat start an empty list says
@@ -296,6 +305,8 @@ local function page_season(s, choices, info)
 
     add({id = "preset", type = "list", val = 0, def = "builtin",
          no_str = true, content = choices, hint = "seasons_zone_preset"})
+    add({id = "grass", type = "track", val = 2, min = 20, max = 100, step = 10,
+         def = GRASS_SHARE[s] or 100, hint = "seasons_zone_grass"})
 
     add({id = "line_ro", type = "line"})
     local okr, rows = pcall(function() return zzz_seasons_of_the_zone.season_readout(s) end)

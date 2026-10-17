@@ -487,6 +487,36 @@ msgid "the rest of the year"
 msgstr "остальное время года"
 
 #: season.py
+#, python-format
+msgid "as you set it: there is no user.ltx with %s in it yet"
+msgstr "как задано вами: в user.ltx ещё нет %s"
+
+#: season.py
+#, python-format
+msgid "as you set it, %(cmd)s %(own)s (off in MCM)"
+msgstr "как задано вами, %(cmd)s %(own)s (выключено в MCM)"
+
+#: season.py
+#, python-format
+msgid "all of yours, %(cmd)s %(own)s"
+msgstr "вся ваша трава, %(cmd)s %(own)s"
+
+#: season.py
+#, python-format
+msgid "about %(got)d%% of yours, %(cmd)s %(want)s (yours: %(own)s)"
+msgstr "примерно %(got)d%% вашей травы, %(cmd)s %(want)s (ваше значение: %(own)s)"
+
+#: season.py
+#, python-format
+msgid "(now %s)"
+msgstr "(сейчас %s)"
+
+#: season.py
+#, python-format
+msgid "The grass waits for the next launch: %s is running, and would save its own over it."
+msgstr "Трава подождёт следующего запуска: сейчас работает %s, и игра сохранила бы поверх неё своё значение."
+
+#: season.py
 msgctxt "season"
 msgid "spring"
 msgstr "весна"
@@ -1764,9 +1794,9 @@ msgid "OFF in MCM - seasonal mods disabled, texture sets kept; the seasonal atmo
 msgstr "ВЫКЛЮЧЕН в MCM — сезонные моды выключены, наборы текстур не трогаются; сезонная атмосфера по-прежнему работает"
 
 #: season.py
-#, python-format
-msgid "(now %s)"
-msgstr "(сейчас %s)"
+msgctxt "report"
+msgid "grass"
+msgstr "трава"
 
 #: season.py
 msgid "(not in MCM's file yet)"
@@ -1994,6 +2024,16 @@ msgstr "%(season)s: настройки MCM нужно задать. Запуст
 
 #: season.py
 #, python-format
+msgid "%s: grass set. The game picks this up when it starts."
+msgstr "%s: трава задана. Игра подхватит это при запуске."
+
+#: season.py
+#, python-format
+msgid "%(season)s: the grass needs setting. Start the game with play.bat, or run %(command)s"
+msgstr "%(season)s: траву нужно задать. Запустите игру через play.bat или выполните %(command)s"
+
+#: season.py
+#, python-format
 msgid "%s: texture swapping is off for this run (--no-textures), nothing staged; the seasonal atmosphere still runs"
 msgstr "%s: смена текстур отключена на этот запуск (--no-textures), ничего не подготовлено; сезонная атмосфера по-прежнему работает"
 
@@ -2129,6 +2169,11 @@ msgstr "сезонные моды"
 msgctxt "staged"
 msgid "MCM settings"
 msgstr "настройки MCM"
+
+#: season.py
+msgctxt "staged"
+msgid "grass"
+msgstr "трава"
 
 #: season.py
 #, python-format
