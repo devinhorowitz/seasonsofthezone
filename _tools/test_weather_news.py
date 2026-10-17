@@ -119,6 +119,28 @@ def t_the_winters_say_snow_or_sleet():
 
 
 @case
+def t_one_fall_turning_into_another():
+    """As the cold comes and goes, a wet sky's rain can turn to sleet or snow and back while
+    the sky stays wet: told as the fall turning, not as one stopping and another starting."""
+    tell = sky()
+    script = [
+        ("rain", "rain", []),                               # the sky the game loads under
+        ("rain", "sleet", ["The rain is turning to sleet."]),
+        ("rain", "snow", ["The sleet is turning to snow."]),
+        ("rain", "sleet", ["The snow is turning to sleet."]),
+        ("rain", "rain", ["The sleet is turning to rain."]),
+        ("rain", "snow", ["The rain is turning to snow."]),
+        ("rain", "rain", ["The snow is turning to rain."]),
+        ("storm", "rain", ["A storm is breaking."]),
+        ("storm", "snow", ["The rain is turning to snow."]),
+    ]
+    for cycle, falls, want in script:
+        got = tell(cycle, falls)
+        assert got == want, (cycle, falls, got, want)
+    return "all six turnings between rain, sleet and snow, and a storm's"
+
+
+@case
 def t_a_new_sky_is_told_once_it_has_held_two_minutes():
     """Atmospherics' planner can stop the rain for a few minutes and bring it back. A new sky
     is told once it has held for two minutes, against the sky last told, so a pause like that
@@ -306,7 +328,8 @@ def t_every_message_is_written_in_english_and_russian():
     eng, rus = table("eng"), table("rus")
     ids = ["clear", "partly", "partly_gather", "cloudy", "foggy", "rain", "storm", "snow",
            "snowstorm", "sleet", "sleetstorm", "stopped_rain", "stopped_snow",
-           "stopped_sleet", "storm_passed", "fog_lifting", "easing"]
+           "stopped_sleet", "storm_passed", "fog_lifting", "easing", "rain_to_snow",
+           "rain_to_sleet", "sleet_to_snow", "sleet_to_rain", "snow_to_sleet", "snow_to_rain"]
     for i in ids:
         for name, t in (("English", eng), ("Russian", rus)):
             assert "st_sotz_news_wx_" + i in t, "no %s st_sotz_news_wx_%s" % (name, i)

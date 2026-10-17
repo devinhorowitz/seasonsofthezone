@@ -456,7 +456,10 @@ under each zeroed `rain_density`; the engine never reads that key. At each load 
 the Zone gives a `level` of their own to the scripts that use rain for gameplay, and their
 `rain_factor()` reads it back, blended across the hour: `xr_combat_ignore` (NPCs see less far
 in a storm), `arti_jamming` (rain jams guns), `bind_campfire`, `xr_conditions` (the AI's rain
-conditions), and Stealth Overhaul Reworked's `stealth_noise` and `visual_memory_manager`.
+conditions), Stealth Overhaul Reworked's `stealth_noise` and `visual_memory_manager`, and
+REDone Combat AI's `redone_ai_detection`. A script that keeps `level` in a local of its own,
+as REDone Combat AI's do (ROMEO ships it), has that local given the same `level`; the log
+warns if the game named a script's functions in a way that hides them.
 Useful Idiots replaces `xr_combat_ignore`'s enemy check with its own, loaded with `require`,
 so the functions of `illish.patches.xr_combat_ignore` get that `level` too; in GAMMA, NPC
 sight goes by that one. A script whose loose file never mentions `rain_factor` is left

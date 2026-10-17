@@ -277,6 +277,12 @@
 	<string id="st_sotz_news_wx_storm_passed"><text>The storm has passed.</text></string>
 	<string id="st_sotz_news_wx_fog_lifting"><text>The fog is lifting.</text></string>
 	<string id="st_sotz_news_wx_easing"><text>The storm is easing.</text></string>
+	<string id="st_sotz_news_wx_rain_to_snow"><text>The rain is turning to snow.</text></string>
+	<string id="st_sotz_news_wx_rain_to_sleet"><text>The rain is turning to sleet.</text></string>
+	<string id="st_sotz_news_wx_sleet_to_snow"><text>The sleet is turning to snow.</text></string>
+	<string id="st_sotz_news_wx_sleet_to_rain"><text>The sleet is turning to rain.</text></string>
+	<string id="st_sotz_news_wx_snow_to_sleet"><text>The snow is turning to sleet.</text></string>
+	<string id="st_sotz_news_wx_snow_to_rain"><text>The snow is turning to rain.</text></string>
 	<string id="st_sotz_news_turned_ground"><text>$Season has come to the Zone. Its ground follows at the next launch through play.bat.</text></string>
 	<string id="st_sotz_news_near_tomorrow"><text>$Season is near: it reaches the Zone tomorrow.</text></string>
 	<string id="st_sotz_news_near_in_days_one"><text>$Season is near: it reaches the Zone in $n day.</text></string>

@@ -531,7 +531,9 @@ def families():
         "st_sotz_news_wx_": ["st_sotz_news_wx_" + k for k in (
             "clear", "partly", "partly_gather", "cloudy", "foggy", "rain", "storm", "snow",
             "snowstorm", "sleet", "sleetstorm", "stopped_rain", "stopped_snow",
-            "stopped_sleet", "storm_passed", "fog_lifting", "easing")],
+            "stopped_sleet", "storm_passed", "fog_lifting", "easing", "rain_to_snow",
+            "rain_to_sleet", "sleet_to_snow", "sleet_to_rain", "snow_to_sleet",
+            "snow_to_rain")],
     }
 
 

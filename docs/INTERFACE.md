@@ -119,7 +119,8 @@ again.
 **PDA messages as the weather turns** is off as it ships. With it on, your PDA says when the
 sky changes while you play: rain setting in, a storm breaking, easing or passing, the rain
 stopping and the sky clearing, fog rolling in. Skies are named as on the Forecast page, so in the
-winters it is snow, a snowstorm, sleet or a sleet storm, and a change the page wouldn't show,
+winters it is snow, a snowstorm, sleet or a sleet storm, rain turning to sleet or snow is told
+as one turning into the other, and a change the page wouldn't show,
 cloud to a rain with its rain taken out, says nothing. A new sky is told once it has held for
 two minutes, so a short pause in the rain says nothing. No message comes during an emission or
 a psi storm, underground, or for the weather a game loads under. Nothing appears on screen

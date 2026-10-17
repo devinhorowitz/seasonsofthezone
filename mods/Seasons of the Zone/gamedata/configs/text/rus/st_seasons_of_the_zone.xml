@@ -280,6 +280,12 @@
 	<string id="st_sotz_news_wx_storm_passed"><text>Гроза прошла.</text></string>
 	<string id="st_sotz_news_wx_fog_lifting"><text>Туман рассеивается.</text></string>
 	<string id="st_sotz_news_wx_easing"><text>Непогода стихает.</text></string>
+	<string id="st_sotz_news_wx_rain_to_snow"><text>Дождь переходит в снег.</text></string>
+	<string id="st_sotz_news_wx_rain_to_sleet"><text>Дождь переходит в мокрый снег.</text></string>
+	<string id="st_sotz_news_wx_sleet_to_snow"><text>Мокрый снег переходит в снег.</text></string>
+	<string id="st_sotz_news_wx_sleet_to_rain"><text>Мокрый снег переходит в дождь.</text></string>
+	<string id="st_sotz_news_wx_snow_to_sleet"><text>Снег переходит в мокрый снег.</text></string>
+	<string id="st_sotz_news_wx_snow_to_rain"><text>Снег переходит в дождь.</text></string>
 	<string id="st_sotz_news_turned_ground"><text>$Season приходит в Зону. Земля сменится при следующем запуске через play.bat.</text></string>
 	<string id="st_sotz_news_near_tomorrow"><text>$Season уже близко — завтра в Зоне.</text></string>
 	<string id="st_sotz_news_near_in_days_one"><text>$Season уже близко — в Зоне через $n день.</text></string>

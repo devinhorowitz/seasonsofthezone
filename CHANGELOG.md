@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- **Rain for gameplay reaches REDone Combat AI.** With No Rain in Winter, REDone's NPC
+  sight and detection scripts (in ROMEO) still read a winter storm as dry: each keeps `level`
+  in a local of its own, which the `level` Seasons gives a script never reached, though the
+  log named them as reached. That local now gets it too, and REDone's `redone_ai_detection`
+  joins the scripts that read the storm's rain. The log warns if a script's functions can't
+  be told by their file.
+- **Rain turning to sleet or snow.** When a wet sky's rain turns to sleet or snow, or back,
+  the PDA says so in one line, "The rain is turning to sleet.", where it said "The rain has
+  stopped. Sleet is falling." MCM's hover text for **PDA messages as the weather turns**
+  now mentions the two-minute wait.
+
 ## 2.8.1 — 2026-10-17
 
 - **The weather messages wait two minutes.** A new sky is told once it has held for two

@@ -1212,10 +1212,11 @@ end
 -- conditions never hold (xr_conditions). Each copy keeps the rain it took out as
 -- sotz_rain_density, so those scripts, and only those, get a `level` of their own whose
 -- rain_factor() reads it back. Every other script reads the real level, so rain's sound and
--- drops stay off. A script that takes `level` from _G itself (Immersive Identification's
--- weather) can't be reached this way, and reads the dry value.
+-- drops stay off. A script that keeps `level` in a local of its own (REDone Combat AI's, in
+-- ROMEO) has that local given the same `level`. A script that takes `level` from _G itself
+-- (Immersive Identification's weather) can't be reached this way, and reads the dry value.
 local WET_READERS = {"xr_combat_ignore", "arti_jamming", "bind_campfire", "xr_conditions",
-                     "stealth_noise", "visual_memory_manager"}
+                     "stealth_noise", "visual_memory_manager", "redone_ai_detection"}
 -- Gameplay readers loaded with require, which run in _G: Useful Idiots' combat range, which
 -- replaces xr_combat_ignore.is_enemy, so in GAMMA it is the one NPC sight goes by.
 local WET_MODULES = {{"illish.patches.xr_combat_ignore", "illish\\patches\\xr_combat_ignore.lua"}}
@@ -1295,9 +1296,56 @@ local function reads_rain(file)
     return not (ok and src) or src:find("rain_factor", 1, true) ~= nil
 end
 
--- Each gameplay script on disk gets its own `level`, the real one but for rain_factor; each
--- function of a module loaded with require gets an environment that is _G but for `level`.
--- Returns the names it reached; a script that set a `level` of its own is left alone.
+-- Whether function f was compiled from `file`: the game names a chunk by its full path, as in
+-- "d:/anomaly/bin/..\gamedata\scripts\xr_combat_ignore.script".
+local function from_file(f, file)
+    local ok, info = pcall(debug.getinfo, f, "S")
+    local src = ok and info and info.source
+    if type(src) ~= "string" then return false end
+    src = string.lower((string.gsub(src, "/", "\\")))
+    file = string.lower((string.gsub(file, "/", "\\")))
+    return src == file or src == "@" .. file or string.sub(src, -(#file + 1)) == "\\" .. file
+end
+
+-- A script that keeps `level` in a local of its own (`local level = level` at the top, as
+-- REDone Combat AI's do) reads that, not the `level` set in its table. Every function in the
+-- file shares that one local, so setting it through any of them reaches them all. Only
+-- functions compiled from the script's own file are looked into: another mod's wrapper in its
+-- table, and the `level` of that mod's file, are left alone. Returns how many it set, and how
+-- many of the file's functions it looked into.
+local function rebind_level(tbl, file, own)
+    local seen, queue, n, looked = {}, {}, 0, 0
+    for _, v in pairs(tbl) do
+        if type(v) == "function" then queue[#queue + 1] = v end
+    end
+    local i = 1
+    while queue[i] do
+        local f = queue[i]
+        i = i + 1
+        if not seen[f] and from_file(f, file) then
+            seen[f] = true
+            looked = looked + 1
+            local u = 1
+            while true do
+                local name, val = debug.getupvalue(f, u)
+                if name == nil then break end
+                if name == "level" and rawequal(val, level) then
+                    debug.setupvalue(f, u, own)
+                    n = n + 1
+                elseif type(val) == "function" then
+                    queue[#queue + 1] = val
+                end
+                u = u + 1
+            end
+        end
+    end
+    return n, looked
+end
+
+-- Each gameplay script on disk gets its own `level`, the real one but for rain_factor, in its
+-- table and in a local of its own if it keeps one; each function of a module loaded with
+-- require gets an environment that is _G but for `level`. Returns the names it reached; a
+-- script that set a `level` of its own is left alone.
 function wet_readers()
     if not real_rain_factor then return {} end
     local own = setmetatable({rain_factor = wet_rain_factor}, {__index = level})
@@ -1309,6 +1357,13 @@ function wet_readers()
             local env = _G[name]
             if type(env) == "table" and rawget(env, "level") == nil then
                 env.level = own
+                local _, looked = rebind_level(env, name .. ".script", own)
+                if looked == 0 then
+                    -- the game named the file's functions some other way: a local `level`
+                    -- in it would be missed, so say so
+                    say("!rain for gameplay: none of " .. name .. "'s functions are known "
+                        .. "by its file, so a local level in it is not reached")
+                end
                 done[#done + 1] = name
             end
         end)
@@ -2923,6 +2978,10 @@ function weather_message(was, now)
     if WX_FALL[was] and WX_FALL[was] == WX_FALL[now] then
         -- the same fall, heavier or lighter
         return say_wx((WX_STORMS[was] and not WX_STORMS[now]) and "easing" or now)
+    end
+    if WX_FALL[was] and WX_FALL[now] then
+        -- one fall turning into another as the cold comes and goes: rain into sleet
+        return say_wx(WX_FALL[was] .. "_to_" .. WX_FALL[now])
     end
     local parts = {}
     if WX_ENDS[was] then
