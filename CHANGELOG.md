@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **W.P.W.M.'s level weather, explained.** CONFIGURING.md now says how W.P.W.M.'s per-level
+  weather settings meet the season's weather odds: a level's setting scales the season's
+  tilt, an **Always** setting or one that leaves a sky out holds in every season, and the
+  marked days' skies still win.
+
 ## 2.9.0 — 2026-10-17
 
 - **Grass by the season.** The grass thins out in the cold. Each season's MCM page has

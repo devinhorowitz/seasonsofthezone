@@ -736,6 +736,26 @@ sky, so the numbers on the PDA are Open-Meteo's endpoints, changed.
 
 ---
 
+## W.P.W.M.'s level weather
+
+W.P.W.M., the weather manager that comes with Atmospherics, can give each level weather of
+its own: in MCM, **W.P.W.M** > **Levels**, **Enable Level Weather**, off by default. With
+**Weather odds follow the season** on Seasons' Main page, the season tilts W.P.W.M.'s
+weights, and a level's setting scales those, so the tilt carries through: a level set to
+**Rain Dominant** still sees more rain in autumn than in summer. Two kinds of setting take
+the season out of it:
+
+- **Always Sunny** and the other **Always** settings hold that sky on the level in every
+  season.
+- A setting that leaves a sky out, like **No Clear Weather** or **Rain and Storm Only**,
+  leaves it out in every season.
+
+On Seasons' marked days the held sky wins anyway: if **Switch Weather on Arrival** moves a
+level off a remembrance day's clear sky or an anniversary's storm, Seasons sets it back
+within seconds.
+
+---
+
 ## Presets
 
 A preset keeps a setup under a name, in `_tools\presets\`, as a JSON file: plain data, so
