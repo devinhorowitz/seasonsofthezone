@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.8.1 — 2026-10-17
 
 - **The weather messages wait two minutes.** A new sky is told once it has held for two
   minutes, not one. Rain that stopped for six game minutes and came back still sent "The rain
