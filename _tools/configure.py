@@ -45,6 +45,7 @@ GAMMA folder (use python in place of py if that is how your Python starts):
   py _tools\configure.py lut winter Iris 60 | lut winter --off  give a season a LUT, or none
   py _tools\configure.py accents                 the seasons' accents, built into their LUTs
   py _tools\configure.py accents on | accents off  Seasons' own accents, or none
+  py _tools\configure.py accents --packs | --no-packs  on seasons with a LUT pack too, or not
   py _tools\configure.py rain                    the weathers that rain, and whether the
                                                 winters take their rain out
   py _tools\configure.py rain --build | rain --off  take it out in the winters, or stop
@@ -1214,15 +1215,37 @@ def accent_words(accent):
     return ", ".join("%s %s" % (k, ce.literal(v)) for k, v in accent.items())
 
 
+def accent_lines(cal):
+    """What the accents do in a setup, beyond the list of them: on packs or not, and a word
+    when they reach no season at all."""
+    if not cal.accents_on():
+        return []
+    if cal.accents_on_packs is True:
+        out = [_("They go on seasons with a LUT pack too. To keep a pack as its author made "
+                 "it: %s") % season.command("configure.py", "accents --no-packs")]
+    else:
+        out = [_("A season with a LUT pack shows the pack as its author made it, mixed by your "
+                 "percent. To put the accents on it too: %s")
+               % season.command("configure.py", "accents --packs")]
+    if not cal.accented_seasons():
+        out.append("! " + _("Each season with accents has a LUT pack, so none gets them."))
+    return out
+
+
 def cmd_accents(a):
     cal = loaded()
-    if a.state is None:
+    if a.state is None and a.packs is None:
         if cal.accents_on():
             print("  " + (_("Seasons' own accents are on, built into each season's LUT:")
                           if cal.accents is True else
                           _("Accents of your own are on, from seasons_config.py:")))
+            built = cal.accented_seasons()
             for s, accent in season.accents_wanted(cal.accents).items():
-                print("    %-14s %s" % (typed_name(s, cal), accent_words(accent)))
+                print("    %-14s %s%s" % (typed_name(s, cal), accent_words(accent),
+                                          "" if s in built else
+                                          "   (" + _("left out: it has a LUT pack") + ")"))
+            for line in accent_lines(cal):
+                print("  " + line)
         else:
             print("  " + _("The seasons' accents are off."))
             print("  " + _("To turn Seasons' own on: %s") % season.command("configure.py",
@@ -1232,18 +1255,27 @@ def cmd_accents(a):
         if cal.accents_on() and not have_numpy():
             print("  ! " + numpy_line())
         return
-    cal.set_accents(a.state == "on")
-    if cal.accents_on():
-        said = (_("Seasons' own accents are on; play.bat builds them into Seasonal LUT at the "
-                  "next launch") if cal.accents is True else
-                _("your own accents stay on; play.bat builds them into Seasonal LUT"))
-    elif cal.luts:
-        said = _("the seasons' accents are off; play.bat builds Seasonal LUT without them at "
-                 "the next launch")
-    else:
-        said = _("the seasons' accents are off; with no season LUT either, play.bat turns "
-                 "Seasonal LUT off at the next launch")
-    save(cal, [said])
+    said = []
+    if a.state is not None:
+        cal.set_accents(a.state == "on")
+        if cal.accents_on():
+            said.append(_("Seasons' own accents are on; play.bat builds them into Seasonal LUT "
+                          "at the next launch") if cal.accents is True else
+                        _("your own accents stay on; play.bat builds them into Seasonal LUT"))
+        elif cal.luts:
+            said.append(_("the seasons' accents are off; play.bat builds Seasonal LUT without "
+                          "them at the next launch"))
+        else:
+            said.append(_("the seasons' accents are off; with no season LUT either, play.bat "
+                          "turns Seasonal LUT off at the next launch"))
+    if a.packs is not None:
+        cal.set_accents_on_packs(a.packs)
+        said.append(_("the accents go on seasons with a LUT pack too") if a.packs else
+                    _("a season with a LUT pack shows the pack as its author made it, and the "
+                      "accents color the seasons without one"))
+    save(cal, said)
+    if cal.accents_on() and not cal.accented_seasons():
+        print("  ! " + _("Each season with accents has a LUT pack, so none gets them."))
     if cal.accents_on() and not have_numpy():
         print("  ! " + numpy_line())
 
@@ -2667,8 +2699,12 @@ class App(object):
             sp.bind("<KeyRelease>", lambda e: self.luts_edited())
             ttk.Label(grid, text="%").grid(row=i, column=3, sticky="w", padx=(2, 0))
             self.lut_rows[s] = (pick, cb, share, sp)
-        ttk.Button(box, text=_("Look for LUT packs again"), command=self.lut_fill).pack(
-            anchor="w", pady=(6, 0))
+        row = ttk.Frame(box)
+        row.pack(anchor="w", pady=(6, 0))
+        ttk.Button(row, text=_("Look for LUT packs again"), command=self.lut_fill).pack(
+            side="left")
+        ttk.Button(row, text=_("Preview the looks..."), command=self.preview_look).pack(
+            side="left", padx=(6, 0))
         self.lut_note = ttk.Label(box, text="", foreground=GREY, wraplength=500,
                                   justify="left")
         self.lut_note.pack(anchor="w", pady=(4, 0))
@@ -2677,10 +2713,18 @@ class App(object):
         ttk.Checkbutton(box, text=_("Seasons' own accents"), variable=self.accents_on,
                         command=self.accents_edited).pack(anchor="w", pady=(12, 0))
         ttk.Label(box, wraplength=500, justify="left", foreground=GREY, text=_(
-            "A touch of each season's own color, built into its LUT, with a pack or without: "
-            "young greens in spring, high sun in summer, reds and golds in autumn, a gray cold "
-            "in winter, crisp snow in deep winter and an earthy thaw in late winter.")).pack(
-            anchor="w")
+            "A touch of each season's own color, built into its LUT: young greens in spring, "
+            "high sun in summer, reds and golds in autumn, a gray cold in winter, crisp snow "
+            "in deep winter and an earthy thaw in late winter.")).pack(anchor="w")
+        self.accents_packs = tk.BooleanVar()
+        self.accents_packs_box = ttk.Checkbutton(
+            box, text=_("Also on seasons with a LUT pack"), variable=self.accents_packs,
+            command=self.accents_packs_edited)
+        self.accents_packs_box.pack(anchor="w", padx=(20, 0), pady=(6, 0))
+        ttk.Label(box, wraplength=480, justify="left", foreground=GREY, text=_(
+            "Off, a season with a LUT pack shows the pack as its author made it, mixed by your "
+            "percent: accents on top of an authored grade can spoil it.")).pack(
+            anchor="w", padx=(20, 0))
         self.accent_note = ttk.Label(box, text="", foreground=GREY, wraplength=500,
                                      justify="left")
         self.accent_note.pack(anchor="w", pady=(4, 0))
@@ -2749,19 +2793,34 @@ class App(object):
                 source, option = self.lut_found[label]
                 new[s] = (source, option, max(1, min(100, p)))
         self.cal.luts = new
+        self.accent_fill()                  # which seasons the accents leave out follows the packs
         self.update_status()
 
-    # the seasons' accents: Seasons' own on or off; a table of the player's own is kept
+    # the seasons' accents: Seasons' own on or off, and on seasons with a LUT pack or not; a
+    # table of the player's own is kept
 
     def accent_fill(self):
-        """The accents box, from the config's SEASON_ACCENTS, and what building them needs."""
-        self.accents_on.set(self.cal.accents_on())
+        """The accents box, from the config's SEASON_ACCENTS and SEASON_ACCENTS_ON_PACKS, and
+        what building them needs."""
+        if not hasattr(self, "accent_note"):
+            return
+        on = self.cal.accents_on()
+        self.accents_on.set(on)
+        self.accents_packs.set(self.cal.accents_on_packs is True)
+        self.accents_packs_box.configure(state="normal" if on else "disabled")
         words = []
         if self.cal.own_accents(self.cal.accents):
             words.append(_("On with accents of your own, from seasons_config.py, for %s.")
                          % lang.and_list(label(s, self.cal)
                                          for s in season.accents_wanted(self.cal.accents)))
-        if self.cal.accents_on() and not have_numpy():
+        if on and self.cal.accents_on_packs is not True:
+            left = [s for s in season.accents_wanted(self.cal.accents) if s in self.cal.luts]
+            if left and not self.cal.accented_seasons():
+                words.append(_("Each season with accents has a LUT pack, so none gets them."))
+            elif left:
+                words.append(_("Left out, as they have a LUT pack: %s.")
+                             % lang.and_list(label(s, self.cal) for s in left))
+        if on and not have_numpy():
             words.append(_("Building them needs numpy, a Python package, which isn't "
                            "installed. Save offers to install it."))
         self.accent_note.configure(text="\n".join(words))
@@ -2770,6 +2829,16 @@ class App(object):
         self.cal.set_accents(self.accents_on.get())
         self.accent_fill()
         self.update_status()
+
+    def accents_packs_edited(self):
+        self.cal.set_accents_on_packs(self.accents_packs.get())
+        self.accent_fill()
+        self.update_status()
+
+    def preview_look(self):
+        """Each season's LUT on a sample, beside the game's and the pack's as its author
+        made it: the setup as it is in the window, saved or not."""
+        look_preview(self.root, self.cal, self.tk, self.ttk)
 
     # the dial, drawn as the game will draw it, whenever the calendar or a name changes
 
@@ -3273,7 +3342,7 @@ class App(object):
         if self.cal.luts:
             said.append(ngettext("%d season LUT", "%d season LUTs", len(self.cal.luts))
                         % len(self.cal.luts))
-        if self.cal.accents_on():
+        if self.cal.accented_seasons():
             said.append(_("season accents"))
         self.status.configure(text=comma_list(said))
         dirty = self.cal.dirty() or bool(self.bad_dates) or self.dice.dirty()
@@ -3569,6 +3638,173 @@ def offer_numpy(root):
         return
     messagebox.showinfo(head, _("numpy is installed. play.bat builds the accents into "
                                 "Seasonal LUT the next time it starts the game."), parent=root)
+
+
+# --- the look of each season, previewed --------------------------------------------------
+
+PREVIEW_W = 300                 # each picture's width
+
+
+def preview_chart(np, w=PREVIEW_W, band=12):
+    """A chart of everyday colors, a band each, dark to light from left to right: sky, haze,
+    foliage, dry grass and gold, earth and brick, skin, snow, gray from black to white, and
+    every hue. Its colors are the frame before any LUT, so the preview of it is exact."""
+    x = np.linspace(0.0, 1.0, w)[:, None]
+
+    def ramp(a, b):
+        return (1.0 - x) * np.array(a, np.float64) + x * np.array(b, np.float64)
+
+    hue = (x[:, 0] * 6.0) % 6.0
+
+    def channel(n):                     # HSV to RGB at saturation 0.65 and value 0.85
+        k = (n + hue) % 6.0
+        return 0.85 - 0.85 * 0.65 * np.clip(np.minimum(k, 4.0 - k), 0.0, 1.0)
+    bands = [ramp((0.36, 0.52, 0.72), (0.80, 0.86, 0.93)),     # sky
+             ramp((0.45, 0.47, 0.50), (0.78, 0.80, 0.82)),     # haze and overcast
+             ramp((0.06, 0.12, 0.04), (0.42, 0.58, 0.22)),     # foliage
+             ramp((0.30, 0.26, 0.10), (0.82, 0.62, 0.22)),     # dry grass and gold
+             ramp((0.16, 0.11, 0.08), (0.56, 0.32, 0.22)),     # earth, rust and brick
+             ramp((0.34, 0.22, 0.17), (0.86, 0.66, 0.56)),     # skin
+             ramp((0.62, 0.68, 0.78), (0.97, 0.98, 1.00)),     # snow and ice
+             ramp((0.0, 0.0, 0.0), (1.0, 1.0, 1.0)),           # gray
+             np.stack([channel(5.0), channel(3.0), channel(1.0)], axis=1)]
+    return np.concatenate([np.repeat(b[None], band, axis=0) for b in bands], axis=0)
+
+
+def preview_picture(path, np, w=PREVIEW_W):
+    """A picture of the player's, a screenshot say, scaled to `w` across, colors from 0 to 1.
+    It needs Pillow: ImportError without it."""
+    from PIL import Image
+    im = Image.open(path).convert("RGB")
+    im = im.resize((w, max(1, round(im.height * w / float(im.width)))), Image.LANCZOS)
+    return np.asarray(im, dtype=np.float64) / 255.0
+
+
+def png_data(np, rgb):
+    """An (h, w, 3) picture, colors from 0 to 1, as a PNG file in base64, which Tk shows
+    without Pillow."""
+    import base64
+    import struct
+    import zlib
+    px = np.clip(np.floor(rgb * 255.0 + 0.5), 0, 255).astype(np.uint8)
+    h, w = px.shape[:2]
+    raw = b"".join(b"\x00" + px[y].tobytes() for y in range(h))
+
+    def chunk(kind, data):
+        return (struct.pack(">I", len(data)) + kind + data
+                + struct.pack(">I", zlib.crc32(kind + data) & 0xffffffff))
+    png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+           + chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b""))
+    return base64.b64encode(png).decode("ascii")
+
+
+def look_preview(root, cal, tk, ttk):
+    """The preview window: for each season, a sample through the game's LUT, through the
+    season's pack as its author made it, and through the season's own LUT as play.bat would
+    build it from the setup in the window. Returns the window, or None."""
+    from tkinter import filedialog, messagebox
+    np = season._numpy()
+    head = _("The look of each season")
+    if np is None:
+        messagebox.showinfo(head, _("The preview needs numpy, a Python package. To install it, "
+                                    "type this in Command Prompt: %s")
+                            % (season._python() + " -m pip install numpy"), parent=root)
+        return None
+    root.configure(cursor="watch")
+    root.update()
+    try:
+        look = season.lut_preview(cal.luts, cal.accents if cal.accents is not None else False,
+                                  cal.accents_on_packs is True, np)
+    finally:
+        root.configure(cursor="")
+    if look["game"] is None:
+        messagebox.showerror(head, "\n".join(look["problems"]), parent=root)
+        return None
+    win, f = dialog(root, head)
+    win.geometry("%dx%d" % (3 * PREVIEW_W + 110, 760))
+    ttk.Label(f, wraplength=3 * PREVIEW_W + 60, justify="left", foreground=GREY, text=_(
+        "Each season's LUT on a sample. Left, the game's LUT, from %s; in the middle, the "
+        "season's LUT pack as its author made it; right, what the season gets: the game's "
+        "LUT moved toward the pack by your percent, with the accents where they apply. The "
+        "sample is a chart of everyday colors, or a screenshot of yours, which already carries "
+        "a grade: judge it by the differences.") % look["base"]).pack(anchor="w")
+    if look["problems"]:
+        ttk.Label(f, wraplength=3 * PREVIEW_W + 60, justify="left", foreground=RED,
+                  text="\n".join(look["problems"])).pack(anchor="w", pady=(6, 0))
+    bar = ttk.Frame(f)
+    bar.pack(side="bottom", fill="x", pady=(10, 0))
+    body = ttk.Frame(f)
+    body.pack(fill="both", expand=True, pady=(8, 0))
+    scroll = Scrolled(body, tk, ttk, width=3 * PREVIEW_W + 40)
+    win.look, win.photos = look, []
+
+    def show(sample):
+        for w in scroll.inner.winfo_children():
+            w.destroy()
+        win.photos = []
+        flat, shape = sample.reshape(-1, 3), sample.shape
+        blank = tk.PhotoImage(width=PREVIEW_W, height=shape[0])
+        win.photos.append(blank)
+        grid = ttk.Frame(scroll.inner)
+        grid.pack(anchor="w")
+        for col, text in enumerate((_("The game's LUT"), _("The pack as made"),
+                                    _("This season"))):
+            ttk.Label(grid, text=text, foreground=GREY).grid(row=0, column=col, sticky="w",
+                                                            padx=(0 if col == 0 else 8, 0))
+        for i, s in enumerate(season.SEASONS):
+            row = look["seasons"][s]
+            words = row["label"] or _("no LUT pack")
+            if row["accents"]:
+                words = (_("%s + accents") % row["label"]) if row["label"] else _("accents")
+            ttk.Label(grid, text="%s: %s" % (title(s, cal), words)).grid(
+                row=2 * i + 1, column=0, columnspan=3, sticky="w", pady=(10, 2))
+            for col, table in enumerate((look["game"], row["pack"], row["made"])):
+                if table is None:
+                    tk.Label(grid, image=blank, text=_("no LUT pack"), compound="center",
+                             borderwidth=0).grid(row=2 * i + 2, column=col,
+                                                 padx=(0 if col == 0 else 8, 0))
+                    continue
+                img = tk.PhotoImage(data=png_data(np, season.lut_apply(np, table, flat)
+                                                  .reshape(shape)))
+                win.photos.append(img)
+                tk.Label(grid, image=img, borderwidth=0).grid(
+                    row=2 * i + 2, column=col, padx=(0 if col == 0 else 8, 0))
+        scroll.top()
+
+    def use_screenshot():
+        start = os.path.join(season.APPDATA, "screenshots")
+        path = filedialog.askopenfilename(
+            parent=win, title=_("A screenshot to preview"),
+            initialdir=start if os.path.isdir(start) else None,
+            filetypes=[(_("Pictures"), "*.png *.jpg *.jpeg *.bmp"), (_("All files"), "*.*")])
+        if not path:
+            return
+        try:
+            sample = preview_picture(path, np)
+        except ImportError:
+            messagebox.showinfo(head, _("Showing a screenshot needs Pillow, a Python package. "
+                                        "To install it, type this in Command Prompt: %s")
+                                % (season._python() + " -m pip install pillow"), parent=win)
+            return
+        except (OSError, ValueError) as e:
+            messagebox.showerror(head, _("That picture can't be read: %s") % e, parent=win)
+            return
+        win.configure(cursor="watch")
+        win.update()
+        try:
+            show(sample)
+        finally:
+            win.configure(cursor="")
+
+    win.show = show
+    ttk.Button(bar, text=_("Close"), command=win.destroy).pack(side="right")
+    ttk.Button(bar, text=_("Use the chart"), command=lambda: show(preview_chart(np))).pack(
+        side="right", padx=(0, 6))
+    ttk.Button(bar, text=_("Use a screenshot..."), command=use_screenshot).pack(
+        side="right", padx=(0, 6))
+    show(preview_chart(np))
+    present(win, root)
+    return win
 
 
 def own_window_words(cal, win):
@@ -4322,6 +4558,7 @@ GAMMA folder (use python in place of py if that is how your Python starts):
   py _tools\configure.py lut winter Iris 60 | lut winter --off  give a season a LUT, or none
   py _tools\configure.py accents                 the seasons' accents, built into their LUTs
   py _tools\configure.py accents on | accents off  Seasons' own accents, or none
+  py _tools\configure.py accents --packs | --no-packs  on seasons with a LUT pack too, or not
   py _tools\configure.py rain                    the weathers that rain, and whether the
                                                 winters take their rain out
   py _tools\configure.py rain --build | rain --off  take it out in the winters, or stop
@@ -4468,6 +4705,11 @@ def main():
                                          "or off: color built into each season's LUT"))
     p.add_argument("state", nargs="?", choices=["on", "off"],
                    help=lang.or_list(["on", "off"]))
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--packs", dest="packs", action="store_const", const=True, default=None,
+                   help=_("put the accents on seasons with a LUT pack too"))
+    g.add_argument("--no-packs", dest="packs", action="store_const", const=False,
+                   help=_("keep a season's LUT pack as its author made it (the default)"))
     p = sub.add_parser("rain", help=_("show the weathers that rain, or take their rain out in "
                                       "the winters"))
     p.add_argument("--build", action="store_true",

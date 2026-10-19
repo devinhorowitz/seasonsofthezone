@@ -873,12 +873,20 @@ LUT` moves above it.
 SEASON_ACCENTS = True
 ```
 
-Accents are small color changes built into each season's LUT, on top of its pack's LUT or
-the game's: more color in spring's new leaves, more contrast under summer's high sun,
-richer reds and golds in autumn, less color and a cooler middle in winter, crisp
-blue-white snow in deep winter, and an earthy, duller thaw in late winter. They leave black
-and white as they are, so dark places stay dark. `True` gives Seasons' own accents.
-`False`, or no `SEASON_ACCENTS` line, gives none.
+Accents are small color changes built into each season's LUT: more color in spring's new
+leaves, more contrast under summer's high sun, richer reds and golds in autumn, less color
+and a cooler middle in winter, crisp blue-white snow in deep winter, and an earthy, duller
+thaw in late winter. They leave black and white as they are, so dark places stay dark.
+`True` gives Seasons' own accents. `False`, or no `SEASON_ACCENTS` line, gives none.
+
+By default they color only the seasons without a LUT pack, on the game's LUT. A season
+with a pack shows the pack as its author made it, mixed by your percent: accents on top of
+an authored grade can spoil it, say spring's greens on a pack that already pushes green.
+To put them on the packs too:
+
+```python
+SEASON_ACCENTS_ON_PACKS = True
+```
 
 A table sets your own, season by season. A season left out has none:
 
@@ -920,15 +928,23 @@ with no LUTs, `Seasonal LUT` stays off until numpy is in; the report says which.
 line marks the seasons that have them, and so does each season page's read-out in MCM.
 
 `configure.bat` switches Seasons' own on and off: **Seasons' own accents**, under *The
-look of each season* on the advanced editor's Seasons tab. Saving with them on offers to
-install numpy when it is missing. A table of your own stays as you wrote it while the box
-is ticked. As commands:
+look of each season* on the advanced editor's Seasons tab, and **Also on seasons with a
+LUT pack** under it. Saving with them on offers to install numpy when it is missing. A table
+of your own stays as you wrote it while the box is ticked. As commands:
 
 ```bash
-py _tools\configure.py accents          # what is on, season by season
+py _tools\configure.py accents          # what is on, season by season, and what is left out
 py _tools\configure.py accents on       # Seasons' own; a table of your own stays
 py _tools\configure.py accents off      # none
+py _tools\configure.py accents --packs  # on seasons with a LUT pack too; --no-packs, not
 ```
+
+**Preview the looks...** in the same box shows each season's LUT before you launch: a chart
+of everyday colors (sky, foliage, earth, skin, snow, gray and every hue) through the game's
+LUT, through the season's pack as its author made it, and through what the season gets, for
+the setup in the window, saved or not. **Use a screenshot...** shows one of yours instead;
+a screenshot already carries a grade, so judge it by the differences. The chart is exact:
+its colors are the frame before any LUT. The preview needs numpy, and a screenshot Pillow.
 
 ---
 

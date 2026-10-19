@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- **Accents leave a LUT pack as its author made it.** By default the seasons' accents now
+  color only the seasons without a LUT pack, on the game's LUT; a season with a pack shows
+  the pack as made, mixed by your percent. Accents on top of an authored grade can spoil it,
+  say spring's greens on a pack that already pushes green. **Also on seasons with a LUT
+  pack**, under the accents' box on `configure.bat`'s Seasons tab, puts them on the packs
+  too, as do `configure.py accents --packs` and `SEASON_ACCENTS_ON_PACKS = True`;
+  `configure.py accents` names the seasons it leaves out. A LUT pack's author raised it.
+- **Preview the looks.** *The look of each season* has **Preview the looks...**: each
+  season's LUT on a chart of everyday colors, through the game's LUT, through the season's
+  pack as made, and through what the season gets, for the setup in the window, saved or not.
+  **Use a screenshot...** shows one of yours. The preview reads each LUT as Screen Space
+  Shaders' shader does. In English and Russian.
+
 ## 2.10.1 — 2026-10-19
 
 - **The LUTs and accents are in reach.** In `configure.bat`'s advanced editor the Seasons tab

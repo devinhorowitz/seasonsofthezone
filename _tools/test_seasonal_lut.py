@@ -660,13 +660,38 @@ def t_apply_builds_accents_into_every_season_with_no_pack():
         return "six seasons with their accents, listed, and said"
 
 
+PACK_AND_ACCENTS = (LUTS + 'SEASON_ACCENTS = {"summer": {"contrast": 0.1}, '
+                    '"autumn": {"vibrance": 0.2, "vibrance_rgb": (1.3, 1.0, 0.6)}}\n')
+
+
+@case
+def t_a_season_with_a_pack_keeps_it_as_made_by_default():
+    """Without SEASON_ACCENTS_ON_PACKS, a season with a pack gets the plain mix, though the
+    accents name it: an authored grade stays its author's. One without a pack gets them."""
+    with tempfile.TemporaryDirectory() as d:
+        scratch(d, PACK_AND_ACCENTS)
+        packs(d)
+        rc, out = tc.run(d, "apply", tool="season.py")
+        assert rc == 0 and "built: 3 seasons" in out, out
+        got = season.lut_atlas(open(built(d, "textures", "shaders", "lut_atlas.dds"), "rb").read())
+        base = lut(dds(1))
+        assert got[1] == season.lut_accent(base, {"contrast": 0.1}), "summer"
+        assert got[2] == season.lut_mix(base, lut(dds(1, BGRA, flat(200))), 0.3), "autumn"
+        assert got[3] == season.lut_mix(base, lut(dds(1, RGBA, inverted)), 0.6), "winter"
+        info = ltx(d)
+        assert "\nsummer = true" in info and "\nautumn = true" not in info, info
+        rc, out = tc.run(d, "status", tool="season.py")
+        assert "summer accents, autumn EASTMAN 30%, winter Iris 60%" in out, out
+        return "summer's accents built; autumn's left off its EASTMAN mix; winter as before"
+
+
 @case
 def t_a_season_s_pack_and_its_accents_stack():
-    """A season with a pack and accents gets the accents on its mix; one with accents only,
-    on the game's group; one with a pack only, the mix as before."""
+    """With SEASON_ACCENTS_ON_PACKS = True, a season with a pack and accents gets the
+    accents on its mix; one with accents only, on the game's group; one with a pack only,
+    the mix as before."""
     with tempfile.TemporaryDirectory() as d:
-        scratch(d, LUTS + 'SEASON_ACCENTS = {"summer": {"contrast": 0.1}, '
-                          '"autumn": {"vibrance": 0.2, "vibrance_rgb": (1.3, 1.0, 0.6)}}\n')
+        scratch(d, PACK_AND_ACCENTS + "SEASON_ACCENTS_ON_PACKS = True\n")
         packs(d)
         rc, out = tc.run(d, "apply", tool="season.py")
         assert rc == 0 and "built: 3 seasons" in out, out
@@ -928,6 +953,170 @@ def t_the_config_check_names_each_bad_accent():
         rc, out = tc.run(d, "status", tool="season.py")
         assert rc != 0 and "SEASON_ACCENTS must be True" in out, out
     return "7 problems, each naming its entry; Seasons' own pass; a bad file refused"
+
+
+# --- accents on packs, and the preview -----------------------------------------------------
+
+def identity_lut(np, swap=False):
+    """A LUT as lut_atlas gives it that leaves each color as it is, laid out as SSS's shader
+    reads one: green down, blue the slice, red across. With `swap`, red and blue trade."""
+    k = np.arange(64)
+    g, b, r = np.meshgrid(k, k, k, indexing="ij")
+    rgb = np.stack([b, g, r] if swap else [r, g, b], axis=-1) / 63.0
+    texel = np.zeros((64, 64, 64, 4), np.uint8)
+    for i in range(3):
+        texel[..., season._TEXEL[i]] = np.floor(rgb[..., i] * 255.0 + 0.5)
+    texel[..., season._TEXEL[3]] = 255
+    return texel.tobytes()
+
+
+@case
+def t_lut_apply_reads_a_lut_as_the_shader_does():
+    """lut_apply follows screenspace_lut.h: an identity LUT gives each color back, a LUT
+    that trades red and blue trades them, and a color on the grid reads its texel."""
+    np = season._numpy()
+    colors = np.random.default_rng(7).random((5000, 3))
+    same = season.lut_apply(np, identity_lut(np), colors)
+    assert np.abs(same - colors).max() < 1.5 / 255, np.abs(same - colors).max()
+    traded = season.lut_apply(np, identity_lut(np, swap=True), colors)
+    assert np.abs(traded - colors[:, ::-1]).max() < 1.5 / 255
+    table = lut(dds(1, BGRA, inverted))
+    t = np.frombuffer(table, np.uint8).reshape(64, 64, 64, 4)
+    spots = [(5, 40, 63), (0, 0, 0), (63, 17, 2)]
+    want = np.array([[t[g, b, r, 2], t[g, b, r, 1], t[g, b, r, 0]] for r, g, b in spots]) / 255.0
+    got = season.lut_apply(np, table, np.array(spots) / 63.0)
+    assert np.allclose(got, want), (got, want)
+    return "identity within a step, red and blue traded, grid colors read exactly"
+
+
+PREVIEW = r'''
+import io, os, sys
+sys.path.insert(0, sys.argv[1])
+import season
+look = season.lut_preview(season.SEASON_LUTS, season.SEASON_ACCENTS,
+                          season.SEASON_ACCENTS_ON_PACKS)
+gd = os.path.join(season.MODS, season.LUT_MOD, "gamedata")
+atlas = season.lut_atlas(open(os.path.join(gd, *season.LUT_ATLAS), "rb").read())
+index = {}
+for line in io.open(os.path.join(gd, *season.LUT_INFO), encoding="cp1251").read().splitlines():
+    key, _, value = line.partition(" = ")
+    if key in season.SEASONS and ":" in value:
+        index[key] = int(value.split(":")[1])
+print("problems", look["problems"])
+for s in season.SEASONS:
+    row = look["seasons"][s]
+    built = atlas[index.get(s, 0)]
+    print(s, "same" if row["made"] == built else "DIFFERS", "pack" if row["pack"] else "-",
+          "accents" if row["accents"] else "-")
+'''
+
+
+@case
+def t_the_preview_makes_each_season_s_lut_as_the_build_does():
+    """What the preview shows as a season's LUT is the very table play.bat built for it,
+    accents left off the packs or put on them."""
+    for more, packed in (("", "-"), ("SEASON_ACCENTS_ON_PACKS = True\n", "accents")):
+        with tempfile.TemporaryDirectory() as d:
+            scratch(d, LUTS + ACCENTED + more)
+            packs(d)
+            rc, out = tc.run(d, "apply", tool="season.py")
+            assert rc == 0 and "built: 6 seasons" in out, out
+            p = os.path.join(d, "preview.py")
+            io.open(p, "w", encoding="utf-8").write(PREVIEW)
+            r = subprocess.run([sys.executable, p, os.path.join(d, "_tools")], cwd=d,
+                               capture_output=True, text=True, encoding="utf-8",
+                               errors="replace")
+            out = r.stdout + r.stderr
+            assert r.returncode == 0 and "problems []" in out and out.count(" same ") == 6, out
+            assert "autumn same pack %s" % packed in out and "spring same - accents" in out, out
+    return "six seasons the same as built, with the accents off the packs and on them"
+
+
+@case
+def t_configure_puts_the_accents_on_packs_or_leaves_them_out():
+    with tempfile.TemporaryDirectory() as d:
+        scratch(d, LUTS + ACCENTED)
+        packs(d)
+        rc, out = tc.run(d, "accents")
+        assert rc == 0 and out.count("(left out: it has a LUT pack)") == 2 \
+            and "accents --packs" in out, out
+        rc, out = tc.run(d, "accents", "--packs")
+        assert rc == 0 and "go on seasons with a LUT pack too" in out, out
+        assert accents_on_packs(d) is True and "\n# Whether a season with a LUT pack gets the " \
+            "accents too." in tc.config(d), tc.config(d)
+        tc.accepted(d)
+        rc, out = tc.run(d, "accents")
+        assert "left out" not in out and "accents --no-packs" in out, out
+        rc, out = tc.run(d, "accents", "--no-packs")
+        assert rc == 0 and accents_on_packs(d) is False, out
+        tc.accepted(d)
+    with tempfile.TemporaryDirectory() as d:
+        scratch(d, LUTS + 'SEASON_ACCENTS = {"autumn": {"vibrance": 0.2}}\n')
+        packs(d)
+        rc, out = tc.run(d, "accents")
+        assert "! Each season with accents has a LUT pack, so none gets them." in out, out
+    with tempfile.TemporaryDirectory() as d:
+        scratch(d, 'SEASON_ACCENTS_ON_PACKS = "yes"\n')
+        rc, out = tc.run(d, "status", tool="season.py")
+        assert rc != 0 and "SEASON_ACCENTS_ON_PACKS must be True or False." in out, out
+    return "left out and said; --packs and --no-packs written; none reached, said; bad refused"
+
+
+def accents_on_packs(d):
+    ns = {}
+    exec(tc.config(d), ns)
+    return ns.get("SEASON_ACCENTS_ON_PACKS", "none")
+
+
+PACKS_WINDOW = r'''
+import sys
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+from tkinter import ttk
+import config_edit as ce
+import configure
+root = tk.Tk()
+app = configure.App(root, ce.Calendar(), ce.Install())
+root.update()
+print("box", str(app.accents_packs_box.cget("state")), app.accents_packs.get())
+print("note", str(app.accent_note.cget("text")))
+app.accents_packs.set(True)
+app.accents_packs_edited()
+print("on packs", app.cal.accents_on_packs, "note", repr(str(app.accent_note.cget("text"))))
+win = configure.look_preview(root, app.cal, tk, ttk)
+root.update()
+print("pictures", len(win.photos), "accented", sum(1 for r in win.look["seasons"].values()
+                                                   if r["accents"]))
+win.destroy()
+app.accents_on.set(False)
+app.accents_edited()
+print("box off", str(app.accents_packs_box.cget("state")))
+print("saved", app.save(quiet=True))
+root.destroy()
+'''
+
+
+@case
+def t_the_window_puts_accents_on_packs_and_previews_each_season():
+    """The box under the accents' box sets them on packs and says which seasons they leave
+    out; it rests while the accents are off. The preview shows each season's three pictures:
+    the game's LUT, the pack as made where there is one, and the season's own."""
+    with tempfile.TemporaryDirectory() as d:
+        scratch(d, LUTS + ACCENTED)
+        packs(d)
+        p = os.path.join(d, "drive.py")
+        io.open(p, "w", encoding="utf-8").write(PACKS_WINDOW)
+        r = subprocess.run([sys.executable, p, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "Traceback" not in out, out
+        for line in ("box normal False", "note Left out, as they have a LUT pack: autumn and "
+                     "winter.", "on packs True note ''", "pictures 15 accented 6",
+                     "box off disabled", "saved True"):
+            assert line in out, (line, out)
+        assert accents_in(d) is False and accents_on_packs(d) is True, tc.config(d)
+        tc.accepted(d)
+    return "left out and said, on packs, a preview of 14 pictures, at rest when off, saved"
 
 
 # --- the game script ---------------------------------------------------------------------

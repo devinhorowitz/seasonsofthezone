@@ -429,6 +429,11 @@ msgstr "указывает на %s, который season.py создаёт са
 msgid "names %s, which is this mod itself. Name the ambient sound mod to read from."
 msgstr "указывает на %s, а это сам этот мод. Укажите мод с фоновыми звуками, из которого их брать."
 
+#. follows a setting's name, which stays English
+#: season.py
+msgid "must be True or False."
+msgstr "должна быть True или False."
+
 #. follows a table's name, like PERIODS, which stays English
 #: season.py
 msgid "must be a table, {season: (source, option, percent)}, or {} for none."
@@ -897,14 +902,33 @@ msgid "it is not a LUT atlas these tools read: 4096 texels wide, 64 rows a LUT, 
 msgstr "это не атлас LUT, который читают эти инструменты: 4096 текселей в ширину, 64 строки на таблицу, 8 бит на цвет, без сжатия"
 
 #: season.py
+msgid "No enabled mod ships a LUT (textures\\shaders\\lut_atlas.dds). Seasonal LUTs grade on top of Screen Space Shaders' LUT, which Atmospherics ships."
+msgstr "Ни в одном включённом моде нет LUT (textures\\shaders\\lut_atlas.dds). Сезонные LUT накладываются на LUT Screen Space Shaders, который есть в Atmospherics."
+
+#: season.py
 #, python-format
-msgid "%s is not in MO2's downloads folder"
-msgstr "%s нет в папке загрузок MO2"
+msgid "%(mod)s's LUT: %(why)s"
+msgstr "LUT мода %(mod)s: %(why)s"
 
 #: season.py
 #, python-format
 msgid "%s could not be read"
 msgstr "не удаётся прочитать %s"
+
+#: season.py
+#, python-format
+msgid "%(season)s's LUT, %(name)s, is not one LUT (a 4096 x 64 atlas)."
+msgstr "LUT сезона «%(season)s» (%(name)s) — не одна таблица (атлас 4096 x 64)."
+
+#: season.py
+#, python-format
+msgid "%(season)s's LUT: %(why)s."
+msgstr "LUT сезона «%(season)s»: %(why)s."
+
+#: season.py
+#, python-format
+msgid "%s is not in MO2's downloads folder"
+msgstr "%s нет в папке загрузок MO2"
 
 #: season.py
 msgid "(a .7z needs py7zr; a .rar needs rarfile and WinRAR or 7-Zip)"
@@ -925,23 +949,9 @@ msgid "%s has no LUT (textures\\shaders\\lut_atlas.dds)"
 msgstr "в %s нет LUT (textures\\shaders\\lut_atlas.dds)"
 
 #: season.py
-msgid "No enabled mod ships a LUT (textures\\shaders\\lut_atlas.dds). Seasonal LUTs grade on top of Screen Space Shaders' LUT, which Atmospherics ships."
-msgstr "Ни в одном включённом моде нет LUT (textures\\shaders\\lut_atlas.dds). Сезонные LUT накладываются на LUT Screen Space Shaders, который есть в Atmospherics."
-
-#: season.py
 #, python-format
 msgid "%s's LUT is not one Seasonal LUTs can build on: an atlas 4096 texels wide, 64 rows a LUT, 8 bits a color, uncompressed, as Atmospherics' are."
 msgstr "На LUT мода %s не построить сезонные LUT: нужен атлас 4096 текселей в ширину, 64 строки на таблицу, 8 бит на цвет, без сжатия, как у Atmospherics."
-
-#: season.py
-#, python-format
-msgid "%(season)s's LUT: %(why)s."
-msgstr "LUT сезона «%(season)s»: %(why)s."
-
-#: season.py
-#, python-format
-msgid "%(season)s's LUT, %(name)s, is not one LUT (a 4096 x 64 atlas)."
-msgstr "LUT сезона «%(season)s» (%(name)s) — не одна таблица (атлас 4096 x 64)."
 
 #: season.py
 #, python-format
@@ -957,11 +967,6 @@ msgstr "Для акцентов сезонов нужен numpy, а он не у
 #, python-format
 msgid "Seasonal LUT would hold %(n)d LUTs, and an atlas holds at most %(most)d."
 msgstr "В Seasonal LUT было бы %(n)d LUT, а атлас вмещает не больше %(most)d."
-
-#: season.py
-#, python-format
-msgid "%(mod)s's LUT: %(why)s"
-msgstr "LUT мода %(mod)s: %(why)s"
 
 #: season.py
 #, python-format
@@ -982,13 +987,13 @@ msgid "not built: the ! lines below say why"
 msgstr "не собран: почему — в строках ! ниже"
 
 #. a season's LUT and the accents built into it, or the accents alone
-#: season.py
+#: season.py configure.py
 #, python-format
 msgid "%s + accents"
 msgstr "%s + акценты"
 
 #. a season's LUT and the accents built into it, or the accents alone
-#: season.py
+#: season.py configure.py
 msgid "accents"
 msgstr "акценты"
 
@@ -3834,12 +3839,30 @@ msgid "Building the accents needs numpy, a Python package. To install it, type t
 msgstr "Для сборки акцентов нужен numpy — пакет Python. Чтобы установить его, введите в командной строке: %s"
 
 #: configure.py
+#, python-format
+msgid "They go on seasons with a LUT pack too. To keep a pack as its author made it: %s"
+msgstr "Они ложатся и на сезоны с набором LUT. Чтобы оставить набор таким, каким его сделал автор: %s"
+
+#: configure.py
+#, python-format
+msgid "A season with a LUT pack shows the pack as its author made it, mixed by your percent. To put the accents on it too: %s"
+msgstr "Сезон с набором LUT показывает набор таким, каким его сделал автор, смешанным на ваш процент. Чтобы добавить акценты и на него: %s"
+
+#: configure.py
+msgid "Each season with accents has a LUT pack, so none gets them."
+msgstr "У каждого сезона с акцентами есть набор LUT, поэтому акцентов не получает ни один."
+
+#: configure.py
 msgid "Seasons' own accents are on, built into each season's LUT:"
 msgstr "Акценты самого мода включены и встроены в LUT каждого сезона:"
 
 #: configure.py
 msgid "Accents of your own are on, from seasons_config.py:"
 msgstr "Включены ваши собственные акценты из seasons_config.py:"
+
+#: configure.py
+msgid "left out: it has a LUT pack"
+msgstr "пропущено: у сезона есть набор LUT"
 
 #: configure.py
 msgid "The seasons' accents are off."
@@ -3865,6 +3888,14 @@ msgstr "акценты сезонов выключены; play.bat соберё�
 #: configure.py
 msgid "the seasons' accents are off; with no season LUT either, play.bat turns Seasonal LUT off at the next launch"
 msgstr "акценты сезонов выключены; LUT у сезонов тоже нет, поэтому play.bat выключит Seasonal LUT при следующем запуске"
+
+#: configure.py
+msgid "the accents go on seasons with a LUT pack too"
+msgstr "акценты ложатся и на сезоны с набором LUT"
+
+#: configure.py
+msgid "a season with a LUT pack shows the pack as its author made it, and the accents color the seasons without one"
+msgstr "сезон с набором LUT показывает набор таким, каким его сделал автор, а акценты окрашивают сезоны без набора"
 
 #: configure.py
 msgid "No enabled mod has a weather that rains."
@@ -4732,12 +4763,24 @@ msgid "Look for LUT packs again"
 msgstr "Поискать наборы LUT снова"
 
 #: configure.py
+msgid "Preview the looks..."
+msgstr "Предпросмотр облика..."
+
+#: configure.py
 msgid "Seasons' own accents"
 msgstr "Акценты самого мода"
 
 #: configure.py
-msgid "A touch of each season's own color, built into its LUT, with a pack or without: young greens in spring, high sun in summer, reds and golds in autumn, a gray cold in winter, crisp snow in deep winter and an earthy thaw in late winter."
-msgstr "Немного собственного цвета каждого сезона, встроенного в его LUT, с набором или без: молодая зелень весной, высокое солнце летом, багрянец и золото осенью, серый холод зимой, хрусткий снег в разгар зимы и землистая оттепель поздней зимой."
+msgid "A touch of each season's own color, built into its LUT: young greens in spring, high sun in summer, reds and golds in autumn, a gray cold in winter, crisp snow in deep winter and an earthy thaw in late winter."
+msgstr "Немного собственного цвета каждого сезона, встроенного в его LUT: молодая зелень весной, высокое солнце летом, багрянец и золото осенью, серый холод зимой, хрусткий снег в разгар зимы и землистая оттепель поздней зимой."
+
+#: configure.py
+msgid "Also on seasons with a LUT pack"
+msgstr "И на сезонах с набором LUT"
+
+#: configure.py
+msgid "Off, a season with a LUT pack shows the pack as its author made it, mixed by your percent: accents on top of an authored grade can spoil it."
+msgstr "Если выключено, сезон с набором LUT показывает набор таким, каким его сделал автор, смешанным на ваш процент: акценты поверх авторской цветокоррекции могут её испортить."
 
 #: configure.py guide.py
 msgid "none"
@@ -4764,6 +4807,11 @@ msgstr "Затем нажмите «Поискать наборы LUT снова
 #, python-format
 msgid "On with accents of your own, from seasons_config.py, for %s."
 msgstr "Включено с вашими собственными акцентами из seasons_config.py, для сезонов: %s."
+
+#: configure.py
+#, python-format
+msgid "Left out, as they have a LUT pack: %s."
+msgstr "Пропущены, так как у них есть набор LUT: %s."
 
 #: configure.py
 msgid "Building them needs numpy, a Python package, which isn't installed. Save offers to install it."
@@ -5215,6 +5263,62 @@ msgstr "numpy установлен. play.bat встроит акценты в Se
 
 #: configure.py
 #, python-format
+msgid "The preview needs numpy, a Python package. To install it, type this in Command Prompt: %s"
+msgstr "Для предпросмотра нужен numpy — пакет Python. Чтобы установить его, введите в командной строке: %s"
+
+#: configure.py
+#, python-format
+msgid "Each season's LUT on a sample. Left, the game's LUT, from %s; in the middle, the season's LUT pack as its author made it; right, what the season gets: the game's LUT moved toward the pack by your percent, with the accents where they apply. The sample is a chart of everyday colors, or a screenshot of yours, which already carries a grade: judge it by the differences."
+msgstr "LUT каждого сезона на образце. Слева — LUT игры, из мода «%s»; посередине — набор LUT сезона таким, каким его сделал автор; справа — то, что получает сезон: LUT игры, сдвинутый к набору на ваш процент, с акцентами там, где они есть. Образец — таблица обычных цветов или ваш снимок экрана, который уже несёт цветокоррекцию: судите по разнице."
+
+#: configure.py
+msgid "The game's LUT"
+msgstr "LUT игры"
+
+#: configure.py
+msgid "The pack as made"
+msgstr "Набор как есть"
+
+#: configure.py
+msgid "This season"
+msgstr "Этот сезон"
+
+#: configure.py
+msgid "no LUT pack"
+msgstr "нет набора LUT"
+
+#: configure.py
+msgid "A screenshot to preview"
+msgstr "Снимок экрана для предпросмотра"
+
+#: configure.py
+msgid "Pictures"
+msgstr "Изображения"
+
+#: configure.py guide.py
+msgid "All files"
+msgstr "Все файлы"
+
+#: configure.py
+#, python-format
+msgid "Showing a screenshot needs Pillow, a Python package. To install it, type this in Command Prompt: %s"
+msgstr "Чтобы показать снимок экрана, нужен Pillow — пакет Python. Чтобы установить его, введите в командной строке: %s"
+
+#: configure.py
+#, python-format
+msgid "That picture can't be read: %s"
+msgstr "Это изображение не читается: %s"
+
+#: configure.py
+msgid "Use the chart"
+msgstr "Показать таблицу"
+
+#: configure.py
+msgid "Use a screenshot..."
+msgstr "Взять снимок экрана..."
+
+#: configure.py
+#, python-format
 msgid "Runs %(days)d days, %(when)s, on top of no season."
 msgid_plural "Runs %(days)d days, %(when)s, on top of no season."
 msgstr[0] "Длится %(days)d день, %(when)s, ни на один сезон не накладывается."
@@ -5599,6 +5703,7 @@ msgid ""
 "  py _tools\\configure.py lut winter Iris 60 | lut winter --off  give a season a LUT, or none\n"
 "  py _tools\\configure.py accents                 the seasons' accents, built into their LUTs\n"
 "  py _tools\\configure.py accents on | accents off  Seasons' own accents, or none\n"
+"  py _tools\\configure.py accents --packs | --no-packs  on seasons with a LUT pack too, or not\n"
 "  py _tools\\configure.py rain                    the weathers that rain, and whether the\n"
 "                                                winters take their rain out\n"
 "  py _tools\\configure.py rain --build | rain --off  take it out in the winters, or stop\n"
@@ -5661,6 +5766,7 @@ msgstr ""
 "  py _tools\\configure.py lut winter Iris 60 | lut winter --off  задать сезону LUT или убрать его\n"
 "  py _tools\\configure.py accents                 акценты сезонов, встроенные в их LUT\n"
 "  py _tools\\configure.py accents on | accents off  акценты самого мода или никаких\n"
+"  py _tools\\configure.py accents --packs | --no-packs  акценты и на наборах LUT или нет\n"
 "                                                или ни из какого\n"
 "  py _tools\\configure.py rain                    погоды с дождём и то, убирается ли\n"
 "                                                из них дождь зимой\n"
@@ -5962,6 +6068,14 @@ msgid "show the seasons' accents, or switch Seasons' own on or off: color built 
 msgstr "показать акценты сезонов или включить либо выключить акценты самого мода: цвет, встроенный в LUT каждого сезона"
 
 #: configure.py
+msgid "put the accents on seasons with a LUT pack too"
+msgstr "класть акценты и на сезоны с набором LUT"
+
+#: configure.py
+msgid "keep a season's LUT pack as its author made it (the default)"
+msgstr "оставлять набор LUT сезона таким, каким его сделал автор (по умолчанию)"
+
+#: configure.py
 msgid "show the weathers that rain, or take their rain out in the winters"
 msgstr "показать погоды с дождём или убрать из них дождь на зиму"
 
@@ -6225,10 +6339,6 @@ msgstr "Установка мода из архива"
 #: guide.py
 msgid "Mod archives"
 msgstr "Архивы модов"
-
-#: guide.py
-msgid "All files"
-msgstr "Все файлы"
 
 #: guide.py
 #, python-format
@@ -7628,6 +7738,135 @@ msgstr "ЯСНО"
 msgctxt "the barometer's face"
 msgid "DRY"
 msgstr "СУШЬ"
+
+#~ msgid "A touch of each season's own color, built into its LUT, with a pack or without: young greens in spring, high sun in summer, reds and golds in autumn, a gray cold in winter, crisp snow in deep winter and an earthy thaw in late winter."
+#~ msgstr "Немного собственного цвета каждого сезона, встроенного в его LUT, с набором или без: молодая зелень весной, высокое солнце летом, багрянец и золото осенью, серый холод зимой, хрусткий снег в разгар зимы и землистая оттепель поздней зимой."
+
+#~ msgid ""
+#~ "configure.bat opens the window. The same changes can be made with commands, run in the\n"
+#~ "GAMMA folder (use python in place of py if that is how your Python starts):\n"
+#~ "\n"
+#~ "  py _tools\\configure.py list                    the seasonal mods, events and calendar\n"
+#~ "  py _tools\\configure.py add \"<mod>\" --when winter \"deep winter\" [--above \"<mod>\"]\n"
+#~ "  py _tools\\configure.py remove \"<mod>\"\n"
+#~ "  py _tools\\configure.py event <name> <MM-DD> [<MM-DD>]\n"
+#~ "  py _tools\\configure.py event <name> --weekdays sat sun\n"
+#~ "  py _tools\\configure.py event <name> --days 1 15 last [--months dec jan]\n"
+#~ "  py _tools\\configure.py event <name> --weekdays mon --weeks first [--between 12-01 02-28]\n"
+#~ "  py _tools\\configure.py event <name> --remove\n"
+#~ "  py _tools\\configure.py season                  your own seasons\n"
+#~ "  py _tools\\configure.py season \"<name>\" <MM-DD> <MM-DD>    add or change one, a week or\n"
+#~ "                                                longer; it runs on top of the season it\n"
+#~ "                                                falls in\n"
+#~ "  py _tools\\configure.py season \"<name>\" --rename \"<new>\" | --remove\n"
+#~ "  py _tools\\configure.py spell                   your spells\n"
+#~ "  py _tools\\configure.py spell \"<name>\" --in summer --chance 3 [--days 1 2] [--as winter]\n"
+#~ "                                                a short stretch, 1 to 6 days, that starts by\n"
+#~ "                                                chance; --as is the season it brings\n"
+#~ "  py _tools\\configure.py spell \"<name>\" --rename \"<new>\" | --remove\n"
+#~ "  py _tools\\configure.py mcm                     other mods' MCM options that follow the\n"
+#~ "                                                season\n"
+#~ "  py _tools\\configure.py mcm --find <words>      MCM's options with those words in their\n"
+#~ "                                                names, and their values now\n"
+#~ "  py _tools\\configure.py mcm <page/option> --in winter \"deep winter\" --to true --else false\n"
+#~ "  py _tools\\configure.py mcm <page/option> --set \"deep winter=2\" winter=1.5 --else 1\n"
+#~ "  py _tools\\configure.py mcm <page/option> --remove\n"
+#~ "  py _tools\\configure.py calendar                when each season starts\n"
+#~ "  py _tools\\configure.py calendar summer=5-1 \"deep winter=11-15\" [--only]\n"
+#~ "  py _tools\\configure.py calendar --off \"late winter\" | --on \"late winter\"\n"
+#~ "  py _tools\\configure.py calendar --dates met | --reset\n"
+#~ "  py _tools\\configure.py name                    what the seasons are called\n"
+#~ "  py _tools\\configure.py name \"deep winter\" \"The Long Cold\" | name \"deep winter\" --reset\n"
+#~ "  py _tools\\configure.py place                   where the real weather comes from\n"
+#~ "  py _tools\\configure.py place \"Kyiv\" [--pick 2]  look a place up, and take the weather there\n"
+#~ "  py _tools\\configure.py place --at 50.45 30.52 [--name \"Home\"] | place --reset\n"
+#~ "  py _tools\\configure.py sound                   the ambient sound mod the soundscape is\n"
+#~ "                                                taken from, and the others there are\n"
+#~ "  py _tools\\configure.py sound \"<mod>\" | sound --off  take it from that mod, or none\n"
+#~ "  py _tools\\configure.py lut                     each season's LUT, and the LUT packs found\n"
+#~ "  py _tools\\configure.py lut winter Iris 60 | lut winter --off  give a season a LUT, or none\n"
+#~ "  py _tools\\configure.py accents                 the seasons' accents, built into their LUTs\n"
+#~ "  py _tools\\configure.py accents on | accents off  Seasons' own accents, or none\n"
+#~ "  py _tools\\configure.py rain                    the weathers that rain, and whether the\n"
+#~ "                                                winters take their rain out\n"
+#~ "  py _tools\\configure.py rain --build | rain --off  take it out in the winters, or stop\n"
+#~ "  py _tools\\configure.py --advanced              the tabbed editor, not the guided setup\n"
+#~ "  py mods\\<the mod>\\_tools\\configure.py install  put the tools in the GAMMA folder, or\n"
+#~ "                                                update them there (configure.bat does it\n"
+#~ "                                                when opened from the mod's folder)\n"
+#~ "  py _tools\\configure.py preset                  the presets there are\n"
+#~ "  py _tools\\configure.py preset save \"<name>\" [--about \"...\"] [--parts calendar mods]\n"
+#~ "  py _tools\\configure.py preset load \"<name>\" [--parts calendar events mods textures]\n"
+#~ "  py _tools\\configure.py preset show \"<name>\"\n"
+#~ "\n"
+#~ "Mod names are as MO2's mod list shows them; a name with a space goes in quotes. --above\n"
+#~ "is the mod a seasonal mod wins over, worked out from the files they share when left out.\n"
+#~ "Every change is checked with season.py's rules before it is written, and the previous\n"
+#~ "file is kept as seasons_config.py.bak.\n"
+#~ msgstr ""
+#~ "configure.bat открывает окно. То же самое можно сделать командами, запуская их\n"
+#~ "в папке GAMMA (пишите python вместо py, если ваш Python запускается так):\n"
+#~ "\n"
+#~ "  py _tools\\configure.py list                    сезонные моды, события и календарь\n"
+#~ "  py _tools\\configure.py add \"<mod>\" --when winter \"deep winter\" [--above \"<mod>\"]\n"
+#~ "  py _tools\\configure.py remove \"<mod>\"\n"
+#~ "  py _tools\\configure.py event <name> <MM-DD> [<MM-DD>]\n"
+#~ "  py _tools\\configure.py event <name> --weekdays sat sun\n"
+#~ "  py _tools\\configure.py event <name> --days 1 15 last [--months dec jan]\n"
+#~ "  py _tools\\configure.py event <name> --weekdays mon --weeks first [--between 12-01 02-28]\n"
+#~ "  py _tools\\configure.py event <name> --remove\n"
+#~ "  py _tools\\configure.py season                  свои сезоны\n"
+#~ "  py _tools\\configure.py season \"<name>\" <MM-DD> <MM-DD>    добавить или изменить\n"
+#~ "                                                (от недели и дольше); он действует\n"
+#~ "                                                поверх сезона, в который попадает\n"
+#~ "  py _tools\\configure.py season \"<name>\" --rename \"<new>\" | --remove\n"
+#~ "  py _tools\\configure.py spell                   ваши капризы\n"
+#~ "  py _tools\\configure.py spell \"<name>\" --in summer --chance 3 [--days 1 2] [--as winter]\n"
+#~ "                                                короткий отрезок от 1 до 6 дней,\n"
+#~ "                                                наступающий случайно; --as — сезон,\n"
+#~ "                                                который он приносит\n"
+#~ "  py _tools\\configure.py spell \"<name>\" --rename \"<new>\" | --remove\n"
+#~ "  py _tools\\configure.py mcm                     настройки MCM других модов,\n"
+#~ "                                                которые меняются с сезоном\n"
+#~ "  py _tools\\configure.py mcm --find <words>      параметры MCM с этими словами\n"
+#~ "                                                в названии и их текущие значения\n"
+#~ "  py _tools\\configure.py mcm <page/option> --in winter \"deep winter\" --to true --else false\n"
+#~ "  py _tools\\configure.py mcm <page/option> --set \"deep winter=2\" winter=1.5 --else 1\n"
+#~ "  py _tools\\configure.py mcm <page/option> --remove\n"
+#~ "  py _tools\\configure.py calendar                когда начинается каждый сезон\n"
+#~ "  py _tools\\configure.py calendar summer=5-1 \"deep winter=11-15\" [--only]\n"
+#~ "  py _tools\\configure.py calendar --off \"late winter\" | --on \"late winter\"\n"
+#~ "  py _tools\\configure.py calendar --dates met | --reset\n"
+#~ "  py _tools\\configure.py name                    как называются сезоны\n"
+#~ "  py _tools\\configure.py name \"deep winter\" \"The Long Cold\" | name \"deep winter\" --reset\n"
+#~ "  py _tools\\configure.py place                   откуда берётся реальная погода\n"
+#~ "  py _tools\\configure.py place \"Kyiv\" [--pick 2]  найти место и брать погоду оттуда\n"
+#~ "  py _tools\\configure.py place --at 50.45 30.52 [--name \"Home\"] | place --reset\n"
+#~ "  py _tools\\configure.py sound                   мод, из которого берутся фоновые звуки,\n"
+#~ "                                                и другие, какие есть\n"
+#~ "  py _tools\\configure.py sound \"<mod>\" | sound --off  брать их из этого мода\n"
+#~ "  py _tools\\configure.py lut                     LUT каждого сезона и найденные наборы LUT\n"
+#~ "  py _tools\\configure.py lut winter Iris 60 | lut winter --off  задать сезону LUT или убрать его\n"
+#~ "  py _tools\\configure.py accents                 акценты сезонов, встроенные в их LUT\n"
+#~ "  py _tools\\configure.py accents on | accents off  акценты самого мода или никаких\n"
+#~ "                                                или ни из какого\n"
+#~ "  py _tools\\configure.py rain                    погоды с дождём и то, убирается ли\n"
+#~ "                                                из них дождь зимой\n"
+#~ "  py _tools\\configure.py rain --build | rain --off  убирать его зимой или перестать\n"
+#~ "  py _tools\\configure.py --advanced              редактор с вкладками, а не\n"
+#~ "                                                пошаговая настройка\n"
+#~ "  py mods\\<the mod>\\_tools\\configure.py install  положить инструменты в папку GAMMA\n"
+#~ "                                                или обновить их там (так делает\n"
+#~ "                                                configure.bat из папки мода)\n"
+#~ "  py _tools\\configure.py preset                  какие есть пресеты\n"
+#~ "  py _tools\\configure.py preset save \"<name>\" [--about \"...\"] [--parts calendar mods]\n"
+#~ "  py _tools\\configure.py preset load \"<name>\" [--parts calendar events mods textures]\n"
+#~ "  py _tools\\configure.py preset show \"<name>\"\n"
+#~ "\n"
+#~ "Имена модов — как в списке модов MO2; имя с пробелом пишется в кавычках. --above —\n"
+#~ "мод, перекрываемый сезонным модом; если не указан, он определяется по файлам,\n"
+#~ "общим для обоих модов. Каждое изменение перед записью проверяется по правилам\n"
+#~ "season.py, а прежний файл сохраняется как seasons_config.py.bak.\n"
 
 #~ msgid "Showing the dial here needs Pillow, a Python package. Save offers to install it."
 #~ msgstr "Чтобы показать здесь циферблат, нужен пакет Python Pillow. Кнопка «Сохранить» предложит его установить."

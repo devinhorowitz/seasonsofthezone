@@ -148,7 +148,7 @@ def clock_today(prefs=None):
 
 CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS", "CALENDAR",
                 "NAMES", "WEATHER_PLACE", "OWN_SEASONS", "SPELLS", "MCM_SETTINGS",
-                "SEASON_LUTS", "SEASON_ACCENTS")
+                "SEASON_LUTS", "SEASON_ACCENTS", "SEASON_ACCENTS_ON_PACKS")
 
 
 def _config_error(e):
@@ -311,8 +311,11 @@ MCM_SETTINGS = {} if MCM_SETTINGS is None else MCM_SETTINGS
 SEASON_LUTS = getattr(_cfg, "SEASON_LUTS", None)
 SEASON_LUTS = {} if SEASON_LUTS is None else SEASON_LUTS
 # Seasonal accents, True for Seasons' own or {season: {accent: value}}: color changes built
-# into each season's LUT, on top of its pack's. See "seasonal accents" below.
+# into each season's LUT. See "seasonal accents" below.
 SEASON_ACCENTS = getattr(_cfg, "SEASON_ACCENTS", None)
+# Whether a season with a LUT pack gets the accents too. Not True, its pack's grade stays as
+# its author made it, mixed by the percent, and the accents color the seasons without one.
+SEASON_ACCENTS_ON_PACKS = getattr(_cfg, "SEASON_ACCENTS_ON_PACKS", None)
 
 
 def _q(v):
@@ -400,7 +403,8 @@ def _validate_config():
     problems = _set_twice() + config_problems(TOGGLE_MODS, LAYOUT, SOUND_SRC, PERIODS, EVENTS,
                                               CALENDAR, NAMES, WEATHER_PLACE, OWN_SEASONS,
                                               SPELLS, MCM_SETTINGS, luts=SEASON_LUTS,
-                                              accents=SEASON_ACCENTS)
+                                              accents=SEASON_ACCENTS,
+                                              accents_on_packs=SEASON_ACCENTS_ON_PACKS)
     if problems:
         raise SystemExit(head + "\n".join("    - " + p for p in problems)
                          + "\n  " + _("Nothing has been changed."))
@@ -448,7 +452,7 @@ def _own_folders():
 
 def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=None,
                     names=None, place=None, own=None, spells=None, mcm=None, luts=None,
-                    accents=None):
+                    accents=None, accents_on_packs=None):
     """What is wrong with a set of config tables, one sentence per entry at fault. The
     configure tool checks a file with this before it writes one."""
     problems = []
@@ -690,6 +694,9 @@ def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=No
         problems += lut_problems(luts)
     if accents is not None:
         problems += accent_problems(accents)
+    if accents_on_packs is not None and not isinstance(accents_on_packs, bool):
+        # translators: follows a setting's name, which stays English
+        problems.append("SEASON_ACCENTS_ON_PACKS " + _("must be True or False."))
     return problems
 
 
@@ -2748,6 +2755,19 @@ def accents_wanted(accents=None):
     return {s: dict(accents[s]) for s in SEASONS if accents.get(s)}
 
 
+def accents_built(accents=None, luts=None, on_packs=None):
+    """The accents a build puts into the seasons' LUTs: accents_wanted's, less each season
+    with a LUT pack unless SEASON_ACCENTS_ON_PACKS is True. A pack's grade stays as its
+    author made it, mixed by the percent: accents on top of an authored grade, say spring's
+    greens on a pack that already pushes green, can spoil it."""
+    wanted = accents_wanted(accents)
+    luts = SEASON_LUTS if luts is None else luts
+    on_packs = SEASON_ACCENTS_ON_PACKS if on_packs is None else on_packs
+    if on_packs is True:
+        return wanted
+    return {s: a for s, a in wanted.items() if s not in luts}
+
+
 def _numpy():
     """numpy, or None where it isn't installed."""
     try:
@@ -2793,6 +2813,82 @@ def lut_accent(group, accent, np=None):
     for i in range(3):
         out[:, _TEXEL[i]] = done[:, i]
     return out.tobytes()
+
+
+def lut_apply(np, group, rgb):
+    """Colors through a LUT as SSS's shader reads it (screenspace_lut.h): `rgb` an (n, 3)
+    array from 0 to 1, `group` a LUT as lut_atlas gives it. A LUT is 64 slices of 64 x 64
+    side by side, blue choosing the slice, red across and green down; the shader reads red
+    and green bilinearly and mixes the two slices around blue by its fraction."""
+    t = np.frombuffer(group, dtype=np.uint8).reshape(64, 64, 64, 4)     # green, blue, red
+    tab = t[..., [_TEXEL[0], _TEXEL[1], _TEXEL[2]]].astype(np.float64) / 255.0
+    c = np.clip(np.asarray(rgb, dtype=np.float64), 0.0, 1.0) * 63.0
+    lo = np.floor(c).astype(np.intp)
+    hi = np.minimum(lo + 1, 63)
+    f = c - lo
+    r0, g0, b0, r1, g1, b1 = lo[:, 0], lo[:, 1], lo[:, 2], hi[:, 0], hi[:, 1], hi[:, 2]
+    fr, fg, fb = f[:, 0:1], f[:, 1:2], f[:, 2:3]
+
+    def plane(b):
+        top = tab[g0, b, r0] * (1.0 - fr) + tab[g0, b, r1] * fr
+        low = tab[g1, b, r0] * (1.0 - fr) + tab[g1, b, r1] * fr
+        return top * (1.0 - fg) + low * fg
+    return plane(b0) * (1.0 - fb) + plane(b1) * fb
+
+
+def lut_preview(luts, accents, on_packs, np=None):
+    """What configure.bat's preview shows for a setup it holds, saved or not: {"base": the
+    mod whose LUT the game uses, "group": the group most levels use, "game": that LUT,
+    "seasons": {season: {"pack": the pack's LUT as its author made it, or None, "label":
+    its name and percent, "made": the season's LUT as build_luts makes it from that group,
+    "accents": whether they are in it}}, "problems": sentences}."""
+    np = np or _numpy()
+    out = {"base": None, "group": 0, "game": None, "seasons": {}, "problems": []}
+    base = lut_base()
+    if base is None:
+        out["problems"].append(_("No enabled mod ships a LUT (textures\\shaders\\lut_atlas.dds). "
+                                 "Seasonal LUTs grade on top of Screen Space Shaders' LUT, "
+                                 "which Atmospherics ships."))
+        return out
+    try:
+        groups = lut_atlas(io.open(base[1], "rb").read())
+    except (OSError, LutError) as e:
+        out["problems"].append(_("%(mod)s's LUT: %(why)s") % {"mod": "\"%s\"" % base[0],
+                                                             "why": e})
+        return out
+    script = lut_script()
+    g = lut_main_group(script and script[1], len(groups))
+    out.update(base=base[0], group=g, game=groups[g])
+    built = accents_built(accents, luts, on_packs)
+    for season in SEASONS:
+        pack, label, why = None, None, None
+        if season in luts:
+            source, option, percent = luts[season]
+            label = "%s %d%%" % (lut_name(source, option), percent)
+            try:
+                path, member, __, ___ = _lut_source(source, option)
+                try:
+                    data = _lut_read(path, member)
+                except Exception:               # a damaged archive, or no py7zr or rarfile
+                    raise LutError(_("%s could not be read") % source)
+                src = lut_atlas(data)
+                if len(src) != 1:
+                    why = _("%(season)s's LUT, %(name)s, is not one LUT (a 4096 x 64 atlas).") % {
+                        "season": season_label(season), "name": lut_name(source, option)}
+                else:
+                    pack = src[0]
+            except LutError as e:
+                why = _("%(season)s's LUT: %(why)s.") % {"season": season_label(season),
+                                                         "why": e}
+        if why:
+            out["problems"].append(why)
+        made = groups[g] if pack is None else lut_mix(groups[g], pack, luts[season][2] / 100.0)
+        accented = season in built and np is not None
+        if accented:
+            made = lut_accent(made, built[season], np)
+        out["seasons"][season] = {"pack": pack, "label": label, "made": made,
+                                  "accents": accented}
+    return out
 
 
 def _dds_header(groups):
@@ -3017,18 +3113,30 @@ def _top_file(rel, body=None):
     return None
 
 
-def lut_used(path, groups):
-    """The groups of a `groups`-LUT atlas the levels use, by the ssfx_lut.script at `path`:
-    each group it names under `groups`, in order (Atmospherics gives each level one, and the
-    others a default); [0] when it names none, or there is no script."""
+def _lut_named(path, groups):
+    """Each group under `groups` the ssfx_lut.script at `path` gives a level, once a level,
+    comments left out."""
     try:
         text = io.open(path, "rb").read().decode("latin-1") if path else ""
     except OSError:
         text = ""
     text = re.sub(r"--\[(=*)\[.*?\]\1\]", "", text, flags=re.S)
     text = re.sub(r"--[^\n]*", "", text)
-    got = sorted({int(g) for g in re.findall(r"\bgroup\s*=\s*(\d+)", text) if int(g) < groups})
-    return got or [0]
+    return [int(g) for g in re.findall(r"\bgroup\s*=\s*(\d+)", text) if int(g) < groups]
+
+
+def lut_used(path, groups):
+    """The groups of a `groups`-LUT atlas the levels use, by the ssfx_lut.script at `path`:
+    each group it names under `groups`, in order (Atmospherics gives each level one, and the
+    others a default); [0] when it names none, or there is no script."""
+    return sorted(set(_lut_named(path, groups))) or [0]
+
+
+def lut_main_group(path, groups):
+    """The group most levels use, by the ssfx_lut.script at `path`, the lower of two that
+    tie; 0 when it names none, or there is no script."""
+    named = _lut_named(path, groups)
+    return min(set(named), key=lambda g: (-named.count(g), g)) if named else 0
 
 
 _LUT_PLAN = []
@@ -3046,9 +3154,10 @@ def lut_plan():
     LUT asked for), "blocked" (see "problems"), "built" or "stale" (to be built) -, "base",
     "seasons" ({season: (source, option, percent)}), "record" (what a build is made from:
     the game's LUT, the script that gives the levels its groups and the groups they use,
-    each season's LUT and the accents built in), "accents" (as SEASON_ACCENTS asks),
-    "problems" (sentences) and "notes" (sentences about a build that goes ahead)."""
-    accents = accents_wanted()
+    each season's LUT and the accents built in), "accents" (as accents_built gives them:
+    SEASON_ACCENTS's, on a season with a pack only if SEASON_ACCENTS_ON_PACKS), "problems"
+    (sentences) and "notes" (sentences about a build that goes ahead)."""
+    accents = accents_built()
     plan = {"seasons": dict(SEASON_LUTS), "accents": accents, "problems": [], "notes": [],
             "base": None, "record": None}
     if not SEASON_LUTS and not accents:

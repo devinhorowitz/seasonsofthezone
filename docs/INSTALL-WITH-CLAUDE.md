@@ -135,10 +135,12 @@ window if the player prefers that.
   MO2: `py -3 _tools\configure.py lut` lists the LUTs in them, and
   `lut <season> "<LUT>" <percent>` gives a season one. Set them only if the player wants
   them.
-- **Seasonal accents**, color accents built into each season's LUT, with or without packs:
+- **Seasonal accents**, color accents built into each season's LUT:
   `py -3 _tools\configure.py accents on` turns Seasons' own on (CONFIGURING.md's
   *SEASON_ACCENTS* has the table for your own), and says how to install numpy when it is
-  missing (`py -3 -m pip install numpy`). Set them only if the player wants them.
+  missing (`py -3 -m pip install numpy`). A season with a LUT pack keeps the pack as its
+  author made it; `accents --packs` puts the accents on those seasons too. Set them only
+  if the player wants them.
 - **No rain in the winters**, for a player with a snowfall layer (the README's *Optional:
   seasonal snowfall*): `py -3 _tools\configure.py rain` shows the weathers that rain, and
   `rain --build` makes a mod of them without their rain, on in winter and deep winter. MO2

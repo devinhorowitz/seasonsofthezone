@@ -726,9 +726,12 @@ choose Open in Explorer.
                  percent). The pack is an archive in MO2's downloads folder or a mod's
                  folder; the season's color grade moves that far toward its LUT. play.bat
                  builds the mod Seasonal LUT from them.
-  SEASON_ACCENTS True for Seasons' own color accents, built into each season's LUT on
-                 top of its pack's or the game's, or season: {accent: value} of your own.
-                 play.bat builds them into Seasonal LUT; they need numpy.
+  SEASON_ACCENTS True for Seasons' own color accents, built into each season's LUT, or
+                 season: {accent: value} of your own. play.bat builds them into
+                 Seasonal LUT; they need numpy.
+  SEASON_ACCENTS_ON_PACKS
+                 True puts the accents on the seasons with a LUT pack too. Without it,
+                 those seasons keep their pack as its author made it.
 """
 '''
 

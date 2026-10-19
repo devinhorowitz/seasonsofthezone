@@ -78,6 +78,11 @@ ACCENTS_HEAD = [
     "# top of its pack's or the game's; False for none; {season: {accent: value}} for your own.",
     "# play.bat builds them into the mod Seasonal LUT; they need numpy. configure.bat writes this.",
 ]
+ACCENTS_ON_PACKS_HEAD = [
+    "# Whether a season with a LUT pack gets the accents too. False keeps the pack's grade as",
+    "# its author made it, mixed by your percent; the accents color the seasons without one.",
+    "# configure.bat writes this.",
+]
 MCM_HEAD = [
     "# Other mods' MCM options that follow the season: {\"page/option\": {name: value, ...,",
     "# \"else\": value}}. play.bat sets each before the game starts, to its value for the most",
@@ -776,6 +781,7 @@ class Calendar(object):
         self.luts, self._kept_luts = {}, {}     # {season: (source, option, percent)}
         self._bad_luts, self._kept_bad_luts = {}, set()
         self.accents, self._kept_accents = None, None
+        self.accents_on_packs, self._kept_accents_on_packs = None, None
         self.mcm_dropped = []           # MCM settings the last removal left following nothing
         self.dates, self._kept_dates = polesia(), None     # None: the file has none
         self.calendar_bad, self._replace_calendar = [], False
@@ -945,11 +951,13 @@ class Calendar(object):
                     self.luts[s] = tuple(spec)
         self._kept_luts, self._kept_bad_luts = dict(self.luts), set(self._bad_luts)
         self.accents = self._kept_accents = ns.get("SEASON_ACCENTS")
+        self.accents_on_packs = self._kept_accents_on_packs = ns.get("SEASON_ACCENTS_ON_PACKS")
         calendar, names = ns.get("CALENDAR"), ns.get("NAMES")
         self.problems = season.config_problems(toggle, self.layout, self.sound_src,
                                                self.periods, events, calendar, names, own=own,
                                                spells=spells, mcm=mcm, luts=luts,
-                                               accents=self.accents)
+                                               accents=self.accents,
+                                               accents_on_packs=self.accents_on_packs)
 
         for name, cfg in toggle.items():
             when = periods_of(cfg)
@@ -1251,6 +1259,24 @@ class Calendar(object):
         return (type(self.accents) is not type(self._kept_accents)
                 or self.accents != self._kept_accents)
 
+    def set_accents_on_packs(self, on):
+        """Whether a season with a LUT pack gets the accents too. Off leaves a file with no
+        SEASON_ACCENTS_ON_PACKS without one, as no line means off."""
+        kept = self._kept_accents_on_packs
+        self.accents_on_packs = True if on else (None if kept is None else False)
+
+    def accents_on_packs_changed(self):
+        return (type(self.accents_on_packs) is not type(self._kept_accents_on_packs)
+                or self.accents_on_packs != self._kept_accents_on_packs)
+
+    def accented_seasons(self):
+        """The seasons the accents color in this setup, in calendar order: those the accents
+        name, less each season with a LUT pack unless they go on packs too."""
+        if not self.accents_on():
+            return []
+        built = season.accents_built(self.accents, self.luts, self.accents_on_packs is True)
+        return [s for s in season.SEASONS if s in built]
+
     def custom(self):
         """Is the calendar anything but Polesia's, all six on?"""
         return self.dates != polesia()
@@ -1283,7 +1309,8 @@ class Calendar(object):
                 or self.names_changed() or self.place_changed()
                 or self.periods != self._kept_periods
                 or self.layout != self._kept_layout or self.sound_src != self._kept_sound
-                or self.luts_changed() or self.accents_changed())
+                or self.luts_changed() or self.accents_changed()
+                or self.accents_on_packs_changed())
 
     def luts_changed(self):
         return self.luts != self._kept_luts or set(self._bad_luts) != self._kept_bad_luts
@@ -1360,6 +1387,10 @@ class Calendar(object):
         if self.accents_changed():
             text, k = self._setting(text, "SEASON_ACCENTS", ACCENTS_HEAD, self.accents)
             kept = kept and k
+        if self.accents_on_packs_changed():
+            text, k = self._setting(text, "SEASON_ACCENTS_ON_PACKS", ACCENTS_ON_PACKS_HEAD,
+                                    self.accents_on_packs)
+            kept = kept and k
         return text, kept
 
     @staticmethod
@@ -1399,7 +1430,8 @@ class Calendar(object):
             ns.get("PERIODS", {}), ns.get("EVENTS", {}), ns.get("CALENDAR"),
             ns.get("NAMES"), ns.get("WEATHER_PLACE"), ns.get("OWN_SEASONS"), ns.get("SPELLS"),
             ns.get("MCM_SETTINGS"), luts=ns.get("SEASON_LUTS"),
-            accents=ns.get("SEASON_ACCENTS"))
+            accents=ns.get("SEASON_ACCENTS"),
+            accents_on_packs=ns.get("SEASON_ACCENTS_ON_PACKS"))
 
     def _keepsake(self, why):
         """A dated copy of the file as it is, which no later save touches."""

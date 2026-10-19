@@ -788,8 +788,10 @@ The seasons can also carry accents of their own, built into the same LUTs: more 
 spring's new leaves, more contrast under summer's sun, richer reds in autumn, a cold, muted
 winter, crisp snow, and an earthy thaw. They need no pack and no ReShade: tick **Seasons'
 own accents** under *The look of each season*, or run `py _tools\configure.py accents on`.
-`play.bat` builds them with numpy, which saving offers to install
-(`py -m pip install numpy`).
+By default they leave a season with a LUT pack as the pack's author made it; **Also on
+seasons with a LUT pack** adds them there too. `play.bat` builds them with numpy, which
+saving offers to install (`py -m pip install numpy`). **Preview the looks...** shows each
+season's LUT on a chart of everyday colors, or on a screenshot of yours, before you launch.
 [CONFIGURING.md](docs/CONFIGURING.md#season_accents) lists them, and how to set your own.
 
 ---
