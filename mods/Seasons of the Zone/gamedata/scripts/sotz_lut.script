@@ -1,0 +1,222 @@
+-- Seasons of the Zone: the seasons' LUTs.
+--
+-- play.bat builds the mod "Seasonal LUT" from SEASON_LUTS (season.py, "seasonal LUTs"): an
+-- atlas that starts with the groups the game had, Atmospherics' or whichever mod's wins
+-- them, as they are, then for each season with a LUT of its own its mix with each group
+-- the levels use; the shader header that lets two groups mix; and configs\seasons_lut.ltx,
+-- which says which group is which. Atmospherics' ssfx_lut.script sets the level's own group
+-- as a level loads: one for every level in Atmospherics 2.69, one of five in G.A.M.M.A.'s.
+-- A second later this swaps it for the seasons' mixes of it, crossfading the blend's two
+-- heaviest seasons through Screen Space Shaders' command ssfx_lut (intensity, group1,
+-- group2, blend), and again whenever the blend moves or something else changes the
+-- command. A season with no LUT of its own keeps the level's group. The intensity is left
+-- as the game has it.
+--
+-- Without the ltx it does nothing. It stands down when the game loads another mod's atlas
+-- or header (their sizes differ from the ltx's), since the seasons' groups would then
+-- sample outside that atlas. MCM's "The season's LUT" off holds the level's own group.
+
+local PREFIX = "seasons_zone/"
+local SEASONS = {"spring", "summer", "autumn", "winter", "winter_snow", "late_winter"}
+local CHECK_MS = 5000
+
+-- false without Seasonal LUT, else {atlas, header, groups (the game's), group (a season's
+-- mix of each group of the game's: group[season][level group]), back (the level group a
+-- mix is of), label}
+local info = nil
+local ours = nil        -- whether the loaded atlas and header are Seasonal LUT's, per load
+local next_check = 0
+local said = nil
+local refused = false
+
+-- the log's lines: "[seasons] lut: ...", and "[seasons] ! lut: ..." for what went wrong
+local function say(msg)
+    printf("%s", "[seasons] " .. msg)
+end
+
+local function mcm_on()
+    if ui_mcm and ui_mcm.get then
+        local ok, v = pcall(ui_mcm.get, PREFIX .. "main/do_lut")
+        if ok and v ~= nil then return v and true or false end
+    end
+    return true
+end
+
+-- seasons_lut.ltx, once a load; false when there is none
+function load_info()
+    if info ~= nil then return info end
+    info = false
+    local ok, ini = pcall(function()
+        if not getFS():exist("$game_config$", "seasons_lut.ltx") then return nil end
+        return ini_file("seasons_lut.ltx")
+    end)
+    if not (ok and ini and ini:section_exist("seasons_lut")) then return info end
+    local t = {atlas = ini:r_float_ex("seasons_lut", "atlas_bytes"),
+               header = ini:r_float_ex("seasons_lut", "header_bytes"),
+               groups = math.floor((ini:r_float_ex("seasons_lut", "base_groups") or 1) + 0.5),
+               group = {}, back = {}, label = {}, accent = {}}
+    local labels = ini:section_exist("labels")
+    local accents = ini:section_exist("accents")
+    for _, s in ipairs(SEASONS) do
+        local m = {}
+        if ini:line_exist("seasons_lut", s) then
+            -- "16:18, 2:19": the level group, and the group of the season's mix of it
+            local spec = tostring(ini:r_string_ex("seasons_lut", s) or "")
+            for b, g in spec:gmatch("(%d+)%s*:%s*(%d+)") do
+                m[tonumber(b)] = tonumber(g)
+                t.back[tonumber(g)] = tonumber(b)
+            end
+        end
+        t.group[s] = m
+        if labels and ini:line_exist("labels", s) then
+            t.label[s] = ini:r_string_ex("labels", s)
+        end
+        -- season.py's SEASON_ACCENTS, built into the season's groups
+        if accents and ini:line_exist("accents", s) then
+            t.accent[s] = true
+        end
+    end
+    info = t
+    return info
+end
+
+-- "Eastman 30%" for a season with a LUT of its own, else nil; for the MCM page's read-out
+function label(season)
+    local t = load_info()
+    return t and t.label[season] or nil
+end
+
+-- whether the season's LUT carries Seasons' accents (SEASON_ACCENTS); for the read-out
+function accented(season)
+    local t = load_info()
+    return t and t.accent[season] or false
+end
+
+local function size_of(alias, path)
+    local ok, f = pcall(function() return getFS():exist(alias, path) end)
+    return ok and f and f.size_real or nil
+end
+
+local function same_size(a, b)
+    return a ~= nil and b ~= nil and math.abs(a - b) < 0.5
+end
+
+local function check_ours()
+    local atlas = size_of("$game_textures$", "shaders\\lut_atlas.dds")
+    local header = size_of("$game_shaders$", "r3\\settings_screenspace_LUT.h")
+    ours = same_size(atlas, info.atlas) and same_size(header, info.header)
+    if not ours then
+        say("! lut: another LUT mod's files win (lut_atlas.dds " .. tostring(atlas)
+            .. " bytes, settings_screenspace_LUT.h " .. tostring(header)
+            .. "; Seasonal LUT's are " .. tostring(info.atlas) .. " and "
+            .. tostring(info.header) .. "), so ssfx_lut is left to it")
+    end
+    return ours
+end
+
+local function nums(s)
+    local t = {}
+    for n in tostring(s or ""):gmatch("%-?%d+%.?%d*") do t[#t + 1] = tonumber(n) end
+    return t
+end
+
+local function current()
+    local ok, v = pcall(function() return get_console():get_string("ssfx_lut") end)
+    return ok and nums(v) or {}
+end
+
+-- the level's own group, from what ssfx_lut holds: a season's mix maps back to the group
+-- it was mixed from, and a group past the game's to 0
+local function level_group(now)
+    local g = math.floor((now[2] or 0) + 0.5)
+    if info.back[g] then return info.back[g] end
+    return g < info.groups and g or 0
+end
+
+-- {group1, group2, blend} for the blend's two heaviest seasons on the level's group, and
+-- why, for the log: "mcm" (off there), "nosotz", "off" (the seasons are), or the seasons
+-- and their shares
+function wanted(mix, level)
+    level = level or 0
+    if not mcm_on() then return {level, level, 0}, "mcm" end
+    if not mix then return {level, level, 0}, "nosotz" end
+    local a, b
+    for _, s in ipairs(SEASONS) do
+        local w = mix[s] or 0
+        if w > 0 then
+            if not a or w > mix[a] then
+                b = a
+                a = s
+            elseif not b or w > mix[b] then
+                b = s
+            end
+        end
+    end
+    if not a then return {level, level, 0}, "off" end
+    local ga = info.group[a][level] or level
+    local gb = b and (info.group[b][level] or level) or ga
+    if not b or ga == gb then return {ga, ga, 0}, a end
+    return {ga, gb, mix[b]}, string.format("%s %d%% / %s %d%%", a,
+        math.floor(mix[a] * 100 + 0.5), b, math.floor(mix[b] * 100 + 0.5))
+end
+
+local function apply()
+    if not load_info() then return end
+    if ours == nil then check_ours() end
+    if not ours then return end
+    local sotz = zzz_seasons_of_the_zone
+    local mix = sotz and sotz.season_mix and sotz.season_mix()
+    local now = current()
+    local level = level_group(now)
+    local want, why = wanted(mix, level)
+    local intensity = now[1] or 1
+    if #now >= 4 and now[2] == want[1] and now[3] == want[2]
+        and math.abs(now[4] - want[3]) < 0.002 then
+        return
+    end
+    local cmd = string.format("ssfx_lut (%s,%d,%d,%.4f)", tostring(intensity), want[1], want[2],
+                              want[3])
+    get_console():execute(cmd)
+    if why .. level ~= said then
+        said = why .. level
+        say("lut: " .. (why == "mcm" and "off in MCM" or why == "nosotz"
+                        and "Seasons of the Zone not loaded" or why == "off"
+                        and "the seasons are off" or why)
+            .. (info.groups > 1 and (" on the level's group " .. level) or "") .. " -> " .. cmd
+            .. ((want[1] >= info.groups or want[2] >= info.groups) and ""
+                or " (the game's own LUT)"))
+    end
+    local back = current()
+    if not refused and not (#back >= 4 and back[2] == want[1] and back[3] == want[2]) then
+        refused = true
+        say("! lut: the engine did not take " .. cmd .. "; it reads back "
+            .. table.concat(back, ","))
+    end
+end
+
+local function actor_on_update()
+    local t = time_global()
+    if t < next_check then return end
+    next_check = t + CHECK_MS
+    apply()
+end
+
+local function actor_on_first_update()
+    -- a second after Atmospherics' ssfx_lut.script has set the level's group
+    next_check = time_global() + 1000
+    if load_info() then
+        local n = 0
+        for _, s in ipairs(SEASONS) do if next(info.group[s]) then n = n + 1 end end
+        say(string.format("lut: %d season LUTs over the game's own", n))
+    end
+end
+
+local function on_option_change()
+    next_check = 0
+end
+
+function on_game_start()
+    RegisterScriptCallback("actor_on_update", actor_on_update)
+    RegisterScriptCallback("actor_on_first_update", actor_on_first_update)
+    RegisterScriptCallback("on_option_change", on_option_change)
+end

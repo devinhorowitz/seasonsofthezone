@@ -41,6 +41,10 @@ GAMMA folder (use python in place of py if that is how your Python starts):
   py _tools\configure.py sound                   the ambient sound mod the soundscape is
                                                 taken from, and the others there are
   py _tools\configure.py sound "<mod>" | sound --off  take it from that mod, or none
+  py _tools\configure.py lut                     each season's LUT, and the LUT packs found
+  py _tools\configure.py lut winter Iris 60 | lut winter --off  give a season a LUT, or none
+  py _tools\configure.py accents                 the seasons' accents, built into their LUTs
+  py _tools\configure.py accents on | accents off  Seasons' own accents, or none
   py _tools\configure.py rain                    the weathers that rain, and whether the
                                                 winters take their rain out
   py _tools\configure.py rain --build | rain --off  take it out in the winters, or stop
@@ -1098,6 +1102,150 @@ def cmd_sound(a):
     cal.sound_src = src
     save(cal, [_("the soundscape is taken from \"%s\"; play.bat stages it at the next "
                  "launch") % src if src else _("the seasonal soundscape is off")])
+
+
+def lut_label(source, option):
+    """A LUT as the commands list it: its name, and the pack it comes from."""
+    return "%s  (%s%s)" % (season.lut_name(source, option), source,
+                          ": " + option if option else "")
+
+
+def lut_need_lines():
+    """The archives in MO2's downloads folder the LUT list can't look in, and what for."""
+    out = []
+    for package, n in season.lut_needs():
+        if package:
+            # translators: %(ext)s is .7z or .rar; %(package)s is py7zr or rarfile
+            out.append(ngettext(
+                "%(n)d %(ext)s archive in MO2's downloads folder can't be searched for LUTs "
+                "without %(package)s, a Python package. To install it, type this in Command "
+                "Prompt: %(cmd)s",
+                "%(n)d %(ext)s archives in MO2's downloads folder can't be searched for LUTs "
+                "without %(package)s, a Python package. To install it, type this in Command "
+                "Prompt: %(cmd)s", n)
+                % {"n": n, "ext": ".7z" if package == "py7zr" else ".rar", "package": package,
+                   "cmd": season._python() + " -m pip install " + package})
+        else:
+            out.append(ngettext(
+                "%d .rar archive in MO2's downloads folder can't be searched for LUTs without "
+                "WinRAR or 7-Zip installed.",
+                "%d .rar archives in MO2's downloads folder can't be searched for LUTs without "
+                "WinRAR or 7-Zip installed.", n) % n)
+    return out
+
+
+def cmd_lut(a):
+    cal = loaded()
+    found = [(s, o) for s, o, n in season.lut_choices() if n == 1]
+    if not (a.season or a.off):
+        if cal.luts:
+            print("  " + _("Each season's LUT, moved from the game's LUT toward it:"))
+            for s in season.SEASONS:
+                if s in cal.luts:
+                    source, option, percent = cal.luts[s]
+                    print("    %-14s %3d%%  %s%s" % (
+                        typed_name(s, cal), percent, lut_label(source, option),
+                        "" if (source, option) in found else "   ! " + _("not found")))
+        else:
+            print("  " + _("No season has a LUT."))
+        if found:
+            print("  " + _("The LUTs in MO2's downloads folder and its mods:"))
+            for source, option in found:
+                print("    " + lut_label(source, option))
+        else:
+            print("  " + _("No LUT packs found in MO2's downloads folder or in its mods."))
+        for line in lut_need_lines():
+            print("  ! " + line)
+        return
+    if a.off and not a.season:
+        cal.luts = {}
+        save(cal, [_("no season has a LUT; play.bat turns Seasonal LUT off at the next "
+                     "launch")])
+        return
+    s = ce.resolve(a.season, list(season.SEASONS), cal.names)
+    if not s:
+        fail(_("\"%(name)s\" is not one of the six seasons: %(known)s")
+             % {"name": a.season, "known": comma_list(typed_name(k, cal)
+                                                     for k in season.SEASONS)})
+    if a.off:
+        cal.luts = {k: v for k, v in cal.luts.items() if k != s}
+        save(cal, [_("%s has no LUT") % typed_name(s, cal)])
+        return
+    if not a.lut:
+        fail(_("Name the LUT, as the list shows it: %s") % season.command("configure.py", "lut"))
+    hits = [(src, o) for src, o in found
+            if season.lut_name(src, o).casefold() == a.lut.strip().casefold()
+            and (not a.source or src.casefold() == a.source.strip().casefold())]
+    if not hits:
+        hits = [(src, o) for src, o in found if src.casefold() == a.lut.strip().casefold()]
+    if not hits:
+        fail(_("No LUT named \"%s\" in MO2's downloads folder or its mods.") % a.lut,
+             _("These are: %s") % comma_list(season.lut_name(src, o) for src, o in found)
+             if found else _("No LUT packs found there."), *lut_need_lines())
+    if len(hits) > 1:
+        fail(_("More than one pack has a LUT named \"%s\". Add --from with the pack:") % a.lut,
+             *["    " + lut_label(src, o) for src, o in hits])
+    percent = 50 if a.percent is None else a.percent
+    if not 1 <= percent <= 100:
+        fail(_("The percent is a whole number from 1 to 100."))
+    source, option = hits[0]
+    cal.luts = dict(cal.luts, **{s: (source, option, percent)})
+    save(cal, [_("%(season)s's LUT is %(lut)s at %(percent)d%%; play.bat builds Seasonal LUT "
+                 "at the next launch") % {"season": typed_name(s, cal),
+                                          "lut": season.lut_name(source, option),
+                                          "percent": percent}])
+
+
+def have_numpy():
+    """Whether numpy imports, which building the seasons' accents needs. It looks again
+    for a package pip put in since the last look."""
+    import importlib
+    importlib.invalidate_caches()
+    return season._numpy() is not None
+
+
+def numpy_line():
+    return _("Building the accents needs numpy, a Python package. To install it, type this in "
+             "Command Prompt: %s") % (season._python() + " -m pip install numpy")
+
+
+def accent_words(accent):
+    """A season's accents as the config writes them: "vibrance 0.5, tint (1.0, 1.0, 1.1)"."""
+    return ", ".join("%s %s" % (k, ce.literal(v)) for k, v in accent.items())
+
+
+def cmd_accents(a):
+    cal = loaded()
+    if a.state is None:
+        if cal.accents_on():
+            print("  " + (_("Seasons' own accents are on, built into each season's LUT:")
+                          if cal.accents is True else
+                          _("Accents of your own are on, from seasons_config.py:")))
+            for s, accent in season.accents_wanted(cal.accents).items():
+                print("    %-14s %s" % (typed_name(s, cal), accent_words(accent)))
+        else:
+            print("  " + _("The seasons' accents are off."))
+            print("  " + _("To turn Seasons' own on: %s") % season.command("configure.py",
+                                                                          "accents on"))
+        for p in season.accent_problems(cal.accents) if cal.accents is not None else []:
+            print("  ! " + p)
+        if cal.accents_on() and not have_numpy():
+            print("  ! " + numpy_line())
+        return
+    cal.set_accents(a.state == "on")
+    if cal.accents_on():
+        said = (_("Seasons' own accents are on; play.bat builds them into Seasonal LUT at the "
+                  "next launch") if cal.accents is True else
+                _("your own accents stay on; play.bat builds them into Seasonal LUT"))
+    elif cal.luts:
+        said = _("the seasons' accents are off; play.bat builds Seasonal LUT without them at "
+                 "the next launch")
+    else:
+        said = _("the seasons' accents are off; with no season LUT either, play.bat turns "
+                 "Seasonal LUT off at the next launch")
+    save(cal, [said])
+    if cal.accents_on() and not have_numpy():
+        print("  ! " + numpy_line())
 
 
 def rain_lines(want, inst):
@@ -2471,8 +2619,130 @@ class App(object):
         self.mcm_frame.pack(fill="x", pady=(6, 0))
         ttk.Button(box, text=_("New MCM setting..."), command=lambda: self.new_mcm()).pack(
             anchor="w", pady=(6, 0))
+        box = ttk.LabelFrame(f, text=_("The look of each season"), padding=8)
+        box.pack(fill="x", pady=(12, 0))
+        ttk.Label(box, wraplength=500, justify="left", foreground=GREY, text=_(
+            "The mod sets each season's color, light, fog, wind and wetness in the game. To take "
+            "a season's color grade from a cfg_load preset instead, such as Atmospherics' "
+            "Atmos_* files or one of your own, pick it under Color grade preset on that "
+            "season's page in MCM.")).pack(anchor="w")
+        ttk.Label(box, wraplength=500, justify="left", foreground=GREY, text=_(
+            "A season can also grade the frame with a LUT from a LUT pack you downloaded, such "
+            "as Kumo's or Forester's, moved from the game's LUT toward it by the percent. "
+            "play.bat builds the mod Seasonal LUT from them. The packs are read from MO2's "
+            "downloads folder and from the mods in MO2.")).pack(anchor="w", pady=(8, 0))
+        grid = ttk.Frame(box)
+        grid.pack(anchor="w", pady=(6, 0))
+        self.lut_rows, self.lut_found, self._filling_luts = {}, {}, False
+        for i, s in enumerate(season.SEASONS):
+            ttk.Label(grid, text=title(s), width=13).grid(row=i, column=0, sticky="w", pady=2)
+            pick = tk.StringVar()
+            cb = ttk.Combobox(grid, textvariable=pick, state="readonly", width=42)
+            cb.grid(row=i, column=1, sticky="w")
+            cb.bind("<<ComboboxSelected>>", lambda e: self.luts_edited())
+            share = tk.StringVar(value="50")
+            sp = ttk.Spinbox(grid, from_=5, to=100, increment=5, textvariable=share, width=5,
+                             command=self.luts_edited)
+            sp.grid(row=i, column=2, sticky="w", padx=(8, 0))
+            sp.bind("<KeyRelease>", lambda e: self.luts_edited())
+            ttk.Label(grid, text="%").grid(row=i, column=3, sticky="w", padx=(2, 0))
+            self.lut_rows[s] = (pick, cb, share, sp)
+        ttk.Button(box, text=_("Look for LUT packs again"), command=self.lut_fill).pack(
+            anchor="w", pady=(6, 0))
+        self.lut_note = ttk.Label(box, text="", foreground=GREY, wraplength=500,
+                                  justify="left")
+        self.lut_note.pack(anchor="w", pady=(4, 0))
+        self.lut_fill()
+        self.accents_on = tk.BooleanVar()
+        ttk.Checkbutton(box, text=_("Seasons' own accents"), variable=self.accents_on,
+                        command=self.accents_edited).pack(anchor="w", pady=(12, 0))
+        ttk.Label(box, wraplength=500, justify="left", foreground=GREY, text=_(
+            "A touch of each season's own color, built into its LUT, with a pack or without: "
+            "young greens in spring, high sun in summer, reds and golds in autumn, a gray cold "
+            "in winter, crisp snow in deep winter and an earthy thaw in late winter.")).pack(
+            anchor="w")
+        self.accent_note = ttk.Label(box, text="", foreground=GREY, wraplength=500,
+                                     justify="left")
+        self.accent_note.pack(anchor="w", pady=(4, 0))
+        self.accent_fill()
         self.own_list()
         self.dates_edited(user=False)
+
+    # the seasons' LUTs: a pick and a percent per season, from the packs season.py finds
+
+    def lut_fill(self):
+        """The LUT boxes, from the packs found now and the config's SEASON_LUTS."""
+        self._filling_luts = True
+        import importlib
+        importlib.invalidate_caches()               # a package pip put in since the last look
+        try:
+            found = season.lut_choices()
+            need = lut_need_lines()
+        except Exception:
+            found, need = [], []
+        none = _("none")
+        self.lut_found = {}
+        for source, option, n in found:
+            if n == 1:
+                self.lut_found["%s  (%s)" % (season.lut_name(source, option), source)] = (
+                    source, option)
+        for s, (pick, cb, share, sp) in self.lut_rows.items():
+            spec = self.cal.luts.get(s)
+            label = none
+            if spec:
+                label = next((l for l, v in self.lut_found.items() if v == (spec[0], spec[1])),
+                             None)
+                if label is None:
+                    label = "%s  (%s)" % (season.lut_name(spec[0], spec[1]),
+                                          _("not found: %s") % spec[0])
+                    self.lut_found[label] = (spec[0], spec[1])
+                share.set(str(spec[2]))
+            pick.set(label)
+        for s, (pick, cb, share, sp) in self.lut_rows.items():
+            cb.configure(values=[none] + sorted(self.lut_found, key=str.lower))
+        n = len([1 for source, option, k in found if k == 1])
+        words = [ngettext("%d LUT found.", "%d LUTs found.", n) % n if n
+                 else _("No LUT packs found in MO2's downloads folder or in its mods.")]
+        if need:
+            words += need + [_("Then click Look for LUT packs again.")]
+        self.lut_note.configure(text="\n".join(words))
+        self._filling_luts = False
+
+    def luts_edited(self):
+        if self._filling_luts:
+            return
+        none, new = _("none"), {}
+        for s, (pick, cb, share, sp) in self.lut_rows.items():
+            label = pick.get()
+            if label and label != none and label in self.lut_found:
+                try:
+                    p = int(round(float(share.get())))
+                except ValueError:
+                    p = 50
+                source, option = self.lut_found[label]
+                new[s] = (source, option, max(1, min(100, p)))
+        self.cal.luts = new
+        self.update_status()
+
+    # the seasons' accents: Seasons' own on or off; a table of the player's own is kept
+
+    def accent_fill(self):
+        """The accents box, from the config's SEASON_ACCENTS, and what building them needs."""
+        self.accents_on.set(self.cal.accents_on())
+        words = []
+        if self.cal.own_accents(self.cal.accents):
+            words.append(_("On with accents of your own, from seasons_config.py, for %s.")
+                         % lang.and_list(label(s, self.cal)
+                                         for s in season.accents_wanted(self.cal.accents)))
+        if self.cal.accents_on() and not have_numpy():
+            words.append(_("Building them needs numpy, a Python package, which isn't "
+                           "installed. Save offers to install it."))
+        self.accent_note.configure(text="\n".join(words))
+
+    def accents_edited(self):
+        self.cal.set_accents(self.accents_on.get())
+        self.accent_fill()
+        self.update_status()
 
     # the dial, drawn as the game will draw it, whenever the calendar or a name changes
 
@@ -2973,6 +3243,11 @@ class App(object):
         on, chance = self.dice.now()
         if on and chance is not None:
             said.append(_("the dice at %d%%") % chance)
+        if self.cal.luts:
+            said.append(ngettext("%d season LUT", "%d season LUTs", len(self.cal.luts))
+                        % len(self.cal.luts))
+        if self.cal.accents_on():
+            said.append(_("season accents"))
         self.status.configure(text=comma_list(said))
         dirty = self.cal.dirty() or bool(self.bad_dates) or self.dice.dirty()
         self.unsaved.configure(text=_("Unsaved changes") if dirty else "")
@@ -3038,6 +3313,7 @@ class App(object):
             return False
         moved, yours = calendar_moved(self.cal), self.cal.yours_changed()
         placed = self.cal.place_changed()
+        accented = self.cal.accents_changed() and self.cal.accents_on()
         saved, lines = self.cal.save()
         if saved and self.cal.wrote:
             self.root.configure(cursor="watch")
@@ -3066,7 +3342,10 @@ class App(object):
                     pgettext("window title", "Save"), "\n".join(lines), parent=self.root)
             if saved and moved and (self.cal.custom() or self.cal.names) and not have_pillow():
                 self.offer_pillow()
+            if saved and accented and not have_numpy():
+                offer_numpy(self.root)
         self.reload_seasons()
+        self.accent_fill()
         self.show_place()
         self.fill()
         self.show()
@@ -3239,6 +3518,30 @@ def offer_pillow(root):
         _("The year dial"), "\n".join([_("Pillow is installed."), ""] + out
                                       + ["", _("Close and open configure.bat again to see "
                                                "the dial here too.")]), parent=root)
+
+
+def offer_numpy(root):
+    """Offer to install numpy, which building the seasons' accents needs."""
+    from tkinter import messagebox
+    head = _("The seasons' accents")
+    if not messagebox.askyesno(head, _(
+            "Building the seasons' accents into Seasonal LUT needs numpy, a Python package. "
+            "Until it is installed, play.bat leaves them out.\n\nInstall it now? This "
+            "runs:\n\n    %s") % (season._python() + " -m pip install numpy"), parent=root):
+        return
+    root.configure(cursor="watch")
+    root.update()
+    r = subprocess.run([sys.executable, "-m", "pip", "install", "numpy"],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace")
+    root.configure(cursor="")
+    if r.returncode != 0:
+        messagebox.showerror(head, _(
+            "pip could not install numpy. The accents wait for it; everything else is saved. "
+            "pip said:\n\n%s") % "\n".join((r.stdout + r.stderr).strip().splitlines()[-8:]),
+            parent=root)
+        return
+    messagebox.showinfo(head, _("numpy is installed. play.bat builds the accents into "
+                                "Seasonal LUT the next time it starts the game."), parent=root)
 
 
 def own_window_words(cal, win):
@@ -3988,6 +4291,10 @@ GAMMA folder (use python in place of py if that is how your Python starts):
   py _tools\configure.py sound                   the ambient sound mod the soundscape is
                                                 taken from, and the others there are
   py _tools\configure.py sound "<mod>" | sound --off  take it from that mod, or none
+  py _tools\configure.py lut                     each season's LUT, and the LUT packs found
+  py _tools\configure.py lut winter Iris 60 | lut winter --off  give a season a LUT, or none
+  py _tools\configure.py accents                 the seasons' accents, built into their LUTs
+  py _tools\configure.py accents on | accents off  Seasons' own accents, or none
   py _tools\configure.py rain                    the weathers that rain, and whether the
                                                 winters take their rain out
   py _tools\configure.py rain --build | rain --off  take it out in the winters, or stop
@@ -4119,6 +4426,21 @@ def main():
                                        "from"))
     p.add_argument("mod", nargs="?", help=_("an ambient sound mod, as MO2's list names it"))
     p.add_argument("--off", action="store_true", help=_("no seasonal soundscape"))
+    p = sub.add_parser("lut", help=_("show the seasons' LUTs and the LUT packs found, or give "
+                                     "a season a LUT"))
+    p.add_argument("season", nargs="?", help=_("the season, as a command names it"))
+    p.add_argument("lut", nargs="?", help=_("the LUT, by its name in the list"))
+    p.add_argument("percent", nargs="?", type=int,
+                   help=_("how far the season's grade moves toward the LUT, 1 to 100 "
+                          "(50 if left out)"))
+    p.add_argument("--from", dest="source",
+                   help=_("the pack the LUT is in, when more than one has that name"))
+    p.add_argument("--off", action="store_true",
+                   help=_("no LUT for the season, or with no season, for any"))
+    p = sub.add_parser("accents", help=_("show the seasons' accents, or switch Seasons' own on "
+                                         "or off: color built into each season's LUT"))
+    p.add_argument("state", nargs="?", choices=["on", "off"],
+                   help=lang.or_list(["on", "off"]))
     p = sub.add_parser("rain", help=_("show the weathers that rain, or take their rain out in "
                                       "the winters"))
     p.add_argument("--build", action="store_true",
@@ -4146,7 +4468,8 @@ def main():
     {"list": cmd_list, "add": cmd_add, "remove": cmd_remove, "event": cmd_event,
      "season": cmd_season, "spell": cmd_spell, "mcm": cmd_mcm, "calendar": cmd_calendar,
      "dice": cmd_dice, "name": cmd_name, "preset": cmd_preset, "place": cmd_place, "sound": cmd_sound,
-     "rain": cmd_rain, "install": lambda a: __import__("installer").main(a),
+     "lut": cmd_lut, "accents": cmd_accents, "rain": cmd_rain,
+     "install": lambda a: __import__("installer").main(a),
      None: lambda a: window(a.advanced)}[a.cmd](a)
 
 

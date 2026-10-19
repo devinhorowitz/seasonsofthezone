@@ -134,6 +134,9 @@ py _tools\configure.py place                          # where the weather comes 
 py _tools\configure.py place "Kyiv" [--pick 2]        # look a place up and use it
 py _tools\configure.py place --at 50.45 30.52 --name Kyiv
 py _tools\configure.py place --reset                  # Chornobyl again
+py _tools\configure.py lut                            # each season's LUT, and the LUTs found
+py _tools\configure.py lut winter Iris 60             # 60% of the way to Iris
+py _tools\configure.py lut winter --off
 py _tools\configure.py preset                         # the presets there are
 py _tools\configure.py preset show "Two seasons"
 py _tools\configure.py preset load "Two seasons" [--parts calendar] [--force]
@@ -795,7 +798,136 @@ The mod ships its season grades as `cfg_load` presets, `Seasons_*.ltx`, in
 `gamedata/configs/seasons_presets/`. `play.bat` copies them into the game's `appdata/`
 if they are not there, beside Atmospherics' `Atmos_*.ltx`; an existing copy is never
 overwritten, so you can tune them in place. Which color grade preset a season uses is
-chosen on that season's MCM page, not here.
+chosen under **Color grade preset** on that season's MCM page, not here; the Seasons tab
+and the guided setup say so under *The look of each season*.
+
+---
+
+## `SEASON_LUTS`
+
+```python
+SEASON_LUTS = {
+    "autumn": ("Kumo Cinegraphy Vol 1.7z", "00 data/EASTMAN", 30),
+    "winter": ("Kumo LUT Assortment.7z", "00 data/LUT - Iris", 60),
+}
+```
+
+Each entry moves a season's color grade from the LUT the game has today toward a LUT
+from a pack you downloaded: `(source, option, percent)`. The source is an archive in
+MO2's downloads folder, or a mod's folder in MO2, on or off. The option is the folder in
+it that holds `gamedata`, as a FOMOD lays out its choices, or `None` when `gamedata` is
+at the top. The percent, 1 to 100, is how far the grade moves; 100 is the pack's LUT as
+it is. A season left out keeps the game's LUT.
+
+`configure.bat` writes the table: on its Seasons tab, *The look of each season* has a
+LUT and a percent for each season, from every LUT it finds, and **Look for LUT packs
+again** looks again. As commands:
+
+```bash
+py _tools\configure.py lut                      # each season's LUT, and the LUTs found
+py _tools\configure.py lut winter Iris 60       # 60% of the way to Iris; 50 if left out
+py _tools\configure.py lut winter Iris --from "Kumo LUT Assortment.7z"  # when two packs have one
+py _tools\configure.py lut winter --off         # winter keeps the game's LUT
+py _tools\configure.py lut --off                # every season does
+```
+
+A LUT is named by its option folder, or its archive or mod, without a leading `LUT - `.
+Only a pack's `textures\shaders\lut_atlas.dds` is read, and it has to hold one LUT: a
+4096 × 64 atlas, uncompressed, 8 bits a color, as Kumo's and Forester's are. A `.7z`
+needs py7zr, and a `.rar` rarfile with WinRAR or 7-Zip; without them, the list says how
+many archives it couldn't look in, and what to install.
+
+At launch `play.bat` builds a mod called `Seasonal LUT` from the table, and builds it
+again whenever an entry, a pack or the game's LUT changes:
+
+- an atlas holding the game's LUTs as they are, then, for each season with a LUT, its mix
+  with each LUT the levels use;
+- Screen Space Shaders' LUT header, with room for them all and the crossfade between two
+  switched on;
+- `configs\seasons_lut.ltx`, which tells the game which LUT is which.
+
+The game's LUTs are those of the enabled mod highest in MO2 that has one, and the levels
+use the ones its `scripts\ssfx_lut.script` names. G.A.M.M.A.'s own Atmospherics has 17,
+saved as a PNG under the `.dds` name, and its levels use five: one outdoors, one
+underground, and one each for Limansk, the Hospital and the levels it doesn't list.
+Atmospherics 2.69 has one, for every level. Each mix adds a megabyte to the atlas.
+
+`Seasonal LUT` goes just above that mod, on, and the `LUTs` line of the report names each
+season's LUT, and says when it is to be built. Nothing is built while MO2 or the game
+runs. With no entries, or with a `!` line naming a pack that is gone, the mod is turned
+off at the next launch, and an `ssfx_lut` left in `user.ltx` on a group the game's atlas
+lacks is put back on its first.
+
+In the game, `sotz_lut.script` reads the level's own LUT from `ssfx_lut` a second after
+Atmospherics sets it as the level loads, and sets the season's mix of it, crossfading
+between the blend's two heaviest seasons across a turn, as the other layers do. A season
+with no LUT keeps the level's, and the intensity stays as Atmospherics has it. **The
+season's LUT** on MCM's Main page, off, holds each level's own. A LUT mod you install
+becomes the game's LUT at the next launch: the seasons are built on it, and `Seasonal
+LUT` moves above it.
+
+## `SEASON_ACCENTS`
+
+```python
+SEASON_ACCENTS = True
+```
+
+Accents are small color changes built into each season's LUT, on top of its pack's LUT or
+the game's: more color in spring's new leaves, more contrast under summer's high sun,
+richer reds and golds in autumn, less color and a cooler middle in winter, crisp
+blue-white snow in deep winter, and an earthy, duller thaw in late winter. They leave black
+and white as they are, so dark places stay dark. `True` gives Seasons' own accents.
+`False`, or no `SEASON_ACCENTS` line, gives none.
+
+A table sets your own, season by season. A season left out has none:
+
+```python
+SEASON_ACCENTS = {
+    "autumn": {"vibrance": 0.18, "vibrance_rgb": (1.3, 1.0, 0.6)},
+    "winter": {"saturation": -0.15, "tint": (0.99, 1.0, 1.02)},
+}
+```
+
+| Accent | What it does | Range |
+|---|---|---|
+| `saturation` | all color, more or less | -1 to 1 |
+| `contrast` | an S-curve on brightness | -1 to 1 |
+| `tint` | (red, green, blue) in the midtones; above 1 brightens that color | 0.5 to 2 |
+| `gain` | (red, green, blue) scaled, the most in bright parts | 0.5 to 2 |
+| `vibrance` | more color where there is little; below 0, less where there is much | -1 to 1 |
+| `vibrance_rgb` | how much of the vibrance each of red, green and blue gets | 0 to 10 |
+
+They apply in that order, and work as ReShade's SweetFX effects do: Tonemap's saturation,
+Curves on brightness, LiftGammaGain's gamma and gain, and Vibrance. Values tuned there carry
+over. Seasons' own:
+
+| Season | Accents |
+|---|---|
+| spring | vibrance 0.83, greens most (0.8, 1.5, 0.9) |
+| summer | contrast 0.25, vibrance 0.42 |
+| autumn | vibrance 0.50, reds most (1.3, 1.0, 0.6) |
+| winter | saturation -0.42, tint (0.972, 1.0, 1.055) |
+| deep winter | contrast 0.28, tint (0.958, 0.987, 1.07), gain (0.972, 1.0, 1.055), vibrance -0.42 |
+| late winter | saturation -0.33, tint (1.146, 1.1, 1.04): earthy, and lighter in the midtones |
+
+`play.bat` builds them into `Seasonal LUT` with the seasons' LUTs, and builds it again when
+they change. A season with accents and no LUT of its own gets the game's LUT with its
+accents. They need nothing else in the game: the game applies the LUT to the finished
+image before the HUD, and crossfades as the seasons turn. Building them needs numpy
+(`py -m pip install numpy`). Without it, the seasons' LUTs are built without accents, and
+with no LUTs, `Seasonal LUT` stays off until numpy is in; the report says which. The `LUTs`
+line marks the seasons that have them, and so does each season page's read-out in MCM.
+
+`configure.bat` switches Seasons' own on and off: **Seasons' own accents**, under *The
+look of each season* on its Seasons tab. Saving with them on offers to install numpy when
+it is missing. A table of your own stays as you wrote it while the box is ticked. As
+commands:
+
+```bash
+py _tools\configure.py accents          # what is on, season by season
+py _tools\configure.py accents on       # Seasons' own; a table of your own stays
+py _tools\configure.py accents off      # none
+```
 
 ---
 
@@ -841,6 +973,19 @@ the top of its window. The usual mistakes:
   `TOGGLE_MODS = {}`. Python keeps the last one, so the entry would be thrown away.
 
 `whowins` still runs while the file has a mistake in it.
+
+**The seasons' LUTs don't show.** Check **The season's LUT** on MCM's Main page, and the
+`LUTs` line of `play.bat`'s report: a `!` line under it says what stopped the build. In
+the log, `[seasons] lut:` lines name each change. `[seasons] ! lut: another LUT mod's
+files win` means a mod above `Seasonal LUT` has the LUT's files: start the game with
+`play.bat`, which builds on a LUT mod you installed and moves `Seasonal LUT` above it. A
+mod with only the LUT shader header, `shaders\r3\settings_screenspace_LUT.h`, goes below
+Atmospherics.
+
+**A black or rainbow screen after the LUTs changed.** The game's shader cache still holds
+shaders made for the old LUT header. Modded Exes from June 2026 on notice and rebuild
+them; with an older exe, delete `appdata\shaders_cache\r4` in the game's folder, and
+the game builds it again as it starts.
 
 **The year dial is gone.** A calendar or names of your own need a dial drawn for them, and
 drawing one needs Pillow: `py -m pip install pillow`, then `py _tools\season.py dial`.

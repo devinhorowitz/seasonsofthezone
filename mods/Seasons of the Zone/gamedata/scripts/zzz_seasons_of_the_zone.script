@@ -1024,7 +1024,7 @@ function season_readout(s)
     -- The labels are the string table's and the spacing between the columns is this
     -- page's, since a string table does not keep a run of spaces.
     local t = sotz_text.text
-    return {
+    local rows = {
         t("ui_mcm_seasons_zone_ro_grade") .. "   " .. f(g.grade_r) .. "  " .. f(g.grade_g)
             .. "  " .. f(g.grade_b) .. "      "
             .. t("ui_mcm_seasons_zone_ro_from", {preset = src}),
@@ -1045,6 +1045,18 @@ function season_readout(s)
         t("ui_mcm_seasons_zone_ro_wind_grass") .. " " .. f(g.wind_grass_speed)
             .. "    " .. t("ui_mcm_seasons_zone_ro_trees") .. " " .. f(g.wind_trees_speed),
     }
+    -- the season's LUT, once play.bat has built Seasonal LUT (sotz_lut.script)
+    local okl, built = pcall(function() return sotz_lut.load_info() end)
+    if okl and built and s ~= "neutral" then
+        local okn, name = pcall(function() return sotz_lut.label(s) end)
+        local oka, accented = pcall(function() return sotz_lut.accented(s) end)
+        local said = (okn and name) or t("ui_mcm_seasons_zone_ro_lut_none")
+        if oka and accented then
+            said = said .. " + " .. t("ui_mcm_seasons_zone_ro_lut_accents")
+        end
+        rows[#rows + 1] = t("ui_mcm_seasons_zone_ro_lut") .. " " .. said
+    end
+    return rows
 end
 
 -- Replace each season's grade keys with its chosen preset, if one is chosen.

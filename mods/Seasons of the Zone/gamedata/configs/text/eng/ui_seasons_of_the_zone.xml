@@ -141,6 +141,12 @@
 	<string id="ui_mcm_seasons_zone_do_wet_desc">
 		<text>How fast surfaces take on water and how fast they dry. Spring stays wet from the thaw; summer dries quickly, so it is wet only while it rains. Puddle shape itself is baked into the shaders and cannot follow the season.</text>
 	</string>
+	<string id="ui_mcm_seasons_zone_do_lut">
+		<text>The season's LUT</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_do_lut_desc">
+		<text>Grades the frame with the LUT each season has in configure.bat (Seasonal LUTs), crossfading as the seasons turn. With no LUTs set there it does nothing. Off: the game's own LUT, as Atmospherics has it.</text>
+	</string>
 	<string id="ui_mcm_seasons_zone_wx_season">
 		<text>Weather odds follow the season</text>
 	</string>
@@ -406,6 +412,9 @@
 	<string id="ui_mcm_seasons_zone_ro_wetness"><text>wetness</text></string>
 	<string id="ui_mcm_seasons_zone_ro_wind_grass"><text>wind grass</text></string>
 	<string id="ui_mcm_seasons_zone_ro_trees"><text>trees</text></string>
+	<string id="ui_mcm_seasons_zone_ro_lut"><text>LUT</text></string>
+	<string id="ui_mcm_seasons_zone_ro_lut_accents"><text>accents</text></string>
+	<string id="ui_mcm_seasons_zone_ro_lut_none"><text>the game's own</text></string>
 
 	<!-- A season page's seasonal mods. Each mod's own label and hover text are written
 	     into ui_mcm_seasons_mods.xml by _tools/season.py at every launch. -->

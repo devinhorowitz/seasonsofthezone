@@ -147,7 +147,8 @@ def clock_today(prefs=None):
     return datetime.date.today(), "none"
 
 CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS", "CALENDAR",
-                "NAMES", "WEATHER_PLACE", "OWN_SEASONS", "SPELLS", "MCM_SETTINGS")
+                "NAMES", "WEATHER_PLACE", "OWN_SEASONS", "SPELLS", "MCM_SETTINGS",
+                "SEASON_LUTS", "SEASON_ACCENTS")
 
 
 def _config_error(e):
@@ -305,6 +306,13 @@ SPELLS = {} if SPELLS is None else SPELLS
 # its value for what is on that day, or its "else".
 MCM_SETTINGS = getattr(_cfg, "MCM_SETTINGS", None)
 MCM_SETTINGS = {} if MCM_SETTINGS is None else MCM_SETTINGS
+# Seasonal LUTs, {season: (source, option, percent)}: the season's color grade moved from
+# the game's LUT toward one the player downloaded, by `percent`. See "seasonal LUTs" below.
+SEASON_LUTS = getattr(_cfg, "SEASON_LUTS", None)
+SEASON_LUTS = {} if SEASON_LUTS is None else SEASON_LUTS
+# Seasonal accents, True for Seasons' own or {season: {accent: value}}: color changes built
+# into each season's LUT, on top of its pack's. See "seasonal accents" below.
+SEASON_ACCENTS = getattr(_cfg, "SEASON_ACCENTS", None)
 
 
 def _q(v):
@@ -391,7 +399,8 @@ def _validate_config():
                          + "\n  " + _("Nothing has been changed."))
     problems = _set_twice() + config_problems(TOGGLE_MODS, LAYOUT, SOUND_SRC, PERIODS, EVENTS,
                                               CALENDAR, NAMES, WEATHER_PLACE, OWN_SEASONS,
-                                              SPELLS, MCM_SETTINGS)
+                                              SPELLS, MCM_SETTINGS, luts=SEASON_LUTS,
+                                              accents=SEASON_ACCENTS)
     if problems:
         raise SystemExit(head + "\n".join("    - " + p for p in problems)
                          + "\n  " + _("Nothing has been changed."))
@@ -433,12 +442,13 @@ def _folder_problem(name):
 
 
 def _own_folders():
-    """This mod's folders, and the soundscape it generates: never on the calendar."""
-    return set(sotz_copies() or [SOTZ]) | {SOTZ, SOUND_MOD}
+    """This mod's folders, and the soundscape and LUT it generates: never on the calendar."""
+    return set(sotz_copies() or [SOTZ]) | {SOTZ, SOUND_MOD, LUT_MOD}
 
 
 def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=None,
-                    names=None, place=None, own=None, spells=None, mcm=None):
+                    names=None, place=None, own=None, spells=None, mcm=None, luts=None,
+                    accents=None):
     """What is wrong with a set of config tables, one sentence per entry at fault. The
     configure tool checks a file with this before it writes one."""
     problems = []
@@ -676,7 +686,89 @@ def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=No
         problems += place_problems(place)
     if mcm is not None:
         problems += mcm_problems(mcm, known)
+    if luts is not None:
+        problems += lut_problems(luts)
+    if accents is not None:
+        problems += accent_problems(accents)
     return problems
+
+
+def lut_problems(luts):
+    """What is wrong with a SEASON_LUTS table, one sentence each."""
+    if not isinstance(luts, dict):
+        # translators: follows a table's name, like PERIODS, which stays English
+        return ["SEASON_LUTS " + _("must be a table, {season: (source, option, percent)}, or "
+                                   "{} for none.")]
+    out = []
+    for season, spec in luts.items():
+        where = "SEASON_LUTS[%r]" % (season,)
+        if season not in SEASONS:
+            out.append(where + ": " + _("a LUT is for one of the six seasons: %s.")
+                       % ", ".join(_q(s) for s in SEASONS))
+            continue
+        if not isinstance(spec, (tuple, list)) or len(spec) != 3:
+            # translators: follows an entry, like PERIODS['x'], which stays English
+            out.append(where + " " + _("must be (source, option, percent): an archive in "
+                                       "MO2's downloads folder or a mod's folder in MO2, the "
+                                       "folder in it that holds gamedata or None, and a "
+                                       "whole number from 1 to 100."))
+            continue
+        source, option, percent = spec
+        if not isinstance(source, str) or not source.strip() or _folder_problem(source):
+            out.append(where + ": " + _("the source is an archive's file name or a mod's folder "
+                                        "name, in quotes."))
+        elif source in _own_folders():
+            out.append(where + ": " + _("%s is written by season.py itself; name a LUT pack.")
+                       % _q(source))
+        if option is not None and (not isinstance(option, str) or not option.strip()):
+            out.append(where + ": " + _("the option is the folder that holds gamedata, in "
+                                        "quotes, or None."))
+        if isinstance(percent, bool) or not isinstance(percent, int) or not 1 <= percent <= 100:
+            out.append(where + ": " + _("the percent is a whole number from 1 to 100: how far "
+                                        "the season's grade moves toward the LUT."))
+    return out
+
+
+def _number(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def accent_problems(accents):
+    """What is wrong with SEASON_ACCENTS, one sentence each."""
+    if accents is True or accents is False:
+        return []
+    if not isinstance(accents, dict):
+        # translators: follows a table's name, like PERIODS, which stays English
+        return ["SEASON_ACCENTS " + _("must be True for Seasons' own accents, False for none, or "
+                                      "a table, {season: {accent: value}}.")]
+    out = []
+    for season, spec in accents.items():
+        where = "SEASON_ACCENTS[%r]" % (season,)
+        if season not in SEASONS:
+            out.append(where + ": " + _("accents are for one of the six seasons: %s.")
+                       % ", ".join(_q(s) for s in SEASONS))
+            continue
+        if not isinstance(spec, dict):
+            # translators: follows an entry, like PERIODS['x'], which stays English
+            out.append(where + " " + _("must be a table of accents, like {\"vibrance\": 0.2, "
+                                       "\"contrast\": 0.1}."))
+            continue
+        for key, value in spec.items():
+            at = "%s[%r]" % (where, key)
+            if key not in ACCENT_RANGES:
+                out.append(at + ": " + _("not an accent. These are: %s.")
+                           % ", ".join(_q(k) for k in ACCENT_RANGES))
+                continue
+            lo, hi, three = ACCENT_RANGES[key]
+            if three:
+                ok = (isinstance(value, (tuple, list)) and len(value) == 3
+                      and all(_number(x) and lo <= x <= hi for x in value))
+                if not ok:
+                    out.append(at + ": " + _("three numbers, for red, green and blue, each from "
+                                             "%(lo)s to %(hi)s.") % {"lo": lo, "hi": hi})
+            elif not (_number(value) and lo <= value <= hi):
+                out.append(at + ": " + _("a number from %(lo)s to %(hi)s.") % {"lo": lo, "hi": hi})
+    return out
 
 
 # --- MCM settings -----------------------------------------------------------------------
@@ -2061,6 +2153,21 @@ def apply_toggles(active, dry_run=False, prefs=None):
             if got:
                 changed.append((SOUND_MOD,) + got)
 
+    # So is Seasonal LUT: just above the mod whose LUT is today's, on while SEASON_LUTS asks
+    # for a LUT and the build is whole. Off, the game's own LUT comes back.
+    if os.path.isdir(os.path.join(MODS, LUT_MOD)) or _find(body, LUT_MOD) is not None:
+        base = lut_base(body)
+        on = base is not None and lut_plan_now()["state"] == "built"
+        if base is not None:
+            got = _place(body, LUT_MOD, base[0], "+" if on else "-")
+            if got:
+                changed.append((LUT_MOD,) + got)
+        else:
+            i = _find(body, LUT_MOD)
+            if i is not None and body[i][:1] == "+":
+                body[i] = "-" + LUT_MOD
+                changed.append((LUT_MOD, "+", "-"))
+
     if changed and not dry_run:
         # MO2 rewrites modlist.txt from memory on exit, so an edit made while it is open
         # is lost.
@@ -2397,6 +2504,769 @@ def soundscape_signature():
                 return first.split(SOUND_SIG.strip())[1].strip() or None
             return None
     return None
+
+
+# --- seasonal LUTs -------------------------------------------------------------------------
+#
+# Screen Space Shaders grades the frame last with a LUT atlas, textures/shaders/
+# lut_atlas.dds: 64-cubed LUTs, each laid out as 64 slices of 64 x 64, stacked as groups
+# 4096 texels wide. Its command ssfx_lut (intensity, group1, group2, blend) picks the
+# groups, and mixes two of them when the shader header (shaders/r3/
+# settings_screenspace_LUT.h) defines G_ADVANCE_TRANSITION. Atmospherics ships that define
+# off, and its ssfx_lut.script sets each level's group as the level loads: Atmospherics 2.69
+# has one group, for every level; G.A.M.M.A.'s Atmospherics has 17, saved as a PNG under
+# the .dds name, of which its levels use five.
+#
+# SEASON_LUTS moves a season's grade from the LUT the game has today toward a LUT the
+# player downloaded, by a share: {season: (source, option, percent)}. The source is an
+# archive in MO2's downloads folder or a mod's folder in MO2; the option is the folder in
+# it that holds gamedata, None when gamedata is at the top. season.py builds the mod
+# "Seasonal LUT" from them: an atlas with today's groups first, as they are, then for each
+# season with a LUT its mix with each group the levels use; the header that lets two groups
+# mix; and configs/seasons_lut.ltx, which tells sotz_lut.script which group is which. The
+# mod sits just above the mod whose LUT is today's; the script swaps the level's group for
+# the seasons' mixes of it, crossfading as the seasons turn. The packs are other people's
+# work, so they stay where the player put them; only the atlas built from them goes into
+# the player's mods folder.
+LUT_MOD = "Seasonal LUT"
+LUT_ATLAS = ("textures", "shaders", "lut_atlas.dds")
+LUT_HEADER = ("shaders", "r3", "settings_screenspace_LUT.h")
+LUT_INFO = ("configs", "seasons_lut.ltx")
+LUT_RECORD = "seasons_lut.json"         # beside gamedata: what the atlas was built from
+LUT_GROUP = 4096 * 64 * 4               # one LUT: 64 rows of 4096 32-bit texels
+LUT_ARCHIVES = (".zip", ".7z", ".rar")
+LUT_LIST_CACHE = os.path.join(ROOT, "_baseline", "season-lut-sources.json")
+LUT_SCRIPT = ("scripts", "ssfx_lut.script")     # Atmospherics': the group each level loads
+LUT_MOST = 256                          # groups an atlas can hold: D3D11's 16384 rows
+_LUT_TAIL = "gamedata/textures/shaders/lut_atlas.dds"
+_TEXEL = (2, 1, 0, 3)                   # red, green, blue, alpha in a texel we write: B G R A
+_LUT_HEADER_TEXT = (
+    "// [ SETTINGS ] [ LUT ]  Seasonal LUT, written by Seasons of the Zone's season.py\r\n"
+    "\r\n"
+    "#define G_LUT_SIZE_W\t4096.0\t// Width of your LUT texture\r\n"
+    "\r\n"
+    "#define G_CELLS_SIZE\t64\t\t// Width/Height of your cell\r\n"
+    "#define G_CELLS_GROUPS\t%d\t\t// Quantity of tables in your texture\r\n"
+    "\r\n"
+    "#define G_ADVANCE_TRANSITION\t// blend group1 and group2 by ssfx_lut.w (the seasons' "
+    "crossfade)\r\n")
+
+
+class LutError(Exception):
+    """A LUT that can't be used, with the words to say why."""
+
+
+def _dds_shape(data):
+    """(width, height, bytes a texel, offsets) of a DDS uncompressed at 24 or 32 bits a texel,
+    8 bits a color; None for anything else. The offsets are where red, green, blue and alpha
+    sit in a texel, alpha None when there is none: most packs keep B, G, R, A, as Atmospherics
+    does, and a few of Kumo's R, G, B, A."""
+    if len(data) < 128 or data[:4] != b"DDS ":
+        return None
+    h, w = struct.unpack_from("<II", data, 12)
+    fourcc, bits = struct.unpack_from("<4sI", data, 84)
+    if fourcc != b"\0\0\0\0" or bits not in (24, 32):
+        return None
+    size = bits // 8
+    spots = {0xff: 0, 0xff00: 1, 0xff0000: 2, 0xff000000: 3}
+    at = [spots.get(m) for m in struct.unpack_from("<IIII", data, 92)]
+    if None in at[:3] or len(set(at[:3])) != 3 or max(at[:3]) >= size:
+        return None
+    if size == 3 or at[3] in at[:3]:
+        at[3] = None
+    return w, h, size, at
+
+
+def _png_shape(data):
+    """(width, height, bytes a pixel) of a PNG at 8 bits a color, RGB or RGBA, not
+    interlaced; None for anything else."""
+    if len(data) < 29 or data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
+        return None
+    w, h, depth, kind, packed, filtered, laced = struct.unpack_from(">IIBBBBB", data, 16)
+    if depth != 8 or kind not in (2, 6) or packed or filtered or laced:
+        return None
+    return w, h, 3 if kind == 2 else 4
+
+
+def lut_groups(data):
+    """How many LUTs an atlas holds, its rows over 64, by its header: a DDS uncompressed at 24
+    or 32 bits a texel, or a PNG (G.A.M.M.A.'s Atmospherics saves its atlas as one, under the
+    .dds name), 8 bits a color and 4096 texels wide. None for anything else, or a DDS cut
+    short."""
+    shape = _dds_shape(data)
+    if shape:
+        if len(data) < 128 + shape[0] * shape[1] * shape[2]:
+            return None
+    else:
+        shape = _png_shape(data)
+    if not shape or shape[0] != 4096 or not shape[1] or shape[1] % 64:
+        return None
+    return shape[1] // 64
+
+
+def _png_rows(data):
+    """The pixels of a PNG _png_shape takes, its rows unfiltered, top to bottom. Sub and Up,
+    the filters G.A.M.M.A.'s atlas uses, run on whole rows at once as big numbers; Average
+    and Paeth byte by byte."""
+    w, h, px = _png_shape(data)
+    pos, parts = 8, []
+    while pos + 8 <= len(data):
+        n, kind = struct.unpack_from(">I4s", data, pos)
+        if kind == b"IDAT":
+            parts.append(data[pos + 8:pos + 8 + n])
+        elif kind == b"IEND":
+            break
+        pos += 12 + n
+    try:
+        raw = zlib.decompress(b"".join(parts))
+    except zlib.error:
+        raise LutError(_("its PNG data is damaged"))
+    stride = w * px
+    if len(raw) < (stride + 1) * h:
+        raise LutError(_("its PNG data is cut short"))
+    lo = int.from_bytes(b"\x7f" * stride, "little")
+    hi = int.from_bytes(b"\x80" * stride, "little")
+    whole = (1 << (8 * stride)) - 1
+
+    def add(a, b):                  # byte by byte, no carry from one byte into the next
+        return ((a & lo) + (b & lo)) ^ ((a ^ b) & hi)
+
+    out = bytearray(stride * h)
+    up, up_row = 0, bytes(stride)
+    for y in range(h):
+        at = y * (stride + 1)
+        kind, row = raw[at], raw[at + 1:at + 1 + stride]
+        if kind in (0, 1, 2):
+            x = int.from_bytes(row, "little")
+            if kind == 1:           # each byte adds the one a pixel left: a running sum
+                step = px
+                while step < stride:
+                    x = add(x, (x << (8 * step)) & whole)
+                    step *= 2
+            elif kind == 2:
+                x = add(x, up)
+            line = x.to_bytes(stride, "little")
+        elif kind in (3, 4):
+            line = bytearray(row)
+            for i in range(stride):
+                left = line[i - px] if i >= px else 0
+                above = up_row[i]
+                if kind == 3:
+                    line[i] = (line[i] + ((left + above) >> 1)) & 255
+                    continue
+                corner = up_row[i - px] if i >= px else 0
+                p = left + above - corner
+                pa, pb, pc = abs(p - left), abs(p - above), abs(p - corner)
+                line[i] = (line[i] + (left if pa <= pb and pa <= pc
+                                      else above if pb <= pc else corner)) & 255
+            line = bytes(line)
+            x = int.from_bytes(line, "little")
+        else:
+            raise LutError(_("its PNG data is damaged"))
+        out[y * stride:(y + 1) * stride] = line
+        up, up_row = x, line
+    return bytes(out)
+
+
+def lut_atlas(data):
+    """The LUTs of an atlas lut_groups takes, each 4096 x 64 texels as B, G, R, A (alpha 255
+    when it has none). LutError for anything else."""
+    n = lut_groups(data)
+    if not n:
+        raise LutError(_("it is not a LUT atlas these tools read: 4096 texels wide, 64 rows a "
+                         "LUT, 8 bits a color, uncompressed"))
+    shape = _dds_shape(data)
+    if shape:
+        size, at = shape[2], shape[3]
+        px = data[128:128 + 4096 * 64 * n * size]
+    else:
+        size = _png_shape(data)[2]
+        at = [0, 1, 2, 3 if size == 4 else None]
+        px = _png_rows(data)
+    count = 4096 * 64 * n
+    out = bytearray(count * 4)
+    for c in range(3):
+        out[_TEXEL[c]::4] = px[at[c]::size]
+    out[_TEXEL[3]::4] = px[at[3]::size] if at[3] is not None else b"\xff" * count
+    return [bytes(out[i * LUT_GROUP:(i + 1) * LUT_GROUP]) for i in range(n)]
+
+
+def lut_mix(base, src, share):
+    """A LUT moved from `base` toward `src` by `share`, 0 to 1: each color is
+    (base x (256 - w) + src x w + 128) / 256, rounded down, w being the share in 256ths.
+    Both are LUTs as lut_atlas gives them; the alpha is base's. Each color of all 262,144
+    texels is one big number with a 16-bit lane a texel, so one multiplication mixes it."""
+    w = int(round(share * 256))
+    n = len(base) // 4
+    lanes = bytearray(2 * n)
+    half = int.from_bytes(b"\x80\x00" * n, "little")
+    out = bytearray(base)
+    for c in range(3):
+        lanes[0::2] = base[c::4]
+        a = int.from_bytes(lanes, "little")
+        lanes[0::2] = src[c::4]
+        b = int.from_bytes(lanes, "little")
+        out[c::4] = (a * (256 - w) + b * w + half).to_bytes(2 * n, "little")[1::2]
+    return bytes(out)
+
+
+# Seasonal accents: SEASON_ACCENTS adds color changes to each season's LUT as it is built,
+# on top of its pack's LUT or of the game's: saturation (SweetFX Tonemap's), contrast on
+# brightness (SweetFX Curves' default curve), a midtone tint and a gain (LiftGammaGain's gamma
+# and gain), and vibrance (SweetFX Vibrance: more color where there is little). In that order,
+# each clamped to 0-1 as a screen pass would be. Each is a change of color alone, so a LUT
+# carries it exactly; the game applies the LUT to the finished image, before the HUD, and
+# crossfades the seasons' LUTs as the seasons turn. Seasons' own accents were tuned as ReShade
+# presets in the game and moved here, where they need no ReShade. Building them needs numpy.
+ACCENT_RANGES = {"saturation": (-1, 1, False), "contrast": (-1, 1, False),
+                 "tint": (0.5, 2, True), "gain": (0.5, 2, True),
+                 "vibrance": (-1, 1, False), "vibrance_rgb": (0, 10, True)}
+# 25/9 of the ReShade values, raised twice by 5/3 at the player's word: those carried a vignette
+# the LUT can't, and without it the accents read too faint in the game (2026-10-18, autumn, a
+# doorway at noon against the same shots without accents). Then all six were seen in the game
+# the same night: summer's contrast went back to 0.25, as 0.42 made the canopy too dark, and late
+# winter's tint lifts the midtones by 1.10 (same earthy ratio), as the thaw read too dark.
+ACCENTS = {
+    "spring": {"vibrance": 0.83, "vibrance_rgb": (0.8, 1.5, 0.9)},           # young greens
+    "summer": {"contrast": 0.25, "vibrance": 0.42},                          # high sun
+    "autumn": {"vibrance": 0.50, "vibrance_rgb": (1.3, 1.0, 0.6)},           # reds and golds
+    "winter": {"saturation": -0.42, "tint": (0.972, 1.0, 1.055)},            # gray, cold
+    "winter_snow": {"contrast": 0.28, "tint": (0.958, 0.987, 1.07),          # crisp snow
+                    "gain": (0.972, 1.0, 1.055), "vibrance": -0.42},
+    "late_winter": {"saturation": -0.33, "tint": (1.146, 1.1, 1.04)},        # mud and thaw
+}
+
+
+def accents_wanted(accents=None):
+    """{season: {accent: value}} as SEASON_ACCENTS asks: True gives Seasons' own, False or
+    None none; a season left out of a table has none."""
+    accents = SEASON_ACCENTS if accents is None else accents
+    if accents is True:
+        return {s: dict(ACCENTS[s]) for s in SEASONS if s in ACCENTS}
+    if not isinstance(accents, dict):
+        return {}
+    return {s: dict(accents[s]) for s in SEASONS if accents.get(s)}
+
+
+def _numpy():
+    """numpy, or None where it isn't installed."""
+    try:
+        import numpy
+    except ImportError:
+        return None
+    return numpy
+
+
+def accent_rgb(np, rgb, accent):
+    """The accents applied to colors: `rgb` an (n, 3) array of red, green, blue from 0 to 1."""
+    c = np.clip(rgb.astype(np.float64), 0.0, 1.0)
+    if accent.get("saturation"):
+        diff = c - c.mean(axis=1, keepdims=True)
+        s = float(accent["saturation"])
+        c = np.clip((c + diff * s) / (1.0 + diff * s), 0.0, 1.0)
+    if accent.get("contrast"):
+        luma = (c @ np.array([0.2126, 0.7152, 0.0722]))[:, None]
+        curve = luma * (luma * (1.5 - luma) + 0.5)
+        c = np.clip(luma + (curve - luma) * float(accent["contrast"]) * 2.0 + (c - luma),
+                    0.0, 1.0)
+    if "tint" in accent or "gain" in accent:
+        gain = np.array(accent.get("gain", (1.0, 1.0, 1.0)), np.float64)
+        gamma = np.array(accent.get("tint", (1.0, 1.0, 1.0)), np.float64)
+        c = np.clip(np.power(np.abs(c * gain), 1.0 / gamma), 0.0, 1.0)
+    if accent.get("vibrance"):
+        luma = (c @ np.array([0.212656, 0.715158, 0.072186]))[:, None]
+        sat = (c.max(axis=1) - c.min(axis=1))[:, None]
+        coeff = np.array(accent.get("vibrance_rgb", (1.0, 1.0, 1.0)), np.float64) \
+            * float(accent["vibrance"])
+        c = np.clip(luma + (c - luma) * (1.0 + coeff * (1.0 - np.sign(coeff) * sat)), 0.0, 1.0)
+    return c
+
+
+def lut_accent(group, accent, np=None):
+    """A LUT with the accents applied to each of its colors: a LUT as lut_atlas gives it,
+    B, G, R, A; the alpha is kept."""
+    np = np or _numpy()
+    texels = np.frombuffer(group, dtype=np.uint8).reshape(-1, 4)
+    rgb = texels[:, [_TEXEL[0], _TEXEL[1], _TEXEL[2]]] / 255.0
+    out = texels.copy()
+    done = np.floor(accent_rgb(np, rgb, accent) * 255.0 + 0.5).astype(np.uint8)
+    for i in range(3):
+        out[:, _TEXEL[i]] = done[:, i]
+    return out.tobytes()
+
+
+def _dds_header(groups):
+    """The header of an atlas of `groups` LUTs, 32 bits a texel as B, G, R, A and no mipmaps:
+    Atmospherics 2.69's, its height aside."""
+    head = bytearray(128)
+    head[0:4] = b"DDS "
+    struct.pack_into("<7I", head, 4, 124, 0x100f, 64 * groups, 4096, 4096 * 4, 0, 1)
+    struct.pack_into("<2I4s5I", head, 76, 32, 0x41, b"\0\0\0\0", 32, 0xff0000, 0xff00, 0xff,
+                     0xff000000)
+    struct.pack_into("<I", head, 108, 0x1000)
+    return bytes(head)
+
+
+def _lut_option(path):
+    """The option an archive member that is a LUT atlas sits in: "" for gamedata at the
+    top, None when the member is not a LUT atlas."""
+    p = path.replace("\\", "/")
+    if not p.lower().endswith(_LUT_TAIL):
+        return None
+    head = p[:len(p) - len(_LUT_TAIL)]
+    if head and not head.endswith("/"):
+        return None
+    return head.rstrip("/")
+
+
+def _archive_listing(path):
+    """[(name, size)] of an archive's files; None when it can't be read (a .7z without
+    py7zr, a .rar without rarfile and a tool for it, or a damaged file)."""
+    low = path.lower()
+    try:
+        if low.endswith(".zip"):
+            import zipfile
+            with zipfile.ZipFile(path) as z:
+                return [(i.filename, i.file_size) for i in z.infolist() if not i.is_dir()]
+        if low.endswith(".7z"):
+            import py7zr
+            with py7zr.SevenZipFile(path) as z:
+                return [(f.filename, f.uncompressed) for f in z.list() if not f.is_directory]
+        if low.endswith(".rar"):
+            import rarfile
+            if not point_rarfile(rarfile):
+                return None
+            with rarfile.RarFile(path) as z:
+                return [(i.filename, i.file_size) for i in z.infolist() if not i.is_dir()]
+    except Exception:
+        return None
+    return None
+
+
+def _groups_by_size(size):
+    """How many LUTs a DDS of `size` bytes holds, at 32 bits a texel or else 24; 0 when
+    neither comes out whole. For an archive's files, which are listed without reading them."""
+    for texel in (4, 3):
+        n, rest = divmod(size - 128, 4096 * 64 * texel)
+        if size > 128 and not rest:
+            return n
+    return 0
+
+
+def _file_groups(path):
+    """lut_groups of a file; 0 when it can't be read or holds no LUT these tools read."""
+    try:
+        return lut_groups(io.open(path, "rb").read()) or 0
+    except OSError:
+        return 0
+
+
+def lut_choices():
+    """The LUTs SEASON_LUTS can name, [(source, option, LUTs in it)]: archives in MO2's
+    downloads folder, then mod folders, each in name order. An option is None when gamedata
+    is at the top. An archive's listing is cached by its name, size and time; one that can't
+    be read is not, so it is read once py7zr or rarfile is in (lut_needs says which)."""
+    try:
+        cache = json.loads(io.open(LUT_LIST_CACHE, encoding="utf-8").read())
+    except (OSError, ValueError):
+        cache = {}
+    keep, out = {}, []
+    names = sorted(os.listdir(DOWNLOADS), key=str.lower) if os.path.isdir(DOWNLOADS) else []
+    for f in names:
+        p = os.path.join(DOWNLOADS, f)
+        if not f.lower().endswith(LUT_ARCHIVES) or not os.path.isfile(p):
+            continue
+        st = os.stat(p)
+        key = "%s|%d|%d" % (f, st.st_size, int(st.st_mtime))
+        found = cache.get(key)
+        if not isinstance(found, list):
+            listing = _archive_listing(p)
+            if listing is None:
+                continue
+            found = []
+            for name, size in listing:
+                opt = _lut_option(name)
+                if opt is not None:
+                    found.append([opt, _groups_by_size(size)])
+        keep[key] = found
+        for opt, n in sorted(found, key=lambda e: e[0].lower()):
+            out.append((f, opt or None, n))
+    for mod in sorted(os.listdir(MODS), key=str.lower) if os.path.isdir(MODS) else []:
+        p = os.path.join(MODS, mod, "gamedata", *LUT_ATLAS)
+        if mod != LUT_MOD and os.path.isfile(p):
+            out.append((mod, None, _file_groups(p)))
+    if keep != cache:
+        try:
+            os.makedirs(os.path.dirname(LUT_LIST_CACHE), exist_ok=True)
+            io.open(LUT_LIST_CACHE, "w", encoding="utf-8").write(json.dumps(keep, indent=1))
+        except OSError:
+            pass
+    return out
+
+
+def lut_needs():
+    """What looking for LUT packs in MO2's downloads folder lacks here, [(package, archives)]:
+    py7zr for its .7z archives and rarfile for its .rar, Python packages pip installs, or
+    None for the .rar when rarfile is in but neither WinRAR nor 7-Zip is."""
+    names = os.listdir(DOWNLOADS) if os.path.isdir(DOWNLOADS) else []
+    out = []
+    for ext, package in ((".7z", "py7zr"), (".rar", "rarfile")):
+        n = len([f for f in names if f.lower().endswith(ext)])
+        if not n:
+            continue
+        try:
+            mod = __import__(package)
+        except ImportError:
+            out.append((package, n))
+            continue
+        try:
+            ok = ext != ".rar" or point_rarfile(mod)
+        except Exception:
+            ok = False
+        if not ok:
+            out.append((None, n))
+    return out
+
+
+def lut_name(source, option):
+    """A LUT as the player knows it: its option folder's last part, or the source with no
+    archive extension, without a leading "LUT - "."""
+    name = (option or "").replace("\\", "/").rstrip("/").split("/")[-1] or source
+    if name.lower().endswith(LUT_ARCHIVES):
+        name = name.rsplit(".", 1)[0]
+    if name[:6].lower() == "lut - ":
+        name = name[6:]
+    return name.strip() or source
+
+
+def _lut_source(source, option):
+    """(path, member, size, mtime) of the atlas an entry names; LutError when it isn't
+    there. `member` is None for a mod folder's file."""
+    if source.lower().endswith(LUT_ARCHIVES):
+        path = os.path.join(DOWNLOADS, source)
+        if not os.path.isfile(path):
+            raise LutError(_("%s is not in MO2's downloads folder") % source)
+        listing = _archive_listing(path)
+        if listing is None:
+            raise LutError(_("%s could not be read") % source
+                           + (" " + _("(a .7z needs py7zr; a .rar needs rarfile and WinRAR or "
+                                      "7-Zip)") if not source.lower().endswith(".zip") else ""))
+        want = (option or "").replace("\\", "/").strip("/").lower()
+        for name, size in listing:
+            opt = _lut_option(name)
+            if opt is not None and opt.lower() == want:
+                st = os.stat(path)
+                return path, name, size, int(st.st_mtime)
+        raise LutError(_("%(archive)s has no LUT in %(option)s")
+                       % {"archive": source, "option": "\"%s\"" % option if option
+                          else _("its top folder")})
+    path = os.path.join(MODS, source, *([option] if option else []) + ["gamedata"]
+                        + list(LUT_ATLAS))
+    if not os.path.isfile(path):
+        raise LutError(_("%s has no LUT (textures\\shaders\\lut_atlas.dds)")
+                       % ("\"%s\"" % source))
+    st = os.stat(path)
+    return path, None, st.st_size, int(st.st_mtime)
+
+
+def _lut_read(path, member):
+    """The bytes of an atlas: a file, or a member of the archive at `path`."""
+    if member is None:
+        return io.open(path, "rb").read()
+    low = path.lower()
+    if low.endswith(".zip"):
+        import zipfile
+        with zipfile.ZipFile(path) as z:
+            return z.read(member)
+    if low.endswith(".rar"):
+        import rarfile
+        point_rarfile(rarfile)
+        with rarfile.RarFile(path) as z:
+            return z.read(member)
+    import py7zr
+    import tempfile
+    tmp = tempfile.mkdtemp(prefix="sotz_lut_")
+    try:
+        with py7zr.SevenZipFile(path) as z:
+            z.extract(path=tmp, targets=[member])
+        return io.open(os.path.join(tmp, *member.replace("\\", "/").split("/")), "rb").read()
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def lut_base(body=None):
+    """(mod, path) of the LUT the game uses without Seasonal LUT: the enabled mod highest
+    in MO2's list that ships a lut_atlas.dds; None when no enabled mod does."""
+    return _top_file(LUT_ATLAS, body)
+
+
+def lut_script(body=None):
+    """(mod, path) of the ssfx_lut.script the game runs: the enabled mod highest in MO2's
+    list that ships one; None when no enabled mod does."""
+    return _top_file(LUT_SCRIPT, body)
+
+
+def _top_file(rel, body=None):
+    lines = body if body is not None else (_modlist_lines() or [])[1:]
+    for line in lines:
+        name = line[1:]
+        if line[:1] == "+" and name != LUT_MOD:
+            p = os.path.join(MODS, name, "gamedata", *rel)
+            if os.path.isfile(p):
+                return name, p
+    return None
+
+
+def lut_used(path, groups):
+    """The groups of a `groups`-LUT atlas the levels use, by the ssfx_lut.script at `path`:
+    each group it names under `groups`, in order (Atmospherics gives each level one, and the
+    others a default); [0] when it names none, or there is no script."""
+    try:
+        text = io.open(path, "rb").read().decode("latin-1") if path else ""
+    except OSError:
+        text = ""
+    text = re.sub(r"--\[(=*)\[.*?\]\1\]", "", text, flags=re.S)
+    text = re.sub(r"--[^\n]*", "", text)
+    got = sorted({int(g) for g in re.findall(r"\bgroup\s*=\s*(\d+)", text) if int(g) < groups})
+    return got or [0]
+
+
+_LUT_PLAN = []
+
+
+def lut_plan_now(refresh=False):
+    """lut_plan(), worked out once a run: it lists archives."""
+    if refresh or not _LUT_PLAN:
+        _LUT_PLAN[:] = [lut_plan()]
+    return _LUT_PLAN[0]
+
+
+def lut_plan():
+    """What SEASON_LUTS asks for, against what is built: a dict with "state" - "none" (no
+    LUT asked for), "blocked" (see "problems"), "built" or "stale" (to be built) -, "base",
+    "seasons" ({season: (source, option, percent)}), "record" (what a build is made from:
+    the game's LUT, the script that gives the levels its groups and the groups they use,
+    each season's LUT and the accents built in), "accents" (as SEASON_ACCENTS asks),
+    "problems" (sentences) and "notes" (sentences about a build that goes ahead)."""
+    accents = accents_wanted()
+    plan = {"seasons": dict(SEASON_LUTS), "accents": accents, "problems": [], "notes": [],
+            "base": None, "record": None}
+    if not SEASON_LUTS and not accents:
+        plan["state"] = "none"
+        return plan
+    base = lut_base()
+    if base is None:
+        plan["problems"].append(_("No enabled mod ships a LUT (textures\\shaders\\lut_atlas.dds). "
+                                  "Seasonal LUTs grade on top of Screen Space Shaders' LUT, "
+                                  "which Atmospherics ships."))
+        plan["state"] = "blocked"
+        return plan
+    plan["base"] = base
+    groups = _file_groups(base[1])
+    if not groups:
+        plan["problems"].append(_("%s's LUT is not one Seasonal LUTs can build on: an atlas 4096 "
+                                  "texels wide, 64 rows a LUT, 8 bits a color, uncompressed, as "
+                                  "Atmospherics' are.") % ("\"%s\"" % base[0]))
+        plan["state"] = "blocked"
+        return plan
+    script = lut_script()
+    used = lut_used(script and script[1], groups)
+    st = os.stat(base[1])
+    record = {"version": 3, "base": [base[0], st.st_size, int(st.st_mtime)],
+              "script": [script[0], os.path.getsize(script[1]), int(os.path.getmtime(script[1]))]
+              if script else None, "used": used, "seasons": {}, "accents": {}}
+    for season in SEASONS:
+        if season not in SEASON_LUTS:
+            continue
+        source, option, percent = SEASON_LUTS[season]
+        try:
+            path, member, size, mtime = _lut_source(source, option)
+        except LutError as e:
+            plan["problems"].append(_("%(season)s's LUT: %(why)s.")
+                                    % {"season": season_label(season), "why": e})
+            continue
+        if (_groups_by_size(size) if member is not None else _file_groups(path)) != 1:
+            plan["problems"].append(_("%(season)s's LUT, %(name)s, is not one LUT (a "
+                                      "4096 x 64 atlas).")
+                                    % {"season": season_label(season),
+                                       "name": lut_name(source, option)})
+            continue
+        record["seasons"][season] = [source, option, percent, size, mtime]
+    if accents and _numpy() is None:
+        install = "%s -m pip install numpy" % _python()
+        if record["seasons"]:
+            plan["notes"].append(_("The seasons' accents need numpy, which isn't installed, so "
+                                   "the LUTs are built without them. To add them, run: %s")
+                                 % install)
+        elif not plan["problems"]:
+            plan["problems"].append(_("The seasons' accents need numpy, which isn't installed. "
+                                      "Install it with: %s") % install)
+    elif accents:
+        # as the record's JSON gives them back, so a built record compares equal
+        record["accents"] = {s: {k: list(v) if isinstance(v, (tuple, list)) else v
+                                 for k, v in a.items()} for s, a in accents.items()}
+    plan["record"] = record
+    total = groups + len(set(record["seasons"]) | set(record["accents"])) * len(used)
+    if total > LUT_MOST:
+        plan["problems"].append(_("Seasonal LUT would hold %(n)d LUTs, and an atlas holds at "
+                                  "most %(most)d.") % {"n": total, "most": LUT_MOST})
+    if plan["problems"]:
+        plan["state"] = "blocked"
+        return plan
+    try:
+        built = json.loads(io.open(os.path.join(MODS, LUT_MOD, LUT_RECORD),
+                                   encoding="utf-8").read())
+    except (OSError, ValueError):
+        built = None
+    have = all(os.path.isfile(os.path.join(MODS, LUT_MOD, "gamedata", *rel))
+               for rel in (LUT_ATLAS, LUT_HEADER, LUT_INFO))
+    plan["state"] = "built" if have and built == record else "stale"
+    return plan
+
+
+def build_luts(plan):
+    """Build Seasonal LUT from a plan that is "stale": the atlas - the game's groups as they
+    are, then for each season with a LUT or accents, each group the levels use mixed with the
+    season's LUT and given its accents -, the header and the ltx, then the record. Returns
+    how many seasons have a LUT. LutError when a source turns out unusable."""
+    base_mod, base_path = plan["base"]
+    try:
+        base = lut_atlas(io.open(base_path, "rb").read())
+    except LutError as e:
+        raise LutError(_("%(mod)s's LUT: %(why)s") % {"mod": "\"%s\"" % base_mod, "why": e})
+    used = plan["record"]["used"]
+    accents = plan["record"].get("accents") or {}
+    np = _numpy() if accents else None
+    groups, index, labels = list(base), {}, {}
+    for season in SEASONS:
+        got = plan["record"]["seasons"].get(season)
+        accent = accents.get(season)
+        if not got and not accent:
+            continue
+        src, share = None, 0.0
+        if got:
+            source, option, percent = got[0], got[1], got[2]
+            name = lut_name(source, option)
+            path, member, __, ___ = _lut_source(source, option)
+            try:
+                data = _lut_read(path, member)
+            except Exception:                   # a damaged archive: py7zr's and rarfile's own
+                raise LutError(_("%s could not be read") % source)
+            try:
+                src = lut_atlas(data)
+            except LutError as e:
+                raise LutError(_("%(season)s's LUT, %(name)s: %(why)s")
+                               % {"season": season_label(season), "name": name, "why": e})
+            if len(src) != 1:
+                raise LutError(_("%(season)s's LUT, %(name)s, is not one LUT (a 4096 x 64 "
+                                 "atlas)") % {"season": season_label(season), "name": name})
+            share = percent / 100.0
+            labels[season] = "%s %d%%" % (name, percent)
+        index[season] = []
+        for g in used:
+            group = base[g] if src is None else lut_mix(base[g], src[0], share)
+            if accent:
+                group = lut_accent(group, accent, np)
+            groups.append(group)
+            index[season].append((g, len(groups) - 1))
+    atlas = _dds_header(len(groups)) + b"".join(groups)
+    header = (_LUT_HEADER_TEXT % len(groups)).encode("ascii")
+    info = ["; written by Seasons of the Zone's season.py from SEASON_LUTS and SEASON_ACCENTS, "
+            "for sotz_lut.script: for each season with a LUT or accents, each group of the "
+            "game's that levels use and the group of its mix with the season's LUT and accents",
+            "[seasons_lut]",
+            "atlas_bytes = %d" % len(atlas),
+            "header_bytes = %d" % len(header),
+            "base = %s" % base_mod,
+            "base_groups = %d" % len(base)]
+    info += ["%s = %s" % (s, ", ".join("%d:%d" % pair for pair in index[s]))
+             for s in SEASONS if s in index]
+    info += ["", "[labels]"] + ["%s = %s" % (s, labels[s]) for s in SEASONS if s in labels]
+    # the seasons whose groups carry accents; the script says so in the player's language
+    info += ["", "[accents]"] + ["%s = true" % s for s in SEASONS if s in accents]
+    dest = os.path.join(MODS, LUT_MOD)
+    for rel, data in ((LUT_ATLAS, atlas), (LUT_HEADER, header),
+                      (LUT_INFO, ("\r\n".join(info) + "\r\n").encode("cp1251", "replace"))):
+        p = os.path.join(dest, "gamedata", *rel)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p + ".tmp", "wb") as f:
+            f.write(data)
+        os.replace(p + ".tmp", p)
+    meta = os.path.join(dest, "meta.ini")
+    if not os.path.isfile(meta):
+        io.open(meta, "w", encoding="utf-8", newline="\r\n").write(
+            "[General]\ngameName=stalkeranomaly\nmodid=0\nversion=\nnewestVersion=\n"
+            "category=\"0\"\ninstallationFile=\nnotes=\"Built by Seasons of the Zone's "
+            "play.bat from SEASON_LUTS and SEASON_ACCENTS; play.bat places it and rebuilds it. "
+            "Not to be edited by hand.\"\n")
+    io.open(os.path.join(dest, LUT_RECORD), "w", encoding="utf-8").write(
+        json.dumps(plan["record"], indent=1))
+    return len(index)
+
+
+LUT_CMD = "ssfx_lut"
+
+
+def lut_reset(path=None):
+    """A user.ltx ssfx_lut naming a group the atlas the game will load lacks - a season's,
+    left from a Seasonal LUT now off or holding fewer - samples outside it until a level
+    loads and Atmospherics sets the level's: put its groups back to 0, the intensity kept.
+    Returns the change as (was, now), or None. Not while the game runs."""
+    path = _user_ltx() if path is None else path
+    if not path:
+        return None
+    if _mod_enabled(LUT_MOD):
+        atlas = os.path.join(MODS, LUT_MOD, "gamedata", *LUT_ATLAS)
+    else:
+        base = lut_base()
+        atlas = base[1] if base else None
+    groups = _file_groups(atlas) if atlas else 0
+    if not groups:
+        return None
+    try:
+        text = io.open(path, "rb").read().decode("latin-1")
+    except OSError:
+        return None
+    nl = _detect_nl(text)
+    lines = text.split(nl)
+    hits = [i for i, l in enumerate(lines) if l.split(None, 1)[:1] == [LUT_CMD]]
+    if not hits:
+        return None
+    nums = re.findall(r"-?\d+(?:\.\d+)?", lines[hits[-1]].split(None, 1)[1]
+                      if len(lines[hits[-1]].split(None, 1)) == 2 else "")
+    if len(nums) < 4 or all(float(n) < groups - 0.5 for n in nums[1:3]):
+        return None
+    if [p for p in running() if p.startswith("anomaly")]:
+        return None
+    now = "(%s, 0.000000, 0.000000, 0.000000)" % ("%.6f" % float(nums[0]))
+    was = lines[hits[-1]].split(None, 1)[1].strip()
+    for i in hits:
+        lines[i] = LUT_CMD + " " + now
+    io.open(path, "wb").write(nl.join(lines).encode("latin-1"))
+    return was, now
+
+
+def lut_words(plan):
+    """The report's LUT line for a plan."""
+    if plan["state"] == "none":
+        return _("none (configure.bat sets them)")
+    if plan["state"] == "blocked":
+        return _("not built: the ! lines below say why")
+    accented = (plan["record"] or {}).get("accents") or {}
+    shown = []
+    for s in SEASONS:
+        lut = ("%s %d%%" % (lut_name(plan["seasons"][s][0], plan["seasons"][s][1]),
+                            plan["seasons"][s][2]) if s in plan["seasons"] else None)
+        if s in accented:
+            # translators: a season's LUT and the accents built into it, or the accents alone
+            lut = (_("%s + accents") % lut) if lut else _("accents")
+        if lut:
+            shown.append(_("%(season)s %(lut)s") % {"season": season_label(s), "lut": lut})
+    used = (plan["record"] or {}).get("used") or [0]
+    words = (_("%(luts)s; built on %(base)s's LUT") if len(used) == 1 else
+             _("%(luts)s; built on the %(n)d LUTs of %(base)s that levels use")) % {
+        "luts": ", ".join(shown), "base": plan["base"][0], "n": len(used)}
+    return words if plan["state"] == "built" else words + "   " + _("(to be built)")
 
 
 def _mod_weight(folder):
@@ -4189,7 +5059,7 @@ def shadow_check(force=False):
             i = _find(body, name)
             _place(body, name, cfg["above"], body[i][:1] if i is not None else "-")
 
-    ours = set(TOGGLE_MODS) | {SOUND_MOD, SOTZ}
+    ours = set(TOGGLE_MODS) | {SOUND_MOD, LUT_MOD, SOTZ}
     index = {l[1:]: i for i, l in enumerate(body)}
     bases = set(SEASONS) | set(PERIODS)
     base_of, days_of = {}, {}
@@ -4967,6 +5837,16 @@ def main():
     grass = grass_plan(prefs, want)
     grass_pending = bool(grass and grass["kept"] and not _same(grass["now"], grass["want"]))
     _row(pgettext("report", "grass"), grass_words(grass))
+    # the seasons' LUTs, built from SEASON_LUTS and SEASON_ACCENTS; a report line only once
+    # they are asked for
+    lut = lut_plan_now()
+    lut_pending = lut["state"] == "stale"
+    if lut["state"] != "none" or os.path.isdir(os.path.join(MODS, LUT_MOD)):
+        _row(pgettext("report", "LUTs"), lut_words(lut))
+        for p in lut["problems"]:
+            print("  ! " + p)
+        for n in lut["notes"]:
+            print("  - " + n)
     # other mods' MCM options that follow the season, and what MCM's file has now
     mcm_now = mcm_values(active)
     mcm_want = {k: v for k, (v, _why) in mcm_now.items()}
@@ -5130,6 +6010,34 @@ def main():
                                       % {"was": change[0], "now": change[1]}))
             return change
 
+        def set_luts():
+            """Build Seasonal LUT when SEASON_LUTS or a LUT it reads changed, said; whether
+            it was built. Before the toggles, so they place a mod built for the first time."""
+            if not (writing and lut["state"] == "stale"):
+                return False
+            busy = running()
+            if busy:
+                raise SystemExit(close_first(busy))
+            try:
+                n = build_luts(lut)
+            except (LutError, OSError, ImportError) as e:
+                print("  ! " + _("Seasonal LUT not built: %s.") % e)
+                lut["state"] = "blocked"
+                return False
+            lut["state"] = "built"
+            print("  %-58s %s" % (LUT_MOD, ngettext("built: %(n)d season on %(base)s's LUT",
+                                                    "built: %(n)d seasons on %(base)s's LUT",
+                                                    n) % {"n": n, "base": lut["base"][0]}))
+            return True
+
+        def reset_lut():
+            """After the toggles: a user.ltx ssfx_lut group the game's own atlas lacks."""
+            change = lut_reset() if writing else None
+            if change:
+                print("  %-58s %s" % ("%s (user.ltx)" % LUT_CMD, _("%(was)s -> %(now)s")
+                                      % {"was": change[0], "now": change[1]}))
+            return change
+
         def say_skipped():
             mods, sets = len(SKIPPED), len(sets_skipped)
             if mods and sets:
@@ -5184,9 +6092,11 @@ def main():
         if tex_ok and sound_ok:
             # Toggles are checked even when nothing else moved: a newly installed
             # seasonal mod is absent from the mod list until something inserts it.
+            luted = set_luts()
             tg = apply_toggles(active, not writing, prefs)
             for name, was, now in tg:
                 print("  %-58s %s" % (name[:58], change_text(was, now)))
+            reset_lut()
             mcm = send_mcm()
             grassed = set_grass()
             if tg and writing:
@@ -5209,6 +6119,13 @@ def main():
             elif grass_pending and not writing:
                 print("  => " + _("%(season)s: the grass needs setting. Start the game with "
                                   "play.bat, or run %(command)s")
+                      % {"season": title, "command": command("season.py", "apply")})
+            elif luted:
+                print("  => " + _("%s: Seasonal LUT built. The game picks this up when it "
+                                  "starts.") % title)
+            elif lut_pending and not writing:
+                print("  => " + _("%(season)s: Seasonal LUT needs building. Start the game "
+                                  "with play.bat, or run %(command)s")
                       % {"season": title, "command": command("season.py", "apply")})
             elif SKIPPED or sets_skipped:
                 pass                                        # said just below
@@ -5318,11 +6235,14 @@ def main():
                 done.append("soundscape")
 
         print()
+        if set_luts():
+            done.append("LUTs")
         tg = apply_toggles(active, False, prefs)
         for name, was, now in tg:
             print("  %-58s %s" % (name[:58], change_text(was, now)))
         if tg:
             done.append("seasonal mods")
+        reset_lut()
         # after the toggles, so the panel reports the mod list as it now stands
         write_staged(staged_texture_season(installed) if not stage_tex else want, stage_tex)
         write_mod_panel(active, prefs)
@@ -5336,7 +6256,8 @@ def main():
                  "soundscape": pgettext("staged", "soundscape"),
                  "seasonal mods": pgettext("staged", "seasonal mods"),
                  "MCM settings": pgettext("staged", "MCM settings"),
-                 "grass": pgettext("staged", "grass")}
+                 "grass": pgettext("staged", "grass"),
+                 "LUTs": pgettext("staged", "LUTs")}
         print("  => " + _("%(season)s staged (%(what)s). The game picks this up when it "
                           "starts.")
               % {"season": title,

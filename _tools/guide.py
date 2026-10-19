@@ -1005,6 +1005,12 @@ class Guide(object):
                     "settings, so its page in the game shows the same."),
                   parent=left, color=cf.GREY, pad=(0, 0), wrap=560)
         self.dice.build(left, ttk, wrap=560)
+        self.subhead(_("The look of each season"), parent=left)
+        self.para(_("The mod sets each season's color, light, fog, wind and wetness in the game. "
+                    "To take a season's color grade from a cfg_load preset instead, such as "
+                    "Atmospherics' Atmos_* files or one of your own, pick it under Color grade "
+                    "preset on that season's page in MCM."),
+                  parent=left, color=cf.GREY, pad=(0, 0), wrap=560)
         self.show_own()
         self.seasons_bad, self.names_bad = [], []
         self.pick_calendar(keep=True)

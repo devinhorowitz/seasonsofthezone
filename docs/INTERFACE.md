@@ -62,7 +62,10 @@ Below the dial:
 ![Per-layer switches and the switches for launch](images/mcm-main-layers.png)
 
 Then one switch per layer — color and light, foliage, fog, wind, wetness — so a layer you
-would rather tune yourself can be switched off on its own. **Weather odds follow the
+would rather tune yourself can be switched off on its own. **The season's LUT** grades the
+frame with each season's LUT, once `play.bat` has built them from the ones set in
+`configure.bat`; off, each level keeps the game's own (see the README's
+[Optional: seasonal LUTs](../README.md#optional-seasonal-luts)). **Weather odds follow the
 season**, off by default, tips Atmospherics 2.69's odds for each sky by the season, blended
 across a turn: more clear days and thunderstorms in summer, more rain and fog in autumn,
 more overcast in the winters, more fog in the thaw. Your Atmospherics weights stay the base
@@ -151,6 +154,8 @@ Under it is a read-out of what that season actually resolves to — grade, satur
 exposure, sun, tonemap, fog, wetness and wind — with the grade's source named in brackets,
 either `from built-in values` or the preset you picked, by its name in the dropdown. It is
 rebuilt each time the page is opened, so reopen it after Apply to see a preset take.
+With seasonal LUTs built, its last line names the season's LUT and its percent, or says
+`the game's own`.
 
 **Seasonal mods for this season** lists the seasonal mods on in that season, each with its
 own checkbox. Unchecking one leaves it out of *that* season only — a mod used in every

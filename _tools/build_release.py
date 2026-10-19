@@ -722,6 +722,13 @@ choose Open in Explorer.
   MCM_SETTINGS   other mods' MCM options that follow the season: "page/option": {name:
                  its value then, ..., "else": the rest of the year}. play.bat sets them
                  in MCM's saved options before the game starts.
+  SEASON_LUTS    a LUT for a season: season: (pack, the option folder in it or None,
+                 percent). The pack is an archive in MO2's downloads folder or a mod's
+                 folder; the season's color grade moves that far toward its LUT. play.bat
+                 builds the mod Seasonal LUT from them.
+  SEASON_ACCENTS True for Seasons' own color accents, built into each season's LUT on
+                 top of its pack's or the game's, or season: {accent: value} of your own.
+                 play.bat builds them into Seasonal LUT; they need numpy.
 """
 '''
 

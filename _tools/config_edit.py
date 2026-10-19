@@ -67,6 +67,17 @@ SPELLS_HEAD = [
     "# \"chance\" the percent chance each day, \"days\" how long it runs (fewest, most, up to 6),",
     "# \"as\" the season it brings, or None. configure.bat writes this.",
 ]
+LUTS_HEAD = [
+    "# Seasonal LUTs: {season: (source, option, percent)}. A season's color grade moves from the",
+    "# game's LUT toward the LUT in `source` - an archive in MO2's downloads folder or a mod's",
+    "# folder - in its `option` folder (None when gamedata is at the top), by `percent`.",
+    "# play.bat builds the mod Seasonal LUT from them. configure.bat writes this.",
+]
+ACCENTS_HEAD = [
+    "# Seasonal accents: True for Seasons' own color accents, built into each season's LUT on",
+    "# top of its pack's or the game's; False for none; {season: {accent: value}} for your own.",
+    "# play.bat builds them into the mod Seasonal LUT; they need numpy. configure.bat writes this.",
+]
 MCM_HEAD = [
     "# Other mods' MCM options that follow the season: {\"page/option\": {name: value, ...,",
     "# \"else\": value}}. play.bat sets each before the game starts, to its value for the most",
@@ -538,6 +549,13 @@ def name_text(key, name):
     return ["%s: %s," % (_q(key), _q(name))]
 
 
+def lut_text(season_key, spec):
+    """A SEASON_LUTS entry as the tool writes it: (source, option, percent) on one line."""
+    source, option, percent = spec
+    return ["%s: (%s, %s, %d)," % (_q(season_key), _q(source),
+                                   _q(option) if option is not None else "None", percent)]
+
+
 def layout_text(name, cfg):
     return (["%s: {" % _q(name), '    "archive": %s,' % _q(cfg["archive"]),
              '    "options": {']
@@ -729,11 +747,13 @@ class Calendar(object):
     `events` each event to ((m, d), (m, d)), `own` each season of the player's own to its
     first and last day, `dates` each season that is on to the (m, d) it starts, `names`
     each renamed season to its name, and `place` is where the real weather comes from,
-    {"name", "lat", "lon"}, or None for Chornobyl. `periods`, `layout` and
-    `sound_src` change only when a preset is loaded. `error` is set, as lines, when the
-    file can't be read or edited safely; `problems` lists what season.py would refuse in
-    it; `fixes` what saving from the tool repairs, and `fixed_tables` the tables those
-    repairs are in, for code to check: the sentences are in the player's language."""
+    {"name", "lat", "lon"}, or None for Chornobyl. `accents` is SEASON_ACCENTS as written:
+    True for Seasons' own, False, a table of the player's own, or None where the file has
+    none. `periods`, `layout` and `sound_src` change only when a preset is loaded. `error`
+    is set, as lines, when the file can't be read or edited safely; `problems` lists what
+    season.py would refuse in it; `fixes` what saving from the tool repairs, and
+    `fixed_tables` the tables those repairs are in, for code to check: the sentences are in
+    the player's language."""
 
     def __init__(self, path=CONFIG):
         self.path = path
@@ -753,6 +773,9 @@ class Calendar(object):
         self._bad_spells, self._kept_bad_spells = {}, set()
         self.mcm, self._kept_mcm = {}, {}
         self._bad_mcm, self._kept_bad_mcm = {}, set()
+        self.luts, self._kept_luts = {}, {}     # {season: (source, option, percent)}
+        self._bad_luts, self._kept_bad_luts = {}, set()
+        self.accents, self._kept_accents = None, None
         self.mcm_dropped = []           # MCM settings the last removal left following nothing
         self.dates, self._kept_dates = polesia(), None     # None: the file has none
         self.calendar_bad, self._replace_calendar = [], False
@@ -913,10 +936,20 @@ class Calendar(object):
         self.periods = ns.get("PERIODS", {}) or {}
         self._kept_layout, self._kept_sound = self.layout, self.sound_src
         self._kept_periods = self.periods
+        luts = ns.get("SEASON_LUTS") or {}
+        if isinstance(luts, dict):
+            for s, spec in luts.items():
+                if season.lut_problems({s: spec}):
+                    self._bad_luts[s] = spec
+                else:
+                    self.luts[s] = tuple(spec)
+        self._kept_luts, self._kept_bad_luts = dict(self.luts), set(self._bad_luts)
+        self.accents = self._kept_accents = ns.get("SEASON_ACCENTS")
         calendar, names = ns.get("CALENDAR"), ns.get("NAMES")
         self.problems = season.config_problems(toggle, self.layout, self.sound_src,
                                                self.periods, events, calendar, names, own=own,
-                                               spells=spells, mcm=mcm)
+                                               spells=spells, mcm=mcm, luts=luts,
+                                               accents=self.accents)
 
         for name, cfg in toggle.items():
             when = periods_of(cfg)
@@ -1193,6 +1226,31 @@ class Calendar(object):
     def place_changed(self):
         return self._replace_place or self.place != self._kept_place
 
+    def set_accents(self, on):
+        """Seasons' own accents, or none. On keeps a table of the player's own the file has;
+        off leaves a file with no SEASON_ACCENTS without one."""
+        kept = self._kept_accents
+        if on:
+            self.accents = kept if self.own_accents(kept) else True
+        else:
+            self.accents = None if kept is None else False
+
+    @staticmethod
+    def own_accents(accents):
+        """Whether `accents` is a table of the player's own that season.py takes, giving some
+        season an accent."""
+        return (isinstance(accents, dict) and not season.accent_problems(accents)
+                and bool(season.accents_wanted(accents)))
+
+    def accents_on(self):
+        """Whether the setup builds accents in: Seasons' own, or a table of the player's."""
+        return self.accents is True or self.own_accents(self.accents)
+
+    def accents_changed(self):
+        # by type too: True and 1 are equal, and season.py takes only True
+        return (type(self.accents) is not type(self._kept_accents)
+                or self.accents != self._kept_accents)
+
     def custom(self):
         """Is the calendar anything but Polesia's, all six on?"""
         return self.dates != polesia()
@@ -1224,7 +1282,11 @@ class Calendar(object):
                 or set(self._bad_mcm) != self._kept_bad_mcm
                 or self.names_changed() or self.place_changed()
                 or self.periods != self._kept_periods
-                or self.layout != self._kept_layout or self.sound_src != self._kept_sound)
+                or self.layout != self._kept_layout or self.sound_src != self._kept_sound
+                or self.luts_changed() or self.accents_changed())
+
+    def luts_changed(self):
+        return self.luts != self._kept_luts or set(self._bad_luts) != self._kept_bad_luts
 
     # writing
 
@@ -1288,6 +1350,16 @@ class Calendar(object):
         if self.place_changed():
             text, k = self._setting(text, "WEATHER_PLACE", PLACE_HEAD, self.place)
             kept = kept and k
+        if self.luts_changed():
+            plan = [(s, lut_text(s, self.luts[s]), self._kept_luts.get(s) == self.luts[s])
+                    for s in _order(self.luts, self._kept_luts)]
+            plan += [(s, ["%s: %s," % (_q(s), literal(v))], True)
+                     for s, v in self._bad_luts.items()]
+            text, k = self._table(text, "SEASON_LUTS", LUTS_HEAD, bool(plan), plan)
+            kept = kept and k
+        if self.accents_changed():
+            text, k = self._setting(text, "SEASON_ACCENTS", ACCENTS_HEAD, self.accents)
+            kept = kept and k
         return text, kept
 
     @staticmethod
@@ -1326,7 +1398,8 @@ class Calendar(object):
             ns.get("TOGGLE_MODS", {}), ns.get("LAYOUT", {}), ns.get("SOUND_SRC"),
             ns.get("PERIODS", {}), ns.get("EVENTS", {}), ns.get("CALENDAR"),
             ns.get("NAMES"), ns.get("WEATHER_PLACE"), ns.get("OWN_SEASONS"), ns.get("SPELLS"),
-            ns.get("MCM_SETTINGS"))
+            ns.get("MCM_SETTINGS"), luts=ns.get("SEASON_LUTS"),
+            accents=ns.get("SEASON_ACCENTS"))
 
     def _keepsake(self, why):
         """A dated copy of the file as it is, which no later save touches."""

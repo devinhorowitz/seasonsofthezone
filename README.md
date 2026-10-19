@@ -185,9 +185,9 @@ of the mod that writes to your save.
 - **Python 3**, for `play.bat` and `configure.bat` only. The python.org installer is
   enough.
 - For some things only: the py7zr package to open a `.7z` - an optional `LAYOUT` texture
-  set's, or a mod's installed from the setup - and rarfile plus WinRAR or 7-Zip for a
-  `.rar`. The setup offers to install either package when it is needed. By hand, type
-  `py -m pip install py7zr` (or `rarfile`) in Command Prompt, not in Python.
+  set's, a LUT pack's, or a mod's installed from the setup - and rarfile plus WinRAR or
+  7-Zip for a `.rar`. The setup offers to install either package when it is needed. By
+  hand, type `py -m pip install py7zr` (or `rarfile`) in Command Prompt, not in Python.
   `py -m pip install pillow` draws the year dial for a calendar of your own.
 
 ### Outside GAMMA
@@ -368,10 +368,11 @@ season your calendar has on: seven pages with the default calendar.
   fast;
   transition length (0 for a hard switch on the boundary date, 14 by default);
   intensity (0 is GAMMA's stock look, 1 the full season); one switch per layer: color,
-  foliage, fog, wind, and wetness; the three launch-time switches, for textures, ambient
-  sound and grass; the PDA messages, on loading in, as the season turns while you play, and,
-  if you turn it on, as the weather turns; and **PDA notifications**, which silences every
-  one of them, as **Silence** at the foot of the app's pages does.
+  foliage, fog, wind, wetness, and [the season's LUT](#optional-seasonal-luts); the three
+  launch-time switches, for textures, ambient sound and grass; the PDA messages, on loading
+  in, as the season turns while you play, and, if you turn it on, as the weather turns; and
+  **PDA notifications**, which silences every one of them, as **Silence** at the foot of the
+  app's pages does.
 - **Spring, Summer, Autumn, Winter, Deep winter, Late winter** — that season's color
   grade preset, [how much of your grass it keeps](#grass-by-the-season), a read-out of the
   values it resolves to, and a checkbox for each seasonal mod on in it. The pages take your
@@ -749,12 +750,46 @@ Zone hands it to those scripts alone, so the rain's sound and drops stay off.
 ## Optional: color grade presets
 
 Each season's color grade can come from a `cfg_load` preset instead of the mod's season
-table: pick one on that season's own page. The dropdown lists every preset in the game's
-`appdata/` — Atmospherics' `Atmos_Cold`, `Atmos_Neutral` and `Atmos_Warm`, and any you have
-tuned yourself — plus the mod's own `Seasons_Spring`, `Seasons_Summer`, `Seasons_Autumn`,
+table: pick one under **Color grade preset** on that season's MCM page, in the game
+(`configure.bat` doesn't list them, and there is nothing to type in the console). The
+dropdown lists every preset in the game's `appdata/` — Atmospherics' `Atmos_*` presets
+(`Atmos_Neutral`, `Atmos_Summer` and `Atmos_Winter` in G.A.M.M.A.'s copy; `Atmos_Cold`,
+`Atmos_Neutral` and `Atmos_Warm` in 2.69) and any you have tuned yourself — plus the mod's
+own `Seasons_Spring`, `Seasons_Summer`, `Seasons_Autumn`,
 `Seasons_Winter`, `Seasons_DeepWinter`, `Seasons_LateWinter` and `Seasons_Neutral`.
 `play.bat` copies those seven into `appdata/` beside the others, so you can `cfg_load` or
 edit them too. Only the grade changes; fog, wind and wetness stay with the season table.
+
+---
+
+## Optional: seasonal LUTs
+
+Screen Space Shaders grades the whole frame last through a LUT, a color lookup table,
+and Atmospherics picks one for each level. A season can move that grade part of the way
+toward a LUT from a pack you downloaded, such as Kumo's or Forester's: winter 60% of the
+way to a cold film look, say, while summer keeps the game's own.
+
+Leave the packs in MO2's downloads folder as they came, or installed in MO2 and disabled.
+Under *The look of each season* on `configure.bat`'s Seasons tab, pick a LUT and a
+percent for each season you want one in. Or `py _tools\configure.py lut` lists the LUTs
+found, and `configure.py lut winter Iris 60` sets one. At the next launch `play.bat`
+builds a mod called `Seasonal LUT` from them and places it just above the mod whose LUT
+the game uses. In the game each level's own LUT gives way to the season's mix of it,
+crossfading as the seasons turn. Each season's MCM page names its LUT, and **The season's
+LUT** on the Main page turns them off.
+
+Only the atlas built from the packs goes into your mods folder. It works on G.A.M.M.A.'s
+own Atmospherics and on Atmospherics 2.69. A LUT has to be one 4096 × 64 atlas, as
+Kumo's and Forester's are. [CONFIGURING.md](docs/CONFIGURING.md#season_luts) has the
+details.
+
+The seasons can also carry accents of their own, built into the same LUTs: more color in
+spring's new leaves, more contrast under summer's sun, richer reds in autumn, a cold, muted
+winter, crisp snow, and an earthy thaw. They need no pack and no ReShade: tick **Seasons'
+own accents** under *The look of each season*, or run `py _tools\configure.py accents on`.
+`play.bat` builds them with numpy, which saving offers to install
+(`py -m pip install numpy`).
+[CONFIGURING.md](docs/CONFIGURING.md#season_accents) lists them, and how to set your own.
 
 ---
 

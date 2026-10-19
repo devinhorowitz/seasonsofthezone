@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- **Seasonal LUTs.** A season can grade the frame with a LUT from a pack you downloaded,
+  such as Kumo's or Forester's, moved from the game's LUT toward it by a percent you
+  pick: on `configure.bat`'s Seasons tab, under *The look of each season*, or with
+  `configure.py lut`. `play.bat` builds a mod called `Seasonal LUT` from them and places
+  it above the mod whose LUT the game uses. In the game each level's own LUT gives way to
+  the season's mix of it, crossfading as the seasons turn: on G.A.M.M.A.'s own
+  Atmospherics, whose levels use five LUTs of its seventeen, and on Atmospherics 2.69.
+  Each season's MCM page names its LUT, and **The season's LUT** on the Main page turns
+  them off. In English and Russian.
+- **Seasonal accents.** Seasons' own color accents, built into each season's LUT: more
+  color in spring's new leaves, more contrast under summer's sun, richer reds in autumn, a
+  cold, muted winter, crisp blue-white snow in deep winter, and an earthy thaw. They leave
+  black and white alone, need no LUT pack and no ReShade, stay off the HUD, and crossfade
+  with the seasons. Tick **Seasons' own accents** under *The look of each season* on
+  `configure.bat`'s Seasons tab, or run `configure.py accents on`. `SEASON_ACCENTS` in
+  `seasons_config.py` takes a table of your own: saturation, contrast, a midtone tint, a
+  gain and vibrance, as ReShade's SweetFX effects have them. Building them needs numpy,
+  which saving offers to install. Each season's MCM page marks them. In English and
+  Russian. They were tuned as ReShade presets in the game first.
+- **Where a season's color grade preset is picked.** `configure.bat`'s Seasons tab and the
+  guided setup now say that the mod sets each season's look in the game, and that a season
+  takes its color grade from a `cfg_load` preset, such as Atmospherics' `Atmos_*` files,
+  chosen under **Color grade preset** on its MCM page. In English and Russian. A player had
+  looked for the presets in the setup window.
 - **W.P.W.M.'s level weather, explained.** CONFIGURING.md now says how W.P.W.M.'s per-level
   weather settings meet the season's weather odds: a level's setting scales the season's
   tilt, an **Always** setting or one that leaves a sky out holds in every season, and the

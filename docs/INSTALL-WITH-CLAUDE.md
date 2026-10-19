@@ -131,6 +131,14 @@ window if the player prefers that.
   work well this way* lists packs and their seasons.
 - **Seasonal ambient sound:** `py -3 _tools\configure.py sound` shows which mod the soundscape
   comes from, and `sound "<mod>"` sets one. Set it only if the player wants it.
+- **Seasonal LUTs**, for a player with LUT packs in MO2's downloads folder or installed in
+  MO2: `py -3 _tools\configure.py lut` lists the LUTs in them, and
+  `lut <season> "<LUT>" <percent>` gives a season one. Set them only if the player wants
+  them.
+- **Seasonal accents**, color accents built into each season's LUT, with or without packs:
+  `py -3 _tools\configure.py accents on` turns Seasons' own on (CONFIGURING.md's
+  *SEASON_ACCENTS* has the table for your own), and says how to install numpy when it is
+  missing (`py -3 -m pip install numpy`). Set them only if the player wants them.
 - **No rain in the winters**, for a player with a snowfall layer (the README's *Optional:
   seasonal snowfall*): `py -3 _tools\configure.py rain` shows the weathers that rain, and
   `rain --build` makes a mod of them without their rain, on in winter and deep winter. MO2
@@ -170,10 +178,11 @@ No traceback, an `applied` line and no warnings mean it is working.
   the seasonal snowfall patch: offer to rerun
   `py -3 "mods\<folder>\patches\apply_seasonal_snowfall.py"`, which brings it up to date.
 - **Remove:** the player first switches the mod off on its MCM page (this puts the color grade
-  back to neutral). Then, with MO2 closed, change `+<folder>` to `-<folder>`, and the player
-  starts the game from MO2 again. Seasonal mods stay as `play.bat` last left them; the player
-  enables or disables them in MO2. If the snowfall patch was applied, offer to run the same
-  command with `--revert`.
+  back to neutral). Then, with MO2 closed, change `+<folder>` to `-<folder>`, and the same
+  for `Seasonal Soundscape` and `Seasonal LUT` if they are listed, since `play.bat` builds
+  them from the player's setup. The player starts the game from MO2 again. Seasonal mods
+  stay as `play.bat` last left them; the player enables or disables them in MO2. If the
+  snowfall patch was applied, offer to run the same command with `--revert`.
 
 ## If something's wrong
 

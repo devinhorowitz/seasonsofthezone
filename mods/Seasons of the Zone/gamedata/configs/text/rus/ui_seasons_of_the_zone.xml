@@ -141,6 +141,12 @@
 	<string id="ui_mcm_seasons_zone_do_wet_desc">
 		<text> ак быстро поверхности намокают и как быстро сохнут. ¬есной после оттепели всЄ остаЄтс€ мокрым; летом сохнет быстро, так что мокро только во врем€ дожд€. —ама форма луж зашита в шейдеры и не может следовать сезону.</text>
 	</string>
+	<string id="ui_mcm_seasons_zone_do_lut">
+		<text>LUT сезона</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_do_lut_desc">
+		<text>ќкрашивает кадр LUT-таблицей, которую каждому сезону задал configure.bat (сезонные LUT), с плавным переходом при смене сезонов. ≈сли там LUT не заданы, ничего не делает. ¬ыкл.: собственный LUT игры, как в Atmospherics.</text>
+	</string>
 	<string id="ui_mcm_seasons_zone_wx_season">
 		<text>Ўансы погоды завис€т от сезона</text>
 	</string>
@@ -406,6 +412,9 @@
 	<string id="ui_mcm_seasons_zone_ro_wetness"><text>влажность</text></string>
 	<string id="ui_mcm_seasons_zone_ro_wind_grass"><text>ветер в траве</text></string>
 	<string id="ui_mcm_seasons_zone_ro_trees"><text>деревь€</text></string>
+	<string id="ui_mcm_seasons_zone_ro_lut"><text>LUT</text></string>
+	<string id="ui_mcm_seasons_zone_ro_lut_accents"><text>акценты</text></string>
+	<string id="ui_mcm_seasons_zone_ro_lut_none"><text>собственный игры</text></string>
 
 	<!-- A season page's seasonal mods. Each mod's own label and hover text are written
 	     into ui_mcm_seasons_mods.xml by _tools/season.py at every launch. -->

@@ -13,6 +13,8 @@ examples only.
   puts them there at every launch; `whowins` tells you which mod that is, and
   `season.py status` reports anything higher up that would override them.
 - **Seasonal Soundscape** is generated at launch and placed directly above its source mod.
+- **Seasonal LUT**, with seasonal LUTs or accents set, is generated at launch and placed
+  directly above the mod whose LUT the game uses.
 - **INVERNO's old snowfall addon, if you have it: anywhere, once `level_weathers.script` is
   removed from it.**
 - **Never enable** the old Season Flora prototype alongside this mod.
@@ -138,6 +140,22 @@ next launch.
 
 ---
 
+## The generated Seasonal LUT
+
+`SEASON_LUTS` gives seasons LUTs from packs you downloaded, and `SEASON_ACCENTS` gives
+them accents built into the same LUTs. At launch the tool builds a mod called `Seasonal
+LUT` from them and the game's LUT, from the enabled mod highest in MO2 that ships
+`textures\shaders\lut_atlas.dds`: Atmospherics', in G.A.M.M.A. It places the mod directly
+above that one. Do not move it. With no LUTs or accents set, it is disabled at the next
+launch.
+
+A LUT mod you install becomes the game's LUT at the next launch: the seasons are built on
+it, and `Seasonal LUT` moves above it. A mod above it that ships only the LUT shader
+header, `shaders\r3\settings_screenspace_LUT.h`, wins that back; the game script then
+leaves the LUT alone and says so in the log. Keep such a mod below Atmospherics.
+
+---
+
 ## INVERNO's snowfall addon
 
 The standalone "Snowfall (light + Dynamic Fog)" addon came with INVERNO up to 1.08, and 1.09
@@ -207,9 +225,9 @@ the folders disabled.
 
 Nothing reports this. The modded exe is untouched, so every console command still lands
 and the mod logs every value OK while the SSS shaders that use them are no longer mounted.
-`season.py` re-inserts the `TOGGLE_MODS` and the soundscape on the next launch, never the
-main mod or the snowfall addon; it warns that the main mod is missing, and `play.bat`
-stops for a keypress instead of launching.
+`season.py` re-inserts the `TOGGLE_MODS`, the soundscape and `Seasonal LUT` on the next
+launch, never the main mod or the snowfall addon; it warns that the main mod is missing,
+and `play.bat` stops for a keypress instead of launching.
 
 **Recovery:**
 

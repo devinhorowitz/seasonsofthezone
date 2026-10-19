@@ -426,6 +426,68 @@ msgstr ""
 msgid "names %s, which is this mod itself. Name the ambient sound mod to read from."
 msgstr ""
 
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+msgid "must be a table, {season: (source, option, percent)}, or {} for none."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "a LUT is for one of the six seasons: %s."
+msgstr ""
+
+#. follows an entry, like PERIODS['x'], which stays English
+#: season.py
+msgid "must be (source, option, percent): an archive in MO2's downloads folder or a mod's folder in MO2, the folder in it that holds gamedata or None, and a whole number from 1 to 100."
+msgstr ""
+
+#: season.py
+msgid "the source is an archive's file name or a mod's folder name, in quotes."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s is written by season.py itself; name a LUT pack."
+msgstr ""
+
+#: season.py
+msgid "the option is the folder that holds gamedata, in quotes, or None."
+msgstr ""
+
+#: season.py
+msgid "the percent is a whole number from 1 to 100: how far the season's grade moves toward the LUT."
+msgstr ""
+
+#. follows a table's name, like PERIODS, which stays English
+#: season.py
+msgid "must be True for Seasons' own accents, False for none, or a table, {season: {accent: value}}."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "accents are for one of the six seasons: %s."
+msgstr ""
+
+#. follows an entry, like PERIODS['x'], which stays English
+#: season.py
+msgid "must be a table of accents, like {\"vibrance\": 0.2, \"contrast\": 0.1}."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "not an accent. These are: %s."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "three numbers, for red, green and blue, each from %(lo)s to %(hi)s."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "a number from %(lo)s to %(hi)s."
+msgstr ""
+
 #: season.py
 #, python-format
 msgid "the value for %s isn't a number MCM can hold."
@@ -806,6 +868,133 @@ msgstr[1] ""
 #: season.py
 #, python-format
 msgid "To take the soundscape from it instead, pick it in configure.bat under \"Texture sets and ambient sound\", or run %s"
+msgstr ""
+
+#: season.py
+msgid "its PNG data is damaged"
+msgstr ""
+
+#: season.py
+msgid "its PNG data is cut short"
+msgstr ""
+
+#: season.py
+msgid "it is not a LUT atlas these tools read: 4096 texels wide, 64 rows a LUT, 8 bits a color, uncompressed"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s is not in MO2's downloads folder"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s could not be read"
+msgstr ""
+
+#: season.py
+msgid "(a .7z needs py7zr; a .rar needs rarfile and WinRAR or 7-Zip)"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(archive)s has no LUT in %(option)s"
+msgstr ""
+
+#: season.py
+msgid "its top folder"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s has no LUT (textures\\shaders\\lut_atlas.dds)"
+msgstr ""
+
+#: season.py
+msgid "No enabled mod ships a LUT (textures\\shaders\\lut_atlas.dds). Seasonal LUTs grade on top of Screen Space Shaders' LUT, which Atmospherics ships."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s's LUT is not one Seasonal LUTs can build on: an atlas 4096 texels wide, 64 rows a LUT, 8 bits a color, uncompressed, as Atmospherics' are."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(season)s's LUT: %(why)s."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(season)s's LUT, %(name)s, is not one LUT (a 4096 x 64 atlas)."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "The seasons' accents need numpy, which isn't installed, so the LUTs are built without them. To add them, run: %s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "The seasons' accents need numpy, which isn't installed. Install it with: %s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Seasonal LUT would hold %(n)d LUTs, and an atlas holds at most %(most)d."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(mod)s's LUT: %(why)s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(season)s's LUT, %(name)s: %(why)s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(season)s's LUT, %(name)s, is not one LUT (a 4096 x 64 atlas)"
+msgstr ""
+
+#: season.py
+msgid "none (configure.bat sets them)"
+msgstr ""
+
+#: season.py
+msgid "not built: the ! lines below say why"
+msgstr ""
+
+#. a season's LUT and the accents built into it, or the accents alone
+#: season.py
+#, python-format
+msgid "%s + accents"
+msgstr ""
+
+#. a season's LUT and the accents built into it, or the accents alone
+#: season.py
+msgid "accents"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(season)s %(lut)s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(luts)s; built on %(base)s's LUT"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(luts)s; built on the %(n)d LUTs of %(base)s that levels use"
+msgstr ""
+
+#: season.py
+msgid "(to be built)"
 msgstr ""
 
 #. follows a table's name, like PERIODS, which stays English
@@ -1750,6 +1939,11 @@ msgid "grass"
 msgstr ""
 
 #: season.py
+msgctxt "report"
+msgid "LUTs"
+msgstr ""
+
+#: season.py
 msgid "(not in MCM's file yet)"
 msgstr ""
 
@@ -1913,6 +2107,18 @@ msgstr ""
 
 #: season.py
 #, python-format
+msgid "Seasonal LUT not built: %s."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "built: %(n)d season on %(base)s's LUT"
+msgid_plural "built: %(n)d seasons on %(base)s's LUT"
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
 msgid "%(season)s: %(mods)s and %(sets)s skipped; the ! lines above say why."
 msgstr ""
 
@@ -1976,6 +2182,16 @@ msgstr ""
 #: season.py
 #, python-format
 msgid "%(season)s: the grass needs setting. Start the game with play.bat, or run %(command)s"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%s: Seasonal LUT built. The game picks this up when it starts."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(season)s: Seasonal LUT needs building. Start the game with play.bat, or run %(command)s"
 msgstr ""
 
 #: season.py
@@ -2115,6 +2331,11 @@ msgstr ""
 #: season.py
 msgctxt "staged"
 msgid "grass"
+msgstr ""
+
+#: season.py
+msgctxt "staged"
+msgid "LUTs"
 msgstr ""
 
 #: season.py
@@ -3447,6 +3668,121 @@ msgstr ""
 msgid "the seasonal soundscape is off"
 msgstr ""
 
+#. %(ext)s is .7z or .rar; %(package)s is py7zr or rarfile
+#: configure.py
+#, python-format
+msgid "%(n)d %(ext)s archive in MO2's downloads folder can't be searched for LUTs without %(package)s, a Python package. To install it, type this in Command Prompt: %(cmd)s"
+msgid_plural "%(n)d %(ext)s archives in MO2's downloads folder can't be searched for LUTs without %(package)s, a Python package. To install it, type this in Command Prompt: %(cmd)s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: configure.py
+#, python-format
+msgid "%d .rar archive in MO2's downloads folder can't be searched for LUTs without WinRAR or 7-Zip installed."
+msgid_plural "%d .rar archives in MO2's downloads folder can't be searched for LUTs without WinRAR or 7-Zip installed."
+msgstr[0] ""
+msgstr[1] ""
+
+#: configure.py
+msgid "Each season's LUT, moved from the game's LUT toward it:"
+msgstr ""
+
+#: configure.py
+msgid "not found"
+msgstr ""
+
+#: configure.py
+msgid "No season has a LUT."
+msgstr ""
+
+#: configure.py
+msgid "The LUTs in MO2's downloads folder and its mods:"
+msgstr ""
+
+#: configure.py
+msgid "No LUT packs found in MO2's downloads folder or in its mods."
+msgstr ""
+
+#: configure.py
+msgid "no season has a LUT; play.bat turns Seasonal LUT off at the next launch"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "\"%(name)s\" is not one of the six seasons: %(known)s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%s has no LUT"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Name the LUT, as the list shows it: %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "No LUT named \"%s\" in MO2's downloads folder or its mods."
+msgstr ""
+
+#: configure.py
+msgid "No LUT packs found there."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "More than one pack has a LUT named \"%s\". Add --from with the pack:"
+msgstr ""
+
+#: configure.py
+msgid "The percent is a whole number from 1 to 100."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%(season)s's LUT is %(lut)s at %(percent)d%%; play.bat builds Seasonal LUT at the next launch"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "Building the accents needs numpy, a Python package. To install it, type this in Command Prompt: %s"
+msgstr ""
+
+#: configure.py
+msgid "Seasons' own accents are on, built into each season's LUT:"
+msgstr ""
+
+#: configure.py
+msgid "Accents of your own are on, from seasons_config.py:"
+msgstr ""
+
+#: configure.py
+msgid "The seasons' accents are off."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "To turn Seasons' own on: %s"
+msgstr ""
+
+#: configure.py
+msgid "Seasons' own accents are on; play.bat builds them into Seasonal LUT at the next launch"
+msgstr ""
+
+#: configure.py
+msgid "your own accents stay on; play.bat builds them into Seasonal LUT"
+msgstr ""
+
+#: configure.py
+msgid "the seasons' accents are off; play.bat builds Seasonal LUT without them at the next launch"
+msgstr ""
+
+#: configure.py
+msgid "the seasons' accents are off; with no season LUT either, play.bat turns Seasonal LUT off at the next launch"
+msgstr ""
+
 #: configure.py
 msgid "No enabled mod has a weather that rains."
 msgstr ""
@@ -4275,6 +4611,59 @@ msgstr ""
 msgid "New MCM setting..."
 msgstr ""
 
+#: configure.py guide.py
+msgid "The look of each season"
+msgstr ""
+
+#: configure.py guide.py
+msgid "The mod sets each season's color, light, fog, wind and wetness in the game. To take a season's color grade from a cfg_load preset instead, such as Atmospherics' Atmos_* files or one of your own, pick it under Color grade preset on that season's page in MCM."
+msgstr ""
+
+#: configure.py
+msgid "A season can also grade the frame with a LUT from a LUT pack you downloaded, such as Kumo's or Forester's, moved from the game's LUT toward it by the percent. play.bat builds the mod Seasonal LUT from them. The packs are read from MO2's downloads folder and from the mods in MO2."
+msgstr ""
+
+#: configure.py
+msgid "Look for LUT packs again"
+msgstr ""
+
+#: configure.py
+msgid "Seasons' own accents"
+msgstr ""
+
+#: configure.py
+msgid "A touch of each season's own color, built into its LUT, with a pack or without: young greens in spring, high sun in summer, reds and golds in autumn, a gray cold in winter, crisp snow in deep winter and an earthy thaw in late winter."
+msgstr ""
+
+#: configure.py guide.py
+msgid "none"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "not found: %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "%d LUT found."
+msgid_plural "%d LUTs found."
+msgstr[0] ""
+msgstr[1] ""
+
+#: configure.py
+msgid "Then click Look for LUT packs again."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "On with accents of your own, from seasons_config.py, for %s."
+msgstr ""
+
+#: configure.py
+msgid "Building them needs numpy, a Python package, which isn't installed. Save offers to install it."
+msgstr ""
+
 #: configure.py
 msgid "The year dial in MCM and on the PDA"
 msgstr ""
@@ -4518,6 +4907,17 @@ msgid "the dice at %d%%"
 msgstr ""
 
 #: configure.py
+#, python-format
+msgid "%d season LUT"
+msgid_plural "%d season LUTs"
+msgstr[0] ""
+msgstr[1] ""
+
+#: configure.py
+msgid "season accents"
+msgstr ""
+
+#: configure.py
 msgid "Unsaved changes"
 msgstr ""
 
@@ -4656,6 +5056,32 @@ msgstr ""
 
 #: configure.py
 msgid "Close and open configure.bat again to see the dial here too."
+msgstr ""
+
+#: configure.py
+msgid "The seasons' accents"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid ""
+"Building the seasons' accents into Seasonal LUT needs numpy, a Python package. Until it is installed, play.bat leaves them out.\n"
+"\n"
+"Install it now? This runs:\n"
+"\n"
+"    %s"
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid ""
+"pip could not install numpy. The accents wait for it; everything else is saved. pip said:\n"
+"\n"
+"%s"
+msgstr ""
+
+#: configure.py
+msgid "numpy is installed. play.bat builds the accents into Seasonal LUT the next time it starts the game."
 msgstr ""
 
 #: configure.py
@@ -5024,6 +5450,10 @@ msgid ""
 "  py _tools\\configure.py sound                   the ambient sound mod the soundscape is\n"
 "                                                taken from, and the others there are\n"
 "  py _tools\\configure.py sound \"<mod>\" | sound --off  take it from that mod, or none\n"
+"  py _tools\\configure.py lut                     each season's LUT, and the LUT packs found\n"
+"  py _tools\\configure.py lut winter Iris 60 | lut winter --off  give a season a LUT, or none\n"
+"  py _tools\\configure.py accents                 the seasons' accents, built into their LUTs\n"
+"  py _tools\\configure.py accents on | accents off  Seasons' own accents, or none\n"
 "  py _tools\\configure.py rain                    the weathers that rain, and whether the\n"
 "                                                winters take their rain out\n"
 "  py _tools\\configure.py rain --build | rain --off  take it out in the winters, or stop\n"
@@ -5293,6 +5723,34 @@ msgstr ""
 
 #: configure.py
 msgid "no seasonal soundscape"
+msgstr ""
+
+#: configure.py
+msgid "show the seasons' LUTs and the LUT packs found, or give a season a LUT"
+msgstr ""
+
+#: configure.py
+msgid "the season, as a command names it"
+msgstr ""
+
+#: configure.py
+msgid "the LUT, by its name in the list"
+msgstr ""
+
+#: configure.py
+msgid "how far the season's grade moves toward the LUT, 1 to 100 (50 if left out)"
+msgstr ""
+
+#: configure.py
+msgid "the pack the LUT is in, when more than one has that name"
+msgstr ""
+
+#: configure.py
+msgid "no LUT for the season, or with no season, for any"
+msgstr ""
+
+#: configure.py
+msgid "show the seasons' accents, or switch Seasons' own on or off: color built into each season's LUT"
 msgstr ""
 
 #: configure.py
@@ -5862,10 +6320,6 @@ msgstr ""
 #: guide.py
 #, python-format
 msgid "Save writes %s; the file it replaces is kept beside it as seasons_config.py.bak."
-msgstr ""
-
-#: guide.py
-msgid "none"
 msgstr ""
 
 #: guide.py
