@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.10.1 — 2026-10-19
 
 - **The LUTs and accents are in reach.** In `configure.bat`'s advanced editor the Seasons tab
   was twice as tall as its window, and its last box, *The look of each season*, with the
