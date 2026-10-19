@@ -1686,10 +1686,28 @@ def button_row(parent, *specs):
     return made
 
 
+def wheel_to_panel(e):
+    """The wheel over a dropdown or a spin box: it scrolls the panel the box sits in and never
+    steps the box's value. Tk's own binding steps it, so a turn meant for the page picked
+    another month, day or LUT."""
+    w = e.widget
+    while w is not None:
+        for panel in Scrolled.panels:
+            if w is panel.inner:
+                panel.wheel(e)
+                return "break"
+        w = getattr(w, "master", None)
+    return "break"
+
+
 class Scrolled(object):
     """A panel that scrolls when what it holds is taller than the room it has."""
+    panels = []             # every one made, for wheel_to_panel
 
     def __init__(self, parent, tk, ttk, width=440):
+        Scrolled.panels.append(self)
+        for cls in ("TCombobox", "TSpinbox"):
+            parent.bind_class(cls, "<MouseWheel>", wheel_to_panel)
         bg = ttk.Style().lookup("TFrame", "background")
         self.canvas = tk.Canvas(parent, highlightthickness=0, borderwidth=0, width=width,
                                 background=bg)
@@ -2517,8 +2535,10 @@ class App(object):
         outer.pack(fill="both", expand=True)
         right = ttk.Frame(outer)
         right.pack(side="right", fill="y", padx=(12, 0))
-        f = ttk.Frame(outer)
-        f.pack(side="left", fill="both", expand=True)
+        # it scrolls: at the window's own size the tab is twice as tall as the room it has,
+        # and the look of each season, last, was cut off
+        self.season_scroll = Scrolled(outer, tk, ttk, width=560)
+        f = self.season_scroll.inner
         self.dial_panel(right)
         ttk.Label(f, wraplength=520, justify="left", text=_(
             "When each season starts, and what it is called. A season runs until the next "
@@ -2619,7 +2639,7 @@ class App(object):
         self.mcm_frame.pack(fill="x", pady=(6, 0))
         ttk.Button(box, text=_("New MCM setting..."), command=lambda: self.new_mcm()).pack(
             anchor="w", pady=(6, 0))
-        box = ttk.LabelFrame(f, text=_("The look of each season"), padding=8)
+        box = self.look_box = ttk.LabelFrame(f, text=_("The look of each season"), padding=8)
         box.pack(fill="x", pady=(12, 0))
         ttk.Label(box, wraplength=500, justify="left", foreground=GREY, text=_(
             "The mod sets each season's color, light, fog, wind and wetness in the game. To take "
@@ -2667,6 +2687,13 @@ class App(object):
         self.accent_fill()
         self.own_list()
         self.dates_edited(user=False)
+
+    def show_look(self):
+        """The Seasons tab, scrolled to the look of each season: the LUTs and the accents."""
+        self.tabs.select(1)
+        self.root.update_idletasks()
+        total = max(self.season_scroll.inner.winfo_reqheight(), 1)
+        self.season_scroll.canvas.yview_moveto(self.look_box.winfo_y() / float(total))
 
     # the seasons' LUTs: a pick and a percent per season, from the packs season.py finds
 

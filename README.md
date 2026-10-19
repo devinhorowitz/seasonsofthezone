@@ -770,8 +770,9 @@ toward a LUT from a pack you downloaded, such as Kumo's or Forester's: winter 60
 way to a cold film look, say, while summer keeps the game's own.
 
 Leave the packs in MO2's downloads folder as they came, or installed in MO2 and disabled.
-Under *The look of each season* on `configure.bat`'s Seasons tab, pick a LUT and a
-percent for each season you want one in. Or `py _tools\configure.py lut` lists the LUTs
+In `configure.bat`, click **LUTs and accents...** on the guided setup's seasons step (or
+open the advanced editor's Seasons tab), and under *The look of each season* pick a LUT and
+a percent for each season you want one in. Or `py _tools\configure.py lut` lists the LUTs
 found, and `configure.py lut winter Iris 60` sets one. At the next launch `play.bat`
 builds a mod called `Seasonal LUT` from them and places it just above the mod whose LUT
 the game uses. In the game each level's own LUT gives way to the season's mix of it,

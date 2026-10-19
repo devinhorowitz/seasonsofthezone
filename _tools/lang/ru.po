@@ -4781,7 +4781,7 @@ msgstr "Сегодня"
 msgid "Drag to see another day."
 msgstr "Потяните, чтобы увидеть другой день."
 
-#: configure.py
+#: configure.py guide.py
 msgid "Showing the dial here needs Pillow, a Python package. Save offers to install it once your calendar or names differ from the usual."
 msgstr "Чтобы показать здесь циферблат, нужен Pillow — пакет для Python. Когда ваш календарь или названия станут отличаться от обычных, кнопка «Сохранить» предложит его установить."
 
@@ -6383,6 +6383,14 @@ msgid "Add a spell..."
 msgstr "Добавить каприз..."
 
 #: guide.py
+msgid "A season can also grade the frame with a LUT from a LUT pack you downloaded, such as Kumo's or Forester's, and take Seasons' own color accents. Both are set in the advanced editor."
+msgstr "Сезон может также окрашивать кадр LUT-таблицей из скачанного вами набора LUT, например Kumo или Forester, и получать собственные цветовые акценты мода. И то и другое задаётся в расширенном редакторе."
+
+#: guide.py
+msgid "LUTs and accents..."
+msgstr "LUT и акценты..."
+
+#: guide.py
 #, python-format
 msgid "on for %d mod"
 msgid_plural "on for %d mods"
@@ -6690,10 +6698,6 @@ msgstr "Закрытие"
 #: guide.py
 msgid "Leave without saving? Nothing you set here is kept."
 msgstr "Выйти без сохранения? Всё, что вы здесь задали, будет потеряно."
-
-#: guide.py
-msgid "Showing the dial here needs Pillow, a Python package. Save offers to install it."
-msgstr "Чтобы показать здесь циферблат, нужен пакет Python Pillow. Кнопка «Сохранить» предложит его установить."
 
 #: guide.py
 msgid "The dial comes back when the lines in red are fixed."
@@ -7624,6 +7628,9 @@ msgstr "ЯСНО"
 msgctxt "the barometer's face"
 msgid "DRY"
 msgstr "СУШЬ"
+
+#~ msgid "Showing the dial here needs Pillow, a Python package. Save offers to install it."
+#~ msgstr "Чтобы показать здесь циферблат, нужен пакет Python Pillow. Кнопка «Сохранить» предложит его установить."
 
 #~ msgid ""
 #~ "configure.bat opens the window. The same changes can be made with commands, run in the\n"

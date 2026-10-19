@@ -1011,6 +1011,13 @@ class Guide(object):
                     "Atmospherics' Atmos_* files or one of your own, pick it under Color grade "
                     "preset on that season's page in MCM."),
                   parent=left, color=cf.GREY, pad=(0, 0), wrap=560)
+        self.para(_("A season can also grade the frame with a LUT from a LUT pack you "
+                    "downloaded, such as Kumo's or Forester's, and take Seasons' own color "
+                    "accents. Both are set in the advanced editor."),
+                  parent=left, color=cf.GREY, pad=(6, 0), wrap=560)
+        row = ttk.Frame(left)
+        row.pack(anchor="w", pady=(6, 0))
+        self.button(row, _("LUTs and accents..."), lambda: self.advanced(look=True), pad=0)
         self.show_own()
         self.seasons_bad, self.names_bad = [], []
         self.pick_calendar(keep=True)
@@ -1756,9 +1763,10 @@ class Guide(object):
         return (self.mode in ("steps", "edit") and self.current() != "done"
                 and not self.cal.error and (self.cal.dirty() or self.dice.dirty()))
 
-    def advanced(self):
+    def advanced(self, look=False):
         """The tabbed editor, for everything the steps leave out. What the steps changed is
-        saved first, or left out."""
+        saved first, or left out. `look` opens it on the look of each season: the LUTs and
+        the accents, which only the editor sets."""
         from tkinter import messagebox
         if self.unsaved():
             ans = messagebox.askyesnocancel(
@@ -1769,7 +1777,9 @@ class Guide(object):
                 return
         top = self.tk.Toplevel(self.root)
         self.root.withdraw()
-        cf.App(top, ce.Calendar(), self.inst)
+        app = cf.App(top, ce.Calendar(), self.inst)
+        if look:
+            app.show_look()
         self.root.wait_window(top)
         self.root.deiconify()
         self.dice = cf.Dice(self.tk)        # as the editor left MCM's file
@@ -1811,8 +1821,9 @@ class DialView(object):
                 season.MODS, season.SOTZ, "gamedata", "configs", "seasons_of_the_zone.ltx"))
             self.bsd, self.Image, self.ImageTk = build_season_dial, Image, ImageTk
         except ImportError:
-            self.text.configure(text=_("Showing the dial here needs Pillow, a Python package. "
-                                       "Save offers to install it."))
+            self.text.configure(text=_("Showing the dial here needs Pillow, a Python "
+                                       "package. Save offers to install it once your "
+                                       "calendar or names differ from the usual."))
         except OSError:
             self.text.configure(text=_("The mod's configs folder is missing, so the dial "
                                        "can't be drawn here."))

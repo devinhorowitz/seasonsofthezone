@@ -853,6 +853,60 @@ def t_the_window_s_box_switches_the_accents():
     return "ticked and saved, numpy's lack said; a table of your own unticked and kept"
 
 
+LOOK = r'''
+import sys
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+import config_edit as ce
+import configure
+root = tk.Tk()
+app = configure.App(root, ce.Calendar(), ce.Install())
+root.update()
+box, scroll = app.look_box, app.season_scroll
+print("box height", box.winfo_height() > 200)
+app.show_look()
+root.update()
+total = float(scroll.inner.winfo_reqheight())
+top, bottom = scroll.canvas.yview()
+print("tab", app.tabs.index("current"), "box seen", top <= box.winfo_y() / total <= bottom)
+pick, cb, share, sp = app.lut_rows["autumn"]
+cb.current(1)
+share.set("40")
+app.luts_edited()
+scroll.canvas.yview_moveto(0)
+root.update()
+before = (cb.get(), share.get(), scroll.canvas.yview()[0])
+for w in (cb, sp):
+    w.event_generate("<MouseWheel>", delta=-120)
+    root.update()
+after = (cb.get(), share.get(), scroll.canvas.yview()[0])
+print("values kept", before[:2] == after[:2], "page moved", after[2] > before[2])
+print("luts", app.cal.luts)
+root.destroy()
+'''
+
+
+@case
+def t_the_look_of_each_season_is_in_reach_and_the_wheel_leaves_its_boxes_alone():
+    """At the window's own size the Seasons tab is twice as tall as its room: it scrolls, so
+    the LUTs and the accents, last on it, are there to see, and show_look scrolls to them.
+    The wheel over a dropdown or a spin box scrolls the page and never steps the value."""
+    with tempfile.TemporaryDirectory() as d:
+        scratch(d, "")
+        packs(d)
+        p = os.path.join(d, "drive.py")
+        io.open(p, "w", encoding="utf-8").write(LOOK)
+        r = subprocess.run([sys.executable, p, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "Traceback" not in out, out
+        for line in ("box height True", "tab 1 box seen True",
+                     "values kept True page moved True"):
+            assert line in out, (line, out)
+        assert re.search(r"luts \{'autumn': \('[^']+', [^)]*, 40\)\}", out), out
+    return "the box laid out and scrolled to; two wheel turns move the page, not the picks"
+
+
 @case
 def t_the_config_check_names_each_bad_accent():
     bad = {"neutral": {"vibrance": 0.1}, "spring": "lots", "summer": {"glow": 1},

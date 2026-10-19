@@ -374,6 +374,60 @@ print("AFTER", g.mode, root.state())
 
 
 @case
+def t_luts_and_accents_open_the_editor_at_the_look_of_each_season():
+    """The steps set no LUTs or accents: the seasons step says so, and its button opens the
+    advanced editor on the Seasons tab, scrolled to them. Without Pillow the dial's note says
+    when Save offers it: only for a calendar or names of your own."""
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d)
+        rc, out = drive(d, r"""
+import builtins
+import tkinter.ttk as ttk
+apps, real_app = [], cf.App
+
+def text_of(w):
+    try:
+        return str(w.cget("text"))
+    except tk.TclError:
+        return ""
+def keep(*a, **k):
+    apps.append(real_app(*a, **k))
+    return apps[-1]
+cf.App = keep
+g.start_choice = "clean"
+g.next(); g.next()
+print("STEP", g.current())
+button = [w for w in widgets(root) if text_of(w) == "LUTs and accents..."]
+def check():
+    app = apps[0]
+    root.update()
+    total = float(app.season_scroll.inner.winfo_reqheight())
+    top, bottom = app.season_scroll.canvas.yview()
+    print("EDITOR tab", app.tabs.index("current"),
+          "seen", top <= app.look_box.winfo_y() / total <= bottom)
+    for t in [w for w in root.winfo_children() if isinstance(w, tk.Toplevel)]:
+        t.destroy()
+root.after(800, check)
+button[0].invoke()
+print("AFTER", g.mode)
+real_import = builtins.__import__
+def no_pil(name, *a, **k):
+    if name == "PIL" or name.startswith("PIL."):
+        raise ImportError("blocked")
+    return real_import(name, *a, **k)
+builtins.__import__ = no_pil
+view = guide.DialView(tk.Frame(root), tk, ttk)
+builtins.__import__ = real_import
+print("NOTE", view.text.cget("text"))
+""")
+        assert rc == 0, out
+        assert "STEP seasons" in out and "EDITOR tab 1 seen True" in out, out
+        assert "NOTE Showing the dial here needs Pillow, a Python package. Save offers to " \
+            "install it once your calendar or names differ from the usual." in out, out
+    return "one button to the editor's LUTs and accents, in view; the dial's note says when"
+
+
+@case
 def t_a_file_broken_meanwhile_is_said_not_summed_up():
     """seasons_config.py broken by hand while the window is open: the summary says so,
     rather than showing an empty setup as if it were the saved one."""

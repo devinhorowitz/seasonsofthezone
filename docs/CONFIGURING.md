@@ -819,9 +819,10 @@ it that holds `gamedata`, as a FOMOD lays out its choices, or `None` when `gamed
 at the top. The percent, 1 to 100, is how far the grade moves; 100 is the pack's LUT as
 it is. A season left out keeps the game's LUT.
 
-`configure.bat` writes the table: on its Seasons tab, *The look of each season* has a
-LUT and a percent for each season, from every LUT it finds, and **Look for LUT packs
-again** looks again. As commands:
+`configure.bat` writes the table: on the advanced editor's Seasons tab, *The look of each
+season* has a LUT and a percent for each season, from every LUT it finds, and **Look for
+LUT packs again** looks again. The guided setup's seasons step has no LUTs; its **LUTs and
+accents...** opens the editor there. As commands:
 
 ```bash
 py _tools\configure.py lut                      # each season's LUT, and the LUTs found
@@ -919,9 +920,9 @@ with no LUTs, `Seasonal LUT` stays off until numpy is in; the report says which.
 line marks the seasons that have them, and so does each season page's read-out in MCM.
 
 `configure.bat` switches Seasons' own on and off: **Seasons' own accents**, under *The
-look of each season* on its Seasons tab. Saving with them on offers to install numpy when
-it is missing. A table of your own stays as you wrote it while the box is ticked. As
-commands:
+look of each season* on the advanced editor's Seasons tab. Saving with them on offers to
+install numpy when it is missing. A table of your own stays as you wrote it while the box
+is ticked. As commands:
 
 ```bash
 py _tools\configure.py accents          # what is on, season by season

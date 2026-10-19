@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **The LUTs and accents are in reach.** In `configure.bat`'s advanced editor the Seasons tab
+  was twice as tall as its window, and its last box, *The look of each season*, with the
+  seasons' LUTs and accents, was cut off. The tab now scrolls. Over a dropdown or a spin box,
+  the mouse wheel scrolls the page rather than changing the month, day, LUT or percent under
+  it. The guided setup's seasons step now says where LUTs and accents are set, and its
+  **LUTs and accents...** button opens the editor there. Its dial note no longer says Save
+  offers Pillow for Polesia's dates: only a calendar or names of your own need it. In English
+  and Russian. A player couldn't find where to pick their LUTs.
+
 ## 2.10.0 — 2026-10-18
 
 - **Seasonal LUTs.** A season can grade the frame with a LUT from a pack you downloaded,

@@ -4676,7 +4676,7 @@ msgstr ""
 msgid "Drag to see another day."
 msgstr ""
 
-#: configure.py
+#: configure.py guide.py
 msgid "Showing the dial here needs Pillow, a Python package. Save offers to install it once your calendar or names differ from the usual."
 msgstr ""
 
@@ -6162,6 +6162,14 @@ msgid "Add a spell..."
 msgstr ""
 
 #: guide.py
+msgid "A season can also grade the frame with a LUT from a LUT pack you downloaded, such as Kumo's or Forester's, and take Seasons' own color accents. Both are set in the advanced editor."
+msgstr ""
+
+#: guide.py
+msgid "LUTs and accents..."
+msgstr ""
+
+#: guide.py
 #, python-format
 msgid "on for %d mod"
 msgid_plural "on for %d mods"
@@ -6462,10 +6470,6 @@ msgstr ""
 
 #: guide.py
 msgid "Leave without saving? Nothing you set here is kept."
-msgstr ""
-
-#: guide.py
-msgid "Showing the dial here needs Pillow, a Python package. Save offers to install it."
 msgstr ""
 
 #: guide.py
