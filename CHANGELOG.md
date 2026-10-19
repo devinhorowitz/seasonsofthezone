@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.10.0 — 2026-10-18
 
 - **Seasonal LUTs.** A season can grade the frame with a LUT from a pack you downloaded,
   such as Kumo's or Forester's, moved from the game's LUT toward it by a percent you

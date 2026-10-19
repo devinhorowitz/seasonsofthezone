@@ -36,6 +36,13 @@ choose Open in Explorer.
   MCM_SETTINGS   other mods' MCM options that follow the season: "page/option": {name:
                  its value then, ..., "else": the rest of the year}. play.bat sets them
                  in MCM's saved options before the game starts.
+  SEASON_LUTS    a LUT for a season: season: (pack, the option folder in it or None,
+                 percent). The pack is an archive in MO2's downloads folder or a mod's
+                 folder; the season's color grade moves that far toward its LUT. play.bat
+                 builds the mod Seasonal LUT from them.
+  SEASON_ACCENTS True for Seasons' own color accents, built into each season's LUT on
+                 top of its pack's or the game's, or season: {accent: value} of your own.
+                 play.bat builds them into Seasonal LUT; they need numpy.
 """
 
 # mod folder -> archive in downloads/, and per season the option folders to overlay
@@ -220,3 +227,20 @@ SOUND_SRC = "304- Dark Signal Weather and Ambiance Audio - Shrike"
 #   }
 PERIODS = {}
 EVENTS = {}
+
+# Seasonal LUTs: {season: (source, option, percent)}. A season's color grade moves from the
+# game's LUT toward the LUT in `source` - an archive in MO2's downloads folder or a mod's
+# folder - in its `option` folder (None when gamedata is at the top), by `percent`.
+# play.bat builds the mod Seasonal LUT from them. configure.bat writes this.
+SEASON_LUTS = {
+    "spring": ("Kumo's LUT Assortment v1.1.1.7z", "00 data/LUT - Fovea Memory", 50),
+    "summer": ("Kumo's LUT Assortment v1.1.1.7z", "00 data/LUT - Fovea Objective", 50),
+    "autumn": ("Kumo's Cinegraphy Vol. 1.7z", "00 data/EASTMAN", 30),
+    "winter": ("Kumo's LUT Assortment v1.1.1.7z", "00 data/LUT - Iris", 60),
+    "winter_snow": ("Kumo's LUT Assortment v1.1.1.7z", "00 data/LUT - Stalker 1979", 60),
+    "late_winter": ("Kumo's Cinegraphy Vol. 1.7z", "00 data/FLIC", 50),
+}
+
+# Seasonal accents: True for Seasons' own, built into each season's LUT on top of its pack's
+# (CONFIGURING.md's SEASON_ACCENTS). Tuned as ReShade presets in the game on 2026-10-18.
+SEASON_ACCENTS = True
