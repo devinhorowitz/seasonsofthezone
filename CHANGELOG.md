@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.10.2 — 2026-10-19
 
 - **Accents leave a LUT pack as its author made it.** By default the seasons' accents now
   color only the seasons without a LUT pack, on the game's LUT; a season with a pack shows

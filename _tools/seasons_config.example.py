@@ -40,9 +40,12 @@ choose Open in Explorer.
                  percent). The pack is an archive in MO2's downloads folder or a mod's
                  folder; the season's color grade moves that far toward its LUT. play.bat
                  builds the mod Seasonal LUT from them.
-  SEASON_ACCENTS True for Seasons' own color accents, built into each season's LUT on
-                 top of its pack's or the game's, or season: {accent: value} of your own.
-                 play.bat builds them into Seasonal LUT; they need numpy.
+  SEASON_ACCENTS True for Seasons' own color accents, built into each season's LUT, or
+                 season: {accent: value} of your own. play.bat builds them into
+                 Seasonal LUT; they need numpy.
+  SEASON_ACCENTS_ON_PACKS
+                 True puts the accents on the seasons with a LUT pack too. Without it,
+                 those seasons keep their pack as its author made it.
 """
 
 # mod folder -> archive in downloads/, and per season the option folders to overlay
@@ -244,3 +247,8 @@ SEASON_LUTS = {
 # Seasonal accents: True for Seasons' own, built into each season's LUT on top of its pack's
 # (CONFIGURING.md's SEASON_ACCENTS). Tuned as ReShade presets in the game on 2026-10-18.
 SEASON_ACCENTS = True
+
+# Whether a season with a LUT pack gets the accents too. False keeps the pack's grade as
+# its author made it, mixed by your percent; the accents color the seasons without one.
+# configure.bat writes this.
+SEASON_ACCENTS_ON_PACKS = True
