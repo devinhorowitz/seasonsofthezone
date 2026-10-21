@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.11.0 — 2026-10-21
 
 - **Real Time Zone works with this mod out of the box.** DamageZedd's add-on runs the game's
   clock on real time and takes the sky from the real weather each hour.

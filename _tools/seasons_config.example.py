@@ -123,7 +123,7 @@ TOGGLE_MODS = {
     # the visual mods.
     "Swamp Ground Fog (seasonal)": {
         "when": ("spring", "autumn", "late_winter"),
-        "above": "Atmospherics 2.69 RC7.6 SSS24",
+        "above": "Atmospherics 2.69 RC7.7 SSS24",
     },
     # Deep winter only: `winter` is first snowfall on bare ground. Four mods ship
     # actor/step sounds; this one is the highest.
