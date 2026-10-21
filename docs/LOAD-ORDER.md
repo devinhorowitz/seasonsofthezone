@@ -17,6 +17,8 @@ examples only.
   directly above the mod whose LUT the game uses.
 - **INVERNO's old snowfall addon, if you have it: anywhere, once `level_weathers.script` is
   removed from it.**
+- **Real Time Zone, if you have it: anywhere.** It shares no file with this mod; the
+  README's *Optional: Real Time Zone* covers its weather file.
 - **Never enable** the old Season Flora prototype alongside this mod.
 - A GAMMA launcher **Update** drops all of the above from MO2's mod list. Recover from a
   snapshot, not by re-checking mods where MO2 put them.

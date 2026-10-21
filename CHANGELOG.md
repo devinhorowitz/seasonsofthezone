@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- **Real Time Zone works with this mod out of the box.** DamageZedd's add-on runs the game's
+  clock on real time and takes the sky from the real weather each hour.
+  - **The sky's hours.** `play.bat` now fetches the next 24 hours of the sky with the day's
+    weather, on your PC's clock, into `season_weather.ltx`'s `[hourly]`, which RTZ reads.
+  - **`play.bat`** carries the line RTZ's setup would add, so the setup leaves the file
+    alone, and an update of this mod keeps it working.
+  - **`season.py status`** names the hours RTZ reads. It warns when that is RTZ's own sample
+    file (a day for Ottawa) or another stale file, and says how to fix it.
+  - **Remembrance days and anniversaries keep their sky.** RTZ's real weather stands aside
+    while this mod holds the sky, instead of the two taking turns with it all day.
+  - **MCM.** The weather line on the Main page names RTZ while it sets the sky.
+- **Read API.** `sotz_api.weather_hold()` gives the sky this mod holds today, and
+  `weather()` gains `held` and `driver`. API.md documents them and `[hourly]`.
+
 ## 2.10.2 — 2026-10-19
 
 - **Accents leave a LUT pack as its author made it.** By default the seasons' accents now

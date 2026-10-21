@@ -189,6 +189,34 @@ their rain out and nothing falls in its place. The cycle names don't change with
 page reads it: a `rain` cycle shows as Snow, Sleet or Overcast, a `storm` as Snowstorm or
 Sleet storm. INVERNO 1.09's own snowfall isn't tied to a cycle, so it never shows here.
 
+`held` (2.11.0) is the sky this mod holds today, as `weather_hold()` gives it. `driver`
+(2.11.0) is `"rtz"` while Real Time Zone sets the sky from the real weather, and `nil`
+otherwise; on a held day it is `nil`, as RTZ stands aside.
+
+## `weather_hold()`
+
+(2.11.0) The sky this mod holds today, or `nil`: `"clear"` on a remembrance day and
+`"storm"` on an anniversary, each while its MCM switch is on and the hold works (a storm
+needs a storm cycle in the weathers). An add-on that sets the sky itself should leave it
+alone while this is set. Real Time Zone does, through this mod. It reads no weather
+manager, so it is cheap to call every frame.
+
+## `[hourly]` in `season_weather.ltx`
+
+(2.11.0) `play.bat` writes the next 24 hours of the sky with the day's weather, on the PC's
+clock: from the hour it fetched in, one line an hour, the hour (0-23) and the cycle
+(`clear`, `partly`, `cloudy`, `foggy`, `rain`, `snow` or `storm`). Each hour is the place's
+sky at that moment, so with the place in another time zone it is still the weather there
+now. It is for add-ons that run the game's clock on real time, such as Real Time Zone; this
+mod itself reads only the day. Read it with `ini_file("season_weather.ltx")`.
+
+```ini
+[hourly]
+start        = 2026-10-21T14:00
+14           = cloudy
+15           = rain
+```
+
 ## `blowout()`
 
 ```lua

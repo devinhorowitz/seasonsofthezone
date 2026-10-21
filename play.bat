@@ -91,6 +91,11 @@ REM  Chornobyl by default: its coordinates, no account, no key, and nothing
 REM  about this machine. It is allowed to fail: without it the game models the
 REM  temperature from the place's climate instead, so the error is never fatal.
 %PY% "_tools\fetch_weather.py"
+REM  Real Time Zone (RTZ), DamageZedd's add-on for this mod, refreshes its own hours of
+REM  the sky with the next line once its setup_rtz.bat has put the fetcher in _tools.
+REM  The line is here so that setup leaves this file as it is, and an update of it keeps
+REM  working. Without RTZ, or before that setup, it does nothing.
+if exist "_tools\fetch_rtz_hourly.py" %PY% "_tools\fetch_rtz_hourly.py"
 
 REM  From here on one block, which cmd reads whole before it runs any of it: the setup can
 REM  rewrite this file while the window waits at the pause. An exit below zero is a crash.

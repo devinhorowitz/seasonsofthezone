@@ -325,7 +325,13 @@ def check_play_bat(stage):
     to be one it says, or that line stays English for good."""
     for bat_name in ("play.bat", "configure.bat"):
         bat = io.open(os.path.join(stage, bat_name), encoding="latin-1").read()
-        runs = sorted(set(re.findall(r"_tools\\(\w+\.py)", bat)))
+        # A line that runs a script only if it is there runs another mod's (Real Time
+        # Zone's fetcher, once its setup puts it in _tools): the package doesn't ship it, and
+        # play.bat goes on without it. Only lines of that exact form are set aside; the same
+        # script run anywhere else still has to be in the package.
+        rest = re.sub(r'(?im)^[ \t]*if exist "_tools\\(\w+\.py)" %PY% "_tools\\\1"[ \t]*$', "",
+                      bat)
+        runs = sorted(set(re.findall(r"_tools\\(\w+\.py)", rest)))
         wanted, todo = set(runs), list(runs)
         while todo:
             f = todo.pop()

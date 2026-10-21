@@ -2103,9 +2103,84 @@ end
 
 local rem_logged = false
 
+-- --- the sky a day holds, and Real Time Zone -----------------------------------------------
+--
+-- Real Time Zone (RTZ), DamageZedd's add-on for this mod, runs the game's clock on real time
+-- and sets the sky from the real weather every few minutes. A remembrance day holds the sky -
+-- a memorial clear, an anniversary a storm - and RTZ, left alone, would turn it back at its
+-- next check, so the two would take turns with it all day. On a held day RTZ's real weather
+-- stands aside: its own switch, as RTZ reads it, says off, and its weather hooks fall through
+-- to the manager the hold works with. Only that switch, and only on such a day; RTZ's clock
+-- and its rest are left alone.
+--
+-- The bridge goes in at on_game_start, before RTZ's first update draws the real sky, so the
+-- day is worked out from the date and MCM rather than from the tick below, which runs only
+-- after the load. sotz_api.weather_hold() gives the same answer to any add-on that asks.
+
+local hold_failed = nil          -- the sky a hold couldn't set today, e.g. no storm cycle
+
+-- The sky this mod holds today, or nil.
+function weather_held()
+    local day = remembrance_today()
+    if not day then return nil end
+    local sky
+    if day.kind == "memorial" then
+        sky = mcm("rem_weather", true) and "clear" or nil
+    else
+        sky = mcm("rem_ann_weather", true) and "storm" or nil
+    end
+    if sky and sky == hold_failed then return nil end
+    return sky
+end
+
+-- "rtz" while RTZ sets the sky: it's installed and its saved switches are on. Read off the
+-- disk and MCM's file, so the main menu can ask too: MCM asserts on ui_mcm.get while it
+-- builds a page, and RTZ's own reader goes through it.
+function weather_driver()
+    local ok, there = pcall(function()
+        return getFS():exist("$game_scripts$", "rtz_weather.script")
+    end)
+    if not (ok and there) then return nil end
+    for _, key in ipairs({"rtz/enabled", "rtz/enable_real_weather"}) do
+        local okv, v = pcall(function() return axr_main.config:r_value("mcm", key, 1) end)
+        if okv and v == false then return nil end
+    end
+    return "rtz"
+end
+
+local rtz_bridged = false
+
+-- Wraps RTZ's settings reader, so that its real weather reads off on a held day. Once a
+-- session; true when RTZ is there to wrap.
+function rtz_bridge()
+    if rtz_bridged then return true end
+    local ok, there = pcall(function()
+        return getFS():exist("$game_scripts$", "rtz_mcm.script")
+    end)
+    if not (ok and there) then return false end
+    local okm, m = pcall(function() return rtz_mcm end)
+    if not (okm and type(m) == "table" and type(m.get_config) == "function") then
+        return false
+    end
+    local get = m.get_config
+    m.get_config = function(key, ...)
+        if key == "enable_real_weather" then
+            local okh, sky = pcall(weather_held)
+            if okh and sky then return false end
+        end
+        return get(key, ...)
+    end
+    rtz_bridged = true
+    say("Real Time Zone found: its real weather stands aside on a day this mod holds the sky")
+    return true
+end
+
 local function remembrance_tick()
     local day = remembrance_today()
-    if not day then return end
+    if not day then
+        hold_failed = nil
+        return
+    end
 
     if not rem_logged then
         rem_logged = true
@@ -2121,11 +2196,13 @@ local function remembrance_tick()
     if memorial then
         if mcm("rem_weather", true) then
             local r = hold_cycle("clear")
+            hold_failed = (r ~= "ok") and "clear" or nil
             if r ~= "ok" and r ~= nil then say("remembrance weather: " .. r) end
         end
     else
         if mcm("rem_ann_weather", true) then
             local r = hold_cycle("storm")
+            hold_failed = (r ~= "ok") and "storm" or nil
             if r ~= "ok" and r ~= nil then say("anniversary weather: " .. r) end
         end
         if mcm("rem_ann_artefacts", true) then
@@ -3431,6 +3508,13 @@ function forecast_page()
         local m = abs_minute % 1440
         return string.format("%02d:%02d", math.floor(m / 60), m % 60)
     end
+    -- who else sets the sky today: this mod's hold, or Real Time Zone's real weather
+    local function setters(w)
+        local okh, held = pcall(weather_held)
+        w.held = okh and held or nil
+        w.driver = (not w.held) and weather_driver() or nil
+        return w
+    end
 
     out.weather_source = weather_source()
 
@@ -3442,7 +3526,8 @@ function forecast_page()
         pcall(function()
             local wm = level_weathers.get_weather_manager()
             if not (wm and wm.cycle) then return end
-            local w = {now = wm.cycle, segments = {}, source = "stock", falls = falls()}
+            local w = setters({now = wm.cycle, segments = {}, source = "stock",
+                               falls = falls()})
             local okp, len = pcall(function()
                 return ui_options.get("video/weather/" .. tostring(wm.cycle) .. "_period")
             end)
@@ -3470,7 +3555,7 @@ function forecast_page()
         if not (wm and wm.day_plan and wm.abs_schedule_minute) then return end
 
         local now = wm:abs_schedule_minute()
-        local w   = {now = wm.cycle, segments = {}, source = "plan", falls = falls()}
+        local w   = setters({now = wm.cycle, segments = {}, source = "plan", falls = falls()})
         local last = wm.cycle
         for i = (wm.day_plan_index or 1), #wm.day_plan do
             local seg = wm.day_plan[i]
@@ -3503,4 +3588,6 @@ function on_game_start()
         CHECK_MS / 1000, DATE_MS / 60000))
     local wet = wet_readers()
     if #wet > 0 then say("rain for gameplay through: " .. table.concat(wet, ", ")) end
+    -- before any actor_on_first_update, where RTZ draws its first real sky
+    pcall(rtz_bridge)
 end

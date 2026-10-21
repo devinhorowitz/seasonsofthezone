@@ -376,6 +376,7 @@
 	<string id="ui_mcm_seasons_zone_status_plan"><text>Погода: дневной планировщик Atmospherics. Прогноз охватывает все предстоящие смены погоды.</text></string>
 	<string id="ui_mcm_seasons_zone_status_stock"><text>Погода: планировщик базовой игры, который использует GAMMA. Прогноз показывает текущую погоду, время её смены и шансы для следующей — её планировщик выбирает случайно, когда приходит время. Atmospherics 2.69 планирует весь день заранее.</text></string>
 	<string id="ui_mcm_seasons_zone_status_none"><text>Менеджер погоды не найден, поэтому страница «Прогноз» не может показать погоду. Всё остальное в моде работает.</text></string>
+	<string id="ui_mcm_seasons_zone_status_rtz"><text>Погода: Real Time Zone, по реальной погоде час за часом, через дневной планировщик Atmospherics. Прогноз охватывает все предстоящие смены погоды. В дни памяти и годовщины небо держит этот мод.</text></string>
 
 	<!-- Main page: the calendar -->
 	<string id="ui_mcm_seasons_zone_today"><text>Сегодня $date.</text></string>

@@ -776,8 +776,16 @@ def t_the_build_follows_what_the_batch_files_run():
     with tempfile.TemporaryDirectory() as d:
         said = refused(stage(d, bat='%PY% "_tools\\season.py" say checkin\r\n'))
         assert said and "checkin" in said, said
-    return "the package passes; without guide.py, mod_install.py or lang.py, or with a " \
-        "line season.py can't say, refused"
+    # another mod's script, run only if it is there, passes (Real Time Zone's fetcher is in
+    # play.bat that way); the same script run outright is refused
+    with tempfile.TemporaryDirectory() as d:
+        said = refused(stage(d, bat='%PY% "_tools\\fetch_rtz_hourly.py"\r\n'))
+        assert said and "fetch_rtz_hourly.py" in said, said
+    with tempfile.TemporaryDirectory() as d:
+        said = refused(stage(d, bat='if exist "_tools\\other.py" %PY% "_tools\\other.py"\r\n'))
+        assert said is None, said
+    return "the package passes; without guide.py, mod_install.py or lang.py, with a line " \
+        "season.py can't say, or another mod's script run outright, refused"
 
 
 @case

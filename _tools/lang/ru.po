@@ -1470,6 +1470,43 @@ msgctxt "the months of a rule"
 msgid "in %s"
 msgstr "в %s"
 
+#. two places; %(file)s, a path, and %(setup)s, a file, stay as they are
+#: season.py
+#, python-format
+msgid "Real Time Zone's hours of the sky are for %(there)s, not %(here)s, and nothing refreshes them. Delete %(file)s and it reads the hours play.bat fetches, or run its %(setup)s once."
+msgstr "Почасовая погода Real Time Zone — для места «%(there)s», а не «%(here)s», и её ничто не обновляет. Удалите %(file)s, и он будет читать почасовую погоду, которую загружает play.bat, или один раз запустите его %(setup)s."
+
+#. %(file)s, a path, and %(setup)s, a file, stay as they are
+#: season.py
+#, python-format
+msgid "Real Time Zone's hours of the sky are %(days)d day old and nothing refreshes them. Delete %(file)s and it reads the hours play.bat fetches, or run its %(setup)s once."
+msgid_plural "Real Time Zone's hours of the sky are %(days)d days old and nothing refreshes them. Delete %(file)s and it reads the hours play.bat fetches, or run its %(setup)s once."
+msgstr[0] "Почасовая погода Real Time Zone устарела на %(days)d день, и её ничто не обновляет. Удалите %(file)s, и он будет читать почасовую погоду, которую загружает play.bat, или один раз запустите его %(setup)s."
+msgstr[1] "Почасовая погода Real Time Zone устарела на %(days)d дня, и её ничто не обновляет. Удалите %(file)s, и он будет читать почасовую погоду, которую загружает play.bat, или один раз запустите его %(setup)s."
+msgstr[2] "Почасовая погода Real Time Zone устарела на %(days)d дней, и её ничто не обновляет. Удалите %(file)s, и он будет читать почасовую погоду, которую загружает play.bat, или один раз запустите его %(setup)s."
+
+#: season.py
+msgid "season_weather.ltx has no hours yet - play.bat fetches them - so Real Time Zone models the hours from the day's forecast."
+msgstr "В season_weather.ltx пока нет почасовой погоды (её загружает play.bat), поэтому Real Time Zone строит часы по прогнозу на день."
+
+#. Real Time Zone's weather; %s is a place
+#: season.py
+#, python-format
+msgid "its own hours of the sky, for %s, refreshed at each launch"
+msgstr "своя почасовая погода для места «%s», обновляется при каждом запуске"
+
+#. Real Time Zone's weather; %s is a place
+#: season.py
+#, python-format
+msgid "its own hours of the sky, for %s"
+msgstr "своя почасовая погода для места «%s»"
+
+#. Real Time Zone's weather; %s is a place
+#: season.py
+#, python-format
+msgid "the hours of the sky play.bat fetches, for %s"
+msgstr "почасовая погода от play.bat для места «%s»"
+
 #: season.py
 #, python-format
 msgid "Could not list the running programs (%s), so MO2 and the game are taken to be closed."
@@ -7540,6 +7577,15 @@ msgstr "загружено %s (данные свежие)"
 #, python-format
 msgid "fetched %s (stale)"
 msgstr "загружено %s (данные устарели)"
+
+#. %(n)d hours of the sky, from a date and time like 2026-10-21T14:00
+#: fetch_weather.py
+#, python-format
+msgid "hour by hour: %(n)d hour from %(start)s"
+msgid_plural "hour by hour: %(n)d hours from %(start)s"
+msgstr[0] "по часам: %(n)d час с %(start)s"
+msgstr[1] "по часам: %(n)d часа с %(start)s"
+msgstr[2] "по часам: %(n)d часов с %(start)s"
 
 #: fetch_weather.py
 msgid "Fetch the day's weather for the place set in configure.bat (Chornobyl by default); play.bat runs this."

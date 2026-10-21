@@ -65,6 +65,7 @@ local WEATHER_TEXT = {
     plan  = "ui_mcm_seasons_zone_status_plan",
     stock = "ui_mcm_seasons_zone_status_stock",
     none  = "ui_mcm_seasons_zone_status_none",
+    rtz   = "ui_mcm_seasons_zone_status_rtz",
 }
 
 local function dependency_rows(out)
@@ -93,6 +94,12 @@ local function dependency_rows(out)
     -- most often opened; see its comment in zzz_seasons_of_the_zone.
     local ok, src = pcall(function() return zzz_seasons_of_the_zone.weather_source() end)
     src = (ok and WEATHER_TEXT[src]) and src or "none"
+    -- Real Time Zone works through the planner, so it's named only where the planner is.
+    -- weather_driver() reads the disk and MCM's file, never ui_mcm.get.
+    if src == "plan" then
+        local okd, drv = pcall(function() return zzz_seasons_of_the_zone.weather_driver() end)
+        if okd and drv == "rtz" then src = "rtz" end
+    end
     row("status_weather", WEATHER_TEXT[src], src == "none")
 end
 

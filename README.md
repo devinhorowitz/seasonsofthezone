@@ -794,6 +794,25 @@ saving offers to install (`py -m pip install numpy`). **Preview the looks...** s
 season's LUT on a chart of everyday colors, or on a screenshot of yours, before you launch.
 [CONFIGURING.md](docs/CONFIGURING.md#season_accents) lists them, and how to set your own.
 
+## Optional: Real Time Zone
+
+[Real Time Zone (RTZ)](https://github.com/DamageZedd/Seasons-of-the-Zone-RTZ), by
+DamageZedd, is an add-on for this mod. It runs the game's clock on real time, takes the sky
+from the real weather at your place hour by hour, and turns sleeping into a rest in real
+time. Install it in MO2 anywhere; it ships none of this mod's files.
+
+- **The sky's hours.** `play.bat` fetches the next 24 hours of the sky with the day's
+  weather, on your PC's clock, and RTZ reads them when it has none of its own. RTZ 1.0
+  ships its own `gamedata\configs\rtz_weather.ltx`, one sample day for Ottawa, and reads
+  that first: delete it, or run RTZ's `setup_rtz.bat` once so that its own fetcher rewrites
+  it at each launch. `py _tools\season.py status` says which one RTZ reads, and warns when
+  it is stale or for another place.
+- **`play.bat`** already carries the line RTZ's setup would add, so the setup leaves the
+  file as it is, and updating this mod keeps the line working.
+- **Remembrance days and anniversaries** keep their sky. On a day this mod holds the sky
+  clear, or brings a storm, RTZ's real weather stands aside until the day is over.
+- **MCM.** The Main page's weather line names RTZ while it sets the sky.
+
 ---
 
 ## Load order

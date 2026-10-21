@@ -4707,6 +4707,113 @@ def weather_flags():
     return out
 
 
+# --- Real Time Zone ---------------------------------------------------------------------
+# Real Time Zone (RTZ), DamageZedd's add-on for this mod, runs the game's clock on real time
+# and takes the sky from the real weather each hour. It reads the hours from its own
+# rtz_weather.ltx when that has an [hourly] section, and from season_weather.ltx's
+# otherwise, which fetch_weather.py writes. Its 1.0 releases ship an rtz_weather.ltx of
+# their own, a sample day for Ottawa, so until its setup_rtz.bat installs the fetcher that
+# rewrites it, RTZ reads that same day forever. The report says which file RTZ reads, and
+# what to do when it is the wrong one.
+RTZ_MARKER = ("gamedata", "scripts", "rtz_main.script")
+RTZ_WEATHER = ("gamedata", "configs", "rtz_weather.ltx")
+RTZ_FETCHER = "fetch_rtz_hourly.py"       # what setup_rtz.bat copies into _tools
+RTZ_STALE_DAYS = 1
+
+
+def _ltx_sections(path):
+    """{section: {key: value}} of an ltx, comments dropped; {} when it can't be read."""
+    out, here = {}, None
+    try:
+        for line in io.open(path, encoding="cp1251", errors="replace"):
+            line = line.split(";")[0].strip()
+            if line.startswith("[") and line.endswith("]"):
+                here = out.setdefault(line[1:-1].strip(), {})
+            elif here is not None and "=" in line:
+                k, v = line.split("=", 1)
+                here[k.strip()] = v.strip()
+    except OSError:
+        return {}
+    return out
+
+
+def rtz_folder():
+    """The enabled mod that is Real Time Zone, found by its main script: MO2 names a mod
+    after its archive. None without it."""
+    try:
+        names = sorted(n for n in os.listdir(MODS)
+                       if os.path.isfile(os.path.join(MODS, n, *RTZ_MARKER)))
+    except OSError:
+        return None
+    on = [n for n in names if _mod_enabled(n)]
+    return os.path.join(MODS, on[0]) if on else None
+
+
+def rtz_plan(now=None):
+    """What Real Time Zone reads for the sky's hours, and what leaves that wrong:
+    {"state": "none" | "own" | "seasons", "place", "refreshed", "problems", "notes"}.
+    "own" is its rtz_weather.ltx, "seasons" season_weather.ltx's [hourly]."""
+    out = {"state": "none", "place": None, "refreshed": False, "problems": [], "notes": []}
+    folder = rtz_folder()
+    if not folder:
+        return out
+    here = weather_place()
+    own_path = os.path.join(folder, *RTZ_WEATHER)
+    own = _ltx_sections(own_path) if os.path.isfile(own_path) else {}
+    out["refreshed"] = os.path.isfile(os.path.join(ROOT, "_tools", RTZ_FETCHER))
+    if any(k.isdigit() or (k[:1] == "h" and k[1:].isdigit()) for k in own.get("hourly", {})):
+        out["state"] = "own"
+        there = own.get("place", {})
+        out["place"] = there.get("name") or "?"
+        if out["refreshed"]:
+            return out
+        try:
+            same = (abs(float(there["lat"]) - here["lat"]) < 1e-3
+                    and abs(float(there["lon"]) - here["lon"]) < 1e-3)
+        except (KeyError, ValueError):
+            same = False
+        fix = {"file": os.path.relpath(own_path, ROOT), "setup": "setup_rtz.bat",
+               "there": out["place"], "here": place_name(here)}
+        age = ((now or time.time()) - os.path.getmtime(own_path)) / 86400.0
+        if not same:
+            # translators: two places; %(file)s, a path, and %(setup)s, a file, stay as they are
+            out["problems"].append(_(
+                "Real Time Zone's hours of the sky are for %(there)s, not %(here)s, and "
+                "nothing refreshes them. Delete %(file)s and it reads the hours play.bat "
+                "fetches, or run its %(setup)s once.") % fix)
+        elif age > RTZ_STALE_DAYS:
+            fix["days"] = int(age)
+            # translators: %(file)s, a path, and %(setup)s, a file, stay as they are
+            out["problems"].append(ngettext(
+                "Real Time Zone's hours of the sky are %(days)d day old and nothing "
+                "refreshes them. Delete %(file)s and it reads the hours play.bat fetches, or "
+                "run its %(setup)s once.",
+                "Real Time Zone's hours of the sky are %(days)d days old and nothing "
+                "refreshes them. Delete %(file)s and it reads the hours play.bat fetches, or "
+                "run its %(setup)s once.", fix["days"]) % fix)
+        return out
+    out["state"] = "seasons"
+    out["place"] = place_name(here)
+    ours = _ltx_sections(os.path.join(MODS, SOTZ, "gamedata", "configs", "season_weather.ltx"))
+    if not any(k.isdigit() for k in ours.get("hourly", {})):
+        out["notes"].append(_(
+            "season_weather.ltx has no hours yet - play.bat fetches them - so Real Time Zone "
+            "models the hours from the day's forecast."))
+    return out
+
+
+def rtz_words(plan):
+    """The report's Real Time Zone line."""
+    if plan["state"] == "own" and plan["refreshed"]:
+        # translators: Real Time Zone's weather; %s is a place
+        return _("its own hours of the sky, for %s, refreshed at each launch") % plan["place"]
+    if plan["state"] == "own":
+        # translators: Real Time Zone's weather; %s is a place
+        return _("its own hours of the sky, for %s") % plan["place"]
+    # translators: Real Time Zone's weather; %s is a place
+    return _("the hours of the sky play.bat fetches, for %s") % plan["place"]
+
+
 def active_for(d, mapping="pheno", base=None):
     """Every period active on d: the base period, then every season of the player's own
     and every event covering it.
@@ -5937,6 +6044,14 @@ def main():
     flags = weather_flags()
     _row(pgettext("report", "weather from"), place_words(weather_place()) + (
         "   " + _("(today: %s)") % ", ".join(flags) if flags else ""))
+    # Real Time Zone's sky, a line only with it installed; its name stays as it is
+    rtz = rtz_plan()
+    if rtz["state"] != "none":
+        _row("Real Time Zone", rtz_words(rtz))
+        for p in rtz["problems"]:
+            print("  ! " + p)
+        for n in rtz["notes"]:
+            print("  - " + n)
     _row(pgettext("report", "texture layer"), pgettext("the texture layer", "on") if stage_tex
          else _("OFF for this run (--no-textures) - seasonal mods disabled, texture sets kept; "
                 "the seasonal atmosphere still runs") if a.no_textures

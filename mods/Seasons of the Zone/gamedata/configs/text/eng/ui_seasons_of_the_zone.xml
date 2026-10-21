@@ -376,6 +376,7 @@
 	<string id="ui_mcm_seasons_zone_status_plan"><text>Weather: Atmospherics' day planner. The forecast covers every change ahead.</text></string>
 	<string id="ui_mcm_seasons_zone_status_stock"><text>Weather: the base game's scheduler, which GAMMA uses. The forecast shows the sky now, when it turns, and the odds for the next sky, which the scheduler draws at random when the time comes. Atmospherics 2.69 plans the whole day ahead.</text></string>
 	<string id="ui_mcm_seasons_zone_status_none"><text>No weather manager was found, so the Forecast page can't show the sky. The rest of the mod works.</text></string>
+	<string id="ui_mcm_seasons_zone_status_rtz"><text>Weather: Real Time Zone, from the real weather hour by hour, through Atmospherics' day planner. The forecast covers every change ahead. On remembrance days and anniversaries this mod holds the sky instead.</text></string>
 
 	<!-- Main page: the calendar -->
 	<string id="ui_mcm_seasons_zone_today"><text>Today is $date.</text></string>

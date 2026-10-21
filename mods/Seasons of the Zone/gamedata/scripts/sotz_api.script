@@ -508,6 +508,9 @@ end
 --         snowfall addon in the winters), "sleet" (snow, and the weather still rains) or
 --         "none" (No Rain in Winter, nothing in its place). Cycle names stay Atmospherics'
 --         either way.
+--         `held` is the sky this mod holds today, or nil (see weather_hold). `driver` is
+--         "rtz" while Real Time Zone sets the sky from the real weather, nil otherwise; on a
+--         held day it is nil, as RTZ stands aside.
 function weather()
     return cached("weather", function()
         local page = zzz_seasons_of_the_zone.forecast_page()
@@ -531,7 +534,19 @@ function weather()
             forecast = w.forecast,
             odds = w.odds,
             falls = w.falls,
+            held = w.held,
+            driver = w.driver,
         }
+    end)
+end
+
+--- The sky this mod holds today, or nil: "clear" on a remembrance day, "storm" on an
+-- anniversary, each only while its MCM switch is on and the hold works. An add-on that sets
+-- the weather itself should leave the sky alone while this is set. Cheap: it reads no
+-- weather manager.
+function weather_hold()
+    return cached("weather_hold", function()
+        return zzz_seasons_of_the_zone.weather_held()
     end)
 end
 

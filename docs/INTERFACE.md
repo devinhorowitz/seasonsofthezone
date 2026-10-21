@@ -20,7 +20,8 @@ At the top, under the summary, two lines show what the PDA app needs:
   the place of its Launcher tab, and no key is set.
 - **The weather scheduler.** The base game's, which GAMMA uses, or Atmospherics' day planner
   if you've installed it. This sets how far ahead the forecast can see; see [Forecast](#forecast--the-pda-page).
-  Red only if there's no weather manager at all.
+  With Real Time Zone installed over the planner, the line names it: it sets the sky from the
+  real weather, hour by hour. Red only if there's no weather manager at all.
 
 Under them, **Open the Seasons app** sets a key that opens the app in a window of its own,
 outside the PDA. It is unset until you pick one; see [The Seasons app](#the-seasons-app).
