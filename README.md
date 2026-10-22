@@ -180,8 +180,9 @@ of the mod that writes to your save.
   the twenty values are SSS's own; an older exe does not have them, and the mod says so in
   the log.
 - **MCM**
-- **Mod App Creator**, for the PDA app's tile in its launcher. Without it, the app opens on a
-  key you set on MCM's Main page, which shows in red while the app has no way in.
+- **Mod App Creator**, for the PDA app's tile in its launcher. Without it, the app has a tab
+  of its own in the PDA (Modded Exes 2026.7.31 or later), and opens on a key you set on MCM's
+  Main page, which shows in red while the app has no way in.
 - **Python 3**, for `play.bat` and `configure.bat` only. The python.org installer is
   enough.
 - For some things only: the py7zr package to open a `.7z` - an optional `LAYOUT` texture
@@ -198,13 +199,14 @@ of the mod that writes to your save.
 | Foliage, fog, wind, wetness | no | with Screen Space Shaders |
 | The six marked days | yes | yes |
 | The read API for other mods | yes | yes |
-| The Seasons PDA app | on a key | on a key, and from Mod App Creator |
+| The Seasons PDA app | on a key | on a key, and from a PDA tab or Mod App Creator |
 | Texture and sound staging | with MO2 portable and Python | same |
 
 - Foliage, fog, wind, and wetness use Screen Space Shaders' engine commands, which only exist
   in Modded Exes. Without them the mod logs it once and skips those layers.
-- The PDA app opens on a key you set in MCM, in a window of its own. Mod App Creator, which
-  requires Modded Exes, adds a tile in its launcher.
+- The PDA app opens on a key you set in MCM, in a window of its own. On Modded Exes it also
+  has a tab of its own in the PDA, or a tile in Mod App Creator's launcher, as MCM's Main
+  page picks.
 - Staging works with any MO2 portable install. It reads the game path and profile from
   `ModOrganizer.ini`.
 - The anniversary artifacts need Dynamic Anomalies Overhaul.
@@ -228,7 +230,8 @@ meet:
   the result is too strong, lower **Intensity** on MCM's Main page.
 - **RE:Done A-Life Performance** moves the new-game date a day earlier; the mod reads the
   date from `alife.ltx`, so the game's own clock follows it.
-- **The PDA app** opens from Mod App Creator's tile, or on a key from MCM's Main page.
+- **The PDA app** opens from Mod App Creator's tile or a PDA tab of its own, or on a key from
+  MCM's Main page.
 
 ---
 

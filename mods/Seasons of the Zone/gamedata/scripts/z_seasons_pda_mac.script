@@ -9,9 +9,10 @@
 -- other mods share and made one app look like two. The tile opens The Year; the switch at
 -- the top of each page does the rest.
 --
--- If MAC is absent this file does nothing, and MCM's Main page says so in red: in the
--- official build the app is then built but unreachable. A standalone fork deletes this file
--- and supplies its own way in - see the note at the top of sotz_pda.script.
+-- With a tab of its own in the PDA (sotz_pda.wants_tab) the app has no tile: none is added as
+-- the game starts, and sotz_pda adds or takes it away in play as the tab goes or comes
+-- (add_tile, remove_tile). If MAC is absent this file does nothing; the app key opens the app
+-- everywhere, and on Modded Exes it has its tab.
 --
 -- The icon is one of this mod's own ui_seasons_dial_NN.dds files, picked for today, so
 -- the app icon shows the season it is. MAC calls InitTexture on it directly - a single
@@ -39,19 +40,51 @@ local function year_icon()
     return "sotz_app_year_autumn"
 end
 
-function on_game_start()
-    if not (mac_mcm and mac_mcm.add_app) then return end
-    local ok, err = pcall(function()
-        -- `name` is the tile's own label. The section titles the PDA prints top left
-        -- stay "The Year" and "Forecast", which are what each face is.
-        mac_mcm.add_app("app_seasons", {
-            name    = "pda_app_seasons",
-            texture = year_icon(),
-            tab     = sotz_pda.VIEWS.year.tab,
-            func    = ui_seasons_pda.get_ui,
-        })
-    end)
-    if not ok then
+local TILED = false
+
+local function put_tile()
+    -- `name` is the tile's own label. The section titles the PDA prints top left
+    -- stay "The Year" and "Forecast", which are what each face is.
+    mac_mcm.add_app("app_seasons", {
+        name    = "pda_app_seasons",
+        texture = year_icon(),
+        tab     = sotz_pda.VIEWS.year.tab,
+        func    = ui_seasons_pda.get_ui,
+    })
+end
+
+-- The tile in MAC's launcher, once, and none without MAC. MAC asserts on what it is given,
+-- and the game starts every script in one pass that catches nothing, so an error here would
+-- keep the scripts after this one from starting: it is caught and logged.
+function add_tile()
+    if TILED or not (mac_mcm and mac_mcm.add_app) then return end
+    local ok, err = pcall(put_tile)
+    if ok then
+        TILED = true
+    else
         printf("%s", "[seasons-pda] MAC registration failed: " .. tostring(err))
     end
+end
+
+-- the tile out of the launcher; one MAC cannot take away stays, and says so
+function remove_tile()
+    if not TILED then return end
+    local ok, err = pcall(function() mac_mcm.remove_app("app_seasons") end)
+    if ok then
+        TILED = false
+    else
+        printf("%s", "[seasons-pda] the tile stays in Mod App Creator: " .. tostring(err))
+    end
+end
+
+-- whether the launcher has the app's tile
+function has_tile()
+    return TILED
+end
+
+function on_game_start()
+    if not (mac_mcm and mac_mcm.add_app) then return end
+    local ok, tab = pcall(function() return sotz_pda.wants_tab() end)
+    if ok and tab then return end
+    add_tile()
 end

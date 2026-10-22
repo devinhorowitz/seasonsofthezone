@@ -546,13 +546,19 @@ function SeasonsForecast:InitToggle()
     end
 end
 
--- in the PDA, the other face's section; flat, the other face's window in place of this one
+-- in the PDA, the other face's section (the app's tab's, while it has one); flat, the other
+-- face's window in place of this one
 function SeasonsForecast:OnToggle()
     if self.flat then
         sotz_pda.open_flat("year")
     else
-        sotz_pda.open(sotz_pda.VIEWS.year.tab)
+        sotz_pda.open(sotz_pda.year_section())
     end
+end
+
+-- Back, as on The Year: there flat, and in the PDA while the app has its launcher tile
+function SeasonsForecast:PaintBack()
+    if self.back then self.back:Show(self.flat or sotz_pda.back_to_launcher()) end
 end
 
 -- back to MAC's launcher; flat, out of the window
@@ -1296,15 +1302,19 @@ function SeasonsForecast:Reset()
     if not ok then say("Fill failed: " .. tostring(err)) end
     local okf, errf = pcall(function() self:PaintFooter() end)
     if not okf then say("footer failed: " .. tostring(errf)) end
+    local okb, errb = pcall(function() self:PaintBack() end)
+    if not okb then say("Back failed: " .. tostring(errb)) end
 end
 
 function SeasonsForecast:OnKeyboard(dik, action)
     local res = CUIScriptWnd.OnKeyboard(self, dik, action)
     if res then return res end
     if action == ui_events.WINDOW_KEY_PRESSED
-       and (dik == DIK_keys.DIK_ESCAPE or (self.flat and dik == sotz_pda.app_key())) then
+       and (dik == DIK_keys.DIK_ESCAPE or (self.flat and dik == sotz_pda.app_key()))
+       and (self.flat or sotz_pda.back_to_launcher()) then
         -- escape used to be swallowed here, which left the page with no way out but the
-        -- launcher key. It goes back now; flat, it and the app key close the window.
+        -- launcher key. It goes back now; flat, it and the app key close the window. With
+        -- no tile to go back to, it is the PDA's, as on its other tabs.
         self:OnBack()
         return true
     end

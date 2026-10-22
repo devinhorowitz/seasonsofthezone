@@ -5,7 +5,7 @@ MCM's second column, Main and then one per season — Spring, Summer, Autumn, Wi
 winter, Late winter. A calendar of your own, from `configure.bat`, leaves out the pages
 of the seasons it turns off, and names of your own for the seasons title the pages and
 fill the Season list. The **Seasons** app in the PDA is where it is read: one app with two faces, **The
-Year** and **Forecast**. There is no HUD element, no pop-up and no key binding.
+Year** and **Forecast**. There is no HUD element and no pop-up.
 
 ---
 
@@ -15,9 +15,10 @@ Year** and **Forecast**. There is no HUD element, no pop-up and no key binding.
 
 At the top, under the summary, two lines show what the PDA app needs:
 
-- **Mod App Creator.** The Seasons app opens from its launcher, or with the key below. Red
-  while it has no way in: Mod App Creator is missing, or another mod's PDA tabs have taken
-  the place of its Launcher tab, and no key is set.
+- **The way in.** The Seasons app opens from Mod App Creator's launcher or a PDA tab of its
+  own, and with the key below; the line says which. Red while it has no way in: no tab, Mod
+  App Creator missing or another mod's PDA tabs in the place of its Launcher tab, and no key
+  set.
 - **The weather scheduler.** The base game's, which GAMMA uses, or Atmospherics' day planner
   if you've installed it. This sets how far ahead the forecast can see; see [Forecast](#forecast--the-pda-page).
   With Real Time Zone installed over the planner, the line names it: it sets the sky from the
@@ -25,6 +26,8 @@ At the top, under the summary, two lines show what the PDA app needs:
 
 Under them, **Open the Seasons app** sets a key that opens the app in a window of its own,
 outside the PDA. It is unset until you pick one; see [The Seasons app](#the-seasons-app).
+With Mod App Creator on Modded Exes, **Seasons tab in the PDA** gives the app a tab of its own
+in place of its tile in the launcher. It is off until you turn it on.
 
 The page opens with a short summary, today's date, and a dial of the year with the needle
 on the current day. Each wedge is sized by the season's real length: summer is a third of
@@ -192,13 +195,21 @@ another than the calendar's. It opens on The Year, and a switch at the top of th
 column moves between **The Year** and **Forecast**. The page you're on is lit. Both pages
 wear the running season's accent bar.
 
+On Modded Exes 2026.7.31 or later the app can have a tab of its own in the PDA's tab bar
+instead, after the others and in the bar's own look; the bar scrolls once it is full.
+**Seasons tab in the PDA** on MCM's Main page asks for it, and it takes the tile's place a
+moment after you are back in the game. Without Mod App Creator the tab is always there. The
+tab opens The Year; with it, the pages have no Back, and Escape works as on the PDA's other
+tabs.
+
 The app also opens on a key you set on MCM's Main page (**Open the Seasons app**), in a window
 of its own drawn in the 2D PDA's frame. The switch works the same, and Escape, the key again
 or Back closes it. This way in needs no PDA tab and no Mod App Creator. The PDA's tab bar is
 one file, `ui/pda_16.xml`, that Mod App Creator ships whole, and so do some mods that add
 tabs of their own; only one copy is used, and the other's tabs are gone. If that takes
-Mod App Creator's Launcher tab, MCM's Main page says so, and the key still opens the app.
-With the 3D PDA on, the window is also sharper than the screen in hand.
+Mod App Creator's Launcher tab, the app has its tab on Modded Exes, MCM's Main page says so,
+and the key still opens the app. With the 3D PDA on, the window is also sharper than the
+screen in hand.
 
 At the foot of both pages, beside Back, **Silence** turns the mod's PDA messages off, and on
 again. It is MCM's **PDA notifications** seen on the page, and it is lit while the messages

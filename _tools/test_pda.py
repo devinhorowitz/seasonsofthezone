@@ -14,6 +14,14 @@ Then the tab bar hook (modxml_seasons_pda): only ui/pda.xml and ui/pda_16.xml, o
 of the PDA's own sections, and a parked Launcher when MAC is installed but another mod's bar
 won. And the app key: the shipped page scripts opened flat, switched, and closed.
 
+And the tab of its own, against stand-ins for Modded Exes' tab registry, MAC, MCM and the PDA:
+it comes only in play, a second after the first update (one added during a load crashed the
+game, 2026-10-11); with MAC when MCM asks for it or the bar has no Launcher, in place of the
+tile; without MAC always; without the registry never. The option adds or takes away the tab
+once the game runs again, and the tile the other way round; a tab taken away while it was the
+PDA's last section sends the PDA to Tasks. Back and Escape lead to the launcher only while
+the tile is there, and Forecast's switch comes back to the tab.
+
   python _tools/test_pda.py
 """
 import io
@@ -168,7 +176,8 @@ def t_a_broken_page_does_not_take_the_pda_down():
     install(hooks)
     route = g.pda.set_active_subdialog
     # the broken face comes back empty rather than raising through the PDA
-    assert route("eptForecast") is None, "a failing page escaped the router"
+    got = attempt(route, "eptForecast")
+    assert got is None, "a failing page escaped the router: %s" % got
     # and the rest of the PDA is untouched by it
     assert route("eptTasks") == "BASE:eptTasks"
     assert route("eptSeasons") == "YEAR_PAGE"
@@ -549,6 +558,8 @@ ESC = 1
 def build_flat(key=KEY, alive=True, mcm_raises=False, saved=None):
     lua, g, seen, opened, hooks = build()
     lua.execute(FLAT)
+    # the app's tile in MAC's launcher, as it is with MAC and no tab of its own
+    g.z_seasons_pda_mac = lua.table_from({"has_tile": lambda: True})
     g.CUIScriptWnd = lua.table_from({"OnKeyboard": lambda *a: False})
     g.ui_events = lua.table_from({"BUTTON_CLICKED": 17, "WINDOW_KEY_PRESSED": 6})
     g.DIK_keys = lua.table_from({"DIK_ESCAPE": ESC})
@@ -717,6 +728,463 @@ def t_a_load_closes_the_flat_faces():
     unload[0]()
     assert shown(g) == [], shown(g)
     return "a load closes whichever face is open flat, and with none open does nothing"
+
+
+# --- a tab of its own ---------------------------------------------------------------------------
+#
+# The shipped sotz_pda.script and z_seasons_pda_mac.script over stand-ins for Modded Exes' tab
+# registry (pda_dynamic_tabs), the tab control's AddTab, MAC, MCM's option (in play and as
+# saved), the tab bar modxml_seasons_pda read, the PDA, and _g.script's time events.
+
+TABS = r"""
+NOW = 0
+timers = {}
+function CreateTimeEvent(ev_id, act_id, delay, fn, ...)
+    local id = ev_id .. "/" .. act_id
+    if not timers[id] then timers[id] = {at = NOW + delay, fn = fn, args = {...}} end
+end
+function play(seconds)
+    NOW = NOW + seconds
+    for id, ev in pairs(timers) do
+        if NOW >= ev.at and ev.fn(unpack(ev.args)) then timers[id] = nil end
+    end
+end
+function pending()
+    local n = 0
+    for _ in pairs(timers) do n = n + 1 end
+    return n
+end
+CUITabControl = {AddTab = function() end}
+calls = {}
+getters = {}
+SEQ = 0
+REFUSE = false
+pda_dynamic_tabs = {
+    register = function(caption, getter, after)
+        if REFUSE then error("no tab bar") end
+        SEQ = SEQ + 1
+        local id = "ept_dynamic_" .. SEQ
+        calls[#calls + 1] = "register " .. tostring(caption) .. (after and (" after " .. tostring(after)) or "")
+        getters[id] = getter
+        return id
+    end,
+    unregister = function(id)
+        calls[#calls + 1] = "unregister " .. id
+        getters[id] = nil
+        return true
+    end,
+}
+tiles = {}
+adds, removed = 0, 0
+ADD_FAILS, REMOVE_FAILS = false, false
+mac_mcm = {
+    add_app = function(id, data)
+        if ADD_FAILS then error("MAC refused the app") end
+        adds = adds + 1
+        tiles[id] = data
+    end,
+    remove_app = function(id)
+        if REMOVE_FAILS then error("MAC kept the app") end
+        removed = removed + 1
+        tiles[id] = nil
+    end,
+}
+OPTION = false
+SAVED = nil
+MCM_BUILDING = false
+asked_while_building = 0
+OFFERED = true
+bad_paths = 0
+ui_mcm = {get = function(path)
+    if MCM_BUILDING then
+        asked_while_building = asked_while_building + 1
+        error("ui_mcm.get asserts while MCM builds its page")
+    end
+    if path == "seasons_zone/main/pda_tab" then
+        -- MCM answers only for an option a page defines, and logs the rest
+        if not OFFERED then bad_paths = bad_paths + 1; return nil end
+        return OPTION
+    end
+end}
+axr_main = {config = {r_value = function(self, sec, key, typ, def)
+    if key == "seasons_zone/main/pda_tab" and SAVED ~= nil then return SAVED end
+    return def
+end}}
+BAR = nil
+modxml_seasons_pda = {tab_bar = function() return BAR end}
+ACTIVE = "eptTasks"
+opened = {}
+PDA_FAILS = false
+PDA = {
+    GetActiveSection = function(self) if PDA_FAILS then error("no PDA yet") end return ACTIVE end,
+    SetActiveSubdialog = function(self, s) opened[#opened + 1] = s; ACTIVE = s end,
+}
+ActorMenu = {get_pda_menu = function() return PDA end}
+YEAR_FAILS = false
+ui_seasons_pda = {get_ui = function() if YEAR_FAILS then error("boom") end return "YEAR_PAGE" end}
+ui_seasons_forecast = {get_ui = function() return "FORECAST_PAGE" end}
+pda = {set_active_subdialog = function(section) return "BASE:" .. tostring(section) end}
+function mkback()
+    local b = {}
+    function b:Show(on) self.shown = on end
+    return b
+end
+"""
+
+NO_LAUNCHER = {"file": "ui\\pda_16.xml", "launcher": False, "parked_launcher": True}
+
+
+def attempt(fn, *args):
+    """a call's result, or the error it raised, as text"""
+    try:
+        return fn(*args)
+    except Exception as e:
+        return "error: %s" % str(e).splitlines()[0]
+
+
+class Game(object):
+    """One load: the Lua state anew, the scripts started, the level loaded (the tab bar read as
+    the PDA is built) and the first update; `seen` is what reached the registry by each step."""
+
+    def __init__(self, mac=True, registry=True, addtab=True, option=False, bar=None,
+                 pages=False):
+        lua = self.lua = LuaRuntime(unpack_returned_tuples=True)
+        g = self.g = lua.globals()
+        lua.execute(PRELUDE)
+        lua.execute(TABS)
+        self.logs = []
+        g.printf = lambda fmt, *a: self.logs.append(str(a[0]) if a else str(fmt))
+        self.hooks = {}
+        g.RegisterScriptCallback = lambda name, fn: self.hooks.setdefault(str(name), []).append(fn)
+        if not mac:
+            lua.execute("mac_mcm = nil")
+        if not registry:
+            lua.execute("pda_dynamic_tabs = nil")
+        if not addtab:
+            lua.execute("CUITabControl = {}")
+        g.OPTION = option
+        # MCM's page defines the option where a tile and a tab can both be
+        g.OFFERED = mac and registry and addtab
+        g.sotz_pda = load("sotz_pda.script", g, lua)
+        g.z_seasons_pda_mac = load("z_seasons_pda_mac.script", g, lua)
+        if pages:
+            lua.execute(FLAT)
+            g.CUIScriptWnd = lua.table_from({"OnKeyboard": lambda *a: False})
+            g.ui_events = lua.table_from({"BUTTON_CLICKED": 17, "WINDOW_KEY_PRESSED": 6})
+            g.DIK_keys = lua.table_from({"DIK_ESCAPE": ESC})
+            install_strings(lua, g)
+            g.ui_seasons_pda = load("ui_seasons_pda.script", g, lua)
+            g.ui_seasons_forecast = load("ui_seasons_forecast.script", g, lua)
+            g.constructible(g.SeasonsPDA)
+            g.constructible(g.SeasonsForecast)
+        self.seen = []
+        g.sotz_pda.on_game_start()
+        g.z_seasons_pda_mac.on_game_start()
+        self.seen.append(self.calls())
+        self.fire("on_game_load")
+        if bar is not None:
+            g.BAR = lua.table_from(bar)
+        self.seen.append(self.calls())
+        self.fire("actor_on_first_update")
+        self.seen.append(self.calls())
+
+    def fire(self, name):
+        for fn in self.hooks.get(name, []):
+            fn()
+
+    def calls(self):
+        return lseq(self.g.calls)
+
+    def opened(self):
+        return lseq(self.g.opened)
+
+    def tile(self):
+        return self.g.tiles.app_seasons is not None
+
+    def option(self, on):
+        """MCM's option set and applied: the callbacks hear it; the game runs on later"""
+        self.g.OPTION = on
+        assert self.hooks.get("on_option_change"), "nothing hears MCM's options change"
+        self.fire("on_option_change")
+
+
+@case
+def t_the_tile_until_a_tab_is_asked_for():
+    gm = Game()
+    gm.g.play(5)
+    pda, g = gm.g.sotz_pda, gm.g
+    assert gm.seen == [[], [], []] and gm.calls() == [], (gm.seen, gm.calls())
+    assert gm.tile() and g.z_seasons_pda_mac.has_tile() is True, "no tile"
+    assert pda.year_section() == "eptSeasons" and pda.back_to_launcher() is True, \
+        (pda.year_section(), pda.back_to_launcher())
+    return "MAC, the option off: the tile, no tab, The Year in its parked section"
+
+
+@case
+def t_the_tab_when_asked_comes_in_play():
+    gm = Game(option=True)
+    g = gm.g
+    g.play(0.5)
+    half = gm.calls()
+    g.play(0.5)
+    assert gm.seen == [[], [], []], "a tab while the scripts start or the game loads: %s" % gm.seen
+    assert half == [], "the tab came before a second of play: %s" % half
+    assert gm.calls() == ["register pda_app_seasons"], gm.calls()
+    assert g.pending() == 0, "the time event stayed"
+    g.play(5)
+    assert gm.calls() == ["register pda_app_seasons"], "registered again: %s" % gm.calls()
+    assert not gm.tile() and g.removed == 0, "a tile: none to add as the game started"
+    pda = g.sotz_pda
+    sec = pda.year_section()
+    assert sec == "ept_dynamic_1" and pda.back_to_launcher() is False, (sec, pda.back_to_launcher())
+    # the tab shows The Year; one that fails to build shows nothing, logged, and the PDA stays up
+    getter = g.getters[sec]
+    assert getter() == "YEAR_PAGE", getter()
+    g.YEAR_FAILS = True
+    n = len(gm.logs)
+    failed = attempt(getter)
+    assert failed is None and len(gm.logs) == n + 1, "a page that fails to build: %s" % failed
+    g.YEAR_FAILS = False
+    # the router: the parked sections still the app's, every other down
+    gm.fire("on_game_load")
+    route = g.pda.set_active_subdialog
+    got = (route("eptSeasons"), route("eptForecast"), route("eptMap"))
+    assert got == ("YEAR_PAGE", "FORECAST_PAGE", "BASE:eptMap"), got
+    return "nothing while loading; the tab a second into play, once, after the others; no tile"
+
+
+@case
+def t_the_option_in_play():
+    gm = Game(option=True)
+    g = gm.g
+    g.play(1)
+    # off, with the PDA last on the tab: the tab goes once the game runs again, the tile comes
+    # back, and the PDA goes to Tasks rather than a section nothing answers
+    g.ACTIVE = "ept_dynamic_1"
+    gm.option(False)
+    paused = gm.calls()
+    g.play(0.01)
+    assert paused == ["register pda_app_seasons"], "it changed in the menu: %s" % paused
+    assert gm.calls() == ["register pda_app_seasons", "unregister ept_dynamic_1"], gm.calls()
+    assert gm.tile() and g.sotz_pda.back_to_launcher() is True, "no tile after the tab went"
+    assert g.sotz_pda.year_section() == "eptSeasons", g.sotz_pda.year_section()
+    assert gm.opened()[-1:] == ["eptTasks"], gm.opened()
+    # on again, changed twice before the game runs: one new tab, the tile taken away
+    gm.option(True)
+    gm.option(True)
+    g.play(0.01)
+    assert gm.calls()[2:] == ["register pda_app_seasons"], gm.calls()
+    assert not gm.tile() and g.removed == 1, (gm.tile(), g.removed)
+    assert g.sotz_pda.year_section() == "ept_dynamic_2", g.sotz_pda.year_section()
+    # a change that leaves the tab as it is: nothing
+    gm.option(True)
+    g.play(0.01)
+    assert gm.calls()[2:] == ["register pda_app_seasons"], gm.calls()
+    # off while the PDA was last elsewhere: it stays there
+    g.ACTIVE = "eptMap"
+    n = len(gm.opened())
+    gm.option(False)
+    g.play(0.01)
+    assert gm.calls()[-1] == "unregister ept_dynamic_2", gm.calls()
+    assert len(gm.opened()) == n and g.ACTIVE == "eptMap", (gm.opened(), g.ACTIVE)
+    return "off: tab gone, tile back, the PDA off the gone tab; on again: one tab, no tile"
+
+
+@case
+def t_the_tab_where_no_tile_can_be_reached():
+    """Without MAC there is no tile; with a bar that lacks MAC's Launcher there is one only
+    behind MAC's own key. Either way the tab comes whatever the option says."""
+    for kw in (dict(mac=False), dict(mac=False, option=True), dict(bar=NO_LAUNCHER)):
+        gm = Game(**kw)
+        gm.g.play(1)
+        pda = gm.g.sotz_pda
+        assert gm.seen == [[], [], []], (kw, gm.seen)
+        assert gm.calls() == ["register pda_app_seasons"], (kw, gm.calls())
+        assert not gm.tile() and pda.back_to_launcher() is False, (kw, gm.tile())
+        assert pda.year_section() == "ept_dynamic_1", (kw, pda.year_section())
+        # without MAC the option is on no page: asking MCM for it would only log a bad path
+        gm.option(True)
+        gm.g.play(0.01)
+        assert gm.g.bad_paths == 0, "%s: MCM asked for an option no page defines" % kw
+    # the bar without the Launcher is read after the scripts start, so the tile came first and
+    # went as the tab came
+    assert gm.g.removed == 1, gm.g.removed
+    return "no MAC, or a bar without its Launcher: the tab in play, the option on or off, no tile"
+
+
+@case
+def t_no_tab_without_the_registry():
+    for what in ("registry", "addtab"):
+        gm = Game(option=True, registry=(what != "registry"), addtab=(what != "addtab"))
+        gm.g.play(1)
+        pda = gm.g.sotz_pda
+        assert gm.calls() == [] and gm.tile(), (what, gm.calls(), gm.tile())
+        assert pda.tab_supported() is False and pda.wants_tab() is False, what
+        assert pda.year_section() == "eptSeasons" and gm.logs == [], (what, gm.logs)
+        assert gm.g.bad_paths == 0, "%s: MCM asked for an option no page defines" % what
+    # nor without MAC: nothing at all, and nothing said
+    gm = Game(mac=False, registry=False)
+    gm.g.play(1)
+    assert gm.calls() == [] and not gm.tile() and gm.logs == [], (gm.calls(), gm.logs)
+    return "without the registry or AddTab: the tile though the option is on, nothing logged"
+
+
+@case
+def t_a_tab_refused_or_a_pda_unread():
+    gm = Game(option=True)
+    gm.g.REFUSE = True
+    gm.g.play(1)
+    assert gm.tile() and gm.g.sotz_pda.year_section() == "eptSeasons", gm.tile()
+    assert len(gm.logs) == 1 and "no PDA tab" in gm.logs[0], gm.logs
+    # refused where the tile came as the game started (the bar read later): one tile, not two
+    gm = Game(bar=NO_LAUNCHER)
+    gm.g.REFUSE = True
+    gm.g.play(1)
+    assert gm.tile() and gm.g.adds == 1, "the tile added %d times" % gm.g.adds
+    # a PDA that cannot be read as the tab goes: the tile back all the same, logged, done
+    gm = Game(option=True)
+    gm.g.play(1)
+    gm.g.PDA_FAILS = True
+    gm.option(False)
+    err = attempt(gm.g.play, 0.01)
+    assert err is None, "the PDA's error reached the game: %s" % err
+    assert gm.g.pending() == 0 and gm.tile(), (gm.g.pending(), gm.tile())
+    assert len(gm.logs) == 1 and "PDA tab" in gm.logs[0], gm.logs
+    return "a refused tab leaves one tile; a PDA that cannot be read leaves the game on"
+
+
+@case
+def t_a_mac_that_refuses():
+    """MAC asserts on what it is given, and the game starts every script in one pass that
+    catches nothing: a tile MAC refuses is logged and the rest starts. One MAC cannot take
+    away stays, and Back still leads to it."""
+    # a second start (scripts reloaded by hand) asks MAC for no second tile
+    gm = Game()
+    gm.g.z_seasons_pda_mac.on_game_start()
+    assert gm.g.adds == 1 and gm.g.z_seasons_pda_mac.has_tile() is True, gm.g.adds
+    lua = LuaRuntime(unpack_returned_tuples=True)
+    g = lua.globals()
+    lua.execute(PRELUDE)
+    lua.execute(TABS)
+    lua.execute("ADD_FAILS = true")
+    logs = []
+    g.printf = lambda fmt, *a: logs.append(str(a[0]) if a else str(fmt))
+    g.RegisterScriptCallback = lambda *a: None
+    g.sotz_pda = load("sotz_pda.script", g, lua)
+    g.z_seasons_pda_mac = load("z_seasons_pda_mac.script", g, lua)
+    err = attempt(g.z_seasons_pda_mac.on_game_start)
+    assert err is None, "MAC's refusal stopped the scripts starting: %s" % err
+    assert g.z_seasons_pda_mac.has_tile() is False and len(logs) == 1, logs
+    assert "MAC registration failed" in logs[0], logs
+    # the tab comes, and MAC keeps the tile: it stays, said once, and Back still has it
+    gm = Game()
+    gm.g.play(1)
+    gm.g.REMOVE_FAILS = True
+    gm.option(True)
+    gm.g.play(0.01)
+    assert gm.calls() == ["register pda_app_seasons"], gm.calls()
+    assert gm.g.z_seasons_pda_mac.has_tile() is True and gm.g.sotz_pda.back_to_launcher() is True
+    assert len(gm.logs) == 1 and "stays" in gm.logs[0], gm.logs
+    return "a refused tile is logged and the scripts start; a tile MAC keeps stays reachable"
+
+
+@case
+def t_back_escape_and_the_switch_follow_the_tile():
+    pressed = 6
+    for option in (False, True):
+        gm = Game(option=option, pages=True)
+        g = gm.g
+        g.play(1)
+        tile = not option
+        for cls in ("SeasonsPDA", "SeasonsForecast"):
+            page = g.make_window(g[cls], False)
+            page.back = g.mkback()
+            g[cls].Reset(page)
+            assert page.back.shown is tile, "%s, option %s: Back shown %s" % (
+                cls, option, page.back.shown)
+            n = len(gm.opened())
+            took = g[cls].OnKeyboard(page, ESC, pressed)
+            if tile:
+                assert took is True and gm.opened()[n:] == ["eptLauncher"], (cls, gm.opened())
+            else:
+                assert took is False and gm.opened()[n:] == [], (cls, took, gm.opened())
+            # flat, Back is there and Escape closes the window, tile or tab
+            flat = g.make_window(g[cls], True)
+            flat.back = g.mkback()
+            flat.shown = True
+            g[cls].Reset(flat)
+            assert flat.back.shown is True, (cls, option)
+            assert g[cls].OnKeyboard(flat, ESC, pressed) is True and flat.shown is False, cls
+        # the switch: The Year to Forecast's section, Forecast back to The Year's, the tab's
+        year = g.make_window(g.SeasonsPDA, False)
+        fc = g.make_window(g.SeasonsForecast, False)
+        g.SeasonsPDA.OnToggle(year)
+        g.SeasonsForecast.OnToggle(fc)
+        want = ["eptForecast", "eptSeasons" if tile else "ept_dynamic_1"]
+        assert gm.opened()[-2:] == want, (option, gm.opened()[-2:])
+    return "Back and Escape to the launcher with the tile; with the tab, the PDA's; Forecast to the tab"
+
+
+MCM = r"""
+function mcm_main(op)
+    for _, page in ipairs(op.gr) do
+        if page.id == "main" then return page.gr end
+    end
+end
+function mcm_ids(gr)
+    local t = {}
+    for i, o in ipairs(gr) do t[i] = o.id end
+    return t
+end
+function mcm_status(gr)
+    for _, o in ipairs(gr) do
+        if o.id == "status_mac" then return o.text end
+    end
+end
+function mcm_option(gr, id)
+    for _, o in ipairs(gr) do
+        if o.id == id then return o end
+    end
+end
+"""
+
+
+@case
+def t_mcm_offers_the_tab_and_says_where_the_app_is():
+    """The option is on the Main page under the app key where a tile and a tab can both be,
+    and the status line says which way in the app has: by the options as saved, since
+    ui_mcm.get asserts while MCM builds the page."""
+    def main_page(mac=True, registry=True, saved=None, bar=None):
+        gm = Game(mac=mac, registry=registry, bar=bar)
+        gm.lua.execute(MCM)
+        gm.g.SAVED = saved
+        gm.g.MCM_BUILDING = True
+        mcm = load("zzz_seasons_of_the_zone_mcm.script", gm.g, gm.lua)
+        gr = gm.g.mcm_main(mcm.on_mcm_load())
+        assert gm.g.asked_while_building == 0, "ui_mcm.get asked while MCM built its page"
+        ids = lseq(gm.g.mcm_ids(gr))
+        return ids, str(gm.g.mcm_status(gr)), gm.g.mcm_option(gr, "pda_tab")
+    s = "ui_mcm_seasons_zone_status_"
+    for kw, offered, status in (
+            (dict(), True, s + "mac"),
+            (dict(saved=True), True, s + "tab"),
+            (dict(bar=NO_LAUNCHER), True, s + "tab"),
+            (dict(mac=False), False, s + "tab"),
+            (dict(mac=False, registry=False), False, s + "no_mac"),
+            (dict(registry=False, saved=True), False, s + "mac"),
+            (dict(registry=False, bar=NO_LAUNCHER), False, s + "no_tab")):
+        ids, said, opt = main_page(**kw)
+        assert ("pda_tab" in ids) is offered, (kw, ids)
+        if offered:
+            assert ids[ids.index("app_key") + 1] == "pda_tab", (kw, ids)
+            # a check, off as it ships
+            assert (opt.type, opt.val, opt["def"]) == ("check", 1, False), \
+                (opt.type, opt.val, opt["def"])
+        assert said == status, (kw, said)
+    gm = Game()
+    path = str(gm.g.sotz_pda.TAB_PATH)
+    assert path == "seasons_zone/main/pda_tab", path
+    return "offered with MAC and the registry, under the app key; the status line names the tab"
 
 
 if __name__ == "__main__":

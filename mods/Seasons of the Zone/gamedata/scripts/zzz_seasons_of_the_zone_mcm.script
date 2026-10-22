@@ -50,9 +50,10 @@ end
 
 -- What the PDA app needs, and whether it is here. Gray is fine, red is broken.
 --
--- Two ways in: Mod App Creator's launcher, and the app key on the row below, which opens a
--- window of its own and needs neither MAC nor any PDA tab. Red is when neither works: MAC is
--- missing, or the PDA's tab bar came without MAC's Launcher (another mod's whole-file
+-- Three ways in: Mod App Creator's launcher; a tab of its own on Modded Exes, in the
+-- launcher tile's place (sotz_pda.wants_tab); and the app key on the row below, which opens a
+-- window of its own and needs neither MAC nor any PDA tab. Red is when none works: no tab,
+-- MAC is missing or the PDA's tab bar came without MAC's Launcher (another mod's whole-file
 -- pda_16.xml won over MAC's), and no key is set. The tab bar is known once a level has
 -- built the PDA (modxml_seasons_pda.tab_bar), so at the main menu only MAC's absence shows.
 --
@@ -82,7 +83,11 @@ local function dependency_rows(out)
     -- the key as saved: ui_mcm.get asserts while MCM builds this page
     local okk, key = pcall(function() return sotz_pda.app_key(true) end)
     local keyed = okk and key ~= nil
-    if not has_mac then
+    -- the tab, by the option as saved, the same way
+    local okt, tab = pcall(function() return sotz_pda.wants_tab(true) end)
+    if okt and tab then
+        row("status_mac", "ui_mcm_seasons_zone_status_tab", false)
+    elseif not has_mac then
         row("status_mac", "ui_mcm_seasons_zone_status_no_mac", not keyed)
     elseif no_tab then
         row("status_mac", "ui_mcm_seasons_zone_status_no_tab", not keyed)
@@ -101,6 +106,14 @@ local function dependency_rows(out)
         if okd and drv == "rtz" then src = "rtz" end
     end
     row("status_weather", WEATHER_TEXT[src], src == "none")
+end
+
+-- whether the Main page offers the tab: MAC here for a tile, and an engine that can give one
+local function tab_choice()
+    local ok, yes = pcall(function()
+        return (mac_mcm and mac_mcm.add_app) and sotz_pda.tab_supported()
+    end)
+    return ok and yes == true
 end
 
 -- Today's date, and a line when a pinned season disagrees with the calendar.
@@ -153,6 +166,11 @@ local function page_main()
     -- the app key, under the line that says whether it is needed: unbound until the player
     -- picks one, as MCM's key binds ship (sotz_pda reads it)
     add({id = "app_key", type = "key_bind", val = 2, def = -1})
+    -- the tab of its own in place of the launcher tile, off as it ships; offered where both
+    -- can be, and without MAC the tab is there anyway (sotz_pda.wants_tab)
+    if tab_choice() then
+        add({id = "pda_tab", type = "check", val = 1, def = false})
+    end
     add({id = "line_cal1", type = "line"})
     calendar_rows(gr)
     local ok, tex = pcall(function() return zzz_seasons_of_the_zone.dial_texture() end)

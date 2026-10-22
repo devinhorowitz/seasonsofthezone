@@ -21,8 +21,9 @@
 -- side in the launcher and should read as one device seen twice. No scroll view - a page
 -- you have to scroll to read the date off is a document, not a device.
 --
--- Mod App Creator calls get_ui() and expects a CUIScriptWnd back. Registration lives in
--- z_seasons_pda_mac.script, so this file does not care whether MAC is installed.
+-- Mod App Creator calls get_ui() and expects a CUIScriptWnd back, and so does the app's tab
+-- of its own. Registration lives in z_seasons_pda_mac.script and sotz_pda.script, so this
+-- file does not care how the player came in.
 --
 -- The same page also opens flat, on the app key (sotz_pda.open_flat): a window of its own
 -- in the 2D PDA's frame, which needs no PDA tab and no MAC. Escape, the key again or Back
@@ -248,6 +249,13 @@ end
 -- Back to the launcher. MAC reaches its own tab the same way, and it binds a key for it
 -- too, but a page you can only leave by keyboard reads as a dead end. Flat, out of the
 -- window.
+--
+-- In the PDA, Back is there while the app has its tile in the launcher; with a tab of its
+-- own instead, the PDA's tabs are the way out, as from any other tab.
+function SeasonsPDA:PaintBack()
+    if self.back then self.back:Show(self.flat or sotz_pda.back_to_launcher()) end
+end
+
 function SeasonsPDA:OnBack()
     if self.flat then
         self:Close()
@@ -1030,15 +1038,19 @@ function SeasonsPDA:Reset()
     if not ok then say("Fill failed: " .. tostring(err)) end
     local okf, errf = pcall(function() self:PaintFooter() end)
     if not okf then say("footer failed: " .. tostring(errf)) end
+    local okb, errb = pcall(function() self:PaintBack() end)
+    if not okb then say("Back failed: " .. tostring(errb)) end
 end
 
 function SeasonsPDA:OnKeyboard(dik, action)
     local res = CUIScriptWnd.OnKeyboard(self, dik, action)
     if res then return res end
     if action == ui_events.WINDOW_KEY_PRESSED
-       and (dik == DIK_keys.DIK_ESCAPE or (self.flat and dik == sotz_pda.app_key())) then
+       and (dik == DIK_keys.DIK_ESCAPE or (self.flat and dik == sotz_pda.app_key()))
+       and (self.flat or sotz_pda.back_to_launcher()) then
         -- escape used to be swallowed here, which left the page with no way out but the
-        -- launcher key. It goes back now; flat, it and the app key close the window.
+        -- launcher key. It goes back now; flat, it and the app key close the window. With
+        -- no tile to go back to, it is the PDA's, as on its other tabs.
         self:OnBack()
         return true
     end

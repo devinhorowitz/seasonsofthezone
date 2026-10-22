@@ -24,6 +24,12 @@
 	<string id="ui_mcm_seasons_zone_app_key_desc">
 		<text>Открывает приложение «Сезоны» в отдельном окне, вне КПК. Ему не нужны ни вкладка КПК, ни Mod App Creator, поэтому оно откроется, даже если вкладки КПК другого мода заняли место меню Mod App Creator. С трёхмерным КПК окно к тому же чётче. Закрывается клавишей Esc, этой же клавишей или кнопкой «Назад».</text>
 	</string>
+	<string id="ui_mcm_seasons_zone_pda_tab">
+		<text>Вкладка «Сезоны» в КПК</text>
+	</string>
+	<string id="ui_mcm_seasons_zone_pda_tab_desc">
+		<text>Своя вкладка приложения «Сезоны» в панели КПК, после остальных, вместо плитки в меню Mod App Creator. Вступает в силу, когда вы вернётесь в игру. Если вкладки КПК другого мода заняли место вкладки меню Mod App Creator, вкладка есть в любом случае.</text>
+	</string>
 	<string id="ui_mcm_seasons_zone_enabled">
 		<text>Включить сезонную атмосферу</text>
 	</string>
@@ -373,6 +379,7 @@
 	<string id="ui_mcm_seasons_zone_status_mac"><text>КПК: приложение «Сезоны» запускается из меню Mod App Creator или клавишей ниже.</text></string>
 	<string id="ui_mcm_seasons_zone_status_no_tab"><text>КПК: вкладки КПК другого мода заняли место вкладки меню Mod App Creator. Приложение «Сезоны» открывается клавишей ниже, а собственная клавиша Mod App Creator по-прежнему открывает его меню.</text></string>
 	<string id="ui_mcm_seasons_zone_status_no_mac"><text>Mod App Creator не найден: приложение «Сезоны» открывается клавишей ниже.</text></string>
+	<string id="ui_mcm_seasons_zone_status_tab"><text>КПК: приложение «Сезоны» запускается со своей вкладки в КПК или клавишей ниже.</text></string>
 	<string id="ui_mcm_seasons_zone_status_plan"><text>Погода: дневной планировщик Atmospherics. Прогноз охватывает все предстоящие смены погоды.</text></string>
 	<string id="ui_mcm_seasons_zone_status_stock"><text>Погода: планировщик базовой игры, который использует GAMMA. Прогноз показывает текущую погоду, время её смены и шансы для следующей — её планировщик выбирает случайно, когда приходит время. Atmospherics 2.69 планирует весь день заранее.</text></string>
 	<string id="ui_mcm_seasons_zone_status_none"><text>Менеджер погоды не найден, поэтому страница «Прогноз» не может показать погоду. Всё остальное в моде работает.</text></string>

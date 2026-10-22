@@ -5,10 +5,12 @@
 -- section, so the engine treats both as ordinary pages, and a switch at the top of each
 -- page moves between them.
 --
--- Two ways in, and nothing here depends on which the player took:
+-- Three ways in, and nothing here depends on which the player took:
 --
 --   Mod App Creator's launcher. z_seasons_pda_mac.script puts one tile there, and is the
 --   only place MAC is registered. It needs MAC, and MAC's Launcher in the PDA's tab bar.
+--
+--   A tab of its own in the PDA's tab bar, on Modded Exes (below). It takes the tile's place.
 --
 --   The app key (MCM, Main page). It opens either face in a window of its own, drawn in the
 --   2D PDA's frame, and needs neither MAC nor any PDA tab. The tab bar is one file,
@@ -16,12 +18,6 @@
 --   copy wins, and the loser's tabs are gone: MAC's Launcher, or the other mod's. The key is
 --   the way in that no such pair can take away. With the 3D PDA on it is also the sharper
 --   view: a PDA page is drawn onto the screen in hand, this window straight to the screen.
---
--- A visible tab of our own would be a third way. Modded exes bind CUITabControl:AddTab(id,
--- caption, after_id), which sizes a tab like its neighbors and scrolls once they overflow,
--- where a button added to the pda xml by hand clips once the bar is full. This mod calls
--- neither. A fork that adds a tab that way takes its section off the parked list in
--- modxml_seasons_pda.script, or the section id exists twice.
 
 -- The two faces, by the PDA section each lives in. `title` is the string id of what the
 -- PDA prints top left for that section, of what the switch on each page says, and of the
@@ -33,6 +29,10 @@ VIEWS = {
 
 -- MCM stores the app key here: the key's DIK code, or -1 while unbound, which is how it ships.
 KEY_PATH = "seasons_zone/main/app_key"
+
+-- MCM's "Seasons tab in the PDA" (Main page), off as it ships: the tab of its own in place of
+-- the launcher tile. MCM offers it only where both could be (tab_supported, and MAC).
+TAB_PATH = "seasons_zone/main/pda_tab"
 
 -- MCM's "PDA notifications" (Main page), on as it ships. Every PDA message the mod sends goes
 -- through zzz_seasons_of_the_zone's pda_tip, which reads it; the Silence button at the foot of
@@ -57,6 +57,16 @@ end
 local function page_for(section)
     if section == VIEWS.year.tab then return ui_seasons_pda.get_ui() end
     if section == VIEWS.forecast.tab then return ui_seasons_forecast.get_ui() end
+    return nil
+end
+
+-- A face for the PDA to show. Every tab passes through the router, so a page that fails to
+-- build must not take the PDA down with it: it is caught and logged, and the section comes
+-- back empty.
+local function safe_page(section)
+    local ok, ui = pcall(page_for, section)
+    if ok then return ui end
+    say("page for " .. tostring(section) .. " failed: " .. tostring(ui))
     return nil
 end
 
@@ -159,8 +169,7 @@ end
 -- without this. Either wrap order works: whichever wrapper is outer, the other is reached
 -- through it.
 --
--- Every PDA tab passes through here, so a page that fails to build must not take the PDA
--- down with it: it is caught and logged, and the section comes back empty.
+-- Every PDA tab passes through here, so each face comes through safe_page.
 --
 -- Forwards every argument rather than just `section`. A wrapper with named parameters
 -- silently truncates the day upstream adds one.
@@ -172,14 +181,118 @@ local function install_router()
     local orig = pda.set_active_subdialog
     pda.set_active_subdialog = function(section, ...)
         if section == VIEWS.year.tab or section == VIEWS.forecast.tab then
-            local ok, ui = pcall(page_for, section)
-            if ok then return ui end
-            say("page for " .. tostring(section) .. " failed: " .. tostring(ui))
-            return nil
+            return safe_page(section)
         end
         return orig(section, ...)
     end
     WRAPPED = true
+end
+
+-- --- a tab of its own --------------------------------------------------------------------------
+--
+-- Modded Exes' tab registry (pda_dynamic_tabs, since 2026.7.31) adds a tab after the PDA's
+-- others, in the bar's own look, and scrolls the bar once it overflows. The tab has a section
+-- of its own, ept_dynamic_<n>, which the registry routes to The Year; Forecast stays in its
+-- parked section, and its switch comes back to the tab's.
+--
+-- The tab is there when MCM asks for it, or when no tile can stand in for it: MAC missing, or
+-- a tab bar without MAC's Launcher (modxml_seasons_pda.tab_bar). The tile is there while the
+-- tab is not, so the launcher never shows a second way to the same page. Without the registry,
+-- the tile.
+--
+-- A tab added during a load crashed the game (Arsenal's, 2026-10-11) and one added in play
+-- worked, so the tab comes and goes only in play: a second after the first update, and once the
+-- game runs again after MCM's options change.
+local TAB_CAPTION = "pda_app_seasons"
+local TAB = nil         -- the tab's section, while it is there
+
+-- whether this engine can give the app a tab: Modded Exes' registry, and AddTab on the tab
+-- control
+function tab_supported()
+    local ok, yes = pcall(function()
+        return pda_dynamic_tabs ~= nil and type(pda_dynamic_tabs.register) == "function"
+            and CUITabControl ~= nil and CUITabControl.AddTab ~= nil
+    end)
+    return ok and yes == true
+end
+
+-- Whether MCM asks for the tab. `saved` reads the stored options and nothing else, as
+-- app_key's does, for MCM's own page.
+function tab_asked(saved)
+    local v
+    if not saved then
+        local ok, got = pcall(function() return ui_mcm and ui_mcm.get(TAB_PATH) end)
+        if ok then v = got end
+    end
+    if v == nil then
+        local ok, got = pcall(function() return axr_main.config:r_value("mcm", TAB_PATH, 1, false) end)
+        if ok then v = got end
+    end
+    return v == true
+end
+
+-- whether a tile in MAC's launcher can be reached: MAC here, and its Launcher in the bar, or
+-- the bar not read yet
+local function tile_reachable()
+    if not (mac_mcm and mac_mcm.add_app) then return false end
+    local ok, bar = pcall(function() return modxml_seasons_pda.tab_bar() end)
+    return not (ok and type(bar) == "table" and bar.launcher == false)
+end
+
+-- Whether the app has a tab of its own (above); `saved` as tab_asked's. The option last: MCM
+-- defines it only where a tile could be, and ui_mcm.get logs an id no page defines.
+function wants_tab(saved)
+    return tab_supported() and (not tile_reachable() or tab_asked(saved))
+end
+
+-- the section The Year opens in: the tab's while it is there
+function year_section()
+    return TAB or VIEWS.year.tab
+end
+
+-- whether Back, in the PDA, leads to the app's tile in MAC's launcher: while the tile is there.
+-- Flat, Back closes the window whatever this says.
+function back_to_launcher()
+    local ok, yes = pcall(function() return z_seasons_pda_mac.has_tile() end)
+    return ok and yes == true
+end
+
+-- The tab there or gone, as wants_tab() says, and the tile the other way round; a tab the
+-- registry refuses leaves the tile. With the tab taken away while it was the PDA's last
+-- section, the PDA would reopen on a section nothing answers, its tab bar hidden; it goes to
+-- Tasks, the PDA's own first page, instead.
+local function sync_tab()
+    local want = wants_tab()
+    if want and not TAB then
+        local ok, id = pcall(pda_dynamic_tabs.register, TAB_CAPTION, function()
+            return safe_page(VIEWS.year.tab)
+        end)
+        if ok and type(id) == "string" then
+            TAB = id
+            z_seasons_pda_mac.remove_tile()
+        else
+            say("no PDA tab of its own: " .. tostring(id))
+            z_seasons_pda_mac.add_tile()
+        end
+    elseif not want and TAB then
+        local id = TAB
+        TAB = nil
+        local ok, err = pcall(pda_dynamic_tabs.unregister, id)
+        if not ok then say("the PDA tab could not be taken away: " .. tostring(err)) end
+        z_seasons_pda_mac.add_tile()
+        local menu = ActorMenu.get_pda_menu()
+        if menu and menu:GetActiveSection() == id then menu:SetActiveSubdialog("eptTasks") end
+    end
+end
+
+-- sync_tab, `delay` seconds into play (time events run with the actor's updates); a second
+-- call before it runs changes nothing
+local function sync_soon(delay)
+    CreateTimeEvent("sotz_pda", "sync_tab", delay, function()
+        local ok, err = pcall(sync_tab)
+        if not ok then say("the PDA tab: " .. tostring(err)) end
+        return true
+    end)
 end
 
 -- A face open flat is a window Lua made, shown with ShowDialog. A load (a quickload while it is
@@ -193,9 +306,12 @@ local function close_faces()
     end
 end
 
--- the router on on_game_load, the same moment MAC installs its own wrapper
+-- the router on on_game_load, the same moment MAC installs its own wrapper; the tab in play
+-- only (above)
 function on_game_start()
     RegisterScriptCallback("on_game_load", install_router)
+    RegisterScriptCallback("actor_on_first_update", function() sync_soon(1) end)
+    RegisterScriptCallback("on_option_change", function() sync_soon(0) end)
     RegisterScriptCallback("on_key_press", on_key_press)
     RegisterScriptCallback("actor_on_net_destroy", close_faces)
 end

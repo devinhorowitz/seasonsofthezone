@@ -41,8 +41,10 @@ person, a window at a time, is [INSTALL-GUIDE.md](INSTALL-GUIDE.md).
    worked.
 5. MCM, Screen Space Shaders and the Modded Exes come with GAMMA. **Mod App Creator** gives the
    Seasons app its PDA tile; it is present if an enabled mod (`+` in `modlist.txt`) has
-   `gamedata\scripts\mac_mcm.script`. Without it, the app opens on a key the player sets on
-   MCM's Main page. MAC is at https://www.moddb.com/mods/stalker-anomaly/addons/mod-app-creator-mac
+   `gamedata\scripts\mac_mcm.script`. Without it, the app has a tab of its own in the PDA
+   (Modded Exes 2026.7.31 or later; GAMMA's are), and opens on a key the player sets on MCM's
+   Main page. With it, MCM's Main page offers that tab in place of the tile. MAC is at
+   https://www.moddb.com/mods/stalker-anomaly/addons/mod-app-creator-mac
    (the player downloads it; don't, unless they ask).
 
 ## 2. Is it installed already?

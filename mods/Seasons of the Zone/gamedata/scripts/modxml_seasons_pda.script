@@ -10,10 +10,10 @@
 -- own pda_16.xml. Editing MAC's copy would mean maintaining a fork of a file three other
 -- mods also care about; injecting touches nobody's file and works whichever copy wins.
 --
--- Parked off-screen on purpose: the app is reached from the MAC launcher or the app key,
--- so the sections only have to exist, not show. A visible button added HERE, in the xml,
--- would crowd the bar and clip once it is full; on modded exes CUITabControl:AddTab is the
--- way to show a real tab, sized like its neighbors and scrolling on overflow. See
+-- Parked off-screen on purpose: the app is reached from the MAC launcher, its tab or the app
+-- key, so the sections only have to exist, not show. A visible button added HERE, in the xml,
+-- would crowd the bar and clip once it is full; on modded exes the tab registry shows a real
+-- tab, sized like its neighbors and scrolling on overflow, under a section of its own. See
 -- sotz_pda.script.
 --
 -- The tab bar and nothing else: the files ui/pda.xml and ui/pda_16.xml, and in them the

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **A PDA tab of its own.** On Modded Exes 2026.7.31 or later, the Seasons app can have a tab
+  in the PDA's tab bar, after the others, in place of its tile in Mod App Creator's launcher.
+  **Seasons tab in the PDA**, under the app key on MCM's Main page, asks for it; it takes the
+  tile's place a moment after you are back in the game, and turning it off brings the tile
+  back. Without Mod App Creator, or when another mod's PDA tabs have taken the place of its
+  Launcher tab, the tab is there either way, so the app has a way in from the PDA itself.
+  With the tab, the pages have no Back, and Escape works as on the PDA's other tabs. The
+  line at the top of MCM's Main page says which way in the app has.
+
 ## 2.11.1 — 2026-10-22
 
 - **Real Time Zone 1.0.2.** RTZ now reads this mod's hours of the sky first. `season.py
