@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.11.1 — 2026-10-22
 
 - **Real Time Zone 1.0.2.** RTZ now reads this mod's hours of the sky first. `season.py
   status` says so for RTZ 1.0.2 and later, and keeps its warnings about RTZ's own sample day
