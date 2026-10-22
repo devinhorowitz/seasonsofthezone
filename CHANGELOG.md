@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Real Time Zone 1.0.2.** RTZ now reads this mod's hours of the sky first. `season.py
+  status` says so for RTZ 1.0.2 and later, and keeps its warnings about RTZ's own sample day
+  for Ottawa for 1.0.0 and 1.0.1. The README says to update RTZ, and API.md says when
+  `[hourly]` is a day old.
+
 ## 2.11.0 — 2026-10-21
 
 - **Real Time Zone works with this mod out of the box.** DamageZedd's add-on runs the game's

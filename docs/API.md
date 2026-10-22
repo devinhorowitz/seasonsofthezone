@@ -217,6 +217,11 @@ start        = 2026-10-21T14:00
 15           = rain
 ```
 
+`start` is the hour the lines begin, on the PC's clock. They cover the 24 hours from it, so
+once those have passed they are a day old: read the day's `[forecast]` instead. `play.bat`
+refetches only when the file is over 6 hours old, and a launch without it, or without a
+connection, keeps the last hours.
+
 ## `blowout()`
 
 ```lua

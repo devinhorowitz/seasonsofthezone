@@ -4,7 +4,7 @@ The sky's hours play.bat fetches, on the PC's clock; the line in play.bat that R
 would add; season.py's report of the hours RTZ reads; RTZ's real weather standing aside on a
 day this mod holds the sky; and the read API's answer to the same question. Nothing here
 talks to the network, and no RTZ code is run: what RTZ does is stood in for, from its 1.0.1
-release.
+and 1.0.2 releases.
 
   python _tools/test_rtz.py
 """
@@ -198,9 +198,14 @@ def t_play_bat_carries_rtz_s_line():
 
 # --- what season.py reports -------------------------------------------------------------
 
-def rtz_install(d, on=True, own=None, fetcher=False, days_old=0.0, sky=None):
+def rtz_install(d, on=True, own=None, fetcher=False, days_old=0.0, sky=None, version="1.0.1"):
+    """RTZ in MO2; its main script logs `version` as RTZ's do, or nothing when it is None."""
     mods = list(tc.MODS) + [(RTZ, on, ["scripts/rtz_main.script"])]
     tc.install(d, mods=mods)
+    if version is not None:
+        io.open(os.path.join(d, "mods", RTZ, "gamedata", "scripts", "rtz_main.script"), "w",
+                encoding="utf-8").write(
+            '    printf_rtz("Initializing Real Time Zone (RTZ) v%s...")\n' % version)
     if own is not None:
         p = os.path.join(d, "mods", RTZ, "gamedata", "configs", "rtz_weather.ltx")
         os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -285,6 +290,61 @@ def t_no_line_without_rtz_on():
         row, _b, _n = report(d)
     assert row is None, row
     return "disabled or missing, RTZ gets no line"
+
+
+SKY = "[place]\nname = Chornobyl\nlat = 51.2763\nlon = 30.2219\n[hourly]\n14 = rain\n"
+
+
+def own_today(day=None):
+    """RTZ's own file as its 1.0.2 fetcher writes it: for Chornobyl, dated `day`."""
+    return ("[place]\nname = Chornobyl\nlat  = 51.2763\nlon  = 30.2219\ndate = %s\n\n[hourly]\n"
+            % (day or datetime.date.today().isoformat()) +
+            "".join("%d = cloudy ; 9.0C\n" % h for h in range(24)))
+
+
+@case
+def t_from_1_0_2_rtz_reads_seasons_hours_first():
+    with tempfile.TemporaryDirectory() as d:
+        rtz_install(d, own=OTTAWA, sky=SKY, version="1.0.2")
+        row, bangs, notes = report(d)
+    assert row and "the hours of the sky play.bat fetches, for Chornobyl" in row, row
+    assert not bangs and not notes, (bangs, notes)
+    with tempfile.TemporaryDirectory() as d:
+        rtz_install(d, own=own_today(), fetcher=True, sky=SKY, version="1.0.2")
+        row, bangs, _n = report(d)
+    assert row and "play.bat fetches" in row and not bangs, (row, bangs)
+    return "Ottawa's day or a fresh file of its own, RTZ 1.0.2 reads Seasons' hours"
+
+
+@case
+def t_from_1_0_2_its_own_file_counts_only_the_day_it_was_written():
+    with tempfile.TemporaryDirectory() as d:
+        rtz_install(d, own=own_today(), version="1.0.2")
+        row, bangs, notes = report(d)
+    assert row and "its own hours of the sky, for Chornobyl" in row, row
+    assert not bangs and not notes, (bangs, notes)
+    for own in (OTTAWA, own_today("2026-01-02")):
+        with tempfile.TemporaryDirectory() as d:
+            rtz_install(d, own=own, days_old=3, version="1.0.2")
+            row, bangs, notes = report(d)
+        assert row and "play.bat fetches" in row, row
+        assert not bangs and len(notes) == 1 and "no hours yet" in notes[0], (bangs, notes)
+    return "today's own file is read without Seasons' hours; Ottawa's or an old one isn't"
+
+
+@case
+def t_rtz_s_version_comes_from_its_main_script():
+    # 1.0.1 and anything earlier read their own file first; 1.0.2, a later release, or one
+    # that doesn't say read Seasons' hours first
+    for version, own_first in (("1.0.0", True), ("1.0.1", True), ("1.0.2", False),
+                               ("1.0.10", False), (None, False)):
+        with tempfile.TemporaryDirectory() as d:
+            rtz_install(d, own=OTTAWA, sky=SKY, version=version)
+            row, bangs, _n = report(d)
+        assert row, version
+        assert ("for Ottawa" in row) == own_first, (version, row)
+        assert (len(bangs) == 1) == own_first, (version, bangs)
+    return "1.0.0 and 1.0.1 read their own; 1.0.2, 1.0.10 and an unlabeled one read Seasons'"
 
 
 # --- RTZ's real weather on a held day ---------------------------------------------------

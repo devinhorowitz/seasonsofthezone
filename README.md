@@ -802,11 +802,11 @@ from the real weather at your place hour by hour, and turns sleeping into a rest
 time. Install it in MO2 anywhere; it ships none of this mod's files.
 
 - **The sky's hours.** `play.bat` fetches the next 24 hours of the sky with the day's
-  weather, on your PC's clock, and RTZ reads them when it has none of its own. RTZ 1.0
-  ships its own `gamedata\configs\rtz_weather.ltx`, one sample day for Ottawa, and reads
-  that first: delete it, or run RTZ's `setup_rtz.bat` once so that its own fetcher rewrites
-  it at each launch. `py _tools\season.py status` says which one RTZ reads, and warns when
-  it is stale or for another place.
+  weather, on your PC's clock, and RTZ 1.0.2 and later read them first, with nothing to set
+  up. Start the game with `play.bat` so the hours stay current. RTZ 1.0.0 and 1.0.1 ship
+  their own `gamedata\configs\rtz_weather.ltx`, one sample day for Ottawa, and read that
+  first: update RTZ, or delete that file. `py _tools\season.py status` says which one RTZ
+  reads, and warns when it is stale or for another place.
 - **`play.bat`** already carries the line RTZ's setup would add, so the setup leaves the
   file as it is, and updating this mod keeps the line working.
 - **Remembrance days and anniversaries** keep their sky. On a day this mod holds the sky

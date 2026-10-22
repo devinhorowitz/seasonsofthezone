@@ -4709,16 +4709,17 @@ def weather_flags():
 
 # --- Real Time Zone ---------------------------------------------------------------------
 # Real Time Zone (RTZ), DamageZedd's add-on for this mod, runs the game's clock on real time
-# and takes the sky from the real weather each hour. It reads the hours from its own
-# rtz_weather.ltx when that has an [hourly] section, and from season_weather.ltx's
-# otherwise, which fetch_weather.py writes. Its 1.0 releases ship an rtz_weather.ltx of
-# their own, a sample day for Ottawa, so until its setup_rtz.bat installs the fetcher that
-# rewrites it, RTZ reads that same day forever. The report says which file RTZ reads, and
-# what to do when it is the wrong one.
+# and takes the sky from the real weather each hour. From 1.0.2 it reads the hours from
+# season_weather.ltx's [hourly], which fetch_weather.py writes, and from its own
+# rtz_weather.ltx only when ours has none and its own is dated today. 1.0.0 and 1.0.1 read
+# their own file first, and ship one, a sample day for Ottawa, so until its setup_rtz.bat
+# installs the fetcher that rewrites it, they read that same day forever. The report says
+# which file RTZ reads, and what to do when it is the wrong one.
 RTZ_MARKER = ("gamedata", "scripts", "rtz_main.script")
 RTZ_WEATHER = ("gamedata", "configs", "rtz_weather.ltx")
 RTZ_FETCHER = "fetch_rtz_hourly.py"       # what setup_rtz.bat copies into _tools
 RTZ_STALE_DAYS = 1
+RTZ_SEASONS_FIRST = (1, 0, 2)             # the first release that reads our hours first
 
 
 def _ltx_sections(path):
@@ -4749,10 +4750,23 @@ def rtz_folder():
     return os.path.join(MODS, on[0]) if on else None
 
 
+def rtz_version(folder):
+    """Real Time Zone's version, from the line its main script logs as it starts, as a tuple
+    of ints; None when the script doesn't say."""
+    try:
+        text = io.open(os.path.join(folder, *RTZ_MARKER), encoding="cp1251",
+                       errors="replace").read()
+    except OSError:
+        return None
+    m = re.search(r"Real Time Zone \(RTZ\) v(\d+)\.(\d+)\.(\d+)", text)
+    return tuple(int(n) for n in m.groups()) if m else None
+
+
 def rtz_plan(now=None):
     """What Real Time Zone reads for the sky's hours, and what leaves that wrong:
     {"state": "none" | "own" | "seasons", "place", "refreshed", "problems", "notes"}.
-    "own" is its rtz_weather.ltx, "seasons" season_weather.ltx's [hourly]."""
+    "own" is its rtz_weather.ltx, "seasons" season_weather.ltx's [hourly]. A release that
+    doesn't log its version is taken to be 1.0.2 or later."""
     out = {"state": "none", "place": None, "refreshed": False, "problems": [], "notes": []}
     folder = rtz_folder()
     if not folder:
@@ -4761,7 +4775,18 @@ def rtz_plan(now=None):
     own_path = os.path.join(folder, *RTZ_WEATHER)
     own = _ltx_sections(own_path) if os.path.isfile(own_path) else {}
     out["refreshed"] = os.path.isfile(os.path.join(ROOT, "_tools", RTZ_FETCHER))
-    if any(k.isdigit() or (k[:1] == "h" and k[1:].isdigit()) for k in own.get("hourly", {})):
+    ours = _ltx_sections(os.path.join(MODS, SOTZ, "gamedata", "configs", "season_weather.ltx"))
+    has_ours = any(k.isdigit() for k in ours.get("hourly", {}))
+    has_own = any(k.isdigit() or (k[:1] == "h" and k[1:].isdigit())
+                  for k in own.get("hourly", {}))
+    version = rtz_version(folder)
+    if version is None or version >= RTZ_SEASONS_FIRST:
+        today = time.strftime("%Y-%m-%d", time.localtime(now))
+        if not has_ours and has_own and own.get("place", {}).get("date") == today:
+            out["state"] = "own"
+            out["place"] = own["place"].get("name") or "?"
+            return out
+    elif has_own:
         out["state"] = "own"
         there = own.get("place", {})
         out["place"] = there.get("name") or "?"
@@ -4794,8 +4819,7 @@ def rtz_plan(now=None):
         return out
     out["state"] = "seasons"
     out["place"] = place_name(here)
-    ours = _ltx_sections(os.path.join(MODS, SOTZ, "gamedata", "configs", "season_weather.ltx"))
-    if not any(k.isdigit() for k in ours.get("hourly", {})):
+    if not has_ours:
         out["notes"].append(_(
             "season_weather.ltx has no hours yet - play.bat fetches them - so Real Time Zone "
             "models the hours from the day's forecast."))
