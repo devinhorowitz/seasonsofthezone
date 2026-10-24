@@ -252,3 +252,11 @@ SEASON_ACCENTS = True
 # its author made it, mixed by your percent; the accents color the seasons without one.
 # configure.bat writes this.
 SEASON_ACCENTS_ON_PACKS = True
+
+# Other mods' MCM options that follow the season: {"page/option": {name: value, ...,
+# "else": value}}. play.bat sets each before the game starts, to its value for the most
+# specific name on that day, or "else". configure.bat writes this.
+MCM_SETTINGS = {
+    "oleh_sounds/general/ice_patch": {"winter_snow": True, "else": False},
+    "oleh_sounds/weapons/ice_patch": {"winter_snow": True, "else": False},
+}

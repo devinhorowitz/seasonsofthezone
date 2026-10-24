@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.12.0 — 2026-10-24
 
 - **A PDA tab of its own.** On Modded Exes 2026.7.31 or later, the Seasons app can have a tab
   in the PDA's tab bar, after the others, in place of its tile in Mod App Creator's launcher.
