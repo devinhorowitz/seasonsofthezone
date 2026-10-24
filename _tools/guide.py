@@ -593,6 +593,7 @@ class Guide(object):
         self.mods_extras(box)
         self.rain_box(box)
         self.mcm_box(box)
+        self.order_box(box)
         self.mods_count = ttk.Label(box, text="", foreground=cf.GREY)
         self.mods_count.pack(anchor="w", pady=(12, 0))
         self.count_mods()
@@ -750,6 +751,21 @@ class Guide(object):
         if shadow:
             self.para(_("Pick it in the list to take the soundscape from it instead."),
                       parent=note, color=cf.AMBER, pad=(0, 0), indent=24)
+
+    def order_box(self, box):
+        """Whether play.bat keeps MO2's load order as it is, or moves each checked mod just
+        below the mod it wins over, as it does unless told."""
+        tk, ttk = self.tk, self.ttk
+        self.subhead(_("Load order"), parent=box)
+        self.para(_("play.bat keeps each checked mod just below the mod it wins over in MO2's "
+                    "left pane, so the game uses its files, and moves one there when it isn't. "
+                    "With your load order kept, it only turns mods on and off, and says when one "
+                    "sits above the mod it wins over."), parent=box, pad=(0, 0))
+        on = tk.BooleanVar(value=self.cal.keep_order is True)
+        self.order_check = ttk.Checkbutton(
+            box, text=_("Keep my load order"), variable=on,
+            command=lambda: self.cal.set_keep_order(on.get()))
+        self.order_check.pack(anchor="w", pady=(6, 1))
 
     def rain_box(self, box):
         """No Rain in Winter, on or off: the weathers that rain, copied with no rain for the
@@ -1504,6 +1520,8 @@ class Guide(object):
             rows.append((_("Ambient sound"), _("follows the season, from %s") % cal.sound_src))
         if rain_row(cal):
             rows.append(rain_row(cal))
+        if cal.keep_order is True:
+            rows.append((_("Load order"), _("kept as it is: play.bat only turns mods on and off")))
         rows.append((_("Seasons"), seasons_words(cal)))
         if cal.own:
             rows.append((_("Seasons of your own"), own_words(cal)))
@@ -1699,6 +1717,9 @@ class Guide(object):
             rows.append((_("Texture sets and sound"), text, lambda: self.edit("mods")))
         if cal.mcm:
             rows.append((_("MCM settings"), "%d: %s" % (len(cal.mcm), ce.few(cal.mcm, 3)),
+                         lambda: self.edit("mods")))
+        if cal.keep_order is True:
+            rows.append((_("Load order"), _("kept as it is: play.bat only turns mods on and off"),
                          lambda: self.edit("mods")))
         rows += [(_("Seasons"), seasons_words(cal), lambda: self.edit("seasons")),
                  (_("Seasons of your own"), own_words(cal) if cal.own else _("none yet"),

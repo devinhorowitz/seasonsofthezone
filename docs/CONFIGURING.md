@@ -137,6 +137,8 @@ py _tools\configure.py place --reset                  # Chornobyl again
 py _tools\configure.py lut                            # each season's LUT, and the LUTs found
 py _tools\configure.py lut winter Iris 60             # 60% of the way to Iris
 py _tools\configure.py lut winter --off
+py _tools\configure.py order                          # whether play.bat moves seasonal mods
+py _tools\configure.py order keep                     # keep your load order as it is
 py _tools\configure.py preset                         # the presets there are
 py _tools\configure.py preset show "Two seasons"
 py _tools\configure.py preset load "Two seasons" [--parts calendar] [--force]
@@ -202,7 +204,7 @@ TOGGLE_MODS = {
 |---|---|
 | *key* | The mod folder name under `mods/`. A folder that is not installed is skipped. |
 | `when` | When the mod is enabled: any mix of seasons (`spring`, `summer`, `autumn`, `winter`, `winter_snow`, `late_winter`), your events and periods, and the kinds of weather `freezing`, `thaw` and `heat`. One name needs the trailing comma: `("winter",)`. `seasons` is the original spelling of this key and still works. |
-| `above` | The mod this one wins over. `play.bat` keeps it just above that mod in `modlist.txt` - just below it in MO2's left pane - so where both ship a file, this one's is used. `configure.bat` picks it for you. |
+| `above` | The mod this one wins over. `play.bat` keeps it just above that mod in `modlist.txt` - just below it in MO2's left pane - so where both ship a file, this one's is used. `configure.bat` picks it for you. With [`KEEP_ORDER`](#keeping-your-load-order-keep_order), it is only checked. |
 | `save_content` | `True` lets `play.bat` switch a mod whose files put things into saves; see [What a mod leaves in saves](#what-a-mod-leaves-in-saves-save_content). Without it, such a mod is left as it is in MO2. Written by hand. |
 
 The weather comes from the real forecast `play.bat` fetches at each launch, for the place
@@ -313,6 +315,36 @@ with their own textures and aren't. When no mod has a texture, the line says so:
 with the mod the particles are from. When a `.db` it would look in can't be read, it says
 nothing, since that one may have them.
 
+### Weathers that name what no config has
+
+The game reads every weather under `configs\environment\weathers` as it starts, before the
+main menu. Each hour of one names a sun from `suns.ltx`, a thunderbolt collection from
+`thunderbolt_collections.ltx` and an ambient from `ambients.ltx`, and a name missing from
+the copy the game gets stops it there: `Can't open section`. A season can bring that on. A
+seasonal mod with a `suns.ltx` of its own can win over the one the other weathers need, as
+INVERNO 1.09's base module does unless its `configs\environment` folder is taken out. A
+seasonal mod's weathers can name a sun that only a mod that's off has, as No Rain in
+Winter's copies of Weather Expansion's weathers do with the Expansion off. So once the
+season is staged, `play.bat` reads the weathers that win for names the game won't find,
+and stops before the launch:
+
+```
+  ! w_partly4.ltx, in "Weather Expansion for Atmospherics", names the sun
+    "sunset_sunrise", which no config in this launch has. The game stops on it as it
+    starts ("Can't open section").
+    "Weather Expansion for Atmospherics" and "Atmospherics" have it in their suns.ltx,
+    but the copy in "Project I.N.V.E.R.N.O" wins: take that copy out of
+    "Project I.N.V.E.R.N.O", or put one of them below it in MO2's left pane.
+    "Project I.N.V.E.R.N.O" is a seasonal mod, on for this season.
+```
+
+A name is there when it is a section of the copy of the file that wins in MO2, of a file it
+`#include`s, or of a DLTX file beside it (`mod_suns_*.ltx` and so on), each from where it
+wins. A file only the game's own archives have isn't read here, so the names it may give
+aren't checked; GAMMA's `ambients.ltx` includes one. When a mod that's off has the name, the
+line says to turn it on; when No Rain in Winter's copies name it, it says to close MO2 and
+run `play.bat` to make them again. `season.py status` shows the same lines.
+
 ### Which mod it wins over (`above`)
 
 MO2 gives a shared file to the enabled mod with the highest priority that ships it: the
@@ -355,6 +387,29 @@ reports:
   season share files, and the one listed wins. Fine if that is the intent.
 
 `play.bat` runs the same check whenever MO2's mod list has changed.
+
+### Keeping your load order (`KEEP_ORDER`)
+
+```python
+KEEP_ORDER = True
+```
+
+`play.bat` keeps each seasonal mod just below the mod it wins over in MO2's left pane, and
+moves one there when it sits above it. It does the same for the mods it makes: No Rain in
+Winter, the soundscape and Seasonal LUT. With `KEEP_ORDER = True` it moves nothing: it only
+turns mods on and off. A mod that is on and sits above the mod it wins over is named, with
+the fix:
+
+```
+  ! Winter Pack sits above "X Base" in MO2's left pane, the mod it is set to win over, so
+    where both have a file, that one's is used. Your load order is kept as it is.
+    Move it below "X Base" in MO2, or pick another in its "Wins over" box in configure.bat.
+```
+
+A mod MO2 doesn't list yet still goes in once, just below the mod it wins over, since MO2
+loads only the mods it lists. `season.py status` checks the files in the order as it is.
+**Keep my load order**, on `configure.bat`'s Seasonal mods step and above the advanced
+editor's mod list, sets it; so do `configure.py order keep` and `order move`.
 
 ---
 

@@ -530,6 +530,12 @@ Use that name. If no other mod ships the file, any position works. `--for` keeps
 out of the answer, which matters when it is enabled at the top of the list, where MO2 puts
 a fresh install.
 
+`play.bat` moves a seasonal mod just below the mod it wins over in MO2's left pane when it
+sits above it, and the mods it makes too. To keep your load order as it is, tick **Keep my
+load order** on the Seasonal mods step: `play.bat` then only turns mods on and off, and
+names any mod that is on and sits above the mod it wins over. See
+[Keeping your load order](docs/CONFIGURING.md#keeping-your-load-order-keep_order).
+
 ### Mods that work well this way
 
 | Mod | Seasons | Notes |
@@ -715,11 +721,22 @@ survival system (see **Switch with care** under
 if you want the survival system, keep it in a mod of its own that stays on all year:
 
 - **The seasonal textures:** delete `gamedata\scripts`, `gamedata\anims`,
-  `gamedata\configs\items`, `gamedata\configs\text` and
-  `gamedata\configs\mod_system_trade_inverno.ltx` from it. `py _tools\season.py status`
-  names anything left that puts things into saves.
+  `gamedata\configs\items`, `gamedata\configs\text`,
+  `gamedata\configs\mod_system_trade_inverno.ltx` and `gamedata\configs\environment` from
+  it. `py _tools\season.py status` names anything left that puts things into saves. The
+  `environment` folder holds INVERNO's own weathers, which would take the place of
+  Atmospherics' all winter, and a `suns.ltx` that lacks Atmospherics' `sunset_sunrise` and
+  Weather Expansion's `cloudy_dark_special`. Any other weather that names one of them, such
+  as Weather Expansion's, then stops the game as it starts (`Can't open section`);
+  `play.bat` stops before such a launch and says why. Delete `clouds.ps` and
+  `deffer_impl_flat.ps` from its `gamedata\shaders\r3` too, keeping the
+  `settings_screenspace` headers. `clouds.ps` is the game's plain cloud shader: in winter it
+  takes the place of your weather mod's, and IRADC's skies, whose cloud settings it paints as
+  a color, turn deep blue. `deffer_impl_flat.ps` is INVERNO's own terrain shader, in place of
+  your shader pack's.
 - **The survival system**, on all year and not a seasonal mod: a second install of the base
-  module that keeps only those, with `gamedata\particles`, `db\addons\inverno_textures.db`
+  module that keeps only the scripts, anims, items, text and trade file above, with
+  `gamedata\particles`, `db\addons\inverno_textures.db`
   and the survival system's own textures: `ui_inverno.dds` and `ui_icon_heating_pad.dds` in
   `gamedata\textures\ui`, and the three `item_tx4` files in
   `gamedata\textures\usable_items\injectors`. With nothing else in it, the Zone isn't white

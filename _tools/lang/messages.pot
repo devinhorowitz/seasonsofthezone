@@ -839,6 +839,21 @@ msgstr ""
 
 #: season.py
 #, python-format
+msgid "%(mod)s sits above \"%(above)s\" in MO2's left pane, the mod it is set to win over, so where both have a file, that one's is used. Your load order is kept as it is."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Move it below \"%s\" in MO2, or pick another in its \"Wins over\" box in configure.bat."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "Move it below \"%s\" in MO2."
+msgstr ""
+
+#: season.py
+#, python-format
 msgid "No Rain in Winter is out of date (%(n)d weather changed since it was made), and is made again at a launch with %(what)s closed."
 msgid_plural "No Rain in Winter is out of date (%(n)d weathers changed since it was made), and is made again at a launch with %(what)s closed."
 msgstr[0] ""
@@ -1791,6 +1806,63 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: season.py
+msgctxt "a weather names a"
+msgid "sun"
+msgstr ""
+
+#: season.py
+msgctxt "a weather names a"
+msgid "thunderbolt collection"
+msgstr ""
+
+#: season.py
+msgctxt "a weather names an"
+msgid "ambient"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(files)s, in %(mods)s, names the %(kind)s \"%(name)s\", which no config in this launch has. The game stops on it as it starts (\"Can't open section\")."
+msgid_plural "%(files)s, in %(mods)s, name the %(kind)s \"%(name)s\", which no config in this launch has. The game stops on it as it starts (\"Can't open section\")."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "%(hidden)s has it in its %(file)s, but the copy in MO2's overwrite folder wins: take that copy out of overwrite."
+msgid_plural "%(hidden)s have it in their %(file)s, but the copy in MO2's overwrite folder wins: take that copy out of overwrite."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "%(hidden)s has it in its %(file)s, but the copy in \"%(winner)s\" wins: take that copy out of \"%(winner)s\", or put %(hidden)s below it in MO2's left pane."
+msgid_plural "%(hidden)s have it in their %(file)s, but the copy in \"%(winner)s\" wins: take that copy out of \"%(winner)s\", or put one of them below it in MO2's left pane."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
+msgid "\"%s\" is a seasonal mod, on for this season."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "%(holders)s, off in MO2, has it: turn it on, or take out the weathers that name it."
+msgid_plural "%(holders)s, off in MO2, have it: turn one on, or take out the weathers that name it."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+msgid "No mod in MO2's list has it: take out the weathers that name it, or put back the mod they came with."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "\"%s\" made its copies from the weathers that won then. Close MO2 and run play.bat to make it again from the ones that win now."
+msgstr ""
+
+#: season.py
 msgid "This does not look like a Mod Organizer install."
 msgstr ""
 
@@ -2211,6 +2283,10 @@ msgid "%(season)s: %(n)d texture set skipped; the ! lines above say why."
 msgid_plural "%(season)s: %(n)d texture sets skipped; the ! lines above say why."
 msgstr[0] ""
 msgstr[1] ""
+
+#: season.py
+msgid "Stopped before the launch: the game would stop as it starts. Fix it as the lines above say, then run play.bat again."
+msgstr ""
 
 #: season.py
 msgid "Stopped before the launch: the game would crash as the save loads. Fix it as the lines above say, then run play.bat again."
@@ -3876,6 +3952,32 @@ msgid "a season with a LUT pack shows the pack as its author made it, and the ac
 msgstr ""
 
 #: configure.py
+msgid "play.bat keeps MO2's load order as it is: it only turns mods on and off, and says when one sits above the mod it wins over in MO2's left pane."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "To let it move them: %s"
+msgstr ""
+
+#: configure.py
+msgid "play.bat keeps each seasonal mod just below the mod it wins over in MO2's left pane, and moves one there when it isn't."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "To keep your load order as it is: %s"
+msgstr ""
+
+#: configure.py
+msgid "play.bat keeps MO2's load order as it is from the next launch"
+msgstr ""
+
+#: configure.py
+msgid "play.bat moves each seasonal mod just below the mod it wins over from the next launch"
+msgstr ""
+
+#: configure.py
 msgid "No enabled mod has a weather that rains."
 msgstr ""
 
@@ -4231,6 +4333,10 @@ msgstr ""
 msgid "Only seasonal mods"
 msgstr ""
 
+#: configure.py guide.py
+msgid "Keep my load order"
+msgstr ""
+
 #: configure.py
 msgid "Mods, as MO2 lists them"
 msgstr ""
@@ -4426,6 +4532,16 @@ msgstr ""
 #: configure.py
 #, python-format
 msgid "play.bat keeps it just below %s in MO2's mod list, so where the two have the same file, this one's is used."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "It is below %s in MO2's mod list, so where the two have the same file, this one's is used. Your load order is kept as it is."
+msgstr ""
+
+#: configure.py
+#, python-format
+msgid "It is above %(mod)s in MO2's mod list, and your load order is kept as it is, so where the two have the same file, that one's is used. Move it below %(mod)s in MO2, or pick another in the box above."
 msgstr ""
 
 #: configure.py
@@ -5024,6 +5140,10 @@ msgstr[1] ""
 
 #: configure.py
 msgid "season accents"
+msgstr ""
+
+#: configure.py
+msgid "load order kept"
 msgstr ""
 
 #: configure.py
@@ -5928,6 +6048,10 @@ msgid "keep a season's LUT pack as its author made it (the default)"
 msgstr ""
 
 #: configure.py
+msgid "show whether play.bat moves seasonal mods in MO2's list, or keep your load order as it is"
+msgstr ""
+
+#: configure.py
 msgid "show the weathers that rain, or take their rain out in the winters"
 msgstr ""
 
@@ -6246,6 +6370,14 @@ msgid "Pick it in the list to take the soundscape from it instead."
 msgstr ""
 
 #: guide.py
+msgid "Load order"
+msgstr ""
+
+#: guide.py
+msgid "play.bat keeps each checked mod just below the mod it wins over in MO2's left pane, so the game uses its files, and moves one there when it isn't. With your load order kept, it only turns mods on and off, and says when one sits above the mod it wins over."
+msgstr ""
+
+#: guide.py
 msgid "Snow falls in the rain and storm weathers, but each weather's own rain falls with it. This makes No Rain in Winter: copies of the weathers that rain, with the rain set to 0, on in winter and deep winter."
 msgstr ""
 
@@ -6511,6 +6643,10 @@ msgstr ""
 #: guide.py
 #, python-format
 msgid "follows the season, from %s"
+msgstr ""
+
+#: guide.py
+msgid "kept as it is: play.bat only turns mods on and off"
 msgstr ""
 
 #: guide.py

@@ -172,7 +172,7 @@ def clock_today(prefs=None):
 
 CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS", "CALENDAR",
                 "NAMES", "WEATHER_PLACE", "OWN_SEASONS", "SPELLS", "MCM_SETTINGS",
-                "SEASON_LUTS", "SEASON_ACCENTS", "SEASON_ACCENTS_ON_PACKS")
+                "SEASON_LUTS", "SEASON_ACCENTS", "SEASON_ACCENTS_ON_PACKS", "KEEP_ORDER")
 
 
 def _config_error(e):
@@ -340,6 +340,10 @@ SEASON_ACCENTS = getattr(_cfg, "SEASON_ACCENTS", None)
 # Whether a season with a LUT pack gets the accents too. Not True, its pack's grade stays as
 # its author made it, mixed by the percent, and the accents color the seasons without one.
 SEASON_ACCENTS_ON_PACKS = getattr(_cfg, "SEASON_ACCENTS_ON_PACKS", None)
+# Whether play.bat keeps MO2's load order as the player left it. True, it only switches mods
+# on and off: a mod in the list is never moved, and one that loses to the mod it is set to
+# win over is named instead (UNPLACED). A mod MO2 doesn't list yet still goes in, there.
+KEEP_ORDER = getattr(_cfg, "KEEP_ORDER", None)
 
 
 def _q(v):
@@ -428,7 +432,8 @@ def _validate_config():
                                               CALENDAR, NAMES, WEATHER_PLACE, OWN_SEASONS,
                                               SPELLS, MCM_SETTINGS, luts=SEASON_LUTS,
                                               accents=SEASON_ACCENTS,
-                                              accents_on_packs=SEASON_ACCENTS_ON_PACKS)
+                                              accents_on_packs=SEASON_ACCENTS_ON_PACKS,
+                                              keep_order=KEEP_ORDER)
     if problems:
         raise SystemExit(head + "\n".join("    - " + p for p in problems)
                          + "\n  " + _("Nothing has been changed."))
@@ -476,7 +481,7 @@ def _own_folders():
 
 def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=None,
                     names=None, place=None, own=None, spells=None, mcm=None, luts=None,
-                    accents=None, accents_on_packs=None):
+                    accents=None, accents_on_packs=None, keep_order=None):
     """What is wrong with a set of config tables, one sentence per entry at fault. The
     configure tool checks a file with this before it writes one."""
     problems = []
@@ -721,6 +726,9 @@ def config_problems(toggle_mods, layout, sound_src, periods, events, calendar=No
     if accents_on_packs is not None and not isinstance(accents_on_packs, bool):
         # translators: follows a setting's name, which stays English
         problems.append("SEASON_ACCENTS_ON_PACKS " + _("must be True or False."))
+    if keep_order is not None and not isinstance(keep_order, bool):
+        # translators: follows a setting's name, which stays English
+        problems.append("KEEP_ORDER " + _("must be True or False."))
     return problems
 
 
@@ -1643,6 +1651,9 @@ SKIPPED = []
 # (seasonal mod, the "above" it names, the renamed mod placed against instead), as _place
 # found them
 RENAMED = []
+# (mod, the mod it is set to win over) for each one _place left losing to that mod, with
+# KEEP_ORDER on
+UNPLACED = []
 
 
 def _find(body, name):
@@ -1683,7 +1694,8 @@ def _place(body, name, above, want):
     """Put `name` just above `above` in modlist.txt's lines (a lower line has the higher
     priority) and set it to `want`, "+" or "-", as apply does. Returns (was, now) for a
     change, None for none, or False when `above` is not in the list and no mod in it is
-    `above` renamed (see renamed(); a rename it does find goes into RENAMED)."""
+    `above` renamed (see renamed(); a rename it does find goes into RENAMED). With KEEP_ORDER
+    on, a mod the list has stays where it is, and one below `above` goes into UNPLACED."""
     idx, ref = _find(body, name), _find(body, above)
     if ref is None:
         now = renamed(above, [(l[1:], l[:1] == "+") for l in body if l[:1] in ("+", "-")],
@@ -1695,7 +1707,10 @@ def _place(body, name, above, want):
     if idx is None:
         body.insert(ref, want + name)
         return "absent", want
-    if idx > ref:
+    if idx > ref and KEEP_ORDER is True:
+        if (name, above) not in UNPLACED:
+            UNPLACED.append((name, above))
+    elif idx > ref:
         body.pop(idx)
         body.insert(_find(body, above), want + name)
         return "misplaced", want
@@ -2170,10 +2185,11 @@ def save_content_lines(found, most=5):
 
 
 def apply_toggles(active, dry_run=False, prefs=None):
-    """Enable or disable the seasonal mods and put each just above the mod it wins over.
-    Returns [(name, from, to)] for what changed. With the texture layer off, every
-    seasonal mod is disabled. A mod that puts things into saves is left as it is, unless
-    its entry allows switching it (held_for_saves)."""
+    """Enable or disable the seasonal mods and put each just above the mod it wins over,
+    or, with KEEP_ORDER on, say which of those on lose to it. Returns [(name, from, to)]
+    for what changed. With the texture layer off, every seasonal mod is disabled. A mod that
+    puts things into saves is left as it is, unless its entry allows switching it
+    (held_for_saves)."""
     prefs = prefs if prefs is not None else read_prefs()
     active = [active] if isinstance(active, str) else list(active)
     base, active_set = active[0], set(active)
@@ -2192,6 +2208,7 @@ def apply_toggles(active, dry_run=False, prefs=None):
     keys = mod_keys()
     del SKIPPED[:]
     del RENAMED[:]
+    del UNPLACED[:]
     wanted = []
     for name, cfg in TOGGLE_MODS.items():
         if name not in folders:
@@ -2266,6 +2283,20 @@ def apply_toggles(active, dry_run=False, prefs=None):
             if i is not None and body[i][:1] == "+":
                 body[i] = "-" + LUT_MOD
                 changed.append((LUT_MOD, "+", "-"))
+
+    # KEEP_ORDER moved nothing: each mod on that loses to the one it is set to win over
+    for name, above in UNPLACED:
+        i = _find(body, name)
+        if i is None or body[i][:1] != "+":
+            continue
+        print("  ! " + _("%(mod)s sits above \"%(above)s\" in MO2's left pane, the mod it is set "
+                         "to win over, so where both have a file, that one's is used. Your load "
+                         "order is kept as it is.") % {"mod": name, "above": above})
+        if name in TOGGLE_MODS:
+            print("    " + _("Move it below \"%s\" in MO2, or pick another in its \"Wins over\" "
+                             "box in configure.bat.") % above)
+        else:
+            print("    " + _("Move it below \"%s\" in MO2.") % above)
 
     if changed and not dry_run:
         # MO2 rewrites modlist.txt from memory on exit, so an edit made while it is open
@@ -5458,8 +5489,8 @@ def shadow_check(force=False):
     # the mods apply leaves as they are, since they put things into saves
     held = sorted(n for n, c in TOGGLE_MODS.items() if n in folders and held_for_saves(n, c))
     key = hashlib.md5(("|".join(body) + "|" + repr(sorted(
-        (n, _when(c), c.get("above")) for n, c in TOGGLE_MODS.items())) + "|" + repr(held))
-                      .encode("utf-8", "replace")).hexdigest()
+        (n, _when(c), c.get("above")) for n, c in TOGGLE_MODS.items())) + "|" + repr(held)
+                       + "|" + repr(KEEP_ORDER)).encode("utf-8", "replace")).hexdigest()
     if not force and os.path.isfile(SHADOW_CACHE):
         try:
             if json.loads(io.open(SHADOW_CACHE, encoding="utf-8").read()).get("key") == key:
@@ -5468,13 +5499,15 @@ def shadow_check(force=False):
             pass
 
     # the moves apply makes, pass after pass as it makes them: a mod it is about to put
-    # above another is not losing to it
+    # above another is not losing to it (with KEEP_ORDER on, it makes none)
     moves = []
     for name, cfg in TOGGLE_MODS.items():
         if name in folders and name not in held:
             i = _find(body, name)
             moves.append((name, cfg["above"], body[i][:1] if i is not None else "-"))
+    unplaced = UNPLACED[:]
     _place_all(body, moves)
+    UNPLACED[:] = unplaced
 
     ours = set(TOGGLE_MODS) | {SOUND_MOD, LUT_MOD, SOTZ}
     index = {l[1:]: i for i, l in enumerate(body)}
@@ -6039,6 +6072,188 @@ def texture_lines(found):
     return out
 
 
+# --- weathers that name what no config has -------------------------------------------------
+#
+# The game loads every file in configs\environment\weathers as it starts, before the main
+# menu, and each hour of a weather names a sun in suns.ltx, a thunderbolt collection in
+# thunderbolt_collections.ltx and an ambient in ambients.ltx (CEnvDescriptor::load). A name
+# none of those has stops the game there: "Can't open section". A player hit it on
+# 2026-10-24 with Weather Expansion for Atmospherics off, while No Rain in Winter's copies of
+# its weathers, and IRADC's, still named its sun. So each launch also reads the weathers and
+# those three files as the game gets them: the copy that wins in MO2 (its overwrite folder,
+# then the mods on), with the files each one #includes and the DLTX files beside it
+# (mod_suns_*.ltx and so on). A file no mod on has comes from the game's own archives, which
+# aren't read here, and so may one it #includes: then what the file gives isn't known, and
+# the names a weather takes from it aren't checked.
+
+WEATHER_CONFIGS = (("sun", "suns.ltx"),
+                 ("thunderbolt_collection", "thunderbolt_collections.ltx"),
+                 ("ambient", "ambients.ltx"))
+ENVIRONMENT = ("gamedata", "configs", "environment")
+
+
+def _winning_sections(layers, rel, seen=None):
+    """The sections, in lower case, of the copy of `rel` (its parts under a mod's folder)
+    that wins among `layers`, and of the files it #includes, which the game takes from where
+    they win too; a DLTX ![section] or @[section] counts. None when no layer has `rel`, or
+    one of the files it #includes (a wildcard names no one file, so it counts too): that file
+    is in the game's own archives, or may be, and what it holds isn't known here. GAMMA's
+    ambients.ltx is so: it #includes ambients\\underground.ltx, which only the game has."""
+    seen = set() if seen is None else seen
+    path = next((p for p in (os.path.join(folder, *rel) for __, folder in layers)
+                 if os.path.isfile(p)), None)
+    if path is None or path in seen:
+        return None if path is None else set()
+    seen.add(path)
+    out = set()
+    for line in io.open(path, encoding="latin-1").read().splitlines():
+        line = line.strip()
+        m = re.match(r'#include\s+"([^"]+)"', line)
+        if m:
+            parts = list(rel[:-1])
+            for part in re.split(r"[\\/]", m.group(1)):
+                if part == "..":
+                    parts = parts[:-1]
+                elif part and part != ".":
+                    parts.append(part)
+            more = _winning_sections(layers, tuple(parts), seen)
+            if more is None:
+                return None
+            out |= more
+            continue
+        m = re.match(r"[!@]?\[([^\]]+)\]", line)
+        if m:
+            out.add(m.group(1).strip().lower())
+    return out
+
+
+def _config_names(layers, fname):
+    """The sections environment\\`fname` gives the game: the winning copy's and those of the
+    DLTX files beside it (mod_<name>_*.ltx), each from where it wins. None when that isn't
+    known here (_winning_sections)."""
+    names = _winning_sections(layers, ENVIRONMENT + (fname,))
+    if names is None:
+        return None
+    lead = "mod_%s_" % fname[:-len(".ltx")].lower()
+    overlays = set()
+    for __, folder in layers:
+        try:
+            files = os.listdir(os.path.join(folder, *ENVIRONMENT))
+        except OSError:
+            continue
+        overlays |= {f.lower() for f in files if f.lower().startswith(lead)
+                     and f.lower().endswith(".ltx")}
+    for f in sorted(overlays):
+        more = _winning_sections(layers, ENVIRONMENT + (f,))
+        if more is None:
+            return None
+        names |= more
+    return names
+
+
+def _weather_uses(path):
+    """[(key, name)] the hours of the weather at `path` use, each once, for the keys in
+    WEATHER_CONFIGS; a key set to nothing names nothing."""
+    keys = {key for key, __ in WEATHER_CONFIGS}
+    out = []
+    for line in io.open(path, encoding="latin-1").read().splitlines():
+        m = re.match(r"\s*(\w+)\s*=\s*([^;]*)", line)
+        if m and m.group(1).lower() in keys:
+            pair = (m.group(1).lower(), m.group(2).strip())
+            if pair[1] and pair not in out:
+                out.append(pair)
+    return out
+
+
+def weather_gaps(order):
+    """What the weathers of the mod list `order`, [(name, on)] with the top first, name that
+    no config the game gets has: [(key, name, [(weather file, mod)], holders, hidden,
+    winner)]. `holders` are the mods off whose own file has the name; `hidden` the mods on
+    whose own file has it, but loses to the copy in `winner` ("overwrite" for MO2's overwrite
+    folder). [] when all is there."""
+    layers = ([("overwrite", os.path.join(ROOT, "overwrite"))]
+              + [(name, os.path.join(MODS, name)) for name, on in order if on])
+    have = {key: _config_names(layers, fname) for key, fname in WEATHER_CONFIGS}
+    weathers = {}
+    for mod, folder in layers:
+        d = os.path.join(folder, *ENVIRONMENT, "weathers")
+        try:
+            files = os.listdir(d)
+        except OSError:
+            continue
+        for f in files:
+            if f.lower().endswith(".ltx") and f.lower() not in weathers:
+                weathers[f.lower()] = (mod, os.path.join(d, f))
+    gaps = {}
+    for __, (mod, path) in sorted(weathers.items()):
+        for key, name in _weather_uses(path):
+            if have[key] is not None and name.lower() not in have[key]:
+                gaps.setdefault((key, name), []).append((os.path.basename(path), mod))
+    files = dict(WEATHER_CONFIGS)
+    out = []
+    for (key, name), where in sorted(gaps.items()):
+        has = [(m, on) for m, on in order if name.lower() in (
+            _config_names([(m, os.path.join(MODS, m))], files[key]) or ())]
+        winner = next((m for m, folder in layers if os.path.isfile(
+            os.path.join(folder, *ENVIRONMENT, files[key]))), None)
+        out.append((key, name, where, [m for m, on in has if not on],
+                    [m for m, on in has if on], winner))
+    return out
+
+
+def weather_lines(found):
+    """weather_gaps()'s findings as lines: each one stops the game before the main menu."""
+    kinds = {"sun": pgettext("a weather names a", "sun"),
+             "thunderbolt_collection": pgettext("a weather names a", "thunderbolt collection"),
+             "ambient": pgettext("a weather names an", "ambient")}
+    out, told = [], set()
+    for key, name, where, holders, hidden, winner in found:
+        files = [f for f, __ in where]
+        mods = list(dict.fromkeys(m for __, m in where))
+        out.append("  ! " + ngettext(
+            "%(files)s, in %(mods)s, names the %(kind)s \"%(name)s\", which no config in this "
+            "launch has. The game stops on it as it starts (\"Can't open section\").",
+            "%(files)s, in %(mods)s, name the %(kind)s \"%(name)s\", which no config in this "
+            "launch has. The game stops on it as it starts (\"Can't open section\").",
+            len(files)) % {"files": _names_text(files), "kind": kinds[key], "name": name,
+                           "mods": _and(["\"%s\"" % m for m in mods])})
+        config = dict(WEATHER_CONFIGS)[key]
+        if hidden and winner == "overwrite":
+            out.append("    " + ngettext(
+                "%(hidden)s has it in its %(file)s, but the copy in MO2's overwrite folder "
+                "wins: take that copy out of overwrite.",
+                "%(hidden)s have it in their %(file)s, but the copy in MO2's overwrite folder "
+                "wins: take that copy out of overwrite.", len(hidden))
+                % {"hidden": _and(["\"%s\"" % h for h in hidden]), "file": config})
+        elif hidden:
+            out.append("    " + ngettext(
+                "%(hidden)s has it in its %(file)s, but the copy in \"%(winner)s\" wins: take "
+                "that copy out of \"%(winner)s\", or put %(hidden)s below it in MO2's left pane.",
+                "%(hidden)s have it in their %(file)s, but the copy in \"%(winner)s\" wins: take "
+                "that copy out of \"%(winner)s\", or put one of them below it in MO2's left "
+                "pane.",
+                len(hidden))
+                % {"hidden": _and(["\"%s\"" % h for h in hidden]), "file": config,
+                   "winner": winner})
+            if winner in TOGGLE_MODS and winner not in told:
+                told.add(winner)
+                out.append("    " + _("\"%s\" is a seasonal mod, on for this season.") % winner)
+        if holders:
+            out.append("    " + ngettext(
+                "%(holders)s, off in MO2, has it: turn it on, or take out the weathers that "
+                "name it.",
+                "%(holders)s, off in MO2, have it: turn one on, or take out the weathers that "
+                "name it.", len(holders)) % {"holders": _and(["\"%s\"" % h for h in holders])})
+        elif not hidden:
+            out.append("    " + _("No mod in MO2's list has it: take out the weathers that name "
+                                  "it, or put back the mod they came with."))
+        if winter_rain.MOD in mods:
+            out.append("    " + _("\"%s\" made its copies from the weathers that won then. "
+                                  "Close MO2 and run play.bat to make it again from the ones "
+                                  "that win now.") % winter_rain.MOD)
+    return out
+
+
 def _check_install():
     """Stop with a plain message when not run from a Mod Organizer install."""
     ini = os.path.join(ROOT, "ModOrganizer.ini")
@@ -6485,18 +6700,25 @@ def main():
                 return
             print("  => " + said)
 
-        def particle_check():
-            """Say what in this launch's mods makes particles as a save loads that the game
-            won't have, or that draw with textures it won't find; in a launch, stop before
-            the crash. Last, so all else is staged."""
+        def crash_check():
+            """Say what in this launch's mods would crash the game: weathers that name what
+            no config has, particles made as a save loads that the game won't have, or that
+            draw with textures it won't find; in a launch, stop before the crash. Last, so
+            all else is staged."""
             order = launch_order(active, prefs, switch=not writing)
+            weathers = weather_gaps(order)
             found, sure = particle_gaps(order)
-            lines = particle_lines(found, sure) + texture_lines(texture_gaps(order))
+            lines = (weather_lines(weathers) + particle_lines(found, sure)
+                     + texture_lines(texture_gaps(order)))
             if not lines:
                 return
             print()
             for line in lines:
                 print(line)
+            if weathers and writing:
+                raise SystemExit("  ** " + _("Stopped before the launch: the game would stop as "
+                                             "it starts. Fix it as the lines above say, then "
+                                             "run play.bat again.") + " **")
             if found and writing and sure:
                 raise SystemExit("  ** " + _("Stopped before the launch: the game would crash as "
                                              "the save loads. Fix it as the lines above say, "
@@ -6569,7 +6791,7 @@ def main():
                              stage_tex)
                 write_mod_panel(active, prefs)
                 send_spell()
-            particle_check()
+            crash_check()
             return
         if not tex_ok:
             # translators: a texture set, restaged: "Tex Mod (summer) -> autumn"
@@ -6593,7 +6815,7 @@ def main():
 
         if a.cmd == "status" or a.dry_run:
             say_skipped()
-            particle_check()
+            crash_check()
             if a.dry_run:
                 print("  " + _("(dry run, so nothing was changed)"))
             return
@@ -6693,7 +6915,7 @@ def main():
                  "what": pgettext("between words in a list", ", ").join(
                      words[w] for w in dict.fromkeys(done)) or _("nothing to do")})
         say_skipped()
-        particle_check()
+        crash_check()
     except OSError as e:
         # a file locked, read-only or out of room: said as the other stops are
         raise SystemExit("  ** " + _("Stopped: %s. Run play.bat again.") % e + " **")

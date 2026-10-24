@@ -112,8 +112,8 @@ texture set on and off a one-line change to `modlist.txt`, and it is also the on
 that fails silently: a seasonal mod that doesn't win over the real owner of its files flips
 its flag, reports success, and changes nothing on screen. That is what each seasonal mod's
 `above` is for: `play.bat` keeps the mod just above that one in `modlist.txt`, so it wins
-over it. `season.py whowins <path>` shows who owns a file. See
-[CONFIGURING.md](CONFIGURING.md).
+over it, or with `KEEP_ORDER` leaves the order as it is and names a mod that loses.
+`season.py whowins <path>` shows who owns a file. See [CONFIGURING.md](CONFIGURING.md).
 
 ---
 

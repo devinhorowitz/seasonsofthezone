@@ -849,6 +849,21 @@ msgstr "Выберите другой в его поле «Перекрывае�
 
 #: season.py
 #, python-format
+msgid "%(mod)s sits above \"%(above)s\" in MO2's left pane, the mod it is set to win over, so where both have a file, that one's is used. Your load order is kept as it is."
+msgstr "%(mod)s стоит выше \"%(above)s\" в левой панели MO2, хотя должен его перекрывать, поэтому там, где у обоих есть один и тот же файл, используется файл \"%(above)s\". Порядок загрузки сохраняется как есть."
+
+#: season.py
+#, python-format
+msgid "Move it below \"%s\" in MO2, or pick another in its \"Wins over\" box in configure.bat."
+msgstr "Поставьте его ниже \"%s\" в MO2 или выберите другой в его поле «Перекрывает» в configure.bat."
+
+#: season.py
+#, python-format
+msgid "Move it below \"%s\" in MO2."
+msgstr "Поставьте его ниже \"%s\" в MO2."
+
+#: season.py
+#, python-format
 msgid "No Rain in Winter is out of date (%(n)d weather changed since it was made), and is made again at a launch with %(what)s closed."
 msgid_plural "No Rain in Winter is out of date (%(n)d weathers changed since it was made), and is made again at a launch with %(what)s closed."
 msgstr[0] "No Rain in Winter устарел (с прошлой сборки изменилась %(n)d погода), и его соберут заново при запуске, когда будет закрыто: %(what)s."
@@ -1832,6 +1847,67 @@ msgstr[1] "Ни в одном моде из списка MO2 нет тексту
 msgstr[2] "Ни в одном моде из списка MO2 нет текстур %(textures)s. Они идут в комплекте с модом, из которого взяты частицы: скопируйте их в \"%(mod)s\", мод со скриптом."
 
 #: season.py
+msgctxt "a weather names a"
+msgid "sun"
+msgstr "солнце"
+
+#: season.py
+msgctxt "a weather names a"
+msgid "thunderbolt collection"
+msgstr "набор молний"
+
+#: season.py
+msgctxt "a weather names an"
+msgid "ambient"
+msgstr "набор фоновых звуков"
+
+#: season.py
+#, python-format
+msgid "%(files)s, in %(mods)s, names the %(kind)s \"%(name)s\", which no config in this launch has. The game stops on it as it starts (\"Can't open section\")."
+msgid_plural "%(files)s, in %(mods)s, name the %(kind)s \"%(name)s\", which no config in this launch has. The game stops on it as it starts (\"Can't open section\")."
+msgstr[0] "%(files)s из %(mods)s ссылается на %(kind)s \"%(name)s\", а его нет ни в одном конфиге этого запуска. Игра остановится на нём при запуске («Can't open section»)."
+msgstr[1] "%(files)s из %(mods)s ссылаются на %(kind)s \"%(name)s\", а его нет ни в одном конфиге этого запуска. Игра остановится на нём при запуске («Can't open section»)."
+msgstr[2] "%(files)s из %(mods)s ссылаются на %(kind)s \"%(name)s\", а его нет ни в одном конфиге этого запуска. Игра остановится на нём при запуске («Can't open section»)."
+
+#: season.py
+#, python-format
+msgid "%(hidden)s has it in its %(file)s, but the copy in MO2's overwrite folder wins: take that copy out of overwrite."
+msgid_plural "%(hidden)s have it in their %(file)s, but the copy in MO2's overwrite folder wins: take that copy out of overwrite."
+msgstr[0] "%(hidden)s содержит его в своём %(file)s, но его перекрывает копия из папки overwrite в MO2: уберите эту копию из overwrite."
+msgstr[1] "%(hidden)s содержат его в своих %(file)s, но их перекрывает копия из папки overwrite в MO2: уберите эту копию из overwrite."
+msgstr[2] "%(hidden)s содержат его в своих %(file)s, но их перекрывает копия из папки overwrite в MO2: уберите эту копию из overwrite."
+
+#: season.py
+#, python-format
+msgid "%(hidden)s has it in its %(file)s, but the copy in \"%(winner)s\" wins: take that copy out of \"%(winner)s\", or put %(hidden)s below it in MO2's left pane."
+msgid_plural "%(hidden)s have it in their %(file)s, but the copy in \"%(winner)s\" wins: take that copy out of \"%(winner)s\", or put one of them below it in MO2's left pane."
+msgstr[0] "%(hidden)s содержит его в своём %(file)s, но его перекрывает копия из \"%(winner)s\": уберите эту копию из \"%(winner)s\" или поставьте %(hidden)s ниже него в левой панели MO2."
+msgstr[1] "%(hidden)s содержат его в своих %(file)s, но их перекрывает копия из \"%(winner)s\": уберите эту копию из \"%(winner)s\" или поставьте один из них ниже него в левой панели MO2."
+msgstr[2] "%(hidden)s содержат его в своих %(file)s, но их перекрывает копия из \"%(winner)s\": уберите эту копию из \"%(winner)s\" или поставьте один из них ниже него в левой панели MO2."
+
+#: season.py
+#, python-format
+msgid "\"%s\" is a seasonal mod, on for this season."
+msgstr "\"%s\" — сезонный мод, он включён в этом сезоне."
+
+#: season.py
+#, python-format
+msgid "%(holders)s, off in MO2, has it: turn it on, or take out the weathers that name it."
+msgid_plural "%(holders)s, off in MO2, have it: turn one on, or take out the weathers that name it."
+msgstr[0] "%(holders)s, отключённый в MO2, содержит его: включите его или уберите файлы погоды, которые на него ссылаются."
+msgstr[1] "%(holders)s, отключённые в MO2, содержат его: включите один из них или уберите файлы погоды, которые на него ссылаются."
+msgstr[2] "%(holders)s, отключённые в MO2, содержат его: включите один из них или уберите файлы погоды, которые на него ссылаются."
+
+#: season.py
+msgid "No mod in MO2's list has it: take out the weathers that name it, or put back the mod they came with."
+msgstr "Ни в одном моде из списка MO2 его нет: уберите файлы погоды, которые на него ссылаются, или верните мод, с которым они пришли."
+
+#: season.py
+#, python-format
+msgid "\"%s\" made its copies from the weathers that won then. Close MO2 and run play.bat to make it again from the ones that win now."
+msgstr "\"%s\" сделан из файлов погоды, которые перекрывали остальные на тот момент. Закройте MO2 и запустите play.bat — он сделает его заново из тех, что перекрывают сейчас."
+
+#: season.py
 msgid "This does not look like a Mod Organizer install."
 msgstr "Это не похоже на установку Mod Organizer."
 
@@ -2267,6 +2343,10 @@ msgid_plural "%(season)s: %(n)d texture sets skipped; the ! lines above say why.
 msgstr[0] "%(season)s: %(n)d набор текстур пропущен; объяснение — в строках с ! выше."
 msgstr[1] "%(season)s: %(n)d набора текстур пропущены; объяснение — в строках с ! выше."
 msgstr[2] "%(season)s: %(n)d наборов текстур пропущено; объяснение — в строках с ! выше."
+
+#: season.py
+msgid "Stopped before the launch: the game would stop as it starts. Fix it as the lines above say, then run play.bat again."
+msgstr "Остановлено перед запуском: игра остановилась бы при запуске. Исправьте, как сказано в строках выше, и запустите play.bat ещё раз."
 
 #: season.py
 msgid "Stopped before the launch: the game would crash as the save loads. Fix it as the lines above say, then run play.bat again."
@@ -3960,6 +4040,32 @@ msgid "a season with a LUT pack shows the pack as its author made it, and the ac
 msgstr "сезон с набором LUT показывает набор таким, каким его сделал автор, а акценты окрашивают сезоны без набора"
 
 #: configure.py
+msgid "play.bat keeps MO2's load order as it is: it only turns mods on and off, and says when one sits above the mod it wins over in MO2's left pane."
+msgstr "play.bat сохраняет порядок загрузки MO2 как есть: он только включает и выключает моды и сообщает, когда мод стоит выше мода, который он перекрывает, в левой панели MO2."
+
+#: configure.py
+#, python-format
+msgid "To let it move them: %s"
+msgstr "Чтобы он снова их перемещал: %s"
+
+#: configure.py
+msgid "play.bat keeps each seasonal mod just below the mod it wins over in MO2's left pane, and moves one there when it isn't."
+msgstr "play.bat держит каждый сезонный мод сразу под модом, который он перекрывает, в левой панели MO2 и перемещает его туда, если он стоит не там."
+
+#: configure.py
+#, python-format
+msgid "To keep your load order as it is: %s"
+msgstr "Чтобы сохранить порядок загрузки как есть: %s"
+
+#: configure.py
+msgid "play.bat keeps MO2's load order as it is from the next launch"
+msgstr "play.bat сохраняет порядок загрузки MO2 как есть со следующего запуска"
+
+#: configure.py
+msgid "play.bat moves each seasonal mod just below the mod it wins over from the next launch"
+msgstr "play.bat перемещает каждый сезонный мод сразу под мод, который он перекрывает, со следующего запуска"
+
+#: configure.py
 msgid "No enabled mod has a weather that rains."
 msgstr "Ни в одном включённом моде нет погоды с дождём."
 
@@ -4319,6 +4425,10 @@ msgstr "Найти мод:"
 msgid "Only seasonal mods"
 msgstr "Только сезонные моды"
 
+#: configure.py guide.py
+msgid "Keep my load order"
+msgstr "Сохранять мой порядок загрузки"
+
 #: configure.py
 msgid "Mods, as MO2 lists them"
 msgstr "Моды в порядке MO2"
@@ -4520,6 +4630,16 @@ msgstr "«%s» нет в списке модов MO2, поэтому play.bat п
 #, python-format
 msgid "play.bat keeps it just below %s in MO2's mod list, so where the two have the same file, this one's is used."
 msgstr "play.bat ставит его в списке модов MO2 сразу под %s, поэтому там, где у них есть одинаковый файл, используется файл этого мода."
+
+#: configure.py
+#, python-format
+msgid "It is below %s in MO2's mod list, so where the two have the same file, this one's is used. Your load order is kept as it is."
+msgstr "Он стоит ниже %s в списке модов MO2, поэтому там, где у них один и тот же файл, используется файл этого мода. Порядок загрузки сохраняется как есть."
+
+#: configure.py
+#, python-format
+msgid "It is above %(mod)s in MO2's mod list, and your load order is kept as it is, so where the two have the same file, that one's is used. Move it below %(mod)s in MO2, or pick another in the box above."
+msgstr "Он стоит выше %(mod)s в списке модов MO2, а порядок загрузки сохраняется как есть, поэтому там, где у них один и тот же файл, используется файл %(mod)s. Поставьте его ниже %(mod)s в MO2 или выберите другой в поле выше."
 
 #: configure.py
 #, python-format
@@ -5138,6 +5258,10 @@ msgstr[2] "LUT у %d сезонов"
 #: configure.py
 msgid "season accents"
 msgstr "акценты сезонов"
+
+#: configure.py
+msgid "load order kept"
+msgstr "порядок загрузки сохранён"
 
 #: configure.py
 msgid "Unsaved changes"
@@ -6138,6 +6262,10 @@ msgid "keep a season's LUT pack as its author made it (the default)"
 msgstr "оставлять набор LUT сезона таким, каким его сделал автор (по умолчанию)"
 
 #: configure.py
+msgid "show whether play.bat moves seasonal mods in MO2's list, or keep your load order as it is"
+msgstr "показать, перемещает ли play.bat сезонные моды в списке MO2, или сохранить порядок загрузки как есть"
+
+#: configure.py
 msgid "show the weathers that rain, or take their rain out in the winters"
 msgstr "показать погоды с дождём или убрать из них дождь на зиму"
 
@@ -6465,6 +6593,14 @@ msgid "Pick it in the list to take the soundscape from it instead."
 msgstr "Выберите его в списке, чтобы брать фоновые звуки из него."
 
 #: guide.py
+msgid "Load order"
+msgstr "Порядок загрузки"
+
+#: guide.py
+msgid "play.bat keeps each checked mod just below the mod it wins over in MO2's left pane, so the game uses its files, and moves one there when it isn't. With your load order kept, it only turns mods on and off, and says when one sits above the mod it wins over."
+msgstr "play.bat держит каждый отмеченный мод сразу под модом, который он перекрывает, в левой панели MO2, чтобы игра использовала его файлы, и перемещает его туда, если он стоит не там. Если порядок загрузки сохраняется, он только включает и выключает моды и сообщает, когда мод стоит выше мода, который он перекрывает."
+
+#: guide.py
 msgid "Snow falls in the rain and storm weathers, but each weather's own rain falls with it. This makes No Rain in Winter: copies of the weathers that rain, with the rain set to 0, on in winter and deep winter."
 msgstr "В дождливых и грозовых погодах идёт снег, но вместе с ним идёт и собственный дождь погоды. Так собирается No Rain in Winter: копии погод с дождём, где дождь обнулён, включённые зимой и в разгар зимы."
 
@@ -6741,6 +6877,10 @@ msgstr "Фоновые звуки"
 #, python-format
 msgid "follows the season, from %s"
 msgstr "меняются по сезону, из мода %s"
+
+#: guide.py
+msgid "kept as it is: play.bat only turns mods on and off"
+msgstr "сохраняется как есть: play.bat только включает и выключает моды"
 
 #: guide.py
 msgid "Weather from"
@@ -7809,6 +7949,24 @@ msgstr "ЯСНО"
 msgctxt "the barometer's face"
 msgid "DRY"
 msgstr "СУШЬ"
+
+#~ msgid "play.bat keeps each checked mod just below the mod it wins over in MO2's left pane, so the game uses its files, and moves one there when it isn't."
+#~ msgstr "play.bat держит каждый отмеченный мод сразу под модом, который он перекрывает, в левой панели MO2, чтобы игра использовала его файлы, и перемещает его туда, если он стоит не там."
+
+#~ msgid "Keep my load order: play.bat only turns mods on and off, and says when one sits above the mod it wins over"
+#~ msgstr "Сохранять мой порядок загрузки: play.bat только включает и выключает моды и сообщает, когда мод стоит выше мода, который он перекрывает"
+
+#~ msgid "%(hidden)s has it in its %(file)s, but the copy in \"%(winner)s\" wins: take that copy out of \"%(winner)s\", or put %(hidden)s above it in MO2."
+#~ msgid_plural "%(hidden)s have it in their %(file)s, but the copy in \"%(winner)s\" wins: take that copy out of \"%(winner)s\", or put one of them above it in MO2."
+#~ msgstr[0] "%(hidden)s содержит его в своём %(file)s, но его перекрывает копия из \"%(winner)s\": уберите эту копию из \"%(winner)s\" или поставьте %(hidden)s выше него в MO2."
+#~ msgstr[1] "%(hidden)s содержат его в своих %(file)s, но их перекрывает копия из \"%(winner)s\": уберите эту копию из \"%(winner)s\" или поставьте один из них выше него в MO2."
+#~ msgstr[2] "%(hidden)s содержат его в своих %(file)s, но их перекрывает копия из \"%(winner)s\": уберите эту копию из \"%(winner)s\" или поставьте один из них выше него в MO2."
+
+#~ msgid "%(hidden)s has it in its %(file)s, but the copy in \"%(winner)s\" wins: put %(hidden)s above \"%(winner)s\" in MO2."
+#~ msgid_plural "%(hidden)s have it in their %(file)s, but the copy in \"%(winner)s\" wins: put one of them above \"%(winner)s\" in MO2."
+#~ msgstr[0] "%(hidden)s содержит его в своём %(file)s, но его перекрывает копия из \"%(winner)s\": поставьте %(hidden)s выше \"%(winner)s\" в MO2."
+#~ msgstr[1] "%(hidden)s содержат его в своих %(file)s, но их перекрывает копия из \"%(winner)s\": поставьте один из них выше \"%(winner)s\" в MO2."
+#~ msgstr[2] "%(hidden)s содержат его в своих %(file)s, но их перекрывает копия из \"%(winner)s\": поставьте один из них выше \"%(winner)s\" в MO2."
 
 #~ msgid "No Rain in Winter is still on in MO2: close %s, then uncheck it in MO2's mod list."
 #~ msgstr "No Rain in Winter всё ещё включён в MO2: закройте %s, а затем снимите с него галочку в списке модов MO2."

@@ -83,6 +83,10 @@ ACCENTS_ON_PACKS_HEAD = [
     "# its author made it, mixed by your percent; the accents color the seasons without one.",
     "# configure.bat writes this.",
 ]
+KEEP_ORDER_HEAD = [
+    "# Whether play.bat keeps MO2's load order as it is. True, it only switches mods on and",
+    "# off, and says when one loses to the mod it is set to win over. configure.bat writes this.",
+]
 MCM_HEAD = [
     "# Other mods' MCM options that follow the season: {\"page/option\": {name: value, ...,",
     "# \"else\": value}}. play.bat sets each before the game starts, to its value for the most",
@@ -189,14 +193,14 @@ def separator_label(name):
     return name[:-len("_separator")] if name.endswith("_separator") else name
 
 
-def placed(inst, toggle):
+def placed(inst, toggle, keep=False):
     """MO2's list, highest priority first, as play.bat will leave it: each mod on the
     calendar moved just above its anchor in modlist.txt, which in MO2's left pane is just
     below it. The same moves season.py makes, pass after pass until none moves, so the
     window can say who wins a file: a mod set to win over one that a later entry lifts has
-    to follow it."""
+    to follow it. With `keep`, KEEP_ORDER on, it makes none."""
     body = [n for n, _, _ in inst.lines]
-    for _pass in range(len(toggle) + 1):
+    for _pass in range(0 if keep else len(toggle) + 1):
         moved = False
         for name, c in toggle.items():
             above = c.get("above")
@@ -789,6 +793,7 @@ class Calendar(object):
         self._bad_luts, self._kept_bad_luts = {}, set()
         self.accents, self._kept_accents = None, None
         self.accents_on_packs, self._kept_accents_on_packs = None, None
+        self.keep_order, self._kept_keep_order = None, None
         self.mcm_dropped = []           # MCM settings the last removal left following nothing
         self.dates, self._kept_dates = polesia(), None     # None: the file has none
         self.calendar_bad, self._replace_calendar = [], False
@@ -959,12 +964,14 @@ class Calendar(object):
         self._kept_luts, self._kept_bad_luts = dict(self.luts), set(self._bad_luts)
         self.accents = self._kept_accents = ns.get("SEASON_ACCENTS")
         self.accents_on_packs = self._kept_accents_on_packs = ns.get("SEASON_ACCENTS_ON_PACKS")
+        self.keep_order = self._kept_keep_order = ns.get("KEEP_ORDER")
         calendar, names = ns.get("CALENDAR"), ns.get("NAMES")
         self.problems = season.config_problems(toggle, self.layout, self.sound_src,
                                                self.periods, events, calendar, names, own=own,
                                                spells=spells, mcm=mcm, luts=luts,
                                                accents=self.accents,
-                                               accents_on_packs=self.accents_on_packs)
+                                               accents_on_packs=self.accents_on_packs,
+                                               keep_order=self.keep_order)
 
         for name, cfg in toggle.items():
             when = periods_of(cfg)
@@ -1276,6 +1283,16 @@ class Calendar(object):
         return (type(self.accents_on_packs) is not type(self._kept_accents_on_packs)
                 or self.accents_on_packs != self._kept_accents_on_packs)
 
+    def set_keep_order(self, on):
+        """Whether play.bat keeps MO2's load order as it is. Off leaves a file with no
+        KEEP_ORDER without one, as no line means off."""
+        kept = self._kept_keep_order
+        self.keep_order = True if on else (None if kept is None else False)
+
+    def keep_order_changed(self):
+        return (type(self.keep_order) is not type(self._kept_keep_order)
+                or self.keep_order != self._kept_keep_order)
+
     def accented_seasons(self):
         """The seasons the accents color in this setup, in calendar order: those the accents
         name, less each season with a LUT pack unless they go on packs too."""
@@ -1317,7 +1334,7 @@ class Calendar(object):
                 or self.periods != self._kept_periods
                 or self.layout != self._kept_layout or self.sound_src != self._kept_sound
                 or self.luts_changed() or self.accents_changed()
-                or self.accents_on_packs_changed())
+                or self.accents_on_packs_changed() or self.keep_order_changed())
 
     def luts_changed(self):
         return self.luts != self._kept_luts or set(self._bad_luts) != self._kept_bad_luts
@@ -1398,6 +1415,9 @@ class Calendar(object):
             text, k = self._setting(text, "SEASON_ACCENTS_ON_PACKS", ACCENTS_ON_PACKS_HEAD,
                                     self.accents_on_packs)
             kept = kept and k
+        if self.keep_order_changed():
+            text, k = self._setting(text, "KEEP_ORDER", KEEP_ORDER_HEAD, self.keep_order)
+            kept = kept and k
         return text, kept
 
     @staticmethod
@@ -1438,7 +1458,7 @@ class Calendar(object):
             ns.get("NAMES"), ns.get("WEATHER_PLACE"), ns.get("OWN_SEASONS"), ns.get("SPELLS"),
             ns.get("MCM_SETTINGS"), luts=ns.get("SEASON_LUTS"),
             accents=ns.get("SEASON_ACCENTS"),
-            accents_on_packs=ns.get("SEASON_ACCENTS_ON_PACKS"))
+            accents_on_packs=ns.get("SEASON_ACCENTS_ON_PACKS"), keep_order=ns.get("KEEP_ORDER"))
 
     def _keepsake(self, why):
         """A dated copy of the file as it is, which no later save touches."""

@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+- **`play.bat` stops before a launch the game would stop on as it starts.** The game reads
+  every weather before the main menu, and a sun, thunderbolt collection or ambient that the
+  `suns.ltx`, `thunderbolt_collections.ltx` or `ambients.ltx` it gets lacks stops it there
+  (`Can't open section`). Once the season is staged, `play.bat` reads the weathers that win
+  for such names. It says which weathers and mod name it, and which mod has it: off, or under
+  another mod's copy of the file, and whether that copy's mod is seasonal. Then it stops
+  before the launch. `season.py status` shows the same lines. From Ghoul on the GAMMA
+  Discord: No Rain in Winter's copies named Weather Expansion's sun while the Expansion was
+  off, and INVERNO's own `suns.ltx`, on for the winter, won over both mods that have it.
+- **INVERNO's seasonal textures** (README): delete `gamedata\configs\environment` too. It
+  holds INVERNO's own weathers and a `suns.ltx` without `sunset_sunrise` and
+  `cloudy_dark_special`, which Atmospherics' and Weather Expansion's weathers name. Delete
+  its `clouds.ps` and `deffer_impl_flat.ps` as well: the game's plain cloud shader turns
+  IRADC's cloudy skies deep blue in winter, and the other is INVERNO's own terrain shader.
+- **Keep my load order.** A box on `configure.bat`'s Seasonal mods step, and above the
+  advanced editor's mod list, has `play.bat` leave MO2's load order as it is: it only turns
+  mods on and off. A mod MO2 doesn't list yet still goes in once. A mod that is on and sits
+  above the mod it wins over in MO2's left pane is named, with the fix, and `season.py
+  status` checks the files in the order as it is. `configure.py order keep` and `order move`
+  set it from a command prompt; in the config it is `KEEP_ORDER`. Asked for by Ghoul on the
+  GAMMA Discord.
+
 ## 2.12.0 — 2026-10-24
 
 - **A PDA tab of its own.** On Modded Exes 2026.7.31 or later, the Seasons app can have a tab

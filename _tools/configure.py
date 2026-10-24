@@ -1280,6 +1280,28 @@ def cmd_accents(a):
         print("  ! " + numpy_line())
 
 
+def cmd_order(a):
+    cal = loaded()
+    if a.state is None:
+        if cal.keep_order is True:
+            print("  " + _("play.bat keeps MO2's load order as it is: it only turns mods on and "
+                           "off, and says when one sits above the mod it wins over in MO2's "
+                           "left pane."))
+            print("  " + _("To let it move them: %s") % season.command("configure.py",
+                                                                      "order move"))
+        else:
+            print("  " + _("play.bat keeps each seasonal mod just below the mod it wins over in "
+                           "MO2's left pane, and moves one there when it isn't."))
+            print("  " + _("To keep your load order as it is: %s")
+                  % season.command("configure.py", "order keep"))
+        return
+    cal.set_keep_order(a.state == "keep")
+    save(cal, [_("play.bat keeps MO2's load order as it is from the next launch")
+               if a.state == "keep" else
+               _("play.bat moves each seasonal mod just below the mod it wins over from the next "
+                 "launch")])
+
+
 def rain_lines(want, inst):
     """The weathers that rain, counted by the mod MO2 takes each from, highest first."""
     by = {}
@@ -1836,6 +1858,9 @@ class App(object):
         self.only_ours = tk.BooleanVar(value=False)
         ttk.Checkbutton(top, text=_("Only seasonal mods"), variable=self.only_ours,
                         command=self.fill).pack(side="left", padx=10)
+        self.keep = tk.BooleanVar(value=cal.keep_order is True)
+        ttk.Checkbutton(top, text=_("Keep my load order"), variable=self.keep,
+                        command=self.keep_edited).pack(side="left", padx=10)
         ttk.Label(mods, text=_(SWITCH_CAUTION), foreground=AMBER, wraplength=1100,
                   justify="left").pack(anchor="w", pady=(0, 6))
 
@@ -2159,15 +2184,28 @@ class App(object):
                          "Pick another in the box above.") % above, RED, indent=24,
                        parent=box).pack(
                            anchor="w", pady=(6, 0))
-        else:
-            self.label(_("play.bat keeps it just below %s in MO2's mod list, so where the two "
-                         "have the same file, this one's is used.") % above, indent=24,
-                       parent=box).pack(anchor="w", pady=(6, 0))
+        # MO2's list as play.bat will leave it, with the load order kept or not
+        keep = self.cal.keep_order is True
+        pos = ce.placed(self.inst, self.cal.toggle, keep)
+        if self.inst.listed(above):
+            if not keep:
+                self.label(_("play.bat keeps it just below %s in MO2's mod list, so where the "
+                             "two have the same file, this one's is used.") % above, indent=24,
+                           parent=box).pack(anchor="w", pady=(6, 0))
+            elif pos.get(name, -1) < pos.get(above, 1e9):
+                self.label(_("It is below %s in MO2's mod list, so where the two have the same "
+                             "file, this one's is used. Your load order is kept as it is.")
+                           % above, indent=24, parent=box).pack(anchor="w", pady=(6, 0))
+            else:
+                self.label(_("It is above %(mod)s in MO2's mod list, and your load order is "
+                             "kept as it is, so where the two have the same file, that one's is "
+                             "used. Move it below %(mod)s in MO2, or pick another in the box "
+                             "above.") % {"mod": above}, RED, indent=24,
+                           parent=box).pack(anchor="w", pady=(6, 0))
             self.label((_("Picked for you: %s.") % why) if above == auto
                        else _("Picked by you."),
                        GREY, indent=24, parent=box).pack(anchor="w", pady=(2, 0))
         # rivals that would still win once play.bat has placed everything
-        pos = ce.placed(self.inst, self.cal.toggle)
         for other, n, both in rivals:
             if other == above or pos.get(other, 1e9) > pos.get(name, -1):
                 continue
@@ -2835,6 +2873,11 @@ class App(object):
         self.accent_fill()
         self.update_status()
 
+    def keep_edited(self):
+        self.cal.set_keep_order(self.keep.get())
+        self.show()
+        self.update_status()
+
     def preview_look(self):
         """Each season's LUT on a sample, beside the game's and the pack's as its author
         made it: the setup as it is in the window, saved or not."""
@@ -3344,6 +3387,8 @@ class App(object):
                         % len(self.cal.luts))
         if self.cal.accented_seasons():
             said.append(_("season accents"))
+        if self.cal.keep_order is True:
+            said.append(_("load order kept"))
         self.status.configure(text=comma_list(said))
         dirty = self.cal.dirty() or bool(self.bad_dates) or self.dice.dirty()
         self.unsaved.configure(text=_("Unsaved changes") if dirty else "")
@@ -4710,6 +4755,10 @@ def main():
                    help=_("put the accents on seasons with a LUT pack too"))
     g.add_argument("--no-packs", dest="packs", action="store_const", const=False,
                    help=_("keep a season's LUT pack as its author made it (the default)"))
+    p = sub.add_parser("order", help=_("show whether play.bat moves seasonal mods in MO2's list, "
+                                       "or keep your load order as it is"))
+    p.add_argument("state", nargs="?", choices=["keep", "move"],
+                   help=lang.or_list(["keep", "move"]))
     p = sub.add_parser("rain", help=_("show the weathers that rain, or take their rain out in "
                                       "the winters"))
     p.add_argument("--build", action="store_true",
@@ -4737,7 +4786,7 @@ def main():
     {"list": cmd_list, "add": cmd_add, "remove": cmd_remove, "event": cmd_event,
      "season": cmd_season, "spell": cmd_spell, "mcm": cmd_mcm, "calendar": cmd_calendar,
      "dice": cmd_dice, "name": cmd_name, "preset": cmd_preset, "place": cmd_place, "sound": cmd_sound,
-     "lut": cmd_lut, "accents": cmd_accents, "rain": cmd_rain,
+     "lut": cmd_lut, "accents": cmd_accents, "order": cmd_order, "rain": cmd_rain,
      "install": lambda a: __import__("installer").main(a),
      None: lambda a: window(a.advanced)}[a.cmd](a)
 
