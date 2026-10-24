@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.12.1 — 2026-10-24
 
 - **`play.bat` stops before a launch the game would stop on as it starts.** The game reads
   every weather before the main menu, and a sun, thunderbolt collection or ambient that the
