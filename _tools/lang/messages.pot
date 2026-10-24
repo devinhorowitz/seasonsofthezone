@@ -159,6 +159,11 @@ msgid "%(month)s %(day)d, %(year)d"
 msgstr ""
 
 #: season.py
+#, python-format
+msgid "Seasons of the Zone's tools need Python 3.8 or later, and this is Python %s. Install the latest from python.org, with \"Add python.exe to PATH\" checked, then try again."
+msgstr ""
+
+#: season.py
 msgid "invalid syntax"
 msgstr ""
 
@@ -1448,6 +1453,16 @@ msgctxt "the months of a rule"
 msgid "in %s"
 msgstr ""
 
+#: season.py
+#, python-format
+msgid "The hours of the sky play.bat fetched last (%(start)s) are over a day old, so Real Time Zone reads its own, dated today, until play.bat fetches them again."
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "The hours of the sky play.bat fetched last (%(start)s) are over a day old, so Real Time Zone models the sky from the day's forecast until play.bat fetches them again."
+msgstr ""
+
 #. two places; %(file)s, a path, and %(setup)s, a file, stay as they are
 #: season.py
 #, python-format
@@ -1476,6 +1491,12 @@ msgstr ""
 #: season.py
 #, python-format
 msgid "its own hours of the sky, for %s"
+msgstr ""
+
+#. Real Time Zone's weather; %s is a place
+#: season.py
+#, python-format
+msgid "the sky modeled from the day's forecast, for %s"
 msgstr ""
 
 #. Real Time Zone's weather; %s is a place
@@ -2278,6 +2299,10 @@ msgstr ""
 
 #: season.py
 msgid "off (gating is off in MCM)"
+msgstr ""
+
+#: season.py
+msgid "off (no ambient sound mod is set)"
 msgstr ""
 
 #: season.py
@@ -6246,7 +6271,7 @@ msgstr ""
 
 #: guide.py
 #, python-format
-msgid "No Rain in Winter is still on in MO2: close %s, then uncheck it in MO2's mod list."
+msgid "No Rain in Winter is still on in MO2; play.bat turns it off at the next launch with %s closed."
 msgstr ""
 
 #: guide.py

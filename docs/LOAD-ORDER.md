@@ -130,8 +130,8 @@ INVERNO unless you want that.
 `SOUND_SRC` names the ambience mod that wins your `configs/environment/ambients/presets/`
 files. At launch the tool writes season-gated copies of that mod's presets into a mod
 called `Seasonal Soundscape` and places it directly above the source. Do not move it. If
-you disable the source mod, the generated mod is disabled and its files removed at the
-next launch.
+you disable the source mod, or set `SOUND_SRC` to `None`, the generated mod is disabled and
+its files removed at the next launch.
 
 Because it sits directly above the source, a soundscape pack installed above the source
 wins those files back: ROMEO's Dark Signal Amplified, above GAMMA's Dark Signal, is one.

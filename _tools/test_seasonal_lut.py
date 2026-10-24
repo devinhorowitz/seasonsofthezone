@@ -6,6 +6,7 @@ with no LUT asked for. sotz_lut.script crossfades the groups by the season blend
   python _tools/test_seasonal_lut.py
 """
 import io
+import json
 import math
 import os
 import re
@@ -347,7 +348,7 @@ def t_apply_builds_the_mod_and_places_it_above_the_base():
         info = ltx(d)
         for line in ("atlas_bytes = %d" % len(atlas), "header_bytes = %d" % len(head),
                      "base_groups = 1", "autumn = 0:1", "winter = 0:2",
-                     "autumn = EASTMAN 30%", "winter = Iris 60%"):
+                     "autumn = EASTMAN_30%", "winter = Iris_60%"):
             assert line in info, (line, info)
         assert "\nspring =" not in info and "\nwinter_snow =" not in info, info
         ml = modlist(d)
@@ -427,9 +428,39 @@ def t_a_second_launch_keeps_the_build_and_a_change_rebuilds_it():
         io.open(cfg, "w", encoding="utf-8").write(LUTS.replace("60)", "45)"))
         rc, out = tc.run(d, "status", tool="season.py")
         assert "(to be built)" in out, out
+        moves = [l for l in out.splitlines() if season.LUT_MOD in l and "->" in l]
+        assert not moves, "status has the mod going off for the build it is due: %s" % moves
         rc, out = tc.run(d, "apply", tool="season.py")
-        assert "built: 2 seasons" in out and "winter = Iris 45%" in ltx(d), out
-        return "kept as it was; a new percent said in status, then built"
+        assert "built: 2 seasons" in out and "winter = Iris_45%" in ltx(d), out
+        assert "+" + season.LUT_MOD in modlist(d), modlist(d)
+        return "kept as it was; a new percent said in status, the mod staying on, then built"
+
+
+@case
+def t_a_label_s_spaces_reach_the_mcm_page():
+    """The game's reader drops the spaces in a value, so MCM's season page showed
+    "FoveaMemory50%": the ltx has "_" for each, which sotz_lut.script turns back, and a
+    build made before, with spaces, is made again at the next launch."""
+    with tempfile.TemporaryDirectory() as d:
+        scratch(d, 'SEASON_LUTS = {"spring": ("Kumo Two.zip", "00 data/LUT - Fovea Memory", '
+                   '50)}\n')
+        downloads(d, "Kumo Two.zip", {"00 data/LUT - Fovea Memory/gamedata/textures/shaders/"
+                                      "lut_atlas.dds": dds(1, BGRA, flat(120))})
+        rc, out = tc.run(d, "apply", tool="season.py")
+        assert rc == 0 and "built: 1 season" in out, out
+        info = ltx(d)
+        assert "\nspring = Fovea_Memory_50%" in info and "Fovea Memory" not in info, info
+        rc, out = tc.run(d, "status", tool="season.py")
+        assert "spring Fovea Memory 50%" in out and "(to be built)" not in out, out
+        rec = os.path.join(d, "mods", season.LUT_MOD, season.LUT_RECORD)
+        record = json.loads(io.open(rec, encoding="utf-8").read())
+        record["version"] = 3
+        io.open(rec, "w", encoding="utf-8").write(json.dumps(record))
+        rc, out = tc.run(d, "status", tool="season.py")
+        assert "(to be built)" in out, "a build from before reads as current:\n" + out
+        rc, out = tc.run(d, "apply", tool="season.py")
+        assert rc == 0 and "built: 1 season" in out, out
+        return "Fovea_Memory_50% in the ltx, its name as it is in the report; a v3 build redone"
 
 
 @case
@@ -703,7 +734,7 @@ def t_a_season_s_pack_and_its_accents_stack():
             "autumn"
         assert got[3] == season.lut_mix(base, lut(dds(1, RGBA, inverted)), 0.6), "winter"
         info = ltx(d)
-        assert "autumn = EASTMAN 30%" in info and "\nsummer = true" in info \
+        assert "autumn = EASTMAN_30%" in info and "\nsummer = true" in info \
             and "\nautumn = true" in info and "\nwinter = true" not in info, info
         rc, out = tc.run(d, "status", tool="season.py")
         assert "summer accents, autumn EASTMAN 30% + accents, winter Iris 60%" in out, out
@@ -1261,6 +1292,21 @@ def t_the_script_knows_which_seasons_carry_accents():
     lua, g = lua_world(with_ltx=False)
     assert g.accented("winter") is False
     return "winter and deep winter marked, autumn not; none without the section (%s)" % LUA_NAME
+
+
+@case
+def t_the_script_turns_a_label_s_underscores_back():
+    """season.py writes "_" for each space in a label, since the game's reader drops spaces;
+    the MCM read-out shows them as spaces again. A file from before has none to turn back,
+    and reads as it is."""
+    lua, g = lua_world(more=', labels = {spring = "Fovea_Memory_50%", autumn = "EASTMAN_30%"}')
+    assert (g.label("spring"), g.label("autumn")) == ("Fovea Memory 50%", "EASTMAN 30%"), (
+        g.label("spring"), g.label("autumn"))
+    assert g.label("winter") is None
+    lua, g = lua_world(more=', labels = {spring = "FoveaMemory50%"}')
+    assert g.label("spring") == "FoveaMemory50%", g.label("spring")
+    return "Fovea Memory 50%% and EASTMAN 30%% read back; an older squeezed one as it is " \
+        "(%s)" % LUA_NAME
 
 
 def main():

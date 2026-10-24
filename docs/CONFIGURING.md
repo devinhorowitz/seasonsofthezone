@@ -403,8 +403,9 @@ Name the mod that wins your `configs/environment/ambients/presets/` files (sever
 soundscape mods ship the same presets). `py _tools\configure.py sound` lists the enabled
 mods that have them, highest in MO2 first, and `configure.py sound "<mod>"` sets this line
 for you; `sound --off` sets it to `None`. In `configure.bat`, the list beside **Ambient
-sound follows the season** does the same, and the box turns it off. `season.py` generates a `Seasonal Soundscape` mod
-from that mod's files with these channels removed:
+sound follows the season** does the same, and the box turns it off; off, the next launch
+removes the generated set and disables it in MO2. `season.py` generates a `Seasonal
+Soundscape` mod from that mod's files with these channels removed:
 
 | Season | Silenced |
 |---|---|
@@ -462,8 +463,8 @@ when it is on, as for any seasonal mod, and a later `rain --build` keeps that.
 the winters*; the step's list of seasonal mods leaves the mod out. Ticked and saved, it goes
 on the calendar and the copies are made, as `rain --build` does; with MO2 or the game open,
 `play.bat` makes them at the next launch instead. Unticked and saved, it comes off the
-calendar and is disabled in MO2; with MO2 open, which would write its list over that, the
-window says to uncheck it there.
+calendar and is disabled in MO2; with MO2 open, which would write its list over that,
+`play.bat` disables it at the next launch.
 
 Each copy's first line names the mod it came from and that file's SHA-256. When one of them
 changes, as an Atmospherics update changes them, or a weather pack is added or disabled,

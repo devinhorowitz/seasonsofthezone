@@ -54,6 +54,15 @@ import lang
 import winter_rain
 from lang import _, N_, ngettext, pgettext        # noqa: F401 - used as the strings are marked
 
+# Python 3.8 or later: the config's checks read its syntax tree as 3.8 lays it out, and an
+# older Python stopped at the first launch with a traceback. Every tool comes through here,
+# play.bat's and, by config_edit, configure.bat's, so this says it in words before anything.
+if sys.version_info < (3, 8):
+    raise SystemExit("  " + _("Seasons of the Zone's tools need Python 3.8 or later, and this "
+                              "is Python %s. Install the latest from python.org, with \"Add "
+                              "python.exe to PATH\" checked, then try again.")
+                     % ".".join(str(n) for n in sys.version_info[:3]))
+
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 # a refusal goes out on stderr, and in another language it has letters cp1252 lacks
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
@@ -129,6 +138,20 @@ DICE_CHANCE = 25            # MCM's default chance, in percent
 DICE_SEED = os.environ.get("SOTZ_DICE_SEED")
 
 
+def clock_files():
+    """Where the game's clock file is, the one written last first: appdata, and MO2's
+    overwrite/appdata, where MO2 can put a file the game makes in a folder that a mod ships
+    files to (Atmospherics ships appdata/). _user_ltx() looks in both too."""
+    found = []
+    for p in (os.path.join(APPDATA, CLOCK_FILE),
+              os.path.join(ROOT, "overwrite", "appdata", CLOCK_FILE)):
+        try:
+            found.append((os.path.getmtime(p), p))
+        except OSError:
+            pass
+    return [p for t, p in sorted(found, reverse=True)]
+
+
 def clock_today(prefs=None):
     """The day the seasons run on, and its clock: (the real date, "real"); with MCM's
     calendar on the game's clock, (the Zone's date the game last wrote, "game"), or, with
@@ -136,14 +159,15 @@ def clock_today(prefs=None):
     prefs = read_prefs() if prefs is None else prefs
     if prefs.get("clock") != "game":
         return datetime.date.today(), "real"
-    try:
-        text = io.open(os.path.join(APPDATA, CLOCK_FILE), encoding="utf-8",
-                       errors="replace").read()
-        m = re.search(r"(?m)^\s*zone\s*=\s*(\d{4})-(\d\d)-(\d\d)\s*$", text)
-        if m:
-            return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))), "game"
-    except (OSError, ValueError):
-        pass
+    for p in clock_files():
+        try:
+            text = io.open(p, encoding="utf-8", errors="replace").read()
+            m = re.search(r"(?m)^\s*zone\s*=\s*(\d{4})-(\d\d)-(\d\d)\s*$", text)
+            if m:
+                return (datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3))),
+                        "game")
+        except (OSError, ValueError):
+            pass
     return datetime.date.today(), "none"
 
 CONFIG_NAMES = ("LAYOUT", "TOGGLE_MODS", "SOUND_SRC", "PERIODS", "EVENTS", "CALENDAR",
@@ -1197,6 +1221,23 @@ def _detect_nl(raw):
     return crlf if crlf in raw else chr(10)
 
 
+def replace_file(path, data):
+    """Write `data`, bytes, over the file at `path` whole or not at all: into a temp file
+    beside it, then renamed over it. A write that fails, a full disk say, leaves the file
+    as it was; opened for writing, it was empty before a byte went in."""
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "wb") as f:
+            f.write(data)
+        os.replace(tmp, path)
+    except OSError:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def _modlist_path():
     return os.path.join(ROOT, "profiles", profile_name(), "modlist.txt")
 
@@ -1665,6 +1706,35 @@ def _place(body, name, above, want):
     return None
 
 
+def _place_all(body, wanted):
+    """_place for each of `wanted`, [(name, above, "+" or "-")], pass after pass until none
+    moves. A mod set to win over another seasonal mod has to follow it when a later entry
+    lifts that one past its own anchor: in one pass it landed below both for a launch.
+    Returns {name: _place's answer} for those that changed or were skipped, a mod's change
+    over the passes as one; loops of "above" are refused by config_problems, so it settles."""
+    out, anchor = {}, {}
+    for name, above, want in wanted:
+        seen = len(RENAMED)
+        got = _place(body, name, above, want)
+        anchor[name] = RENAMED[-1][2] if len(RENAMED) > seen else above
+        if got is not None:
+            out[name] = got
+    for _pass in range(len(wanted)):
+        moved = False
+        for name, above, want in wanted:
+            if out.get(name) is False:
+                continue
+            got = _place(body, name, anchor[name], want)
+            if got:
+                moved = True
+                # a later pass only moves a mod: whether it was added, or switched, stays
+                if name not in out or out[name][0] in ("+", "-"):
+                    out[name] = got
+        if not moved:
+            break
+    return out
+
+
 def change_text(was, now):
     """A change apply_toggles() makes, in words: "disabled -> enabled", "added, enabled"."""
     return {("absent", "+"): _("added, enabled"), ("absent", "-"): _("added, disabled"),
@@ -2122,6 +2192,7 @@ def apply_toggles(active, dry_run=False, prefs=None):
     keys = mod_keys()
     del SKIPPED[:]
     del RENAMED[:]
+    wanted = []
     for name, cfg in TOGGLE_MODS.items():
         if name not in folders:
             continue
@@ -2134,21 +2205,33 @@ def apply_toggles(active, dry_run=False, prefs=None):
         on = (bool(set(_when(cfg)) & active_set)
               and prefs["stage_textures"]
               and keys[name] not in prefs["off"].get(base, set()))
-        seen = len(RENAMED)
-        got = _place(body, name, cfg["above"], "+" if on else "-")
-        if len(RENAMED) > seen:
+        wanted.append((name, cfg["above"], "+" if on else "-"))
+    placed = _place_all(body, wanted)
+    renames = {mod: now for mod, _was, now in RENAMED}
+    for name, above, want in wanted:
+        if name in renames:
             print("  ~ " + _("%(mod)s now wins over \"%(now)s\": the mod it is set to win over, "
                              "\"%(was)s\", is not in MO2's mod list, and this looks like the "
                              "same mod renamed by an update.")
-                  % {"mod": name[:40], "now": RENAMED[-1][2], "was": cfg["above"]})
+                  % {"mod": name[:40], "now": renames[name], "was": above})
             print("    " + _("Pick it in its \"Wins over\" box in configure.bat to keep it."))
+        got = placed.get(name)
         if got is False:
             print("  ! " + _("%(mod)s skipped: the mod it wins over, \"%(above)s\", is not in "
-                             "MO2's mod list.") % {"mod": name[:40], "above": cfg["above"]})
+                             "MO2's mod list.") % {"mod": name[:40], "above": above})
             print("    " + _("Pick another in its \"Wins over\" box in configure.bat."))
             SKIPPED.append(name)
         elif got:
             changed.append((name,) + got)
+
+    # No Rain in Winter, made by configure.py rain --build, goes off once the calendar no
+    # longer has it, as Seasonal LUT does below: taken off with MO2 open, it stayed on and
+    # took the rain out of every season
+    if winter_rain.MOD not in TOGGLE_MODS and winter_rain.made(MODS):
+        i = _find(body, winter_rain.MOD)
+        if i is not None and body[i][:1] == "+":
+            body[i] = "-" + winter_rain.MOD
+            changed.append((winter_rain.MOD, "+", "-"))
 
     # The generated soundscape is placed too: a folder MO2 finds on its own is added
     # disabled, and it has to sit above its source.
@@ -2159,12 +2242,21 @@ def apply_toggles(active, dry_run=False, prefs=None):
             got = _place(body, SOUND_MOD, SOUND_SRC, "+" if on else "-")
             if got:
                 changed.append((SOUND_MOD,) + got)
+    else:
+        # no source set (configure.py sound --off), or one MO2 doesn't list: the soundscape
+        # goes off as its files come out (main), or the last season's set plays all year
+        i = _find(body, SOUND_MOD)
+        if i is not None and body[i][:1] == "+":
+            body[i] = "-" + SOUND_MOD
+            changed.append((SOUND_MOD, "+", "-"))
 
     # So is Seasonal LUT: just above the mod whose LUT is today's, on while SEASON_LUTS asks
-    # for a LUT and the build is whole. Off, the game's own LUT comes back.
+    # for a LUT and the build is whole. Off, the game's own LUT comes back. A dry run
+    # (status) builds nothing, so a build that is due counts as made: apply makes it first.
     if os.path.isdir(os.path.join(MODS, LUT_MOD)) or _find(body, LUT_MOD) is not None:
         base = lut_base(body)
-        on = base is not None and lut_plan_now()["state"] == "built"
+        state = lut_plan_now()["state"]
+        on = base is not None and (state == "built" or (dry_run and state == "stale"))
         if base is not None:
             got = _place(body, LUT_MOD, base[0], "+" if on else "-")
             if got:
@@ -2182,7 +2274,7 @@ def apply_toggles(active, dry_run=False, prefs=None):
         if busy:
             raise SystemExit(close_first(busy))
         _keep_modlist(p)
-        io.open(p, "w", encoding="utf-8", newline="").write(nl.join([head] + body))
+        replace_file(p, nl.join([head] + body).encode("utf-8"))
     return changed
 
 
@@ -2205,7 +2297,7 @@ def disable_mod(name):
         return False
     lines[i] = "-" + name
     _keep_modlist(p)
-    io.open(p, "w", encoding="utf-8", newline="").write(nl.join(lines))
+    replace_file(p, nl.join(lines).encode("utf-8"))
     return True
 
 
@@ -2450,23 +2542,32 @@ def _strip_channels(line, cut):
 
 def write_soundscape(season, enabled=True):
     """Regenerate the presets for `season`. Returns (files, channels removed). Disabled
-    removes the generated folder so the source mod wins again."""
+    removes the generated folder so the source mod wins again.
+
+    latin-1 reads every byte as itself, and only the channel names change, all ASCII, so
+    the rest of each file goes back as it was, whatever its encoding: read as cp1251, a
+    byte it lacks (a comment saved as UTF-8) became a letter it can't write, which stopped
+    the run with the file being written left empty. The set is made beside the folder and
+    swapped in whole, so a run that stops keeps the last season's set as it was."""
     src = _sound_src_dir()
     if not src or not os.path.isdir(src):
         return None, 0
     dst = _sound_dst_dir()
-    if os.path.isdir(dst):
-        shutil.rmtree(dst, ignore_errors=True)
     if not enabled:
+        if os.path.isdir(dst):
+            shutil.rmtree(dst, ignore_errors=True)
         return 0, 0
-    os.makedirs(dst)
+    work, old = dst + ".building", dst + ".previous"
+    for p in (work, old):
+        if os.path.isdir(p):
+            shutil.rmtree(p)                    # left by a run that stopped part way
+    os.makedirs(work, exist_ok=True)
     cut = set(SOUND_CUT.get(season, ()))
     n = removed = 0
     for f in sorted(os.listdir(src)):
         if not f.lower().endswith(".ltx"):
             continue
-        raw = io.open(os.path.join(src, f), encoding="cp1251",
-                      errors="replace", newline="").read()
+        raw = open(os.path.join(src, f), "rb").read().decode("latin-1")
         nl = _detect_nl(raw)
         out = []
         for line in raw.split(nl):
@@ -2476,8 +2577,19 @@ def write_soundscape(season, enabled=True):
             out.append(new)
         body = nl.join([SOUND_TAG + season + SOUND_SIG + _sound_signature(season)]
                        + out)
-        io.open(os.path.join(dst, f), "w", encoding="cp1251", newline="").write(body)
+        with open(os.path.join(work, f), "wb") as fh:
+            fh.write(body.encode("latin-1"))
         n += 1
+    had = os.path.isdir(dst)
+    if had:
+        os.replace(dst, old)
+    try:
+        os.replace(work, dst)
+    except OSError:
+        if had:
+            os.replace(old, dst)                # the last season's set back in its place
+        raise
+    shutil.rmtree(old, ignore_errors=True)
     return n, removed
 
 
@@ -3181,7 +3293,8 @@ def lut_plan():
     script = lut_script()
     used = lut_used(script and script[1], groups)
     st = os.stat(base[1])
-    record = {"version": 3, "base": [base[0], st.st_size, int(st.st_mtime)],
+    # version 4: the ltx's labels have "_" for spaces, so a build made before is made again
+    record = {"version": 4, "base": [base[0], st.st_size, int(st.st_mtime)],
               "script": [script[0], os.path.getsize(script[1]), int(os.path.getmtime(script[1]))]
               if script else None, "used": used, "seasons": {}, "accents": {}}
     for season in SEASONS:
@@ -3290,7 +3403,10 @@ def build_luts(plan):
             "base_groups = %d" % len(base)]
     info += ["%s = %s" % (s, ", ".join("%d:%d" % pair for pair in index[s]))
              for s in SEASONS if s in index]
-    info += ["", "[labels]"] + ["%s = %s" % (s, labels[s]) for s in SEASONS if s in labels]
+    # "_" for each space: the game's reader drops the spaces in a value, which showed
+    # "FoveaMemory50%"; sotz_lut.script turns them back, as group_label's are
+    info += ["", "[labels]"] + ["%s = %s" % (s, labels[s].replace(" ", "_")) for s in SEASONS
+                                if s in labels]
     # the seasons whose groups carry accents; the script says so in the player's language
     info += ["", "[accents]"] + ["%s = true" % s for s in SEASONS if s in accents]
     dest = os.path.join(MODS, LUT_MOD)
@@ -3351,7 +3467,7 @@ def lut_reset(path=None):
     was = lines[hits[-1]].split(None, 1)[1].strip()
     for i in hits:
         lines[i] = LUT_CMD + " " + now
-    io.open(path, "wb").write(nl.join(lines).encode("latin-1"))
+    replace_file(path, nl.join(lines).encode("latin-1"))
     return was, now
 
 
@@ -4711,15 +4827,19 @@ def weather_flags():
 # Real Time Zone (RTZ), DamageZedd's add-on for this mod, runs the game's clock on real time
 # and takes the sky from the real weather each hour. From 1.0.2 it reads the hours from
 # season_weather.ltx's [hourly], which fetch_weather.py writes, and from its own
-# rtz_weather.ltx only when ours has none and its own is dated today. 1.0.0 and 1.0.1 read
-# their own file first, and ship one, a sample day for Ottawa, so until its setup_rtz.bat
-# installs the fetcher that rewrites it, they read that same day forever. The report says
-# which file RTZ reads, and what to do when it is the wrong one.
+# rtz_weather.ltx only when ours has none and its own is dated today. From 1.0.3 ours count
+# for a day from their `start`; past that it reads its own of today, else models the sky
+# from [forecast]. 1.0.0 and 1.0.1 read their own file first, and ship one, a sample day for
+# Ottawa, so until its setup_rtz.bat installs the fetcher that rewrites it, they read that
+# same day forever. The report says which file RTZ reads, and what to do when it is the
+# wrong one.
 RTZ_MARKER = ("gamedata", "scripts", "rtz_main.script")
 RTZ_WEATHER = ("gamedata", "configs", "rtz_weather.ltx")
 RTZ_FETCHER = "fetch_rtz_hourly.py"       # what setup_rtz.bat copies into _tools
 RTZ_STALE_DAYS = 1
 RTZ_SEASONS_FIRST = (1, 0, 2)             # the first release that reads our hours first
+RTZ_FRESH_FIRST = (1, 0, 3)               # the first that reads them for a day from start
+RTZ_HOURS_LAST = 86400                    # that day, in seconds, as rtz_weather.script has it
 
 
 def _ltx_sections(path):
@@ -4762,11 +4882,25 @@ def rtz_version(folder):
     return tuple(int(n) for n in m.groups()) if m else None
 
 
+def hourly_start(sections):
+    """When season_weather.ltx's [hourly] starts, a time.time() on this PC's clock, read as
+    rtz_weather.script reads it; None when it has no start that reads."""
+    m = re.match(r"^(\d+)-(\d+)-(\d+)T(\d+):(\d+)", sections.get("hourly", {}).get("start", ""))
+    if not m:
+        return None
+    try:
+        return time.mktime(tuple(int(n) for n in m.groups()) + (0, 0, 0, -1))
+    except (OverflowError, ValueError):
+        return None
+
+
 def rtz_plan(now=None):
     """What Real Time Zone reads for the sky's hours, and what leaves that wrong:
-    {"state": "none" | "own" | "seasons", "place", "refreshed", "problems", "notes"}.
-    "own" is its rtz_weather.ltx, "seasons" season_weather.ltx's [hourly]. A release that
-    doesn't log its version is taken to be 1.0.2 or later."""
+    {"state": "none" | "own" | "seasons" | "model", "place", "refreshed", "problems",
+    "notes"}. "own" is its rtz_weather.ltx, "seasons" season_weather.ltx's [hourly],
+    "model" the sky modeled from season_weather.ltx's forecast, which 1.0.3 falls back on
+    when our hours are a day past their start and its own aren't today's. A release that
+    doesn't log its version is taken to be the latest."""
     out = {"state": "none", "place": None, "refreshed": False, "problems": [], "notes": []}
     folder = rtz_folder()
     if not folder:
@@ -4781,10 +4915,29 @@ def rtz_plan(now=None):
                   for k in own.get("hourly", {}))
     version = rtz_version(folder)
     if version is None or version >= RTZ_SEASONS_FIRST:
-        today = time.strftime("%Y-%m-%d", time.localtime(now))
-        if not has_ours and has_own and own.get("place", {}).get("date") == today:
+        at = time.time() if now is None else now
+        today = time.strftime("%Y-%m-%d", time.localtime(at))
+        # 1.0.2 reads ours whatever their age; from 1.0.3, for a day from their start
+        start = hourly_start(ours)
+        fresh = has_ours and ((version is not None and version < RTZ_FRESH_FIRST)
+                              or (start is not None and 0 <= at - start < RTZ_HOURS_LAST))
+        when = {"start": ours.get("hourly", {}).get("start", "").replace("T", " ") or "?"}
+        if not fresh and has_own and own.get("place", {}).get("date") == today:
             out["state"] = "own"
             out["place"] = own["place"].get("name") or "?"
+            if has_ours:
+                out["notes"].append(_(
+                    "The hours of the sky play.bat fetched last (%(start)s) are over a day "
+                    "old, so Real Time Zone reads its own, dated today, until play.bat fetches "
+                    "them again.") % when)
+            return out
+        if has_ours and not fresh:
+            out["state"] = "model"
+            out["place"] = place_name(here)
+            out["notes"].append(_(
+                "The hours of the sky play.bat fetched last (%(start)s) are over a day old, so "
+                "Real Time Zone models the sky from the day's forecast until play.bat fetches "
+                "them again.") % when)
             return out
     elif has_own:
         out["state"] = "own"
@@ -4834,6 +4987,9 @@ def rtz_words(plan):
     if plan["state"] == "own":
         # translators: Real Time Zone's weather; %s is a place
         return _("its own hours of the sky, for %s") % plan["place"]
+    if plan["state"] == "model":
+        # translators: Real Time Zone's weather; %s is a place
+        return _("the sky modeled from the day's forecast, for %s") % plan["place"]
     # translators: Real Time Zone's weather; %s is a place
     return _("the hours of the sky play.bat fetches, for %s") % plan["place"]
 
@@ -4887,29 +5043,40 @@ def season_for(d, mapping="pheno"):
     return cur
 
 
+def _real(p):
+    """A path as Windows resolves it, in one case: a junction or a link followed, so two
+    spellings of one folder compare equal."""
+    return os.path.normcase(os.path.realpath(p))
+
+
 def running():
     """Anomaly or MO2 processes belonging to this install, by executable path. A process
-    whose path cannot be read is counted as ours."""
+    whose path cannot be read is counted as ours. PowerShell writes the paths in UTF-8: a
+    pipe otherwise gets the console's code page, which Python reads as another, so a path
+    with a letter past ASCII matched nothing or didn't decode at all. Both sides are
+    resolved, so MO2 started from a junction to the GAMMA folder is this install too."""
     cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command",
+           "[Console]::OutputEncoding = [Text.Encoding]::UTF8; "
            "Get-Process -Name anomaly*,ModOrganizer -ErrorAction SilentlyContinue | "
            "ForEach-Object { if ($_.Path) { $_.Path } else { $_.ProcessName + '.exe|?' } }"]
     try:
-        out = subprocess.run(cmd, capture_output=True, text=True, timeout=60).stdout
+        out = subprocess.run(cmd, capture_output=True, encoding="utf-8", errors="replace",
+                             timeout=60).stdout or ""
     except Exception as e:
         print("  ! " + _("Could not list the running programs (%s), so MO2 and the game are "
                          "taken to be closed.") % e.__class__.__name__)
         return []
-    roots = [os.path.normcase(os.path.abspath(p)) + os.sep for p in (ROOT, game_dir())]
+    roots = [os.path.join(_real(p), "") for p in (ROOT, game_dir())]
     mine = set()
     for line in out.splitlines():
-        line = line.strip()
+        line = line.strip().lstrip("﻿")
         if not line:
             continue
         if line.endswith("|?"):
             # translators: a program's file name, like anomalydx11avx.exe
             mine.add(_("%s (path unreadable, assumed this install)") % line[:-2].lower())
             continue
-        p = os.path.normcase(os.path.abspath(line))
+        p = _real(line)
         if any(p.startswith(r) for r in roots):
             mine.add(os.path.basename(line).lower())
     return sorted(mine)
@@ -4943,6 +5110,13 @@ def hashes(base):
             p = os.path.join(r, f)
             out[os.path.relpath(p, base).replace(os.sep, "/")] = md5(p)
     return out
+
+
+def _folded(h):
+    """hashes() keyed by path in lower case, to compare an archive's files with a folder's:
+    Windows finds a file by its name in any case, and robocopy keeps the case a file already
+    has, so two option folders that spell a path differently stopped every launch."""
+    return {k.lower(): v for k, v in h.items()}
 
 
 def archive_missing(archive):
@@ -5088,13 +5262,13 @@ def identify(mod, cfg, tmp, prefer=None):
     """The season on disk, by hash: (season or None, detail). Two seasons can be the same
     bytes (Aydin ships four sets for six seasons), so the requested season is preferred
     when it is among the matches."""
-    live = hashes(os.path.join(MODS, mod, "gamedata"))
+    live = _folded(hashes(os.path.join(MODS, mod, "gamedata")))
     if not live:
         return None, (_("its gamedata/ is empty") if os.path.isdir(os.path.join(MODS, mod))
                       else _("not in mods/"))
     matches, detail = [], []
     for season in cfg["options"]:
-        cand = _option_hashes(cfg["archive"], cfg["options"][season], tmp, mod)
+        cand = _folded(_option_hashes(cfg["archive"], cfg["options"][season], tmp, mod))
         same = sum(1 for k in set(cand) & set(live) if cand[k] == live[k])
         detail.append((season, len(cand), len(set(cand) & set(live)), same))
         if same == len(live) and same > 0 and len(cand) == len(live):
@@ -5293,11 +5467,14 @@ def shadow_check(force=False):
         except (OSError, ValueError):
             pass
 
-    # the moves apply makes: a mod it is about to put above another is not losing to it
+    # the moves apply makes, pass after pass as it makes them: a mod it is about to put
+    # above another is not losing to it
+    moves = []
     for name, cfg in TOGGLE_MODS.items():
         if name in folders and name not in held:
             i = _find(body, name)
-            _place(body, name, cfg["above"], body[i][:1] if i is not None else "-")
+            moves.append((name, cfg["above"], body[i][:1] if i is not None else "-"))
+    _place_all(body, moves)
 
     ours = set(TOGGLE_MODS) | {SOUND_MOD, LUT_MOD, SOTZ}
     index = {l[1:]: i for i, l in enumerate(body)}
@@ -6330,8 +6507,9 @@ def main():
         _ssrc = _sound_src_dir()
         src_live = bool(_ssrc) and os.path.isdir(_ssrc)
         if not src_live:
-            # no source, or the source mod is disabled: stale overrides come out
-            sound_ok = (sound_now is None) if SOUND_SRC else True
+            # no source, or the source mod is disabled: stale overrides come out. With none
+            # set (configure.py sound --off) too: the last season's set stayed on all year
+            sound_ok = sound_now is None
         elif prefs["stage_sound"]:
             sound_ok = (sound_now == want
                         and soundscape_signature() == _sound_signature(want))
@@ -6408,6 +6586,7 @@ def main():
                 season_label(sound_now) if sound_now else pgettext("the soundscape", "none"),
                 season_label(want) if src_live and prefs["stage_sound"] else
                 _("off (gating is off in MCM)") if src_live else
+                _("off (no ambient sound mod is set)") if not SOUND_SRC else
                 _("off (\"%s\" is not enabled in MO2)") % SOUND_SRC
                 if not _mod_enabled(SOUND_SRC) else
                 _("off (\"%s\" has no ambient sound files)") % SOUND_SRC))
@@ -6430,14 +6609,16 @@ def main():
                              os.path.join(tmp, "apply", mod[:18].replace(" ", "_")))
             target = os.path.join(MODS, mod, "gamedata")
             env = dict(os.environ, MSYS_NO_PATHCONV="1")
+            # only the exit code is read; robocopy writes the console's code page, which a
+            # path past ASCII could make undecodable as Windows' own
             r = subprocess.run(["robocopy", merged, target, "/MIR", "/R:3", "/W:2",
                                 "/NFL", "/NDL", "/NJH", "/NJS", "/NP"],
-                               capture_output=True, text=True, env=env)
+                               capture_output=True, text=True, errors="replace", env=env)
             if r.returncode > 7:
                 raise SystemExit("  ** " + _("Copying the textures into %(mod)s failed "
                                              "(robocopy code %(code)d). Run play.bat again.")
                                  % {"mod": mod, "code": r.returncode} + " **")
-            src, dst = hashes(merged), hashes(target)
+            src, dst = _folded(hashes(merged)), _folded(hashes(target))
             bad = sorted(k for k in set(src) | set(dst) if src.get(k) != dst.get(k))
             # translators: English says MISMATCH for any number
             wrong = ngettext("%d MISMATCH", "%d MISMATCH", len(bad)) % len(bad)

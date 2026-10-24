@@ -257,13 +257,30 @@ function back_to_launcher()
     return ok and yes == true
 end
 
+-- the section the PDA shows, or nil while the PDA cannot be read
+local function pda_section()
+    local ok, s = pcall(function()
+        local menu = ActorMenu.get_pda_menu()
+        return menu and menu:GetActiveSection()
+    end)
+    return ok and s or nil
+end
+
 -- The tab there or gone, as wants_tab() says, and the tile the other way round; a tab the
 -- registry refuses leaves the tile. With the tab taken away while it was the PDA's last
 -- section, the PDA would reopen on a section nothing answers, its tab bar hidden; it goes to
 -- Tasks, the PDA's own first page, instead.
+--
+-- The registry rebuilds the live tab bar as a tab comes or goes, and the engine then selects
+-- the bar's pushed tab again when it is one of the registry's (CUIPdaWnd::RebuildExtraTabs),
+-- which takes the PDA to that tab's own page: Arsenal's Workbench, reached from Arsenal's
+-- tab, gave way to its catalog as this tab came, and Forecast to The Year as Arsenal's did.
+-- So any other section the PDA was on is put back.
 local function sync_tab()
-    local want = wants_tab()
-    if want and not TAB then
+    local want = wants_tab() == true
+    if want == (TAB ~= nil) then return end
+    local was, gone = pda_section(), nil
+    if want then
         local ok, id = pcall(pda_dynamic_tabs.register, TAB_CAPTION, function()
             return safe_page(VIEWS.year.tab)
         end)
@@ -274,14 +291,20 @@ local function sync_tab()
             say("no PDA tab of its own: " .. tostring(id))
             z_seasons_pda_mac.add_tile()
         end
-    elseif not want and TAB then
-        local id = TAB
+    else
+        gone = TAB
         TAB = nil
-        local ok, err = pcall(pda_dynamic_tabs.unregister, id)
+        local ok, err = pcall(pda_dynamic_tabs.unregister, gone)
         if not ok then say("the PDA tab could not be taken away: " .. tostring(err)) end
         z_seasons_pda_mac.add_tile()
-        local menu = ActorMenu.get_pda_menu()
-        if menu and menu:GetActiveSection() == id then menu:SetActiveSubdialog("eptTasks") end
+    end
+    local menu = ActorMenu.get_pda_menu()
+    if not menu then return end
+    local now = menu:GetActiveSection()
+    if gone and now == gone then
+        menu:SetActiveSubdialog("eptTasks")
+    elseif was and was ~= "" and was ~= gone and now ~= was then
+        menu:SetActiveSubdialog(was)
     end
 end
 

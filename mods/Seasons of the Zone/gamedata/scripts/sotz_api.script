@@ -311,7 +311,17 @@ local function diurnal(hour)
     return 0.5 + 0.5 * math.cos(math.pi * x)
 end
 
+-- Whether a level is up with the actor in it (zzz_seasons_of_the_zone.in_level). At the main
+-- menu, and while a level loads, there is no game clock for level's functions to read and
+-- no weather manager, and asking for the manager would build it. So the day is read at noon
+-- and under no sky in particular, and the reading still has every number.
+local function in_level()
+    local ok, here = pcall(function() return zzz_seasons_of_the_zone.in_level() end)
+    return ok and here == true
+end
+
 local function game_hour()
+    if not in_level() then return 12.0 end
     local ok, h, m = pcall(function()
         return level.get_time_hours(), level.get_time_minutes()
     end)
@@ -319,8 +329,10 @@ local function game_hour()
     return 12.0
 end
 
--- The current weather cycle, straight from Atmospherics. nil when it is not running.
+-- The current weather cycle, straight from Atmospherics. nil when it is not running, and
+-- with no level to run in.
 local function cycle_now()
+    if not in_level() then return nil end
     local ok, c = pcall(function()
         if not (level_weathers and level_weathers.get_weather_manager) then return nil end
         local wm = level_weathers.get_weather_manager()

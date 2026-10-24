@@ -9,6 +9,7 @@ has to show the choices, switch, and refuse a mod that cannot be one.
 
   python _tools/test_sound_source.py
 """
+import io
 import os
 import sys
 import tempfile
@@ -144,6 +145,96 @@ def t_a_pack_below_the_source_is_not_named():
         rc, out = tc.run(d, "status", tool="season.py")
         assert rc == 0 and "is above" not in out, out
     return "moved below the source, the pack goes unmentioned"
+
+
+# --- the generated soundscape itself -----------------------------------------------------
+
+REL = ("gamedata", "configs", "environment", "ambients", "presets")
+# the source alone, then the mod: the generated soundscape is made from nothing else
+ALONE = [("Old Ambience", True, []),
+         ("Seasons of the Zone", True, ["scripts/zzz_seasons_of_the_zone.script"])]
+
+
+def presets(root, files, mod="Old Ambience"):
+    """The ambient presets `files`, {name: bytes}, in `mod`."""
+    d = os.path.join(root, "mods", mod, *REL)
+    os.makedirs(d, exist_ok=True)
+    for f, data in files.items():
+        open(os.path.join(d, f), "wb").write(data)
+
+
+def soundscape(root):
+    """The generated soundscape's line in MO2's list, and its files: {name: bytes}."""
+    ml = io.open(os.path.join(root, "profiles", "Default", "modlist.txt"),
+                 encoding="utf-8").read().splitlines()
+    gen = os.path.join(root, "mods", "Seasonal Soundscape", *REL)
+    files = ({f: open(os.path.join(gen, f), "rb").read() for f in os.listdir(gen)}
+             if os.path.isdir(gen) else None)
+    return [l for l in ml if l[1:] == "Seasonal Soundscape"], files
+
+
+@case
+def t_the_soundscape_turned_off_goes_off():
+    """configure.py sound --off sets SOUND_SRC to None, and the last season's soundscape
+    stayed on all year, its cuts and all, while the report said "none set up" and nothing
+    to do. Now the next launch takes its files out and turns it off in MO2's list."""
+    with tempfile.TemporaryDirectory() as d:
+        setup(d, mods=ALONE)
+        presets(d, {"environment_field.ltx": b"[a]\r\nsound_channels_dynamic = wind, Insects, "
+                                             b"birds\r\n"})
+        rc, out = tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+        line, files = soundscape(d)
+        assert rc == 0 and line == ["+Seasonal Soundscape"] and files, (line, out)
+        rc, out = tc.run(d, "sound", "--off")
+        assert rc == 0 and sound_src(d) is None, out
+        rc, out = tc.run(d, "status", "--season", "summer", tool="season.py")
+        assert rc == 0 and "off (no ambient sound mod is set)" in out, out
+        rc, out = tc.run(d, "apply", "--season", "summer", tool="season.py")
+        line, files = soundscape(d)
+        assert rc == 0 and line == ["-Seasonal Soundscape"] and files is None, (line, files, out)
+        rc, out = tc.run(d, "apply", "--season", "summer", tool="season.py")
+        assert rc == 0 and "already on summer, nothing to do" in out, out
+    return "deep winter's set out and off in MO2 the launch after --off, then nothing to do"
+
+
+# A comment saved as UTF-8: "И" is D0 98 there, and ‘ is E2 80 98; cp1251 has no 0x98
+UTF8 = "; Источник: DSA ‘Night’".encode("utf-8")
+SOURCE = {"a_field.ltx": b"[a]\r\nsound_channels_dynamic = wind, Insects, birds\r\n",
+          "b_swamp.ltx": b"[b]\r\n" + UTF8 + b"\r\nsound_channels_dynamic = Insects, "
+                         b"birds_swamp, wind\r\n",
+          "c_forest.ltx": b"[c]\r\nsound_channels_dynamic = Insects_night, birds_night;\r\n"}
+# what winter keeps of each: no insects, no swamp birds, every other byte as it was
+WINTER = {"a_field.ltx": b"[a]\r\nsound_channels_dynamic = wind, birds\r\n",
+          "b_swamp.ltx": b"[b]\r\n" + UTF8 + b"\r\nsound_channels_dynamic = wind\r\n",
+          "c_forest.ltx": b"[c]\r\nsound_channels_dynamic = birds_night;\r\n"}
+
+
+@case
+def t_a_source_saved_as_utf8_is_copied_byte_for_byte():
+    """A preset saved as UTF-8 holds bytes cp1251 has no letter for. Read as cp1251, one
+    became a letter it can't write, and the run stopped with the file it was writing left
+    empty, in an enabled mod, the rest not written and the last season's gone. Each file
+    is now its source with the channels cut, byte for byte; what a run that stopped part
+    way left beside the set is cleared."""
+    with tempfile.TemporaryDirectory() as d:
+        setup(d, mods=ALONE)
+        presets(d, SOURCE)
+        gen = os.path.join(d, "mods", "Seasonal Soundscape", *REL)
+        os.makedirs(gen + ".building")
+        open(os.path.join(gen + ".building", "environment_old.ltx"), "wb").write(b"x")
+        for season, want in (("winter", WINTER), ("summer", SOURCE)):
+            rc, out = tc.run(d, "apply", "--season", season, tool="season.py")
+            assert rc == 0 and "VERIFIED" in out, out
+            line, files = soundscape(d)
+            assert sorted(files or ()) == sorted(SOURCE), (season, sorted(files or ()))
+            for f, data in files.items():
+                first, rest = data.split(b"\r\n", 1)
+                assert first.startswith(b";; seasonal-soundscape season=%s cuts="
+                                        % season.encode()), (season, f, first)
+                assert rest == want[f], (season, f, rest, want[f])
+            left = [p for p in (gen + ".building", gen + ".previous") if os.path.exists(p)]
+            assert not left, "left beside the set: %s" % left
+    return "winter's cuts and summer's none, the UTF-8 comment kept; a leftover cleared"
 
 
 if __name__ == "__main__":

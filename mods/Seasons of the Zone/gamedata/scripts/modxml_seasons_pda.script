@@ -38,14 +38,17 @@ local function has_mac()
     return ok and yes == true
 end
 
--- the <tab> with the PDA's own sections in it, and the ids of its buttons
+-- the <tab> with the PDA's own sections in it, and the ids of its buttons. DXML's nodes are its
+-- own tables, {el = "<button x=0 ... id=eptTasks", kids, parent}, with no name or attribute
+-- fields: getElement reads those out of `el`, and gives nothing for a text node.
 local function find_bar(xml_obj)
     for _, el in ipairs(xml_obj:query("tab") or {}) do
         local ids = {}
         local sections = false
         for _, child in ipairs(el.kids or {}) do
-            local id = child.name == "button" and child.attribs and child.attribs.id
-            if id then
+            local e = xml_obj:getElement(child)
+            local id = e and e.name == "button" and e.attr and e.attr.id
+            if type(id) == "string" then
                 ids[id] = true
                 if id:find("^ept") then sections = true end
             end

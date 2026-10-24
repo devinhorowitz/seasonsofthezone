@@ -149,9 +149,15 @@ def made(mods):
         return out
     for f in files:
         try:
-            first = io.open(os.path.join(d, f), encoding="latin-1").readline()
+            with open(os.path.join(d, f), "rb") as fh:
+                first = fh.readline()
         except OSError:
             continue
+        # the line build() writes is UTF-8; a copy made before was latin-1 throughout
+        try:
+            first = first.decode("utf-8")
+        except UnicodeDecodeError:
+            first = first.decode("latin-1")
         m = HEAD.match(first)
         if m:
             out[f.lower()] = (m.group(1), m.group(2), f, int(m.group(3) or 1))
@@ -185,7 +191,9 @@ def build(mods, order):
         raw, text = _read(path)
         body, n = dry(text)
         lines += n
-        out = (head_line(mod, digest) + _nl(text) + body).encode("latin-1")
+        # the first line, a comment, in UTF-8: it names the mod, whose folder name can hold
+        # letters latin-1 lacks (Cyrillic, a curly quote); the weather itself byte for byte
+        out = head_line(mod, digest).encode("utf-8") + (_nl(text) + body).encode("latin-1")
         target = os.path.join(d, os.path.basename(path))
         if not (os.path.isfile(target) and open(target, "rb").read() == out):
             with open(target, "wb") as fh:

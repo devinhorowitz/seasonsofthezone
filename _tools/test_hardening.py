@@ -10,8 +10,11 @@ install, and each fails on the code before it was fixed.
 """
 import io
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -589,6 +592,276 @@ def t_the_game_s_clock_stages_the_zone_s_season():
         assert rc == 0 and real.isoformat() in out and "game's clock" not in out, out
     return "no date yet: the real one, said; the Zone's %s: %s staged; real again" % (
         zone.isoformat(), want)
+
+
+@case
+def t_the_clock_file_mo2_put_in_overwrite_counts():
+    """The game makes seasons_clock.txt in appdata, a folder Atmospherics ships files to, so
+    MO2 can put the new file in its overwrite folder; season.py read only the game folder's,
+    and ran on the real date. Of the two, the one written last counts."""
+    import datetime
+    first, later = datetime.date(2018, 12, 15), datetime.date(2019, 7, 1)
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=BASE)
+        tc.with_mod(d)
+        game = os.path.join(d, "ANOMALY")
+        io.open(os.path.join(d, "ModOrganizer.ini"), "a", encoding="utf-8").write(
+            "gamePath=@ByteArray(%s)\r\n" % game.replace("\\", "\\\\"))
+        store = os.path.join(d, "overwrite", "gamedata", "configs", "axr_options.ltx")
+        os.makedirs(os.path.dirname(store))
+        io.open(store, "w", encoding="cp1251").write("[mcm]\nseasons_zone/main/clock = game\n")
+        os.makedirs(os.path.join(game, "appdata"))
+        moved = os.path.join(d, "overwrite", "appdata", "seasons_clock.txt")
+        os.makedirs(os.path.dirname(moved))
+        mine = os.path.join(game, "appdata", "seasons_clock.txt")
+        now = time.time()
+
+        def clock(p, day, t):
+            io.open(p, "w").write("zone = %s\ngame = 2018-11-02 14:31\nspeed = 7\n"
+                                  % day.isoformat())
+            os.utime(p, (t, t))
+
+        def date_row():
+            rc, out = status(d)
+            assert rc == 0, out
+            return [l for l in out.splitlines() if l.strip().startswith("date ")][0]
+
+        clock(moved, first, now - 300)
+        row = date_row()
+        assert first.isoformat() + "   (the Zone's date" in row, "overwrite's unread: " + row
+        clock(mine, later, now - 200)
+        row = date_row()
+        assert later.isoformat() in row, "the older file won: " + row
+        os.utime(moved, (now - 100, now - 100))
+        row = date_row()
+        assert first.isoformat() in row, "the newer file lost: " + row
+    return "overwrite\\appdata's file read; of two, the one written last"
+
+
+@case
+def t_a_failed_write_leaves_each_file_as_it_was():
+    """seasons_config.py, modlist.txt and user.ltx were opened for writing, which empties
+    them, then written: a write that failed (a full disk) left 0 bytes. The window said "Not
+    saved" over an emptied config, and play.bat then ran on none. A write's failure is
+    stood in for here; the rest is the shipped code."""
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=cfg(TOGGLE_MODS='{"Winter Pack": {"when": ("winter",), '
+                                                '"above": "Grass Compat"}}'))
+        drive = os.path.join(d, "full.py")
+        io.open(drive, "w", encoding="utf-8").write(FULL_DISK)
+        r = subprocess.run([sys.executable, "-B", drive, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "Traceback" not in out, out
+        for line in ("CONFIG False True Not saved: [Errno 28] No space left",
+                     "DISABLE 28 True", "APPLY 28 True", "USER 28 True"):
+            assert line in out, (line, out)
+    return "seasons_config.py, modlist.txt (twice) and user.ltx: refused, each as it was"
+
+
+FULL_DISK = r'''
+import builtins, io, os, sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+import config_edit as ce
+import season
+real_open, real_io_open = builtins.open, io.open
+FAIL = ("modlist.txt", "seasons_config.py", "user.ltx")
+
+
+class Full(object):
+    """A file open for writing whose writes all fail, as on a full disk."""
+    def __init__(self, f):
+        self.f = f
+
+    def write(self, data):
+        raise OSError(28, "No space left on device")
+
+    def close(self):
+        self.f.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        self.f.close()
+
+
+def failing(opener):
+    def open_(path, mode="r", *a, **k):
+        f = opener(path, mode, *a, **k)
+        name = os.path.basename(str(path))
+        if "w" in mode and (name in FAIL or name.endswith(".tmp") and name[:-4] in FAIL):
+            return Full(f)
+        return f
+    return open_
+
+
+def same(p, before):
+    return real_open(p, "rb").read() == before and not os.path.exists(p + ".tmp")
+
+
+builtins.open, io.open = failing(real_open), failing(real_io_open)
+cal = ce.Calendar()
+before = real_open(ce.CONFIG, "rb").read()
+cal.events["new_year"] = ((12, 31), (1, 1))
+saved, lines = cal.save()
+print("CONFIG", saved, same(ce.CONFIG, before), lines[0])
+ml = season._modlist_path()
+before = real_open(ml, "rb").read()
+for what, run in (("DISABLE", lambda: season.disable_mod("Grass Compat")),
+                  ("APPLY", lambda: season.apply_toggles(["winter"]))):
+    try:
+        run()
+        print(what, "WROTE")
+    except OSError as e:
+        print(what, e.errno, same(ml, before))
+atlas = os.path.join(season.MODS, "Grass Compat", "gamedata", "textures", "shaders",
+                     "lut_atlas.dds")
+os.makedirs(os.path.dirname(atlas))
+with real_open(atlas, "wb") as f:
+    f.write(season._dds_header(1) + bytes(season.LUT_GROUP))
+user = os.path.join(season.ROOT, "user.ltx")
+with real_open(user, "wb") as f:
+    f.write(b"_preset Default\r\nssfx_lut (1.000000, 3.000000, 3.000000, 0.000000)\r\n")
+before = real_open(user, "rb").read()
+try:
+    season.lut_reset(user)
+    print("USER WROTE")
+except OSError as e:
+    print("USER", e.errno, same(user, before))
+'''
+
+
+@case
+def t_a_set_that_spells_a_path_in_another_case_is_staged():
+    """Two option folders that spell a path in different case: robocopy writes the new set
+    over the old under the name the file already has, and the check after it went by the
+    names' case, so it stopped the launch, and the next launch called the copy unrecognized
+    and stopped again."""
+    import py7zr
+    layout = ('{"Base Grass": {"archive": "grass.7z", "options": {"summer": ["Summer"], '
+              '"winter": ["Winter"]}}}')
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=cfg(LAYOUT=layout))
+        src = os.path.join(d, "_arch")
+        for opt, rel in (("Summer", ("textures", "grass", "a.dds")),
+                         ("Winter", ("textures", "Grass", "A.dds"))):
+            p = os.path.join(src, opt, "gamedata", *rel)
+            os.makedirs(os.path.dirname(p))
+            io.open(p, "w").write(opt)
+        os.makedirs(os.path.join(d, "downloads"), exist_ok=True)
+        with py7zr.SevenZipFile(os.path.join(d, "downloads", "grass.7z"), "w") as z:
+            for opt in ("Summer", "Winter"):
+                z.writeall(os.path.join(src, opt), opt)
+        live = os.path.join(d, "mods", "Base Grass", "gamedata", "textures", "grass")
+        for f in os.listdir(live):
+            os.remove(os.path.join(live, f))
+        io.open(os.path.join(live, "a.dds"), "w").write("Summer")
+        rc, out = status(d, "apply", "--season", "winter")
+        assert rc == 0 and "VERIFIED" in out and "MISMATCH" not in out, out
+        assert io.open(os.path.join(live, "a.dds")).read() == "Winter", "not restaged"
+        rc, out = status(d, "apply", "--season", "winter")
+        assert rc == 0 and "installed: winter" in out and "VERIFIED" not in out, out
+        rc, out = status(d, "apply", "--season", "summer")
+        assert rc == 0 and "VERIFIED" in out, out
+        assert io.open(os.path.join(live, "a.dds")).read() == "Summer", "not staged back"
+    return "winter over summer's a.dds, known again at the next launch, and back to summer"
+
+
+OLD_PYTHON = r'''
+import collections, sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+sys.version_info = collections.namedtuple("version_info", "major minor micro releaselevel "
+                                          "serial")(3, 7, 9, "final", 0)
+import %s
+print("IMPORTED")
+'''
+
+
+@case
+def t_an_older_python_is_told_in_words():
+    """Python 3.7: the config's checks read 3.8's syntax tree, so play.bat's first apply
+    stopped on a traceback, and configure.bat's window on another. The tools say so in
+    words before anything runs, whichever of the two starts them."""
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=BASE)
+        drive = os.path.join(d, "old.py")
+        for tool in ("season", "configure"):
+            io.open(drive, "w", encoding="utf-8").write(OLD_PYTHON % tool)
+            r = subprocess.run([sys.executable, "-B", drive, os.path.join(d, "_tools")], cwd=d,
+                               capture_output=True, text=True, encoding="utf-8",
+                               errors="replace")
+            out = r.stdout + r.stderr
+            assert r.returncode == 1 and "IMPORTED" not in out and "Traceback" not in out \
+                and "need Python 3.8 or later, and this is Python 3.7.9" in out, (tool, out)
+    return "season.py and configure.py each stop at once, naming the version"
+
+
+RUNNING = r'''
+import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, sys.argv[1])
+import season
+print("RUNNING", season.running())
+'''
+
+
+def stand_in(where, name):
+    """A program called `name` running from the folder `where`: cmd.exe under that name,
+    waiting on its input, so it runs until the input is closed. No window; nothing sent."""
+    exe = os.path.join(where, name)
+    shutil.copy2(os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32",
+                              "cmd.exe"), exe)
+    return subprocess.Popen([exe, "/d", "/q", "/k"], stdin=subprocess.PIPE,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+
+def seen_running(d, mo2_in):
+    """season.running() in the scratch install at `d`, with a stand-in MO2 running from the
+    folder `mo2_in`: the line it prints."""
+    mo2 = stand_in(mo2_in, "ModOrganizer.exe")
+    try:
+        drive = os.path.join(d, "running.py")
+        io.open(drive, "w", encoding="utf-8").write(RUNNING)
+        r = subprocess.run([sys.executable, "-B", drive, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+    finally:
+        mo2.stdin.close()
+        mo2.wait(timeout=30)
+    assert "Traceback" not in r.stdout + r.stderr, r.stdout + r.stderr
+    return ([l for l in r.stdout.splitlines() if l.startswith("RUNNING")] or [r.stdout])[0]
+
+
+@case
+def t_mo2_open_is_seen_on_any_path():
+    """MO2 open, in a GAMMA folder whose path has a letter past ASCII: PowerShell wrote the
+    path in the console's code page and season.py read it as Windows' own, so with an
+    a-umlaut MO2 read as closed, and modlist.txt was written under it; with a u-umlaut the
+    path didn't decode, and running() stopped on a traceback. And MO2 started from the
+    folder's own path while the tools ran from a junction to it read as closed too."""
+    seen = []
+    for folder in ("Sp\u00e4ter", "J\u00fcrgen", "\u0418\u0433\u0440\u044b"):
+        with tempfile.TemporaryDirectory(prefix=folder + " ") as d:
+            tc.install(d)
+            got = seen_running(d, d)
+            assert got == "RUNNING ['modorganizer.exe']", (folder, got)
+            seen.append(folder)
+    with tempfile.TemporaryDirectory() as d:
+        real = os.path.join(d, "GAMMA")
+        os.makedirs(real)
+        tc.install(real)
+        link = os.path.join(d, "Link to GAMMA")
+        subprocess.run(["cmd", "/d", "/c", "mklink", "/J", link, real], check=True,
+                       capture_output=True)
+        try:
+            got = seen_running(link, real)
+        finally:
+            os.rmdir(link)                  # the junction only, never what it points to
+        assert got == "RUNNING ['modorganizer.exe']", ("through a junction", got)
+    return "MO2 seen under %s, and from a junction's other side" % ", ".join(seen)
 
 
 if __name__ == "__main__":

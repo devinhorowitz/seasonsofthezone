@@ -437,6 +437,133 @@ def t_marked_day_hold():
     return "planner: 2 of 3 segments held to the day's end, drawn once; stock: forced"
 
 
+# Base Anomaly's stock WeatherManager, as much of it as decides the sky, line for line from
+# its level_weathers.script: update() 209-240, change_period() 242-262, select_weather()
+# 264-381, get_next_weather_cycle() 383-438, is_next_change_date() 451-459,
+# forced_weather_change() 461-464. It runs on a game clock of its own, and level.set_weather
+# keeps the sky it was last told. hold_day() ticks it the way actor_on_update does, every 5
+# real seconds, 30 game seconds at time factor 6.
+STOCK_MANAGER = r"""
+local CT = {}
+CT.__index = CT
+function CT:diffSec(other) return self.t - other.t end
+clock = {sec = 8 * 3600}
+game.get_game_time = function() return setmetatable({t = clock.sec}, CT) end
+told = {}
+level = {
+    get_time_hours = function() return math.floor(clock.sec / 3600) % 24 end,
+    set_weather = function(name, now) told.name, told.now = name, now end,
+}
+random_key_table = function(t) return next(t) end
+local CYCLES = {"clear", "partly", "cloudy", "rain", "storm", "foggy"}
+
+function stock_manager(period)
+    local wm = {cycle = "rain", preset = "w_rain1", transition_period = false,
+                forced_weather_change_on_time_change = false, presets = {},
+                last_period_change_date = game.get_game_time(),
+                last_hour = level.get_time_hours()}
+    for _, c in ipairs(CYCLES) do wm.presets[c] = {["w_" .. c .. "1"] = true} end
+    -- once a game hour: is the cycle's time up, then the sky
+    function wm:update()
+        if self.last_hour ~= level.get_time_hours() then
+            self.last_hour = level.get_time_hours()
+            self:change_period()
+            self:select_weather(false)
+        end
+    end
+    -- its time up, another sky, by way of a transition
+    function wm:change_period()
+        if self:is_next_change_date(self.cycle) then
+            self.cycle = self:get_next_weather_cycle(self.cycle)
+            self.preset = next(self.presets[self.cycle])
+            self.last_period_change_date = game.get_game_time()     -- reset_change_date(true)
+            self.transition_period = true
+        end
+    end
+    -- re-rolled each hour, between two thirds of the cycle's period and all of it
+    function wm:is_next_change_date(cycle)
+        local hour = math.random(math.ceil(period * 2 / 3), period)
+        return math.ceil(game.get_game_time():diffSec(self.last_period_change_date))
+               > hour * 3600
+    end
+    -- never the sky it is leaving
+    function wm:get_next_weather_cycle(curr)
+        local avail = {}
+        for _, c in ipairs(CYCLES) do if c ~= curr then avail[#avail + 1] = c end end
+        return avail[math.random(#avail)]
+    end
+    -- a transition draws a cloudy weather; a forced change lands at once
+    function wm:select_weather(now)
+        local cycle = self.cycle
+        if self.transition_period then cycle, self.transition_period = "cloudy", false end
+        if not (self.preset and self.presets[cycle][self.preset]) then
+            self.preset = next(self.presets[cycle])
+        end
+        if self.forced_weather_change_on_time_change then
+            now, self.forced_weather_change_on_time_change = true, false
+        end
+        level.set_weather(self.preset, now)
+    end
+    function wm:forced_weather_change() self.forced_weather_change_on_time_change = true end
+    level_weathers = {get_weather_manager = function() return wm end}
+    return wm
+end
+
+-- `days` game days of ticks, holding `name` or not: the ticks past the first game hour, whose
+-- draw a hold waits for, on which the sky the engine was last told isn't one of `name`'s;
+-- and how many times the sky changed
+function hold_day(hold, wm, name, days, holding)
+    local held, off, changes, last = wm.presets[name], 0, 0, nil
+    for i = 1, days * 2880 do
+        clock.sec = clock.sec + 30
+        wm:update()
+        if holding then hold(name) end
+        if told.name ~= last then changes, last = changes + 1, told.name end
+        if i > 120 and not held[told.name] then off = off + 1 end
+    end
+    return off, changes
+end
+"""
+
+
+def stock_world(period, seed=7):
+    lua, g, hold = build(standing=0, surge_left=HOUR, psi_left=HOUR, stock=True,
+                         weather="rain", tail="return hold_cycle")
+    lua.execute(STOCK_MANAGER)
+    lua.execute("math.randomseed(%d)" % seed)
+    return lua, g, hold, g.stock_manager(period)
+
+
+def t_stock_hold_keeps_the_sky():
+    # The base game's manager checks each hour whether its cycle's time is up, and when it
+    # is rolls any other sky, by way of an hour of cloudy transition. Held by its cycle
+    # alone, a remembrance day's clear sky went cloudy for an hour every few game hours and
+    # snapped back, and an anniversary lost about a third of its storm: run against base
+    # Anomaly's own manager, 18% of the day off a clear hold and 29% off a storm one. The
+    # hold sets the cycle's time going again at every tick.
+    said = []
+    for name, period in (("clear", 6), ("storm", 3)):
+        lua, g, hold, wm = stock_world(period)
+        off, _ = g.hold_day(hold, wm, name, 2, True)
+        assert off == 0, "%s held: off it %d of %d ticks" % (name, off, 2 * 2880 - 120)
+        # every tick, the ticks with the cycle already held included
+        assert wm.last_period_change_date.t == g.clock.sec, \
+            (wm.last_period_change_date.t, g.clock.sec)
+        # the control: unheld, the same manager turns its sky by itself
+        lua, g, hold, wm = stock_world(period)
+        _, changes = g.hold_day(hold, wm, name, 2, False)
+        assert changes >= 4, "%s: the manager never turned the sky (%d)" % (name, changes)
+        said.append("%s holds two game days, unheld it turned %d times" % (name, changes))
+    # a cycle the weathers lack can't be held, and the manager's own clock runs on
+    lua, g, hold, wm = stock_world(6)
+    since = wm.last_period_change_date.t
+    g.clock["sec"] = g.clock["sec"] + 600
+    got = hold("snow")
+    assert "no snow cycle" in str(got) and wm.last_period_change_date.t == since, \
+        (got, wm.last_period_change_date.t, since)
+    return "; ".join(said) + "; no snow cycle, the clock left alone"
+
+
 def t_faction_picked():
     # whose goodwill buys the forecast: MCM's pick, or the best of the three; a pick the
     # script doesn't know reads as the ecologists, the default
@@ -1199,6 +1326,7 @@ for n, f in (("locked tier", t_locked), ("coarse tier", t_coarse),
              ("mcm off", t_mcm_off), ("thresholds move", t_thresholds_move),
              ("no standing", t_no_standing),
              ("marked day hold", t_marked_day_hold),
+             ("stock hold", t_stock_hold_keeps_the_sky),
              ("faction picked", t_faction_picked),
              ("faction's word", t_each_faction_says_so_once),
              ("weather plan", t_weather_plan), ("weather absent", t_weather_absent),

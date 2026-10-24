@@ -828,9 +828,8 @@ class Guide(object):
     def rain_saved(self, was, now):
         """After a save: No Rain in Winter made when it is on and its copies aren't current,
         or disabled in MO2 when it was just turned off, as configure.py rain does it. With
-        MO2 or the game open, play.bat makes it at the next launch instead; a mod can't be
-        disabled then, since MO2 writes its list over the change when it closes. The lines
-        to show."""
+        MO2 or the game open, play.bat makes it, or turns it off, at the next launch
+        instead: MO2 writes its list over a change made while it runs. The lines to show."""
         if not (was or now):
             return []
         inst = ce.Install()
@@ -850,8 +849,8 @@ class Guide(object):
                              "took the rain out of %(n)d weathers (%(lines)d lines), in "
                              "\"%(mod)s\"", n) % {"n": n, "lines": lines, "mod": winter_rain.MOD}]
         if busy:
-            return [_("No Rain in Winter is still on in MO2: close %s, then uncheck it in MO2's "
-                      "mod list.") % season._and(busy)]
+            return [_("No Rain in Winter is still on in MO2; play.bat turns it off at the next "
+                      "launch with %s closed.") % season._and(busy)]
         return [_("No Rain in Winter is disabled in MO2.")] if season.disable_mod(
             winter_rain.MOD) else []
 

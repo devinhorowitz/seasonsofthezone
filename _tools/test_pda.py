@@ -12,15 +12,19 @@ a page that fails to build, never wraps twice, and works whichever order it and 
 
 Then the tab bar hook (modxml_seasons_pda): only ui/pda.xml and ui/pda_16.xml, only the <tab>
 of the PDA's own sections, and a parked Launcher when MAC is installed but another mod's bar
-won. And the app key: the shipped page scripts opened flat, switched, and closed.
+won, read through nodes shaped as DXML 9.12 shapes them; and once more under the game's own
+DXML over a real bar, when those files are at hand (SOTZ_DXML, or fetch_dxml.py's
+_tools/_staging/dxml), else that case says why and skips. And the app key: the shipped page
+scripts opened flat, switched, and closed.
 
 And the tab of its own, against stand-ins for Modded Exes' tab registry, MAC, MCM and the PDA:
 it comes only in play, a second after the first update (one added during a load crashed the
 game, 2026-10-11); with MAC when MCM asks for it or the bar has no Launcher, in place of the
 tile; without MAC always; without the registry never. The option adds or takes away the tab
 once the game runs again, and the tile the other way round; a tab taken away while it was the
-PDA's last section sends the PDA to Tasks. Back and Escape lead to the launcher only while
-the tile is there, and Forecast's switch comes back to the tab.
+PDA's last section sends the PDA to Tasks, and the page the PDA was on otherwise stays,
+though the registry's rebuild of the bar selects its pushed tab again. Back and Escape lead to
+the launcher only while the tile is there, and Forecast's switch comes back to the tab.
 
   python _tools/test_pda.py
 """
@@ -386,43 +390,162 @@ def t_one_name_for_each_section():
 # The bar is ui/pda_16.xml (and ui/pda.xml, which includes it), and several mods ship it
 # whole. These run the shipped modxml_seasons_pda.script over bars shaped like MAC's and like
 # a mod's that adds tabs of its own and has no Launcher (INTERFECTOR's PDA Trading), through a
-# stand-in for DXML that does what DXML does: query hands back the <tab> elements, and
-# insertFromXMLString appends the button the string describes.
+# stand-in for DXML 9.12 (dxml_core.script's xml_object over slaxml.script's simple_dom) that
+# hands the hook what DXML hands it. A node is DXML's own table: an element is
+# {el = "<button x=0 ... id=eptTasks", kids, parent}, a text {el = "#pda_btn_quests", parent},
+# and no field on it holds a name or an attribute: getElement, getElementName and
+# getElementAttr read them out of `el` as dxml_core does. query("tab") walks every element
+# under the root, and insertFromXMLString parses the string into such nodes and puts them in.
+# A stand-in of {name = "button", attribs = {id = ...}} tables passed a hook that found no bar
+# in the game from 2.3.0 to 2.11.1, because DXML's nodes have neither field.
 
 DXML = r"""
-function mktab(ids)
-    local el = {name = "tab", kids = {}}
-    for _, id in ipairs(ids) do
-        if id == "caption" then
-            el.kids[#el.kids + 1] = {name = "caption", attribs = {}}
-        else
-            el.kids[#el.kids + 1] = {name = "button", attribs = {id = id}}
+-- _g.script's str_explode: the parts between separators, each trimmed
+local function explode(s, sep)
+    local t = {}
+    for part in (s .. sep):gmatch("(.-)" .. sep) do t[#t + 1] = part:match("^%s*(.-)%s*$") end
+    return t
+end
+
+local DX = {}
+DX.__index = DX
+function DX:isElement(n) return n.el:sub(1, 1) == "<" end
+function DX:isText(n) return n.el:sub(1, 1) == "#" end
+-- dxml_core's getElement: {name, attr} read out of `el`, an attribute with no value true;
+-- nothing for a text
+function DX:getElement(n)
+    if not self:isElement(n) then return nil end
+    local name, rest = n.el:sub(2):match("^(%S+)%s*(.*)$")
+    local res = {name = name, attr = {}}
+    if rest ~= "" then
+        for _, pair in ipairs(explode(rest, " ")) do
+            local a = explode(pair, "=")
+            if a[2] == nil then res.attr[a[1]] = true else res.attr[a[1]] = a[2] end
         end
     end
-    return el
+    return res
+end
+function DX:getElementName(n)
+    if self:isElement(n) then return (n.el:sub(2):match("^(%S+)")) end
+end
+function DX:getElementAttr(n) return self:getElement(n).attr end
+-- the root, as dxml_core takes it: the document's one element (a bar file's <w>)
+function DX:getRoot()
+    local kids = self.doc.kids
+    if #kids == 1 and kids[1].kids then return kids[1] end
+    return self.doc
+end
+-- query for a plain element name, all the hook asks: every element of that name under the
+-- root, depth first
+function DX:query(q)
+    if not q:match("^[%a_][%w_]*$") then error("unexpected query " .. tostring(q)) end
+    local found = {}
+    local function walk(list)
+        for _, n in ipairs(list) do
+            if self:getElementName(n) == q then found[#found + 1] = n end
+            if n.kids then walk(n.kids) end
+        end
+    end
+    walk(self:getRoot().kids)
+    return found
+end
+-- slaxml's simple_dom with stripWhitespace: an element's "<name k=v ...", its text trimmed,
+-- a blank one dropped
+local function parse(s)
+    local doc = {el = "!doc", kids = {}}
+    local stack = {doc}
+    local i = 1
+    while true do
+        local lt = s:find("<", i, true)
+        local cur = stack[#stack]
+        local text = s:sub(i, (lt or #s + 1) - 1):match("^%s*(.-)%s*$")
+        if text ~= "" then cur.kids[#cur.kids + 1] = {el = "#" .. text, parent = cur} end
+        if not lt then break end
+        local gt = assert(s:find(">", lt, true), "an unclosed tag")
+        local tag = s:sub(lt + 1, gt - 1)
+        if tag:sub(1, 1) == "/" then
+            stack[#stack] = nil
+        else
+            local closed = tag:sub(-1) == "/"
+            if closed then tag = tag:sub(1, -2) end
+            local name, attrs = tag:match("^([%w_]+)%s*(.-)$")
+            local el = "<" .. name
+            for k, v in attrs:gmatch('([%w_]+)%s*=%s*"([^"]*)"') do el = el .. " " .. k .. "=" .. v end
+            local n = {el = el, kids = {}, parent = cur}
+            cur.kids[#cur.kids + 1] = n
+            if not closed then stack[#stack + 1] = n end
+        end
+        i = gt + 1
+    end
+    return doc
+end
+-- dxml_core's insertFromXMLString: the string's nodes put into `where` (the root by default),
+-- at `pos` (the end by default); `inserted` keeps each one's id, for the checks
+function DX:insertFromXMLString(s, where, pos)
+    where = where or self:getRoot()
+    where.kids = where.kids or {}
+    local at = pos and math.max(1, math.min(pos, #where.kids + 1)) or #where.kids + 1
+    for i, n in ipairs(parse(s).kids) do
+        n.parent = where
+        table.insert(where.kids, at + i - 1, n)
+        local e = self:getElement(n)
+        self.inserted[#self.inserted + 1] = e and e.attr.id or "#text"
+    end
+    return at
 end
 
+-- a <tab> of buttons named by `ids`, built as DXML builds MAC's: each <button>'s attributes in
+-- its `el`, and a <text> in it holding its label; "caption" is a plain element, and "text" a
+-- bare text node
+function mktab(ids)
+    local tab = {el = "<tab x=132 y=23 width=550 height=27", kids = {}}
+    for i, id in ipairs(ids) do
+        local n
+        if id == "caption" then
+            n = {el = "<caption x=0 y=0 width=100 height=20", kids = {}}
+        elseif id == "text" then
+            n = {el = "#a line of text"}
+        else
+            n = {el = string.format("<button x=%d y=0 width=79 height=27 id=%s frame_mode=0",
+                (i - 1) * 68, id), kids = {}}
+            local label = {el = "<text align=c vert_align=c x=0 y=0 font=letterica16", kids = {}, parent = n}
+            label.kids[1] = {el = "#" .. id:lower(), parent = label}
+            n.kids[1] = label
+        end
+        n.parent = tab
+        tab.kids[#tab.kids + 1] = n
+    end
+    return tab
+end
+
+-- the xml object DXML hands a callback for a file holding these <tab>s under its root
 function mkdxml(tabs)
-    local o = {tabs = tabs, inserted = {}}
-    function o:query(q)
-        if q ~= "tab" then error("unexpected query " .. tostring(q)) end
-        return self.tabs
+    local root = {el = "<w", kids = {}}
+    local doc = {el = "!doc", kids = {root}}
+    root.parent = doc
+    for _, t in ipairs(tabs) do
+        t.parent = root
+        root.kids[#root.kids + 1] = t
     end
-    function o:insertFromXMLString(s, where)
-        local id = s:match('id="([^"]+)"')
-        local parked = s:match('x="1000"') ~= nil and s:match('width="0"') ~= nil
-        where.kids[#where.kids + 1] = {name = "button", attribs = {id = id}, parked = parked}
-        self.inserted[#self.inserted + 1] = id
-    end
-    return o
+    return setmetatable({doc = doc, inserted = {}}, DX)
 end
 
+-- what a <tab> holds: a button by its id, any other element by its name, a text as #text
 function ids_of(el)
+    local x = setmetatable({}, DX)
     local t = {}
     for _, k in ipairs(el.kids) do
-        t[#t + 1] = (k.name == "button") and k.attribs.id or k.name
+        local e = x:getElement(k)
+        t[#t + 1] = e and (e.name == "button" and e.attr.id or e.name) or "#text"
     end
     return t
+end
+
+-- a button put out of sight, as MAC parks its own: x 1000, no size, no frame
+function is_parked(n)
+    local e = setmetatable({}, DX):getElement(n)
+    return e ~= nil and e.attr.x == "1000" and e.attr.width == "0" and e.attr.height == "0"
+        and e.attr.frame_mode == "0"
 end
 """
 
@@ -467,6 +590,12 @@ def t_the_tab_bar_files_and_no_others():
     read_xml("ui\\pda_trading_16.xml", x)
     assert lseq(x.inserted) == [], "a page other than the bar got %s" % lseq(x.inserted)
     assert mod.tab_bar() is None, "a page other than the bar was recorded as the bar"
+    # the control: the same kind of <tab> in the bar's file is taken, so the page above was
+    # left alone for its name, not because the hook could not read a <tab>
+    tab = g.mktab(lua.table_from(["eptTasks", "eptLauncher", "eptTrading"]))
+    x = g.mkdxml(lua.table_from([tab]))
+    read_xml("ui\\pda_16.xml", x)
+    assert lseq(x.inserted) == ["eptSeasons", "eptForecast"], "the bar got %s" % lseq(x.inserted)
     return "ui/pda.xml and ui/pda_16.xml only; pda_relations_16.xml and the rest untouched"
 
 
@@ -478,7 +607,7 @@ def t_both_faces_parked_in_macs_bar():
     ids = lseq(g.ids_of(bar))
     assert ids == MAC_BAR + ["eptSeasons", "eptForecast"], ids
     kids = lseq(bar.kids)
-    assert all(k.parked for k in kids[-2:]), "a face was added visible"
+    assert all(g.is_parked(k) for k in kids[-2:]), "a face was added visible"
     st = mod.tab_bar()
     assert st.launcher is True and st.parked_launcher is False, (st.launcher, st.parked_launcher)
     # read again, as on the next level: nothing twice
@@ -500,7 +629,7 @@ def t_a_bar_without_the_launcher():
         want = ["eptSeasons", "eptForecast"] + (["eptLauncher"] if mac else [])
         assert lseq(x.inserted) == want, (mac, lseq(x.inserted))
         assert lseq(g.ids_of(bar))[:len(OTHER_BAR)] == OTHER_BAR, "the bar's own tabs moved"
-        assert all(k.parked for k in lseq(bar.kids)[len(OTHER_BAR):]), "an addition shows"
+        assert all(g.is_parked(k) for k in lseq(bar.kids)[len(OTHER_BAR):]), "an addition shows"
         st = mod.tab_bar()
         assert st.launcher is False, "a bar without the Launcher recorded as having it"
         assert st.parked_launcher is mac, (mac, st.parked_launcher)
@@ -512,10 +641,11 @@ def t_a_bar_without_the_launcher():
 @case
 def t_the_sections_tab_not_the_first_tab():
     """A <tab> that is a plain container (pda_relations_16.xml has one) must never get the
-    sections; the bar is the <tab> holding ept... buttons, wherever it sits."""
+    sections; the bar is the <tab> holding ept... buttons, wherever it sits, a text among
+    them or not."""
     lua, g, mod, read_xml, _ = load_modxml(mac=False)
     box = g.mktab(lua.table_from(["caption"]))
-    bar = g.mktab(lua.table_from(["eptTasks", "eptLauncher", "eptLogs"]))
+    bar = g.mktab(lua.table_from(["eptTasks", "text", "eptLauncher", "eptLogs"]))
     read_xml("ui\\pda_16.xml", g.mkdxml(lua.table_from([box, bar])))
     assert lseq(g.ids_of(box)) == ["caption"], "the container got %s" % lseq(g.ids_of(box))
     assert lseq(g.ids_of(bar))[-2:] == ["eptSeasons", "eptForecast"], lseq(g.ids_of(bar))
@@ -526,6 +656,158 @@ def t_the_sections_tab_not_the_first_tab():
     assert lseq(x.inserted) == [] and mod.tab_bar() is None, lseq(x.inserted)
     assert not [l for l in logs if "failed" in l], logs
     return "the sections go to the tab of sections, not the first <tab> in the file"
+
+
+# --- the tab bar under the game's own DXML ------------------------------------------------------
+#
+# The stand-in above is DXML as read. This runs DXML itself when it is at hand: Modded Exes'
+# slaxml.script and dxml_core.script, and a real ui/pda_16.xml (MAC's), in the folder SOTZ_DXML
+# names or in _tools/_staging/dxml, which fetch_dxml.py fills from an install. They are Modded
+# Exes' and MAC's to ship, not this repository's, so without them the case says so and skips.
+
+DXML_ENV = "SOTZ_DXML"
+DXML_CACHE = os.path.join(ROOT, "_tools", "_staging", "dxml")
+DXML_FILES = ("slaxml.script", "dxml_core.script", "pda_16.xml")
+
+
+class Skip(Exception):
+    """A case that cannot run here, and why"""
+
+
+def real_dxml():
+    """The folder holding DXML_FILES: SOTZ_DXML's, else the cache; None when neither has them"""
+    for d in (os.environ.get(DXML_ENV), DXML_CACHE):
+        if d and all(os.path.isfile(os.path.join(d, f)) for f in DXML_FILES):
+            return d
+    return None
+
+
+# what dxml_core.script and slaxml.script take from _g.script and _g_patches.script, as there,
+# and the engine they touch as they load: no modxml_ scripts to gather
+REAL_DXML = r"""
+function string.gsplit(s, sep, plain)
+    local start, done = 1, false
+    local function pass(i, j, ...)
+        if i then
+            local seg = s:sub(start, i - 1)
+            start = j + 1
+            return seg, ...
+        end
+        done = true
+        return s:sub(start)
+    end
+    return function()
+        if done then return end
+        if sep == "" then done = true return s end
+        return pass(s:find(sep, start, plain))
+    end
+end
+function trim(s) return (string.gsub(s, "^%s*(.-)%s*$", "%1")) end
+function str_explode(str, sep, plain)
+    if not (sep ~= "" and string.find(str, sep, 1, plain)) then return {str} end
+    local t = {}
+    for s in str:gsplit(sep, plain) do t[#t + 1] = trim(s) end
+    return t
+end
+function is_empty(t) if not t then return true end for _ in pairs(t) do return false end return true end
+function is_not_empty(t) return not is_empty(t) end
+function str_explode_lim(str, sep, n, plain)
+    n = n or math.huge
+    if not (sep ~= "" and string.find(str, sep, 1, plain) and n > 0) then return {str} end
+    local t, rest = {}, {}
+    for s in str:gsplit(sep, plain) do
+        if #t >= n then rest[#rest + 1] = s else t[#t + 1] = trim(s) end
+    end
+    if is_not_empty(rest) then t[#t + 1] = table.concat(rest, sep) end
+    return t
+end
+function one_space(s) return string.gsub(s, "  *", " ") end
+function clamp(v, lo, hi) return (v < lo and lo) or (v > hi and hi) or v end
+function try(func, ...)
+    local ok, r = pcall(func, ...)
+    if not ok then printf(r) return false, ok, r end
+    return r, ok
+end
+function printf_me(s, ...) printf("[Modded Exes] " .. s, ...) end
+printe = function(...) printf(...) end
+function callstack() end
+function k2t_table(t)
+    local keys = {}
+    for k in pairs(t) do keys[#keys + 1] = k end
+    for k in pairs(t) do t[k] = nil end
+    for i, k in ipairs(keys) do t[i] = k end
+    return t
+end
+FS = {FS_ListFiles = 1, FS_RootOnly = 2}
+function bit_or(a, b) return a + b end
+function getFS()
+    return {file_list_open_ex = function()
+        return {Size = function() return 0 end}
+    end}
+end
+function AddScriptCallback() end
+function SendScriptCallback() end
+"""
+
+
+def game_dxml(where, mac=True):
+    """A Lua state with the real DXML loaded and the shipped hook registered with it, as at a
+    load: (lua, globals, the hook's module, the log)"""
+    lua = LuaRuntime(unpack_returned_tuples=True)
+    g = lua.globals()
+    lua.execute(PRELUDE)
+    logs = []
+    g.printf = lambda fmt, *a: logs.append(str(a[0]) if a else str(fmt))
+    lua.execute(REAL_DXML)
+    g.RegisterScriptCallback = lambda *a: None
+    g.mac_mcm = lua.table_from({"add_app": lambda *a: None}) if mac else None
+    read = lambda f: io.open(os.path.join(where, f), encoding="latin-1").read()
+    g.slaxml = g.load_in(read("slaxml.script"), "slaxml.script", g)
+    g.dxml_core = g.load_in(read("dxml_core.script"), "dxml_core.script", g)
+    mod = load("modxml_seasons_pda.script", g, lua)
+    mod.on_game_start()
+    return lua, g, mod, logs
+
+
+@case
+def t_the_tab_bar_under_the_games_dxml():
+    """The hook under Modded Exes' DXML itself, over a real bar: MAC's, and the same with its
+    Launcher taken out, as another mod's bar would have it."""
+    where = real_dxml()
+    if not where:
+        raise Skip("no game DXML here: set %s to a folder with %s, or run fetch_dxml.py"
+                   % (DXML_ENV, ", ".join(DXML_FILES)))
+    bar = io.open(os.path.join(where, "pda_16.xml"), encoding="latin-1").read()
+    button = re.compile(r'<button\b[^>]*>')
+    ident = lambda tag: re.search(r'\bid="([^"]+)"', tag).group(1)
+
+    def parked(tag):
+        return all(re.search(r'\b%s="%s"' % kv, tag) for kv in
+                   (("x", "1000"), ("width", "0"), ("height", "0"), ("frame_mode", "0")))
+    lua, g, mod, logs = game_dxml(where)
+    out = g.COnXmlRead("ui\\pda_16.xml", bar)
+    before = [ident(t) for t in button.findall(bar)]
+    tags = button.findall(out)
+    ids = [ident(t) for t in tags]
+    assert "eptLauncher" in before, "this pda_16.xml has no Launcher: MAC's is the one to use"
+    assert ids == before + ["eptSeasons", "eptForecast"], ids
+    assert all(parked(t) for t in tags[-2:]), "a face was added visible: %s" % tags[-2:]
+    st = mod.tab_bar()
+    assert st and str(st.file) == "ui\\pda_16.xml" and st.launcher is True \
+        and st.parked_launcher is False, st and (st.file, st.launcher, st.parked_launcher)
+    # the same bar without its Launcher: one parked for MAC, and said once
+    other = re.sub(r'\s*<button\b[^>]*\bid="eptLauncher".*?</button>', "", bar, flags=re.S)
+    assert 'id="eptLauncher"' not in other, "the Launcher could not be taken out of the bar"
+    lua, g, mod, logs = game_dxml(where)
+    tags = button.findall(g.COnXmlRead("ui\\pda_16.xml", other))
+    assert [ident(t) for t in tags][-3:] == ["eptSeasons", "eptForecast", "eptLauncher"], \
+        [ident(t) for t in tags]
+    assert parked(tags[-1]), tags[-1]
+    st = mod.tab_bar()
+    assert st.launcher is False and st.parked_launcher is True, (st.launcher, st.parked_launcher)
+    assert len([l for l in logs if "no Launcher tab" in l]) == 1, logs
+    return "under DXML itself (%s): both faces parked in MAC's bar; a Launcher in one without" \
+        % os.path.basename(os.path.normpath(where))
 
 
 # --- the app key and the flat windows -----------------------------------------------------------
@@ -759,6 +1041,16 @@ calls = {}
 getters = {}
 SEQ = 0
 REFUSE = false
+-- the bar's pushed tab (CUITabControl's active id), and the registry's rebuild of the live bar
+-- as a tab comes or goes (apply, RebuildTabs, CUIPdaWnd::RebuildExtraTabs): a pushed tab of the
+-- registry's is selected again, which switches the PDA to it, and one that is gone gives way
+-- to the bar's first, Tasks
+PUSHED = ""
+local function rebuild()
+    if not PUSHED:find("^ept_dynamic_") then return end
+    if not getters[PUSHED] then PUSHED = "eptTasks" end
+    PDA:SetActiveSubdialog(PUSHED)
+end
 pda_dynamic_tabs = {
     register = function(caption, getter, after)
         if REFUSE then error("no tab bar") end
@@ -766,11 +1058,13 @@ pda_dynamic_tabs = {
         local id = "ept_dynamic_" .. SEQ
         calls[#calls + 1] = "register " .. tostring(caption) .. (after and (" after " .. tostring(after)) or "")
         getters[id] = getter
+        rebuild()
         return id
     end,
     unregister = function(id)
         calls[#calls + 1] = "unregister " .. id
         getters[id] = nil
+        rebuild()
         return true
     end,
 }
@@ -991,6 +1285,52 @@ def t_the_option_in_play():
 
 
 @case
+def t_another_tab_coming_or_going_leaves_the_page():
+    """The registry rebuilds the live bar as a tab comes or goes, and the engine selects the
+    bar's pushed tab again when it is one of the registry's (CUIPdaWnd::RebuildExtraTabs), which
+    takes the PDA to that tab's own page: in a sandbox of both mods (2026-10-24), Arsenal's
+    Workbench, reached from Arsenal's tab, gave way to its catalog as this app's tab came. The
+    section the PDA was on is put back; one on the tab taken away still goes to Tasks."""
+    gm = Game()
+    g = gm.g
+    g.play(1)
+    # another mod's tab, pushed, and a page of that mod's reached from it
+    other = g.pda_dynamic_tabs.register("st_arsenal_title", lambda: "ARSENAL_PAGE")
+    g.PUSHED, g.ACTIVE = other, "eptWorkbench"
+    gm.option(True)
+    g.play(0.01)
+    assert g.sotz_pda.year_section() != "eptSeasons", "no tab came"
+    assert g.ACTIVE == "eptWorkbench", "the app's tab coming took the PDA to %s" % g.ACTIVE
+    gm.option(False)
+    g.play(0.01)
+    assert g.sotz_pda.year_section() == "eptSeasons", "the tab stayed"
+    assert g.ACTIVE == "eptWorkbench", "the app's tab going took the PDA to %s" % g.ACTIVE
+    # the app's own tab pushed, and Forecast reached from it: the tab goes, Forecast stays
+    gm.option(True)
+    g.play(0.01)
+    g.PUSHED, g.ACTIVE = g.sotz_pda.year_section(), "eptForecast"
+    gm.option(False)
+    g.play(0.01)
+    assert g.ACTIVE == "eptForecast", "Forecast gave way to %s as the tab went" % g.ACTIVE
+    # the PDA on the tab taken away: Tasks, where the rebuild leaves it
+    gm.option(True)
+    g.play(0.01)
+    g.PUSHED = g.ACTIVE = g.sotz_pda.year_section()
+    gm.option(False)
+    g.play(0.01)
+    assert g.ACTIVE == "eptTasks", "the PDA was left on %s, a tab that is gone" % g.ACTIVE
+    # the PDA on it with MAC's Launcher pushed: the rebuild leaves it there, and sync_tab
+    # itself sends it to Tasks
+    gm.option(True)
+    g.play(0.01)
+    g.PUSHED, g.ACTIVE = "eptLauncher", g.sotz_pda.year_section()
+    gm.option(False)
+    g.play(0.01)
+    assert g.ACTIVE == "eptTasks", "the PDA was left on %s, a tab that is gone" % g.ACTIVE
+    return "a page reached from a tab stays as a tab comes or goes; the gone tab's, to Tasks"
+
+
+@case
 def t_the_tab_where_no_tile_can_be_reached():
     """Without MAC there is no tile; with a bar that lacks MAC's Launcher there is one only
     behind MAC's own key. Either way the tab comes whatever the option says."""
@@ -1189,15 +1529,19 @@ def t_mcm_offers_the_tab_and_says_where_the_app_is():
 
 if __name__ == "__main__":
     print("  running the shipped PDA wiring under %s" % LUA_NAME)
-    bad = 0
+    bad = skipped = 0
     for fn in CASES:
         try:
             print("  PASS  %-40s %s" % (fn.__name__[2:], fn()))
+        except Skip as e:
+            skipped += 1
+            print("  SKIP  %-40s %s" % (fn.__name__[2:], e))
         except AssertionError as e:
             bad += 1
             print("  FAIL  %-40s %s" % (fn.__name__[2:], e))
         except Exception as e:
             bad += 1
             print("  ERROR %-40s %s: %s" % (fn.__name__[2:], type(e).__name__, e))
-    print("\n  %d/%d passed" % (len(CASES) - bad, len(CASES)))
+    print("\n  %d/%d passed%s" % (len(CASES) - bad - skipped, len(CASES),
+                                  ", %d skipped" % skipped if skipped else ""))
     sys.exit(1 if bad else 0)

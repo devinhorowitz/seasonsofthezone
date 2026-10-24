@@ -1890,12 +1890,16 @@ end
 -- system. It re-asserts on a tick instead of setting it once, and only writes when
 -- something has drifted, so a clear day costs nothing.
 --
--- The base game's manager draws its cycle at the next game hour, and a forced change
--- makes that draw immediate, so setting the cycle is enough there. Atmospherics' planner
--- draws only when a segment of its day plan comes due, and that segment brings its own
--- cycle: setting wm.cycle alone never reached the sky. So there the plan is held - every
--- segment due before the day ends takes this cycle, which also keeps the Forecast page's
--- plan true - and the sky is drawn now, blended, with the planner's own call.
+-- The base game's manager draws its sky at the next game hour, and a forced change makes
+-- that draw immediate. But on the hour it also asks whether the cycle's time is up, and once
+-- it is it rolls another sky, by way of an hour of cloudy transition: held by its cycle
+-- alone, a clear day went gray for an hour every few game hours, then snapped back. So
+-- there the cycle's time starts again at each tick, and it is never up while the day holds.
+-- Atmospherics' planner draws only when a segment of its day plan comes due, and that
+-- segment brings its own cycle: setting wm.cycle alone never reached the sky. So there the
+-- plan is held - every segment due before the day ends takes this cycle, which also keeps
+-- the Forecast page's plan true - and the sky is drawn now, blended, with the planner's own
+-- call. A cycle the weathers lack can't be held, and either manager is left as it is.
 local function hold_cycle(name)
     if not (level_weathers and level_weathers.get_weather_manager) then
         return "Atmospherics not present"
@@ -1903,6 +1907,7 @@ local function hold_cycle(name)
     local ok, err = pcall(function()
         local wm = level_weathers.get_weather_manager()
         if not wm then error("no weather manager") end
+        if not (wm.presets and wm.presets[name]) then error("no " .. name .. " cycle") end
         local planner = type(wm.day_plan) == "table"
             and type(wm.abs_schedule_minute) == "function"
         if planner then
@@ -1911,9 +1916,12 @@ local function hold_cycle(name)
                 local seg = wm.day_plan[i]
                 if seg and seg.minute and seg.minute <= last then seg.cycle = name end
             end
+        elseif wm.last_period_change_date ~= nil then
+            -- before the return below, so a cycle already held is kept too: change_period()
+            -- rolls another sky once is_next_change_date() finds its time up from this
+            wm.last_period_change_date = game.get_game_time()
         end
         if wm.cycle == name then return end
-        if not (wm.presets and wm.presets[name]) then error("no " .. name .. " cycle") end
         wm.cycle = name
         if random_key_table then
             wm.preset = random_key_table(wm.presets[name])
@@ -3125,6 +3133,19 @@ end
 -- happen". They were one page for a while and that read badly: nobody opens a calendar to
 -- find out whether it is going to rain this afternoon.
 
+-- Whether a level is up with the actor in it, so the managers this page reads are there to
+-- be read. At the main menu, and while a level loads, there is no actor, and asking for a
+-- manager then BUILDS one: base Anomaly's WeatherManager and CSurgeManager call
+-- game.get_game_time() and level.name() as they are made, with no level behind either,
+-- which is unsafe as game_date() above has it. The read API asks this before it touches a
+-- manager or level's own functions. The actor is in the world only while a level is, and
+-- level.present() has the last word when it can be asked.
+function in_level()
+    if not (db and db.actor) then return false end
+    local ok, here = pcall(function() return level.present() end)
+    return not ok or here == true
+end
+
 -- Which weather this install can read. "plan" is Atmospherics' day planner, which knows
 -- every change for the next 24 game hours. "stock" is base Anomaly's manager, which knows
 -- the sky now and when it will turn, but rolls what comes next with math.random at the
@@ -3313,6 +3334,12 @@ function forecast_page()
         out.season = cur
         out.bar    = "ui_season_hdr_" .. tostring(season_now().key)
     end)
+
+    -- With no level, at the main menu or while one loads, neither half below has anything
+    -- to read, and reaching for the managers would build them (in_level). So there is no
+    -- forecast and no weather, and the read API's blowout() and weather() are nil, as it
+    -- promises before the world is up.
+    if not in_level() then return out end
 
     -- --- what the ecologists will tell you ------------------------------------------------
     --

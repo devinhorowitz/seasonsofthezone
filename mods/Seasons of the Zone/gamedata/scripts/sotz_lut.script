@@ -69,7 +69,10 @@ function load_info()
         end
         t.group[s] = m
         if labels and ini:line_exist("labels", s) then
-            t.label[s] = ini:r_string_ex("labels", s)
+            -- "Fovea_Memory_50%": season.py writes "_" for each space, since the reader drops
+            -- the spaces in a value; a file from before has none to turn back
+            local v = ini:r_string_ex("labels", s)
+            t.label[s] = v and (v:gsub("_", " ")) or nil
         end
         -- season.py's SEASON_ACCENTS, built into the season's groups
         if accents and ini:line_exist("accents", s) then

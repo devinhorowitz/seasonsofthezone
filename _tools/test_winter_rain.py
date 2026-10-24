@@ -359,6 +359,71 @@ def t_nothing_to_build_from_is_refused():
     return "no rainy weather, or only MO2's overwrite folder's: refused, nothing written"
 
 
+# Cyrillic, a curly quote and an en dash: none of them is in latin-1
+NAMED = "Погода Зоны – Kim’s Weathers"
+
+
+@case
+def t_a_weather_mod_named_past_latin_1_is_copied():
+    """The first line names the mod a copy came from, and was written as latin-1, which has
+    no Cyrillic, curly quote or en dash: a weather mod named with one stopped every launch
+    before any mod was switched, and configure.py rain --build with it."""
+    src = weather(("0.8", "0.5"))
+    order = [(NAMED, True)]
+    with tempfile.TemporaryDirectory() as d:
+        mods = tree(d, {NAMED: {"w_rain1.ltx": src}})
+        sources, lines = wr.build(mods, order)
+        assert sources == {NAMED: ["w_rain1.ltx"]} and lines == 2, (sources, lines)
+        first, body = copy_of(mods, "w_rain1.ltx").split(b"\r\n", 1)
+        assert first.decode("utf-8") == wr.head_line(NAMED, sha(src)), first
+        assert body.decode("latin-1") == kept_dry(src), "the weather changed beyond its rain"
+        assert wr.made(mods)["w_rain1.ltx"][0] == NAMED, wr.made(mods)
+        assert wr.stale(mods, order) == ([], [], []), "a fresh build reads as stale"
+        # a copy made before, its first line latin-1 too, still reads as its mod's
+        old = "Météo Pack"
+        mods = tree(d, {old: {"w_rain1.ltx": src}})
+        p = os.path.join(mods, wr.MOD, *wr.WEATHERS, "w_rain1.ltx")
+        open(p, "wb").write((wr.head_line(old, sha(src)) + "\r\n" + kept_dry(src))
+                            .encode("latin-1"))
+        assert wr.stale(mods, [(old, True)]) == ([], [], []), wr.made(mods)
+    with tempfile.TemporaryDirectory() as d:
+        tc = sandbox(d, [(NAMED, True, {"w_rain1.ltx": src})])
+        rc, out = tc.run(d, "rain", "--build")
+        assert rc == 0 and "1 weather" in out, out
+        rc, out = tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+        assert rc == 0 and above_of(d) == (NAMED, True), (above_of(d), out)
+        rc, out = tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+        assert rc == 0 and "made again" not in out, "made again though nothing changed:\n" + out
+    return "named in UTF-8 on its first line, read back the same, an older latin-1 one too; " \
+        "built and switched from the commands"
+
+
+@case
+def t_off_the_calendar_it_goes_off_at_the_next_launch():
+    """Taken off the calendar while it was on in MO2 (the window's Save with MO2 open), it
+    stayed on, and no season had rain: the next launch turns it off, as Seasonal LUT is.
+    A mod of that name with none of these copies in it is the player's, and left alone."""
+    with tempfile.TemporaryDirectory() as d:
+        tc = sandbox(d)
+        tc.run(d, "rain", "--build")
+        tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+        assert above_of(d)[1], "not on in deep winter"
+        io.open(os.path.join(d, "_tools", "seasons_config.py"), "w",
+                encoding="utf-8").write("TOGGLE_MODS = {}\n")
+        rc, out = tc.run(d, "apply", "--season", "summer", tool="season.py")
+        assert rc == 0 and not above_of(d)[1] and "enabled -> disabled" in out, (
+            "still on: %s\n%s" % (modlist(d), out))
+        w = os.path.join(d, "mods", wr.MOD, *wr.WEATHERS)
+        for f in os.listdir(w):
+            os.remove(os.path.join(w, f))
+        p = os.path.join(d, "profiles", "Default", "modlist.txt")
+        lines = [("+" + l[1:]) if l[1:] == wr.MOD else l for l in modlist(d)]
+        io.open(p, "w", encoding="utf-8", newline="").write("\r\n".join(lines) + "\r\n")
+        rc, out = tc.run(d, "apply", "--season", "summer", tool="season.py")
+        assert rc == 0 and above_of(d)[1], "a mod this didn't make was turned off:\n" + out
+    return "off the calendar, off at the next launch; one of that name it didn't make stays"
+
+
 if __name__ == "__main__":
     print("  No Rain in Winter, in a scratch GAMMA folder")
     bad = 0

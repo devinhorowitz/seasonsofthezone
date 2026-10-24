@@ -292,7 +292,15 @@ def t_no_line_without_rtz_on():
     return "disabled or missing, RTZ gets no line"
 
 
-SKY = "[place]\nname = Chornobyl\nlat = 51.2763\nlon = 30.2219\n[hourly]\n14 = rain\n"
+def sky(hours_ago=1):
+    """season_weather.ltx with hours that start `hours_ago` hours back, on this PC's clock, as
+    play.bat's fetch writes them; RTZ 1.0.3 reads them for a day from their start."""
+    start = datetime.datetime.now() - datetime.timedelta(hours=hours_ago)
+    return ("[place]\nname = Chornobyl\nlat = 51.2763\nlon = 30.2219\n[hourly]\nstart = %s\n"
+            "14 = rain\n" % start.strftime("%Y-%m-%dT%H:00"))
+
+
+SKY = sky()
 
 
 def own_today(day=None):
@@ -345,6 +353,36 @@ def t_rtz_s_version_comes_from_its_main_script():
         assert ("for Ottawa" in row) == own_first, (version, row)
         assert (len(bangs) == 1) == own_first, (version, bangs)
     return "1.0.0 and 1.0.1 read their own; 1.0.2, 1.0.10 and an unlabeled one read Seasons'"
+
+
+@case
+def t_from_1_0_3_hours_a_day_past_their_start_are_said():
+    """RTZ 1.0.3 reads Seasons' hours for a day from their start, then its own file of
+    today, else the sky modeled from the forecast; the report named play.bat's hours all the
+    same. 1.0.2 reads them at any age, and fresh ones are read by both."""
+    old = sky(hours_ago=30)
+    start = old.split("start = ")[1].split("\n")[0].replace("T", " ")
+    with tempfile.TemporaryDirectory() as d:
+        rtz_install(d, sky=old, own=own_today(), version="1.0.3")
+        row, bangs, notes = report(d)
+    assert row and "its own hours of the sky, for Chornobyl" in row and not bangs, (row, bangs)
+    assert len(notes) == 1 and "(%s) are over a day old" % start in notes[0] \
+        and "its own, dated today" in notes[0], notes
+    for version in ("1.0.3", "1.0.10", None):
+        with tempfile.TemporaryDirectory() as d:
+            rtz_install(d, sky=old, version=version)
+            row, bangs, notes = report(d)
+        assert row and "the sky modeled from the day's forecast, for Chornobyl" in row, (
+            version, row)
+        assert not bangs and len(notes) == 1 and "models the sky from the day's forecast" \
+            in notes[0], (version, bangs, notes)
+    for text, version in ((sky(), "1.0.3"), (old, "1.0.2")):
+        with tempfile.TemporaryDirectory() as d:
+            rtz_install(d, sky=text, own=own_today(), version=version)
+            row, bangs, notes = report(d)
+        assert row and "play.bat fetches" in row and not bangs and not notes, (version, row)
+    return "a day old: its own of today, or the forecast's model, said with the start; " \
+        "fresh ones, or 1.0.2, read as before"
 
 
 # --- RTZ's real weather on a held day ---------------------------------------------------

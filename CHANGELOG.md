@@ -15,6 +15,38 @@
   GitHub, MSIG's ice patch follows deep winter; with GAMMA's bundled MovementSFX or Dark Signal
   Amplified Footsteps (ROMEO), hard-surface sounds go in the ICE mod's folder under the water
   names. From BamaWater on ROMEO.
+- **Fixes from a bug sweep.**
+  - **The PDA's tab bar on the Seasons pages.** Since 2.3.0 the mod never found the tab bar,
+    so The Year and Forecast showed without it or their caption, and the safety net for
+    another mod's tab bar (the parked Launcher, MCM's line, the automatic tab) never ran. It
+    now reads the bar with Modded Exes' own XML calls, and the tests run against the game's
+    DXML.
+  - **Held skies hold on GAMMA's weather.** On the base game's weather, which GAMMA uses, a
+    remembrance day's clear sky or an anniversary's storm left its cycle for part of the day
+    and blended to cloudy for an hour each time.
+  - **Turning a PDA tab on or off keeps your page.** Switching the Seasons tab, or Arsenal's,
+    no longer moves the PDA off the other's page.
+  - **LUT pack names on MCM's season page keep their spaces.** The Seasonal LUT is rebuilt
+    once at the next launch.
+  - **The read API at the main menu.** With no level loaded, `temperature()`, `weather()` and
+    `blowout()` no longer reach for the weather and emission managers: `weather()` and
+    `blowout()` are `nil`, and `temperature()` reads noon with no cycle.
+  - **MO2 is seen running on any install path.** On a path with non-English letters, or
+    through a junction, MO2 and the game read as closed, so the mod list and settings could
+    be written under a running MO2.
+  - **A weather mod's name in another alphabet** no longer stops every launch with No Rain
+    in Winter.
+  - **Turning the soundscape off** removes the generated one and disables it in MO2, and No
+    Rain in Winter dropped from the setup is disabled, at the next launch.
+  - **Files are written whole or not at all.** A disk error no longer leaves an empty setup,
+    `modlist.txt`, `user.ltx` or soundscape file.
+  - **Option folders that differ only by case** no longer stop every launch.
+  - **A seasonal mod placed by another seasonal mod** lands in place on the first launch.
+  - **Python 3.8 or later.** `play.bat` and the tools say so plainly; 3.7 crashed.
+  - **`season.py status` with RTZ 1.0.3** says when the hours are a day old and what RTZ
+    reads instead.
+  - **The game clock's date** is read from MO2's `overwrite\appdata` too, whichever was
+    written last.
 
 ## 2.11.1 — 2026-10-22
 

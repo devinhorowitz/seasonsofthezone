@@ -153,6 +153,90 @@ def t_namespacing():
     return "all four accessors resolve across files"
 
 
+# --- with no level: the main menu, or a level loading ------------------------------------
+# Reads of the managers' scripts, and of anything on level but present(), counted. In game
+# the first read of a script's global LOADS it, and a manager's getter BUILDS the manager
+# when none exists: base Anomaly's WeatherManager and CSurgeManager read the game's clock
+# and the level's name as they are made, and with no level there is neither to read.
+NO_LEVEL_TRAP = r"""
+function trap_world()
+    local seen, stubs = {}, {}
+    for _, k in ipairs({"level_weathers", "surge_manager", "psi_storm_manager"}) do
+        stubs[k] = rawget(_G, k)
+        rawset(_G, k, nil)
+    end
+    setmetatable(_G, {__index = function(t, k)
+        if stubs[k] ~= nil then seen[#seen + 1] = k; return stubs[k] end
+    end})
+    local real = rawget(_G, "level")
+    rawset(_G, "level", setmetatable({present = real.present}, {__index = function(t, k)
+        seen[#seen + 1] = "level." .. k
+        return real[k]
+    end}))
+    return seen
+end
+"""
+
+
+def no_level_world(present, actor, hour=6.5):
+    """The read API with level.present() answering `present`, and the actor there or not.
+    As at the main menu, nothing has built a manager yet, so only the getters can give one,
+    and each records that it was asked."""
+    lua, g = build(hour=hour, cycle="clear")
+    built = []
+
+    def getter(name, obj):
+        def get():
+            built.append(name)
+            return obj
+        return get
+    sm, pm = g.surge_manager.SurgeManager, g.psi_storm_manager.PsiStormManager
+    wm = g.level_weathers.get_weather_manager()
+    g.surge_manager = lua.table_from({"get_surge_manager": getter("surge", sm)})
+    g.psi_storm_manager = lua.table_from({"get_psi_storm_manager": getter("psi", pm)})
+    g.level_weathers = lua.table_from({"get_weather_manager": getter("weather", wm)})
+    g.level["present"] = lambda: present
+    if not actor:
+        g.db["actor"] = None
+    lua.execute(NO_LEVEL_TRAP)
+    return lua, g, g.trap_world(), built
+
+
+def t_no_level_reads_nothing():
+    """With no level - the main menu, or a level still loading - there is no actor, no
+    manager and no game clock, and asking a getter for a manager would build one. API.md
+    promises nil rather than an error there, and a temperature always. So the temperature is
+    read at noon under no sky in particular, with every number; weather() and blowout() are
+    nil; season() and calendar() answer as they always do; and nothing on level but
+    present() is touched, nor any manager's script. level.present() and the actor both
+    have to say there is a level."""
+    for label, present, actor in (("the main menu", False, False),
+                                  ("a level loading", True, False),
+                                  ("an actor, no level", False, True)):
+        _, g, seen, built = no_level_world(present, actor)
+        api = g.sotz_api
+        t = api.temperature()
+        assert F(t, "hour") == 12.0 and F(t, "cycle") is None, (label, F(t, "hour"),
+                                                                 F(t, "cycle"))
+        for k in ("low", "high", "now", "base_low", "base_high", "sky_shift"):
+            assert isinstance(F(t, k), (int, float)), (label, k, F(t, k))
+        assert F(t, "band") and F(t, "source") == "model", (label, F(t, "band"))
+        assert api.weather() is None and api.blowout() is None, label
+        assert F(api.season(), "key") and api.calendar() is not None, label
+        touched = list(seen.values())
+        assert touched == [] and built == [], (label, touched, built)
+    # the control: in a level, the same world reads the clock, the sky and every manager
+    _, g, seen, built = no_level_world(True, True)
+    api = g.sotz_api
+    t = api.temperature()
+    assert F(t, "hour") == 6.5 and F(t, "cycle") == "clear", (F(t, "hour"), F(t, "cycle"))
+    assert api.weather() is not None and F(api.blowout(), "tier") == "exact"
+    touched = set(seen.values())
+    assert {"level.get_time_hours", "level_weathers", "surge_manager"} <= touched, touched
+    assert set(built) == {"weather", "surge", "psi"}, built
+    return "menu, loading, no level: noon, no sky, nil, no manager built; in a level, all"
+
+
 # --- temperature -----------------------------------------------------------------------
 def t_curve_shape():
     # coldest near 05:00, warmest near 15:00, and nothing outside the endpoints
@@ -565,6 +649,7 @@ def t_kept_forecast_and_climate():
 
 CASES = [
     ("namespacing", t_namespacing),
+    ("no level", t_no_level_reads_nothing),
     ("kept forecast", t_kept_forecast_and_climate),
     ("curve shape", t_curve_shape),
     ("rising flag", t_rising_flag),

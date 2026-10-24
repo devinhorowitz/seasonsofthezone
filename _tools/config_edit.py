@@ -192,16 +192,23 @@ def separator_label(name):
 def placed(inst, toggle):
     """MO2's list, highest priority first, as play.bat will leave it: each mod on the
     calendar moved just above its anchor in modlist.txt, which in MO2's left pane is just
-    below it. The same moves season.py makes, so the window can say who wins a file."""
+    below it. The same moves season.py makes, pass after pass until none moves, so the
+    window can say who wins a file: a mod set to win over one that a later entry lifts has
+    to follow it."""
     body = [n for n, _, _ in inst.lines]
-    for name, c in toggle.items():
-        above = c.get("above")
-        if name not in body or above not in body:
-            continue
-        i, ref = body.index(name), body.index(above)
-        if i > ref:
-            body.pop(i)
-            body.insert(body.index(above), name)
+    for _pass in range(len(toggle) + 1):
+        moved = False
+        for name, c in toggle.items():
+            above = c.get("above")
+            if name not in body or above not in body:
+                continue
+            i, ref = body.index(name), body.index(above)
+            if i > ref:
+                body.pop(i)
+                body.insert(body.index(above), name)
+                moved = True
+        if not moved:
+            break
     return {n: i for i, n in enumerate(body)}
 
 
@@ -1489,8 +1496,8 @@ class Calendar(object):
                     notes.append(_("Comments inside the tables could not be kept, because of "
                                    "how they were laid out; %s has them, and no later save "
                                    "touches it.") % self._keepsake("before"))
-            with open(self.path, "wb") as f:
-                f.write((codecs.BOM_UTF8 if self.bom else b"") + data)
+            # whole or not at all: a write that fails leaves the file as it was read
+            season.replace_file(self.path, (codecs.BOM_UTF8 if self.bom else b"") + data)
         except OSError as e:
             return False, [_("Not saved: %s. Close any program that has seasons_config.py "
                              "open, then try again.") % e]

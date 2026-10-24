@@ -183,8 +183,8 @@ of the mod that writes to your save.
 - **Mod App Creator**, for the PDA app's tile in its launcher. Without it, the app has a tab
   of its own in the PDA (Modded Exes 2026.7.31 or later), and opens on a key you set on MCM's
   Main page, which shows in red while the app has no way in.
-- **Python 3**, for `play.bat` and `configure.bat` only. The python.org installer is
-  enough.
+- **Python 3.8 or later**, for `play.bat` and `configure.bat` only. The python.org installer
+  is enough.
 - For some things only: the py7zr package to open a `.7z` - an optional `LAYOUT` texture
   set's, a LUT pack's, or a mod's installed from the setup - and rarfile plus WinRAR or
   7-Zip for a `.rar`. The setup offers to install either package when it is needed. By
@@ -318,7 +318,8 @@ the Zone's date is the in-game date; at 7 a week passes with each in-game day.
 The light, weather, marked days, spells, PDA and MCM follow that date at once. The mods
 `play.bat` switches can't change mid-session, so the game writes its date to
 `appdata\seasons_clock.txt` as it saves and loads, and `play.bat` switches by it at the
-next launch: the season of the game you last saved or loaded. Nothing is written into your
+next launch: the season of the game you last saved or loaded. MO2 may keep that file in its
+`overwrite\appdata` folder instead; `play.bat` reads whichever was written last. Nothing is written into your
 saves. The real weather is set aside while the Zone keeps its own date, since it is of
 another day: the temperature comes from the place's climate on the Zone's date.
 
@@ -758,7 +759,8 @@ That makes **No Rain in Winter (seasonal)**: copies of every installed weather t
 with the rain set to 0 and nothing else changed, on in winter and deep winter. Late winter,
 the thaw, keeps its rain. `play.bat` makes it again when one of those weathers changes, as
 an Atmospherics update would, and keeps it above them in MO2. `configure.py rain` shows what
-it copies; unticking the box, or `rain --off`, takes it off the calendar and disables it.
+it copies; unticking the box, or `rain --off`, takes it off the calendar and disables it
+(with MO2 open, at the next launch).
 
 The PDA's forecast says what falls: while the patched addon snows, a rain sky reads Snow and
 a storm Snowstorm, or Sleet and Sleet storm where the weather still rains too, as in late
@@ -827,10 +829,11 @@ time. Install it in MO2 anywhere; it ships none of this mod's files.
 
 - **The sky's hours.** `play.bat` fetches the next 24 hours of the sky with the day's
   weather, on your PC's clock, and RTZ 1.0.2 and later read them first, with nothing to set
-  up. Start the game with `play.bat` so the hours stay current. RTZ 1.0.0 and 1.0.1 ship
-  their own `gamedata\configs\rtz_weather.ltx`, one sample day for Ottawa, and read that
-  first: update RTZ, or delete that file. `py _tools\season.py status` says which one RTZ
-  reads, and warns when it is stale or for another place.
+  up. From 1.0.3, RTZ reads them for a day from their start, then its own file of today, or
+  the day's forecast. Start the game with `play.bat` so the hours stay current. RTZ 1.0.0
+  and 1.0.1 ship their own `gamedata\configs\rtz_weather.ltx`, one sample day for Ottawa,
+  and read that first: update RTZ, or delete that file. `py _tools\season.py status` says
+  which one RTZ reads, and warns when it is stale or for another place.
 - **`play.bat`** already carries the line RTZ's setup would add, so the setup leaves the
   file as it is, and updating this mod keeps the line working.
 - **Remembrance days and anniversaries** keep their sky. On a day this mod holds the sky

@@ -146,6 +146,39 @@ def t_the_anchor_is_where_the_mod_ends_up():
 
 
 @case
+def t_a_mod_set_to_win_over_another_seasonal_mod_follows_it():
+    """B Overlay wins over A Pack, and A Pack over X Base, B listed first. In one pass apply
+    lifted A past X and left B below both for that launch, and status said to make B win
+    over A, which it was set to do. The window's view of who wins went by the same pass."""
+    chain = [("X Base", True, ["textures/t/a.dds"]),
+             ("B Overlay", False, ["textures/t/a.dds"]),
+             ("A Pack", False, ["textures/t/a.dds"]),
+             ("Seasons of the Zone", True, ["scripts/zzz_seasons_of_the_zone.script"])]
+    text = ('TOGGLE_MODS = {\n'
+            '    "B Overlay": {"when": ("winter",), "above": "A Pack"},\n'
+            '    "A Pack": {"when": ("winter",), "above": "X Base"},\n'
+            '}\n')
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config=text, mods=chain)
+        rc, out = run(d, "status", "--season", "winter", tool="season.py")
+        assert rc == 0 and "make B Overlay win over" not in out and "loses" not in out, out
+        rc, out = run(d, "apply", "--season", "winter", tool="season.py")
+        body = [l.strip() for l in io.open(os.path.join(d, "profiles", "Default",
+                                                         "modlist.txt"))][1:]
+        assert rc == 0 and body[:3] == ["+B Overlay", "+A Pack", "+X Base"], (body, out)
+        rc, out = run(d, "apply", "--season", "winter", tool="season.py")
+        assert rc == 0 and "moved" not in out, "the next launch moved them again:\n" + out
+    sys.path.insert(0, HERE)
+    import config_edit as ce
+
+    class Listed(object):
+        lines = [("X Base", True, False), ("B Overlay", True, False), ("A Pack", True, False)]
+    got = ce.placed(Listed, {"B Overlay": {"above": "A Pack"}, "A Pack": {"above": "X Base"}})
+    assert got == {"B Overlay": 0, "A Pack": 1, "X Base": 2}, got
+    return "B above A above X after one launch, said so beforehand, and so in the window"
+
+
+@case
 def t_names_and_seasons_are_forgiving_but_not_guessed():
     with tempfile.TemporaryDirectory() as d:
         install(d)

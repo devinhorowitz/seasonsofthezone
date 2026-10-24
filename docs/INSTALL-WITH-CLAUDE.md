@@ -35,7 +35,7 @@ person, a window at a time, is [INSTALL-GUIDE.md](INSTALL-GUIDE.md).
    is `G.A.M.M.A`); its mod list is `profiles\<name>\modlist.txt`. `gamePath=@ByteArray(...)`
    is the Anomaly folder (backslashes are doubled there).
 4. Run `py -3 --version`, or `python --version` if there is no `py` (`play.bat` tries them in
-   that order). Without Python 3, ask the player to install it from
+   that order). It needs 3.8 or later. Without it, ask the player to install it from
    https://www.python.org/downloads/ with **Add python.exe to PATH** checked. The mod works in
    game without it, but `play.bat` and the setup need it. Below, `py -3` stands for whichever
    worked.

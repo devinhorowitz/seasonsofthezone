@@ -993,8 +993,9 @@ print("SAVED", said[-1][0] if said else None, [l for l in g.saved_lines if "Rain
 @case
 def t_with_mo2_open_play_bat_makes_it_and_mo2_s_list_is_left():
     """With MO2 open, saving puts it on the calendar but makes no copy, and says play.bat
-    makes it at the next launch; taken off then, while on in MO2, it says to uncheck it
-    there, and MO2's list is left as it is. Off in MO2 already, nothing is said."""
+    makes it at the next launch; taken off then, while on in MO2, MO2's list is left as it
+    is, and play.bat turns it off at the next launch, as it says. Off in MO2 already,
+    nothing is said."""
     with tempfile.TemporaryDirectory() as d:
         sandbox(d, config=WINTER_PACK, mods=RAIN_MODS)
         rainy(d)
@@ -1029,11 +1030,15 @@ settle()
 print("OFF", [l for l in g.saved_lines if "Rain" in l])
 """)
         assert rc == 0, out
-        assert ("OFF [\"No Rain in Winter is still on in MO2: close modorganizer.exe, then "
-                "uncheck it in MO2's mod list.\"]") in out, out
+        assert ("OFF ['No Rain in Winter is still on in MO2; play.bat turns it off at the next "
+                "launch with modorganizer.exe closed.']") in out, out
         assert modlist_line(d) == ["+" + NO_RAIN], modlist_line(d)
         assert NO_RAIN not in table(d)["TOGGLE_MODS"], table(d)
-    return "made at the next launch; on in MO2, told to uncheck it there; not added, nothing said"
+        # the next launch, MO2 closed: off the calendar, it goes off, or no season has rain
+        rc, out = tc.run(d, "apply", "--season", "summer", tool="season.py")
+        assert rc == 0 and modlist_line(d) == ["-" + NO_RAIN], (modlist_line(d), out)
+    return "made at the next launch; on in MO2, turned off by the next launch; not added, " \
+        "nothing said"
 
 
 @case

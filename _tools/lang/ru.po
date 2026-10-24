@@ -160,6 +160,11 @@ msgid "%(month)s %(day)d, %(year)d"
 msgstr "%(day)d %(month)s %(year)d"
 
 #: season.py
+#, python-format
+msgid "Seasons of the Zone's tools need Python 3.8 or later, and this is Python %s. Install the latest from python.org, with \"Add python.exe to PATH\" checked, then try again."
+msgstr "Инструментам Seasons of the Zone нужен Python 3.8 или новее, а это Python %s. Установите последнюю версию с python.org, отметив \"Add python.exe to PATH\", и попробуйте снова."
+
+#: season.py
 msgid "invalid syntax"
 msgstr "синтаксическая ошибка"
 
@@ -1470,6 +1475,16 @@ msgctxt "the months of a rule"
 msgid "in %s"
 msgstr "в %s"
 
+#: season.py
+#, python-format
+msgid "The hours of the sky play.bat fetched last (%(start)s) are over a day old, so Real Time Zone reads its own, dated today, until play.bat fetches them again."
+msgstr "Почасовая погода, которую play.bat загрузил последней (%(start)s), старше суток, поэтому Real Time Zone читает свою, с сегодняшней датой, пока play.bat не загрузит новую."
+
+#: season.py
+#, python-format
+msgid "The hours of the sky play.bat fetched last (%(start)s) are over a day old, so Real Time Zone models the sky from the day's forecast until play.bat fetches them again."
+msgstr "Почасовая погода, которую play.bat загрузил последней (%(start)s), старше суток, поэтому Real Time Zone строит небо по прогнозу на день, пока play.bat не загрузит новую."
+
 #. two places; %(file)s, a path, and %(setup)s, a file, stay as they are
 #: season.py
 #, python-format
@@ -1500,6 +1515,12 @@ msgstr "своя почасовая погода для места «%s», об�
 #, python-format
 msgid "its own hours of the sky, for %s"
 msgstr "своя почасовая погода для места «%s»"
+
+#. Real Time Zone's weather; %s is a place
+#: season.py
+#, python-format
+msgid "the sky modeled from the day's forecast, for %s"
+msgstr "небо по прогнозу на день для места «%s»"
 
 #. Real Time Zone's weather; %s is a place
 #: season.py
@@ -2335,6 +2356,10 @@ msgstr "нет"
 #: season.py
 msgid "off (gating is off in MCM)"
 msgstr "выкл. (сезонная фильтрация звуков выключена в MCM)"
+
+#: season.py
+msgid "off (no ambient sound mod is set)"
+msgstr "выкл. (мод фоновых звуков не задан)"
 
 #: season.py
 #, python-format
@@ -6466,8 +6491,8 @@ msgstr "No Rain in Winter соберут при следующем запуск�
 
 #: guide.py
 #, python-format
-msgid "No Rain in Winter is still on in MO2: close %s, then uncheck it in MO2's mod list."
-msgstr "No Rain in Winter всё ещё включён в MO2: закройте %s, а затем снимите с него галочку в списке модов MO2."
+msgid "No Rain in Winter is still on in MO2; play.bat turns it off at the next launch with %s closed."
+msgstr "No Rain in Winter всё ещё включён в MO2; play.bat выключит его при следующем запуске, когда будет закрыто: %s."
 
 #: guide.py
 msgid "MCM settings that follow the season"
@@ -7784,6 +7809,9 @@ msgstr "ЯСНО"
 msgctxt "the barometer's face"
 msgid "DRY"
 msgstr "СУШЬ"
+
+#~ msgid "No Rain in Winter is still on in MO2: close %s, then uncheck it in MO2's mod list."
+#~ msgstr "No Rain in Winter всё ещё включён в MO2: закройте %s, а затем снимите с него галочку в списке модов MO2."
 
 #~ msgid "A touch of each season's own color, built into its LUT, with a pack or without: young greens in spring, high sun in summer, reds and golds in autumn, a gray cold in winter, crisp snow in deep winter and an earthy thaw in late winter."
 #~ msgstr "Немного собственного цвета каждого сезона, встроенного в его LUT, с набором или без: молодая зелень весной, высокое солнце летом, багрянец и золото осенью, серый холод зимой, хрусткий снег в разгар зимы и землистая оттепель поздней зимой."

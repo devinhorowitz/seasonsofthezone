@@ -26,6 +26,9 @@ itself and silently returns nil everywhere else.
 - **Pure reads.** Nothing here changes game state.
 - **Nothing throws.** A missing manager, a missing mod, a save loaded before the world is
   up — all return `nil`, never an error. Consumers still need a nil check, not a `pcall`.
+  With no level loaded (the main menu, or a level still loading) nothing reaches a manager
+  or the level: `weather()` and `blowout()` are `nil`, and `temperature()` reads noon under
+  no sky (`hour` 12, `cycle` nil, every number still there).
 - **Cheap.** Every result is cached for 2 real seconds, so a device may call these once a
   frame.
 - **No launcher needed.** Nothing here waits on `play.bat`. Started from MO2, a day it hasn't
@@ -75,6 +78,8 @@ would be a number that is real but inert.
 | `place` | where the reading is from; modeled, whose climate the model is. nil for the built-in Chornobyl normals. Since 2.0.0 it can be a place the player picked, not only Chornobyl. |
 
 Off a 14 / 4 station reading, clear sky reads 14 at mid-afternoon and a storm reads 8.
+
+With no level loaded, `hour` is 12 and `cycle` is `nil`.
 
 The curve between the endpoints runs on the **game** clock, because the day is accelerated:
 minimum just before dawn, maximum mid-afternoon, the rise compressed against the fall.
@@ -178,7 +183,7 @@ the scheduler draws evenly from every sky but the current one, less those it has
 Check `source` before treating an empty `plan` as settled weather: under `"stock"` it only
 means the next cycle isn't known yet.
 
-`nil` when there's no weather manager.
+`nil` when there's no weather manager, or no level loaded.
 
 Cycle names are `clear`, `partly`, `cloudy`, `foggy`, `rain`, and `storm` under both.
 
@@ -231,6 +236,8 @@ connection, keeps the last hours.
 ```
 
 At CLEARED, each part has `seconds` instead of `band`.
+
+`nil` with no level loaded, or with the ecologist forecast turned off in MCM.
 
 Resolution depends on the player's standing with the ecologists, or with the faction MCM
 picks instead; `faction` says which: `"ecolog"`, `"csky"` or `"isg"`. See
