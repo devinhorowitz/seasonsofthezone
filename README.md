@@ -576,20 +576,41 @@ to set the player's steps on water to splashes: Oleh's MSIG and MovementSFX ship
 `material_pairs_actor_collide.ltx`, Dark Signal Amplified Footsteps ships
 `material_pairs_water_collide.ltx`. Then NPCs and mutants walk on ice and you splash. The
 files are read in name order, so one more in the ICE mod's own folder, named to come last,
-puts your steps back to ice, and only while the ice is on. The ICE mod has no `materials`
-folder, so make `gamedata\materials\` in its folder and save this there as
+puts your steps back to ice and takes away the water splash those files show as you land,
+only while the ice is on. The ICE mod has no `materials` folder, so make
+`gamedata\materials\` in its folder and save this there as
 `material_pairs_zz_ice_actor_steps.ltx`:
 
 ```ini
 @[creatures\actor@materials\water]
 step_sounds = material\human\step\n_ice_1,material\human\step\n_ice_2,material\human\step\n_ice_3,material\human\step\n_ice_4
+collide_particles =
 
 @[materials\water_radiation@creatures\actor]
 step_sounds = material\human\step\n_ice_1,material\human\step\n_ice_2,material\human\step\n_ice_3,material\human\step\n_ice_4
+collide_particles =
 ```
 
 The sound names are the ones SSS's ICE module ships; if your ICE mod names its own
 recordings differently, use those.
+
+**Jumps and landings** don't go through that file. Your movement sound mod's script plays
+them by the ground's material, and frozen water is still water to it. With MovementSFX from
+oleh5230's GitHub (2026.09.27 or later), MSIG's **Screen Space Shaders Ice Version Patch**
+turns them from water to concrete. Let it follow the ice, and its twin for spent casings:
+
+```
+py _tools\configure.py mcm oleh_sounds/general/ice_patch --in "deep winter" --to true --else false
+py _tools\configure.py mcm oleh_sounds/weapons/ice_patch --in "deep winter" --to true --else false
+```
+
+GAMMA's bundled Oleh's Extended MovementSFX and Dark Signal Amplified Footsteps, which ROMEO
+runs, have no such switch. Put hard-surface sounds in the ICE mod's folder under their water
+names instead: `sounds\jump\jump_water_1.ogg` to `_5` and `sounds\landing\landing_water_1.ogg`
+to `_3`, copies of that mod's own `jump_asphalt` and `landing_asphalt` sounds. Dark Signal also
+plays a step of its own on water, `sounds\footstep\n_water_1.ogg` to `_6`: copy the ICE
+module's `n_ice` steps over those. The ICE mod has to sit above that sound mod in MO2.
+BamaWater worked this out on ROMEO.
 
 If MO2 can mount it as a folder, it can be seasonal: footstep audio, menu art, a flower pack.
 

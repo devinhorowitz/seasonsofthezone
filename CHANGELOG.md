@@ -10,6 +10,11 @@
   Launcher tab, the tab is there either way, so the app has a way in from the PDA itself.
   With the tab, the pages have no Back, and Escape works as on the PDA's other tabs. The
   line at the top of MCM's Main page says which way in the app has.
+- **Ice under your own feet** (README): the file for the ICE mod also takes away the water
+  splash as you land, and jumps and landings are covered. With MovementSFX from oleh5230's
+  GitHub, MSIG's ice patch follows deep winter; with GAMMA's bundled MovementSFX or Dark Signal
+  Amplified Footsteps (ROMEO), hard-surface sounds go in the ICE mod's folder under the water
+  names. From BamaWater on ROMEO.
 
 ## 2.11.1 — 2026-10-22
 
