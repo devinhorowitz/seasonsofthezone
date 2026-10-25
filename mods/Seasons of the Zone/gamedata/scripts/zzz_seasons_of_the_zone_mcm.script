@@ -106,6 +106,13 @@ local function dependency_rows(out)
         if okd and drv == "rtz" then src = "rtz" end
     end
     row("status_weather", WEATHER_TEXT[src], src == "none")
+
+    -- exes too old to notice a changed shader header; play.bat sets the shader cache aside
+    local okx, old = pcall(function() return zzz_seasons_of_the_zone.exes_behind() end)
+    if okx and old then
+        row("status_exes", string.format(game.translate_string(
+            "ui_mcm_seasons_zone_status_old_exes"), old), true)
+    end
 end
 
 -- whether the Main page offers the tab: MAC here for a tile, and an engine that can give one

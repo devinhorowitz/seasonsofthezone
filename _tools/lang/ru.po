@@ -1955,6 +1955,11 @@ msgstr ""
 "по моду правой кнопкой и выберите «Открыть в проводнике». Ничего не изменено."
 
 #: season.py
+#, python-format
+msgid "The seasonal shader files changed, and Modded Exes %s can't tell: the game's shader cache is set aside (shaders_cache\\r4.stale), and the game builds it again as it starts."
+msgstr "Сезонные шейдерные файлы изменились, а Modded Exes %s этого не замечают: кэш шейдеров игры убран (shaders_cache\\r4.stale), и игра соберёт его заново при запуске."
+
+#: season.py
 msgid "Checking the season..."
 msgstr "Проверка сезона..."
 
@@ -2130,6 +2135,11 @@ msgstr "трава"
 msgctxt "report"
 msgid "LUTs"
 msgstr "LUT"
+
+#: season.py
+#, python-format
+msgid "These exes keep the shaders built from the last season's shader files; %s and later rebuild them. Until you update, a launch that changes those files sets the shader cache aside, and the game takes longer to start."
+msgstr "Эти exe хранят шейдеры, собранные из шейдерных файлов прошлого сезона; %s и новее собирают их заново. Пока вы не обновитесь, запуск, который меняет эти файлы, убирает кэш шейдеров, и игра запускается дольше."
 
 #: season.py
 msgid "(not in MCM's file yet)"

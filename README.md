@@ -176,7 +176,10 @@ of the mod that writes to your save.
 ## Requirements
 
 - S.T.A.L.K.E.R. Anomaly with **G.A.M.M.A.**, through **Mod Organizer 2** (portable)
-- **Screen Space Shaders** and the **Modded Exes** DX11 build GAMMA ships with it. Nine of
+- **Screen Space Shaders** and the **Modded Exes** DX11 build GAMMA ships with it,
+  **2026.6.21 or later**. Older exes keep the shaders built from the last season's shader
+  files, so `play.bat` sets their shader cache aside when those files change, and the game
+  takes longer to start then. Nine of
   the twenty values are SSS's own; an older exe does not have them, and the mod says so in
   the log.
 - **MCM**

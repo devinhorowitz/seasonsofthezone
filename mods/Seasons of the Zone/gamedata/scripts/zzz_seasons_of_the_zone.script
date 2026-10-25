@@ -3605,6 +3605,25 @@ function forecast_page()
     return out
 end
 
+-- Modded Exes from 2026.6.21 on check each shader's #include files against the shader cache,
+-- so a changed header rebuilds what it touches. Older ones keep the shaders built from the
+-- last season's shader files (INVERNO's headers, Seasonal LUT's), and play.bat sets the cache
+-- aside for them. Their version as the releases name it ("2026.6.13"); nil for newer exes, and
+-- for an engine that doesn't say.
+local EXES_FLOOR = 20260621
+function exes_behind()
+    local v = tonumber(rawget(_G, "MODDED_EXES_VERSION"))
+    if not v then
+        local get = rawget(_G, "get_modded_exes_version")
+        if type(get) == "function" then
+            local ok, got = pcall(get)
+            v = ok and tonumber(got) or nil
+        end
+    end
+    if not v or v <= 0 or v >= EXES_FLOOR then return nil end
+    return string.format("%d.%d.%d", math.floor(v / 10000), math.floor(v / 100) % 100, v % 100)
+end
+
 function on_game_start()
     RegisterScriptCallback("save_state", save_state)
     RegisterScriptCallback("load_state", load_state)
@@ -3615,6 +3634,12 @@ function on_game_start()
         CHECK_MS / 1000, DATE_MS / 60000))
     local wet = wet_readers()
     if #wet > 0 then say("rain for gameplay through: " .. table.concat(wet, ", ")) end
+    local old = exes_behind()
+    if old then
+        say("! Modded Exes " .. old .. " is older than 2026.6.21: it keeps shaders built from "
+            .. "the last season's shader files, so play.bat sets the shader cache aside when "
+            .. "they change. Update Modded Exes to stop that.")
+    end
     -- before any actor_on_first_update, where RTZ draws its first real sky
     pcall(rtz_bridge)
 end

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **Modded Exes 2026.6.21 or later.** That release was the first to check a shader's
+  `#include` files against the game's shader cache, so a changed header rebuilds what it
+  touches. The seasonal mods bring shader headers in and out (INVERNO's terrain and puddle
+  headers), and Seasonal LUT writes the LUT header; older exes keep the shaders built from
+  the old ones, which can turn the screen black or rainbow-colored. `play.bat` now reads the
+  exes' version from the game's log and shows it in its report. On older exes it warns, and
+  sets `appdata\shaders_cache\r4` aside, as `r4.stale`, when those files change, so the game
+  builds it again. MCM's Main page shows the same warning in red, and the log at game start.
+
 ## 2.12.1 — 2026-10-24
 
 - **`play.bat` stops before a launch the game would stop on as it starts.** The game reads

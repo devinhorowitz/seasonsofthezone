@@ -1056,9 +1056,11 @@ mod with only the LUT shader header, `shaders\r3\settings_screenspace_LUT.h`, go
 Atmospherics.
 
 **A black or rainbow screen after the LUTs changed.** The game's shader cache still holds
-shaders made for the old LUT header. Modded Exes from June 2026 on notice and rebuild
-them; with an older exe, delete `appdata\shaders_cache\r4` in the game's folder, and
-the game builds it again as it starts.
+shaders made for the old LUT header. Modded Exes 2026.6.21 and later notice and rebuild
+them. On older exes `play.bat` sets the cache aside when the seasonal shader files change
+(the LUT header, or a seasonal mod's shaders), and its report names the exes; if you
+started the game some other way, delete `appdata\shaders_cache\r4` in the game's folder,
+and the game builds it again as it starts.
 
 **The year dial is gone.** A calendar or names of your own need a dial drawn for them, and
 drawing one needs Pillow: `py -m pip install pillow`, then `py _tools\season.py dial`.

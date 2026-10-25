@@ -6293,6 +6293,94 @@ def _check_install():
     raise SystemExit(2)
 
 
+# --- Modded Exes and the shader cache ---------------------------------------------------------
+#
+# The game keeps the shaders it builds in appdata\shaders_cache\r4. Modded Exes 2026.6.21 was
+# the first release to check each shader's #include files against that cache too (commit
+# 440495c79, ShaderSourceCRC.cpp), so a changed header rebuilds what it touches. The seasonal
+# mods bring shader headers in and out with the season (INVERNO's terrain and puddle headers),
+# and Seasonal LUT writes the LUT header; older exes keep the shaders built with the old ones,
+# which can turn the screen black or rainbow-colored. With those exes play.bat sets the cache
+# aside when these files change, and the game builds it again as it starts.
+EXES_FLOOR = (2026, 6, 21)
+SHADER_STATE = os.path.join(ROOT, "_baseline", "season-shaders.json")
+_EXES_LINE = re.compile(r"Modded Exes version (\d{4})\.(\d{1,2})\.(\d{1,2})")
+
+
+def exes_version():
+    """The Modded Exes the game last ran on, (year, month, day), from the newest xray log in
+    appdata\\logs that names it; None before the first launch, or with exes that don't say."""
+    logs = os.path.join(APPDATA, "logs")
+    try:
+        names = [n for n in os.listdir(logs)
+                 if n.lower().startswith("xray_") and n.lower().endswith(".log")]
+    except OSError:
+        return None
+    for n in sorted(names, key=lambda n: os.path.getmtime(os.path.join(logs, n)), reverse=True):
+        try:
+            with io.open(os.path.join(logs, n), encoding="latin-1") as f:
+                head = f.read(65536)                # the line comes early in the log
+        except OSError:
+            continue
+        m = _EXES_LINE.search(head)
+        if m:
+            return tuple(int(x) for x in m.groups())
+    return None
+
+
+def exes_words(v):
+    """A version as Modded Exes' releases are named: 2026.6.21."""
+    return "%d.%d.%d" % tuple(v)
+
+
+def shader_signature():
+    """What the seasonal mods and Seasonal LUT give the game's shaders as the mod list
+    stands: each enabled one's files under gamedata\\shaders, by name, size and time."""
+    on = set(l[1:] for l in (_modlist_lines() or []) if l[:1] == "+")
+    files = []
+    for name in sorted((set(TOGGLE_MODS) | {LUT_MOD}) & on):
+        top = os.path.join(MODS, name, "gamedata", "shaders")
+        for d, _dirs, fs in os.walk(top):
+            for f in fs:
+                p = os.path.join(d, f)
+                try:
+                    st = os.stat(p)
+                except OSError:
+                    continue
+                files.append("%s|%s|%d|%d" % (name, os.path.relpath(p, top).replace("\\", "/")
+                                              .lower(), st.st_size, int(st.st_mtime)))
+    return hashlib.sha1("\n".join(sorted(files)).encode("utf-8")).hexdigest()
+
+
+def shader_cache_check(writing):
+    """In a launch, with exes older than EXES_FLOOR, set appdata\\shaders_cache\\r4 aside when
+    what the seasonal mods and Seasonal LUT give the shaders changed since the last launch; the
+    lines to print. A launch remembers what it staged, whatever the exes. A dry run does
+    nothing: its mod list isn't the one the launch will have."""
+    if not writing:
+        return []
+    sig = shader_signature()
+    try:
+        last = json.loads(io.open(SHADER_STATE, encoding="utf-8").read()).get("signature")
+    except (OSError, ValueError, AttributeError):
+        last = None
+    v = exes_version()
+    lines = []
+    cache = os.path.join(APPDATA, "shaders_cache", "r4")
+    if v is not None and v < EXES_FLOOR and sig != last and os.path.isdir(cache):
+        stale = cache + ".stale"
+        if os.path.isdir(stale):
+            shutil.rmtree(stale)                    # the cache set aside last time
+        os.rename(cache, stale)
+        lines.append("  " + _("The seasonal shader files changed, and Modded Exes %s can't "
+                              "tell: the game's shader cache is set aside "
+                              "(shaders_cache\\r4.stale), and the game builds it again as it "
+                              "starts.") % exes_words(v))
+    os.makedirs(os.path.dirname(SHADER_STATE), exist_ok=True)
+    io.open(SHADER_STATE, "w", encoding="utf-8").write(json.dumps({"signature": sig}))
+    return lines
+
+
 def play_words(key):
     """What play.bat says around a launch, by key, or None for one it doesn't say. A batch
     file can't read a translation, so play.bat asks for these with `season.py say <key>`
@@ -6487,6 +6575,16 @@ def main():
             print("  ! " + p)
         for n in lut["notes"]:
             print("  - " + n)
+    # the Modded Exes the game last ran on, by its log; a launch on older ones sets the shader
+    # cache aside when the seasonal shader files change (shader_cache_check). The name stays
+    exes = exes_version()
+    if exes is not None:
+        _row("Modded Exes", exes_words(exes))
+        if exes < EXES_FLOOR:
+            print("  ! " + _("These exes keep the shaders built from the last season's shader "
+                             "files; %s and later rebuild them. Until you update, a launch "
+                             "that changes those files sets the shader cache aside, and the "
+                             "game takes longer to start.") % exes_words(EXES_FLOOR))
     # other mods' MCM options that follow the season, and what MCM's file has now
     mcm_now = mcm_values(active)
     mcm_want = {k: v for k, (v, _why) in mcm_now.items()}
@@ -6791,6 +6889,8 @@ def main():
                              stage_tex)
                 write_mod_panel(active, prefs)
                 send_spell()
+            for line in shader_cache_check(writing):
+                print(line)
             crash_check()
             return
         if not tex_ok:
@@ -6915,6 +7015,8 @@ def main():
                  "what": pgettext("between words in a list", ", ").join(
                      words[w] for w in dict.fromkeys(done)) or _("nothing to do")})
         say_skipped()
+        for line in shader_cache_check(True):
+            print(line)
         crash_check()
     except OSError as e:
         # a file locked, read-only or out of room: said as the other stops are

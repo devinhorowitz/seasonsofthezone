@@ -1904,6 +1904,11 @@ msgid ""
 msgstr ""
 
 #: season.py
+#, python-format
+msgid "The seasonal shader files changed, and Modded Exes %s can't tell: the game's shader cache is set aside (shaders_cache\\r4.stale), and the game builds it again as it starts."
+msgstr ""
+
+#: season.py
 msgid "Checking the season..."
 msgstr ""
 
@@ -2075,6 +2080,11 @@ msgstr ""
 #: season.py
 msgctxt "report"
 msgid "LUTs"
+msgstr ""
+
+#: season.py
+#, python-format
+msgid "These exes keep the shaders built from the last season's shader files; %s and later rebuild them. Until you update, a launch that changes those files sets the shader cache aside, and the game takes longer to start."
 msgstr ""
 
 #: season.py
