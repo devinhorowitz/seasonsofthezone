@@ -2473,12 +2473,22 @@ SOUND_SIG = " cuts="
 
 
 def _sound_signature(season):
-    """Short hash of the source mod and the channels cut for `season`. It goes in the
-    marker so that editing SOUND_CUT or changing SOUND_SRC makes the generated files stale
-    even when the season has not moved - otherwise the change silently does nothing until
-    the season turns, and the old source's presets stay on top of the new source."""
+    """Short hash of the source mod, its presets' names and bytes, and the channels cut for
+    `season`. It goes in the marker so that editing SOUND_CUT, changing SOUND_SRC or an
+    update of the source mod in place makes the generated files stale even when the season
+    has not moved - otherwise the change silently does nothing until the season turns, and
+    the old presets stay on top: one naming a channel the update took out stops the game
+    as a level loads."""
     raw = (SOUND_SRC or "") + "|" + ",".join(sorted(SOUND_CUT.get(season, ())))
-    return hashlib.md5(raw.encode("utf-8")).hexdigest()[:8]
+    h = hashlib.md5(raw.encode("utf-8"))
+    src = _sound_src_dir()
+    if src and os.path.isdir(src):
+        for f in sorted(os.listdir(src), key=str.lower):
+            if f.lower().endswith(".ltx"):
+                h.update(b"|" + f.lower().encode("utf-8") + b"=")
+                with open(os.path.join(src, f), "rb") as fh:
+                    h.update(fh.read())
+    return h.hexdigest()[:8]
 
 
 def _sound_src_dir():
@@ -3328,6 +3338,12 @@ def lut_plan():
     record = {"version": 4, "base": [base[0], st.st_size, int(st.st_mtime)],
               "script": [script[0], os.path.getsize(script[1]), int(os.path.getmtime(script[1]))]
               if script else None, "used": used, "seasons": {}, "accents": {}}
+    try:
+        built = json.loads(io.open(os.path.join(MODS, LUT_MOD, LUT_RECORD),
+                                   encoding="utf-8").read())
+    except (OSError, ValueError):
+        built = None
+    away = []
     for season in SEASONS:
         if season not in SEASON_LUTS:
             continue
@@ -3335,6 +3351,14 @@ def lut_plan():
         try:
             path, member, size, mtime = _lut_source(source, option)
         except LutError as e:
+            # a pack that isn't there now (a storage cleanup moved it, say) that the build was
+            # made from: the build stands, and only a new one waits for the pack
+            kept = ((built or {}).get("seasons") or {}).get(season)
+            if isinstance(kept, list) and kept[:3] == [source, option, percent]:
+                record["seasons"][season] = kept
+                away.append(_("%(season)s's LUT: %(why)s.")
+                            % {"season": season_label(season), "why": e})
+                continue
             plan["problems"].append(_("%(season)s's LUT: %(why)s.")
                                     % {"season": season_label(season), "why": e})
             continue
@@ -3364,16 +3388,19 @@ def lut_plan():
         plan["problems"].append(_("Seasonal LUT would hold %(n)d LUTs, and an atlas holds at "
                                   "most %(most)d.") % {"n": total, "most": LUT_MOST})
     if plan["problems"]:
+        plan["problems"].extend(away)
         plan["state"] = "blocked"
         return plan
-    try:
-        built = json.loads(io.open(os.path.join(MODS, LUT_MOD, LUT_RECORD),
-                                   encoding="utf-8").read())
-    except (OSError, ValueError):
-        built = None
     have = all(os.path.isfile(os.path.join(MODS, LUT_MOD, "gamedata", *rel))
                for rel in (LUT_ATLAS, LUT_HEADER, LUT_INFO))
     plan["state"] = "built" if have and built == record else "stale"
+    if away and plan["state"] == "built":
+        plan["notes"].extend(away)
+        plan["notes"].append(_("Seasonal LUT keeps the build it has. Put the pack back in MO2's "
+                               "downloads folder before changing that season's LUT."))
+    elif away:
+        plan["problems"].extend(away)
+        plan["state"] = "blocked"
     return plan
 
 
@@ -4947,7 +4974,14 @@ def rtz_plan(now=None):
     version = rtz_version(folder)
     if version is None or version >= RTZ_SEASONS_FIRST:
         at = time.time() if now is None else now
+        # RTZ's own file is dated by this PC's clock, or from 1.0.7 by its place's, whose UTC
+        # offset it keeps beside the date
         today = time.strftime("%Y-%m-%d", time.localtime(at))
+        try:
+            today = time.strftime("%Y-%m-%d", time.gmtime(
+                at + int(float(own.get("place", {}).get("utc_offset")))))
+        except (TypeError, ValueError):
+            pass
         # 1.0.2 reads ours whatever their age; from 1.0.3, for a day from their start
         start = hourly_start(ours)
         fresh = has_ours and ((version is not None and version < RTZ_FRESH_FIRST)

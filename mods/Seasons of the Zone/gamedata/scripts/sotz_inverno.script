@@ -7,7 +7,11 @@
 -- switch, either off, leaves INVERNO as it ships.
 --
 -- Snowfall. INVERNO's snow and the fog that comes with it run only while the season has snow,
--- the factor this mod's snowfall patch reads, so a winter pinned in MCM has it too.
+-- the factor this mod's snowfall patch reads, so a winter pinned in MCM has it too. Up to 1.09
+-- its snowfall asks for its snowfall and fog options, and the gate sits on those. 1.09.11 asks
+-- for neither, and even its clear sky keeps some fog and drifting snow, so the gate also sits
+-- on the snowfall's own steps: out of season what it draws fades out, its sky holds clear and
+-- its weather key does nothing. Those two options, turned off on its page, still hold.
 --
 -- Temperature. INVERNO rolls each game day at random, always cold. With its winter mechanics
 -- update (October 2026) it takes this mod's reading instead: the real weather, or the
@@ -20,6 +24,7 @@
 
 local ON_MS = 1000
 local on_cached, on_until = true, -1
+local snowless_cached, snowless_until = false, -1
 
 -- this mod's master switch and the INVERNO switch, read once a second: INVERNO asks for its
 -- options several times a frame
@@ -61,6 +66,15 @@ local function snow_season()
     return (s.snow or 0) > 0
 end
 
+-- the season has no snow, read once a second like the switches: the snowfall asks every frame
+local function snowless()
+    local tg = time_global()
+    if tg < snowless_until then return snowless_cached end
+    snowless_until = tg + ON_MS
+    snowless_cached = snow_season() == false
+    return snowless_cached
+end
+
 -- INVERNO is here: its options, which every file of it reads
 function present()
     return project_inverno_mcm ~= nil and type(project_inverno_mcm.get_config) == "function"
@@ -90,7 +104,76 @@ local function feed_temperature(mech)
     end
 end
 
+-- This mod holds INVERNO's snowfall (key "enable_snowfall") or just its fog ("enable_fog"):
+-- the season has no snow, or the option is off on INVERNO's page, which 1.09.11 itself no
+-- longer reads
+local function held(key)
+    if not on() then return false end
+    if snowless() then return true end
+    local mcm = rawget(_G, "project_inverno_mcm")
+    return type(mcm) == "table" and type(mcm.get_config) == "function"
+        and mcm.get_config(key) == false
+end
+
+-- INVERNO's snowfall file, under the lowercase name the game loads every script by. Its
+-- actor_on_update calls these steps by name, and its weather key calls the toggle by name,
+-- so the ones in the file's table are the ones that run. Up to 1.09 it also stops itself on
+-- the options; from 1.09.11 only this holds it. nil when there is no such file.
+local function gate_snowfall()
+    local sys = rawget(_G, "inverno_snowfall_system")
+    if type(sys) ~= "table" then return nil end
+    local roll = rawget(sys, "process_dynamic_weather_logic")
+    local aim = rawget(sys, "get_target_particle_intensities")
+    local draw = rawget(sys, "update_particle_interpolation")
+    if type(roll) ~= "function" or type(aim) ~= "function" or type(draw) ~= "function" then
+        return nil
+    end
+    -- out of season the sky holds clear, so a winter starts clear, unless the player picked a
+    -- sky with INVERNO's key; 1.09 keeps its states in locals, out of reach
+    sys.process_dynamic_weather_logic = function(...)
+        if not held("enable_snowfall") then return roll(...) end
+        local clear = rawget(sys, "STATE_CLEAR")
+        if type(clear) == "number" and not rawget(sys, "is_manual_weather") then
+            sys.target_weather_state = clear
+        end
+    end
+    -- nothing to draw, so what plays fades out the way INVERNO fades it; with only its fog
+    -- held, the fog alone
+    sys.get_target_particle_intensities = function(...)
+        local t = aim(...)
+        if type(t) == "table" then
+            if held("enable_snowfall") then
+                for k in pairs(t) do t[k] = 0 end
+            elseif held("enable_fog") then
+                t.fog1, t.fog2, t.fog3 = 0, 0, 0
+            end
+        end
+        return t
+    end
+    -- INVERNO's freezing file asks for this file as Inverno_snowfall_system, so the game loads
+    -- a second copy under that name. Its weather key starts that copy's particles at the
+    -- player, and nothing else ever stops them.
+    sys.update_particle_interpolation = function(...)
+        draw(...)
+        if not held("enable_snowfall") then return end
+        local twin = rawget(_G, "Inverno_snowfall_system")
+        if type(twin) == "table" and twin ~= sys
+                and type(twin.force_stop_all_particles) == "function" then
+            pcall(twin.force_stop_all_particles)
+        end
+    end
+    local toggle = rawget(sys, "toggle_next_weather_state")
+    if type(toggle) == "function" then
+        sys.toggle_next_weather_state = function(...)
+            if held("enable_snowfall") then return end
+            return toggle(...)
+        end
+    end
+    return true
+end
+
 function on_game_start()
+    local snowfall = gate_snowfall()
     if not present() then return end
     local gates = {enable_snowfall = snow_season, enable_fog = snow_season}
     local mech = inverno_freezing_mechanic
@@ -103,4 +186,8 @@ function on_game_start()
         end
     end
     gate_options(project_inverno_mcm, gates)
+    if not snowfall then
+        printf("[seasons] ! INVERNO's snowfall file isn't one this mod knows, so its snow can "
+            .. "fall in any season")
+    end
 end

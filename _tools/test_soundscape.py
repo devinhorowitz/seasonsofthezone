@@ -126,6 +126,31 @@ def t_the_source_is_in_the_signature():
     return "the same cuts from another source get another signature"
 
 
+@case
+def t_an_update_of_the_source_in_place_is_in_the_signature():
+    """A soundscape mod updated in place keeps its name. Its presets have to make the
+    generated files stale, or the old ones win until the season turns: one naming a static
+    channel the update took out stops the game as a level loads."""
+    import tempfile
+    was = season._sound_src_dir
+    with tempfile.TemporaryDirectory() as d:
+        season._sound_src_dir = lambda: d
+        try:
+            p = os.path.join(d, "l01_escape.ltx")
+            open(p, "wb").write(b"[l01_escape]\nsound_channels_dynamic = wind_normal, birds\n")
+            first = season._sound_signature("winter")
+            same = season._sound_signature("winter")
+            open(p, "wb").write(b"[l01_escape]\nsound_channels_dynamic = wind_normal\n")
+            edited = season._sound_signature("winter")
+            open(os.path.join(d, "l02_garbage.ltx"), "wb").write(b"[l02_garbage]\n")
+            added = season._sound_signature("winter")
+        finally:
+            season._sound_src_dir = was
+    assert first == same, "the signature moves with nothing changed"
+    assert len({first, edited, added}) == 3, "an edited or added preset left the signature"
+    return "an edited preset and an added one each change it; nothing changed, nothing moves"
+
+
 if __name__ == "__main__":
     print("  checking the seasonal soundscape cuts")
     bad = 0

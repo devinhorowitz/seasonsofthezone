@@ -58,10 +58,18 @@ local function find_bar(xml_obj)
     return nil
 end
 
+-- parked: no width, past the bar's end. Its caption is see-through as well, since a bar laid
+-- out by other code can still draw it; the PDA's title copies only the text
 local function park(xml_obj, tab_el, id, label)
     xml_obj:insertFromXMLString(string.format([[
         <button x="1000" y="0" width="0" height="0" id="%s" frame_mode="0">
             <text align="c" vert_align="c" x="0" y="0" font="letterica16">%s</text>
+            <text_color>
+                <e a="0" r="0" g="0" b="0"/>
+                <t a="0" r="0" g="0" b="0"/>
+                <d a="0" r="0" g="0" b="0"/>
+                <h a="0" r="0" g="0" b="0"/>
+            </text_color>
         </button>
     ]], id, label), tab_el)
 end

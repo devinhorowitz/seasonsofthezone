@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+- **The PDA's Tomorrow no longer repeats Today in the evening.** Where the place set in
+  `configure.bat` is ahead of the PC's clock, its day turns first: at 6 PM in New York it is
+  already tomorrow in Chornobyl. `play.bat` fetched the forecast from the place's today, so
+  the PC's today had no row of its own, and the PDA showed the place's today as both. It now
+  fetches the place's yesterday too; `[weather]` is still the place's today.
+- **The anniversary artefacts survive an emission.** Back on a level after an emission on a
+  marked day, the seed could run before Dynamic Anomalies refreshed the level, and the
+  refresh cleared the seed with the level's other artefacts; the day was then spent for that
+  level. The seed now waits for the refresh.
+- **The PDA buttons this mod parks have see-through captions.** Seasons, like Mod App
+  Creator, puts its PDA sections on buttons with no width past the end of the tab bar. A bar
+  laid out by other code can still draw their captions: a player's showed such buttons piled
+  at its end. Now they draw nothing; the PDA's title, which copies only the text, still reads.
+- **`season.py status` reads Real Time Zone 1.0.7's own file by its place's day.** From
+  1.0.7, RTZ dates the file by its place's clock and keeps the place's UTC offset beside the
+  date; near midnight, status took the file for another day and named the wrong source.
+- **The seasonal soundscape follows an update of its source in place.** Its files were
+  rebuilt when the season, the source's name or the cuts changed. A soundscape mod updated in
+  place, under the same name, kept its old presets on top until the season turned, and one
+  naming a channel the update took out would stop the game as a level loads. The presets'
+  names and bytes now count too.
+- **A storage cleanup that moves the LUT packs leaves Seasonal LUT on.** The build made from
+  them stands; only a change to a season's LUT waits for the pack to be back in MO2's
+  downloads folder. Before, the mod went off at the next launch. The G.A.M.M.A. Debloater
+  moves `downloads\` by default.
+- **Rain for gameplay reaches Silencer Overheat.** With No Rain in Winter, a winter storm
+  falls as snow, and the scripts that go by rain are told the rain it would have had. 8BitCat's
+  Silencer Overheat reads rain to cool a hot suppressor and steam on it, and now it is told too.
+- **README:** MSIG's ice switch covers spent casings from MSIG 2026.10 on; the second one is
+  for older copies. From RTZ 1.0.6, rerun RTZ's `setup_rtz.bat` after each RTZ update.
+- **INVERNO 1.09.11 snows in the winters only again.** INVERNO's October 25 build no longer
+  reads its own snowfall and fog switches, which is where this mod held its snow to the
+  winters, and even its clear sky keeps some fog and drifting snow, so it snowed in every
+  season. The mod now holds INVERNO's snowfall itself: out of season what it draws fades
+  out, its sky stays clear (a sky picked with INVERNO's new weather key stays picked), and
+  the key does nothing. INVERNO's snowfall and fog switches, turned off on its page, hold
+  again. Its freezing file loads a second copy of the snowfall file under another name,
+  whose snow stays where the key was pressed; out of season that copy is stopped too. From
+  BamaWater on the CLIKRΔD Discord.
 - **Modded Exes 2026.6.21 or later.** That release was the first to check a shader's
   `#include` files against the game's shader cache, so a changed header rebuilds what it
   touches. The seasonal mods bring shader headers in and out (INVERNO's terrain and puddle

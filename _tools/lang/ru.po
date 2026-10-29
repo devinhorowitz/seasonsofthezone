@@ -989,6 +989,10 @@ msgid "Seasonal LUT would hold %(n)d LUTs, and an atlas holds at most %(most)d."
 msgstr "В Seasonal LUT было бы %(n)d LUT, а атлас вмещает не больше %(most)d."
 
 #: season.py
+msgid "Seasonal LUT keeps the build it has. Put the pack back in MO2's downloads folder before changing that season's LUT."
+msgstr "Seasonal LUT оставляет то, что уже собрано. Прежде чем менять LUT этого сезона, верните набор в папку загрузок MO2."
+
+#: season.py
 #, python-format
 msgid "%(season)s's LUT, %(name)s: %(why)s"
 msgstr "LUT сезона «%(season)s» (%(name)s): %(why)s"

@@ -71,9 +71,11 @@ URL = ("https://api.open-meteo.com/v1/forecast"
        "?latitude=%s&longitude=%s"
        "&daily=temperature_2m_max,temperature_2m_min,weather_code"
        "&hourly=weather_code"
-       "&timezone=auto&forecast_days=%d")
+       "&timezone=auto&past_days=1&forecast_days=%d")
 # as many days ahead as Open-Meteo gives: the game reads each day's row while it lasts, so a
-# launch without play.bat, or without a connection, keeps the real forecast that long
+# launch without play.bat, or without a connection, keeps the real forecast that long. The
+# day before the place's today comes too: the game reads its rows by this PC's date, and in
+# an evening behind the place, the place's yesterday is this PC's today.
 FORECAST_DAYS = 16
 SEARCH_URL = ("https://geocoding-api.open-meteo.com/v1/search"
               "?name=%s&count=%d&language=en&format=json")
@@ -326,6 +328,18 @@ def to_rows(payload):
     return rows
 
 
+def place_today(payload, now=None):
+    """The place's own date, "YYYY-MM-DD", from the UTC offset Open-Meteo answers with under
+    timezone=auto; this PC's date when the answer has none. `now` (aware) stands in for the
+    clock in the tests."""
+    try:
+        offset = datetime.timedelta(seconds=int(payload.get("utc_offset_seconds")))
+    except (TypeError, ValueError):
+        return datetime.date.today().isoformat()
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    return (now.astimezone(datetime.timezone.utc) + offset).date().isoformat()
+
+
 def to_hours(payload, now=None, tz=None):
     """The sky for each of the next HOURS hours on this PC's clock, from the one it is now:
     [(hour, cycle)], the hour 0-23. Open-Meteo gives the place's hours in the place's own
@@ -377,7 +391,8 @@ HEAD = """; Seasons of the Zone - the real weather, at the place set in configur
 ;
 ; Only the day's endpoints are real. The curve between them is modeled, because the
 ; game's day is accelerated and its sky belongs to Atmospherics, not to the real place.
-; [forecast] keeps the days ahead, so the game has them while play.bat isn't run.
+; [forecast] keeps the days ahead, so the game has them while play.bat isn't run, and
+; the day before the place's today, which can be this PC's today.
 ; [hourly] is the sky for the next 24 hours on this PC's clock, for add-ons that run the
 ; game's clock on real time (Real Time Zone).
 
@@ -427,18 +442,20 @@ start        = %s
 """
 
 
-def write(rows, place=DEFAULT, norms=None, hours=None, start=None):
+def write(rows, place=DEFAULT, norms=None, hours=None, start=None, today=None):
     """The file for `place`: today and tomorrow when `rows` has them, the next hours of the
     sky when `hours` has them, and the place's own normals when there are any. With no rows
-    the game models the day from the normals."""
+    the game models the day from the normals. `today` is the place's date: [weather] is its
+    row, or the first row without one."""
     # "_" for each space: X-Ray's reader drops the spaces in a value, and sotz_api turns the
     # underscores back
     fields = {"name": shown_name(place["name"]).replace(" ", "_"), "lat": place["lat"],
               "lon": place["lon"]}
     body = HEAD % fields
     if rows:
-        today = rows[0]
-        nxt = rows[1] if len(rows) > 1 else rows[0]
+        at = next((i for i, r in enumerate(rows) if r["date"] == today), 0)
+        today = rows[at]
+        nxt = rows[at + 1] if len(rows) > at + 1 else rows[at]
         body += WEATHER % dict(
             fields, fetched_at=datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
             date=today["date"], high=today["high"], low=today["low"], cycle=today["cycle"],
@@ -568,13 +585,13 @@ def main():
     except Exception:
         hours = []
     try:
-        write(rows, place, norms, hours)
+        write(rows, place, norms, hours, today=place_today(payload))
     except Exception as e:
         print("  " + _("could not write season_weather.ltx (%s) - carrying on")
               % type(e).__name__)
         return 0
 
-    t = rows[0]
+    t = next((r for r in rows if r["date"] == place_today(payload)), rows[0])
     day = {"place": shown_name(place["name"]), "date": t["date"], "high": t["high"],
            "low": t["low"], "sky": sky_word(t["cycle"])}
     if t["low"] <= 0.0:

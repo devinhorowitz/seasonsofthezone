@@ -67,6 +67,63 @@ function tick()
 end
 """
 
+# 1.09.11 asks for no option: a roll picks the sky, its actor_on_update calls its steps by
+# name, and even a clear sky keeps some fog and drifting snow. Its manual key draws at once.
+SNOWFALL_11 = """
+-- stand-in for INVERNO 1.09.11's snowfall file
+STATE_CLEAR = 1
+STATE_SNOW = 2
+current_weather_state = STATE_CLEAR
+target_weather_state = STATE_CLEAR
+is_manual_weather = false
+local function particle()
+    local p = {on = false}
+    function p:playing() return self.on end
+    function p:stop() self.on = false end
+    function p:play_at_pos() self.on = true end
+    return p
+end
+particles = {snow = particle(), drift = particle(), fog2 = particle(), fog3 = particle()}
+function force_stop_all_particles()
+    for _, k in pairs(particles) do
+        if k:playing() then k:stop() end
+    end
+end
+function process_dynamic_weather_logic()
+    if is_manual_weather then return end
+    target_weather_state = STATE_SNOW
+end
+function get_target_particle_intensities()
+    if current_weather_state == STATE_CLEAR then
+        return {fog3 = 0.3, drift = 0.15}
+    end
+    return {snow = 0.8, drift = 0.75, fog2 = 0.5}
+end
+function update_particle_interpolation()
+    current_weather_state = target_weather_state
+    local targets = get_target_particle_intensities()
+    for name, k in pairs(particles) do
+        if (targets[name] or 0) > 0 then
+            if not k:playing() then k:play_at_pos() end
+        elseif k:playing() then
+            k:stop()
+        end
+    end
+end
+function toggle_next_weather_state()
+    is_manual_weather = true
+    target_weather_state = STATE_SNOW
+    current_weather_state = STATE_SNOW
+    for name, v in pairs(get_target_particle_intensities()) do
+        if v > 0 then particles[name]:play_at_pos() end
+    end
+end
+function actor_on_update()
+    process_dynamic_weather_logic()
+    update_particle_interpolation()
+end
+"""
+
 # X-Ray gives each file its own table and exposes it under the file's name
 LOADER = """
 function (src, name, shared)
@@ -99,9 +156,11 @@ os.time = function(t) if t == nil then return now end return real_time(t) end
 
 
 def world(version="update", bridge=True, inverno=True, mcm=None, units=None, month=1,
-          day=15, **kw):
+          day=15, twin=False, options=True, **kw):
     """The data layer and sotz_api as test_api builds them on the given day, MCM's saved values
-    by full path, INVERNO's stand-ins and the bridge."""
+    by full path, INVERNO's stand-ins and the bridge. Version "1.09.11" loads its snowfall
+    file under the lowercase name the game gives every script; twin adds the second copy the
+    game loads when INVERNO's freezing file asks for it as Inverno_snowfall_system."""
     lua, g = ta.build(units=units, **kw)
     year = int(ta._pinned(month, day)[:4])
     lua.execute(PIN % (year, month, day))
@@ -111,9 +170,15 @@ def world(version="update", bridge=True, inverno=True, mcm=None, units=None, mon
     g.ui_mcm = lua.table_from({"get": lambda p: vals.get(str(p))})
     load = lua.eval(LOADER)
     if inverno:
-        load(OPTIONS, "project_inverno_mcm", g)
-        load(UPDATE if version == "update" else OLD, "inverno_freezing_mechanic", g)
-        load(SNOWFALL, "Inverno_snowfall_system", g)
+        if options:
+            load(OPTIONS, "project_inverno_mcm", g)
+        load(OLD if version == "1.09" else UPDATE, "inverno_freezing_mechanic", g)
+        if version == "1.09.11":
+            load(SNOWFALL_11, "inverno_snowfall_system", g)
+            if twin:
+                load(SNOWFALL_11, "Inverno_snowfall_system", g)
+        else:
+            load(SNOWFALL, "Inverno_snowfall_system", g)
     if bridge:
         load(BRIDGE, "sotz_inverno", g)
         g.sotz_inverno.on_game_start()
@@ -130,6 +195,18 @@ def run(g, ticks=30):
 def snowing(g):
     g.Inverno_snowfall_system.tick()
     return g.Inverno_snowfall_system.falling
+
+
+ALL = ["drift", "fog2", "snow"]
+
+
+def drawn(g, frames=3, name="inverno_snowfall_system"):
+    """What 1.09.11's snowfall has playing after a few frames of its actor_on_update, in the
+    file the game loads or in its second copy."""
+    for _ in range(frames):
+        g.inverno_snowfall_system.actor_on_update()
+    parts = g[name].particles
+    return sorted(k for k in ("snow", "drift", "fog2", "fog3") if parts[k].on)
 
 
 def option(g, key):
@@ -274,6 +351,102 @@ def t_nothing_without_inverno():
     g = world(inverno=False, month=1)
     assert g.sotz_inverno.present() is False
     return "loads and stays out of the way"
+
+
+@case
+def t_1_09_11_snows_in_the_winters_only():
+    assert drawn(world(version="1.09.11", month=1)) == ALL
+    july = drawn(world(version="1.09.11", month=7))
+    assert july == [], july
+    c = drawn(world(version="1.09.11", bridge=False, month=7))
+    assert c == ALL, "control: 1.09.11 snows in July: %s" % c
+    return "July draws nothing, not even a clear sky's fog and drift"
+
+
+@case
+def t_1_09_11_holds_a_clear_sky_out_of_season():
+    g = world(version="1.09.11", month=7)
+    s = g.inverno_snowfall_system
+    s.target_weather_state = s.current_weather_state = s.STATE_SNOW    # a winter save, in July
+    drawn(g)
+    assert s.target_weather_state == s.current_weather_state == s.STATE_CLEAR
+    c = world(version="1.09.11", bridge=False, month=7)
+    drawn(c)
+    assert c.inverno_snowfall_system.target_weather_state == c.inverno_snowfall_system.STATE_SNOW, \
+        "control: its roll brings snow"
+    return "so a winter starts from a clear sky"
+
+
+@case
+def t_1_09_11_held_without_its_options_file():
+    g = world(version="1.09.11", month=7, options=False)
+    assert g.sotz_inverno.present() is False
+    assert drawn(g) == []
+    assert drawn(world(version="1.09.11", month=1, options=False)) == ALL
+    c = drawn(world(version="1.09.11", bridge=False, month=7, options=False))
+    assert c == ALL, "control: %s" % c
+    return "a later INVERNO without project_inverno_mcm still snows in winter only"
+
+
+@case
+def t_1_09_11_its_own_switches_hold():
+    off = drawn(world(version="1.09.11", month=1, mcm={"project_inverno/enable_snowfall": False}))
+    assert off == [], off
+    fog = drawn(world(version="1.09.11", month=1, mcm={"project_inverno/enable_fog": False}))
+    assert fog == ["drift", "snow"], fog
+    both = {"project_inverno/enable_snowfall": False, "project_inverno/enable_fog": False}
+    c = drawn(world(version="1.09.11", bridge=False, month=1, mcm=both))
+    assert c == ALL, "control: 1.09.11 itself ignores both: %s" % c
+    return "snowfall off draws nothing; fog off, snow without fog"
+
+
+@case
+def t_1_09_11_its_manual_key_draws_nothing_in_july():
+    g = world(version="1.09.11", month=7, twin=True)
+    g.inverno_snowfall_system.toggle_next_weather_state()
+    assert g.inverno_snowfall_system.is_manual_weather is not True, "the key should do nothing"
+    g.Inverno_snowfall_system.toggle_next_weather_state()
+    assert drawn(g, frames=1) == []
+    assert drawn(g, frames=1, name="Inverno_snowfall_system") == []
+    c = world(version="1.09.11", bridge=False, month=7, twin=True)
+    c.Inverno_snowfall_system.toggle_next_weather_state()
+    assert drawn(c, frames=1, name="Inverno_snowfall_system") == ALL, \
+        "control: nothing stops the second copy's particles"
+    return "in both copies of its file"
+
+
+@case
+def t_1_09_11_a_winter_pinned_in_july_snows():
+    g = world(version="1.09.11", month=7, mcm={"seasons_zone/main/mode": "winter"})
+    assert drawn(g) == ALL
+    return "the pin, not the date"
+
+
+@case
+def t_1_09_11_keeps_the_players_pick_through_a_summer():
+    g = world(version="1.09.11", month=7, mcm={"seasons_zone/main/mode": "winter"})
+    s = g.inverno_snowfall_system
+    s.toggle_next_weather_state()
+    assert s.is_manual_weather is True and drawn(g) == ALL, "the pinned winter takes the key"
+    g.ui_mcm.get = lambda p: None                   # the pin comes off: July again
+    g.time_global = lambda: 60000
+    assert drawn(g) == [], "nothing drawn in July"
+    assert s.is_manual_weather is True and s.target_weather_state == s.STATE_SNOW, \
+        "the sky picked with INVERNO's key should stay picked"
+    g.ui_mcm.get = lambda p: {"seasons_zone/main/mode": "winter"}.get(str(p))
+    g.time_global = lambda: 120000
+    assert drawn(g) == ALL, "winter again"
+    return "held out of season, back as picked in winter"
+
+
+@case
+def t_1_09_11_as_it_ships_when_switched_off_or_unsure():
+    for path in ("seasons_zone/main/enabled", "seasons_zone/main/inverno"):
+        assert drawn(world(version="1.09.11", month=7, mcm={path: False})) == ALL, path
+    g = world(version="1.09.11", month=7, observed=None)
+    g.sotz_api.season = lambda: None
+    assert drawn(g) == ALL, "no season"
+    return "either switch off, or no season to go by"
 
 
 def main_page(with_inverno):

@@ -607,10 +607,17 @@ recordings differently, use those.
 **Jumps and landings** don't go through that file. Your movement sound mod's script plays
 them by the ground's material, and frozen water is still water to it. With MovementSFX from
 oleh5230's GitHub (2026.09.27 or later), MSIG's **Screen Space Shaders Ice Version Patch**
-turns them from water to concrete. Let it follow the ice, and its twin for spent casings:
+turns them from water to concrete, and from MSIG 2026.10 on the same switch covers spent
+casings. Let it follow the ice:
 
 ```
 py _tools\configure.py mcm oleh_sounds/general/ice_patch --in "deep winter" --to true --else false
+```
+
+Older copies of MSIG, GAMMA's bundled one among them, keep the casings on a second switch on
+their weapons page:
+
+```
 py _tools\configure.py mcm oleh_sounds/weapons/ice_patch --in "deep winter" --to true --else false
 ```
 
@@ -751,13 +758,21 @@ if you want the survival system, keep it in a mod of its own that stays on all y
 From there, this mod runs INVERNO by the season: **INVERNO follows the season** on MCM's
 Main page, on by default and shown when INVERNO is installed.
 
-- Its snowfall and fog run only in the three winters.
+- Its snowfall and fog run only in the three winters. INVERNO 1.09.11 (October 25, 2026)
+  no longer reads its own snowfall and fog switches, and even its clear sky keeps some fog and
+  drifting snow, so this mod holds its snowfall itself: out of season the snow and fog fade
+  out, its sky stays clear, and its weather key does nothing.
 - With INVERNO's winter mechanics update (October 2026, linked from its ModDB page), its
   temperature is this mod's, the one the PDA shows: the real weather on the game's clock.
   INVERNO's own rule does the rest: outdoors at -10 °C or below you freeze, above it you
   warm. So the cold bites only on the coldest real nights.
 - Without that update, INVERNO keeps its own temperatures, always below zero, and its cold
   runs only on days that freeze.
+
+INVERNO 1.09.11's weather key, on its MCM page and Backslash unless you change it, steps its
+snow by hand in the winters, as INVERNO ships it. If Backslash already does something in your
+setup, give INVERNO another key. Each press also starts a second set of snow that stays where
+you pressed it, an INVERNO bug this mod clears only out of season.
 
 None of INVERNO's options is written: one you turn off on its MCM page stays off. Its
 mechanics are on as it installs, so a character can start freezing with no warning;
@@ -788,7 +803,8 @@ winter, when No Rain in Winter is off. With only No Rain in Winter, a rain sky r
 Overcast.
 
 Gameplay that goes by rain still feels it: NPCs' shorter sight in a storm, guns jamming,
-campfires and the AI taking cover. Each copy keeps the rain it took out, and Seasons of the
+campfires, the AI taking cover, and a hot suppressor cooling and steaming with Silencer
+Overheat. Each copy keeps the rain it took out, and Seasons of the
 Zone hands it to those scripts alone, so the rain's sound and drops stay off.
 
 ---
@@ -855,7 +871,8 @@ time. Install it in MO2 anywhere; it ships none of this mod's files.
   and read that first: update RTZ, or delete that file. `py _tools\season.py status` says
   which one RTZ reads, and warns when it is stale or for another place.
 - **`play.bat`** already carries the line RTZ's setup would add, so the setup leaves the
-  file as it is, and updating this mod keeps the line working.
+  file as it is, and updating this mod keeps the line working. From RTZ 1.0.6, run its
+  `setup_rtz.bat` again after each RTZ update: it brings RTZ's own fetcher up to date.
 - **Remembrance days and anniversaries** keep their sky. On a day this mod holds the sky
   clear, or brings a storm, RTZ's real weather stands aside until the day is over.
 - **MCM.** The Main page's weather line names RTZ while it sets the sky.

@@ -1228,7 +1228,9 @@ end
 -- ROMEO) has that local given the same `level`. A script that takes `level` from _G itself
 -- (Immersive Identification's weather) can't be reached this way, and reads the dry value.
 local WET_READERS = {"xr_combat_ignore", "arti_jamming", "bind_campfire", "xr_conditions",
-                     "stealth_noise", "visual_memory_manager", "redone_ai_detection"}
+                     "stealth_noise", "visual_memory_manager", "redone_ai_detection",
+                     -- 8BitCat's Silencer Overheat: rain, and snow, cool a hot suppressor
+                     "bc_suppressor_heat", "bc_suppressor_heat_rain"}
 -- Gameplay readers loaded with require, which run in _G: Useful Idiots' combat range, which
 -- replaces xr_combat_ignore.is_enemy, so in GAMMA it is the one NPC sight goes by.
 local WET_MODULES = {{"illish.patches.xr_combat_ignore", "illish\\patches\\xr_combat_ignore.lua"}}
@@ -1988,6 +1990,11 @@ local function anniversary_artefacts()
     if not (type(da) == "table" and da[lvl] and da[lvl].anomaly_types_by_smart) then
         return nil
     end
+    -- After an emission DAO refreshes a level the first time it runs there, and the refresh
+    -- clears the level's artefacts. Coming back to a level after one, our first tick can run
+    -- before DAO's, so wait for the refresh, or the day's seed goes with it.
+    local surge = tonumber(drx_da_main.last_surge_time)
+    if surge and surge > (tonumber(da[lvl].time) or -1) then return nil end
     arte_done[key] = true
 
     -- One call is a ~15% dice roll per eligible smart, so it yields 0-1 artefacts -

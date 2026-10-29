@@ -541,11 +541,24 @@ function ids_of(el)
     return t
 end
 
--- a button put out of sight, as MAC parks its own: x 1000, no size, no frame
+-- a button put out of sight, as MAC parks its own: x 1000, no size, no frame; and its caption
+-- see-through in every state, for a bar laid out by other code
 function is_parked(n)
-    local e = setmetatable({}, DX):getElement(n)
-    return e ~= nil and e.attr.x == "1000" and e.attr.width == "0" and e.attr.height == "0"
-        and e.attr.frame_mode == "0"
+    local x = setmetatable({}, DX)
+    local e = x:getElement(n)
+    if not (e ~= nil and e.attr.x == "1000" and e.attr.width == "0" and e.attr.height == "0"
+        and e.attr.frame_mode == "0") then return false end
+    for _, k in ipairs(n.kids or {}) do
+        if x:getElementName(k) == "text_color" then
+            local clear = {}
+            for _, s in ipairs(k.kids or {}) do
+                local c = x:getElement(s)
+                if c and c.attr.a == "0" then clear[c.name] = true end
+            end
+            return (clear.e and clear.t and clear.d and clear.h) == true
+        end
+    end
+    return false
 end
 """
 

@@ -550,6 +550,29 @@ def t_a_missing_pack_is_said_and_nothing_is_built():
 
 
 @case
+def t_a_pack_moved_away_keeps_the_build_and_a_change_waits_for_it():
+    """A storage cleanup can move the packs out of downloads: the build made from them
+    stands and stays on; only a change to a season's LUT needs the pack back."""
+    with tempfile.TemporaryDirectory() as d:
+        scratch(d, LUTS)
+        packs(d)
+        rc, out = tc.run(d, "apply", tool="season.py")
+        assert "built: 2 seasons" in out and "+" + season.LUT_MOD in modlist(d), out
+        zip_ = os.path.join(d, "downloads", "Kumo LUTs.zip")
+        os.rename(zip_, os.path.join(d, "Kumo LUTs.zip"))
+        rc, out = tc.run(d, "apply", tool="season.py")
+        assert rc == 0 and "+" + season.LUT_MOD in modlist(d), (out, modlist(d))
+        assert "keeps the build it has" in out and "not in MO2's downloads folder" in out, out
+        assert "! Autumn's LUT" not in out, "a kept build is a note, not a problem:\n" + out
+        cfg = os.path.join(d, "_tools", "seasons_config.py")
+        io.open(cfg, "w", encoding="utf-8").write(LUTS.replace("60)", "45)"))
+        rc, out = tc.run(d, "apply", tool="season.py")
+        assert "Kumo LUTs.zip is not in MO2's downloads folder" in out, out
+        assert "-" + season.LUT_MOD in modlist(d), "a rebuild without its pack: the mod goes off"
+        return "the pack away: kept and on, said; a new percent: blocked until it's back"
+
+
+@case
 def t_the_config_check_names_each_entry_at_fault():
     bad = {"spring": ("a.zip", None, 50), "neutral": ("a.zip", None, 50),
            "summer": ("a.zip", None), "autumn": ("a.zip", "x", 0), "winter": ("", None, 50),

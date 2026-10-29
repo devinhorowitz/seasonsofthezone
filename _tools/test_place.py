@@ -163,7 +163,7 @@ fw.main()
         assert rc == 0, out
         asked = [l for l in out.splitlines() if l.startswith("ASKED")][0]
         assert "latitude=-23.5475" in asked and "timezone=auto" in asked \
-            and "forecast_days=16" in asked, asked
+            and "forecast_days=16" in asked and "past_days=1" in asked, asked
         assert "Weather data by Open-Meteo.com (CC BY 4.0)" in out, out
         assert "Copernicus" in out, "the climate lookup was not credited:\n" + out
         assert "AGAIN 0" in out, "a fresh file for the same place was fetched again:\n" + out
@@ -476,6 +476,36 @@ def t_weather_days_come_from_the_place_s_own_reading():
         rc, out = tc.run(d, "status", tool="season.py", env=OFFLINE)
         assert rc == 0 and "weather from" in out and "(today:" not in out, out
     return "a Cyrillic place's frost counted; another place's reading ignored"
+
+
+@case
+def t_this_pc_s_today_has_its_row_where_the_place_is_a_day_ahead():
+    """An evening behind the place: at 18:01 in New York it is already the next day in
+    Chornobyl. The game reads [forecast] by this PC's date, so the fetch keeps the place's
+    yesterday too, and [weather] stays the place's today."""
+    import fetch_weather as fw
+    now = datetime.datetime(2026, 10, 28, 22, 1, tzinfo=datetime.timezone.utc)
+    assert fw.place_today({"utc_offset_seconds": 7200}, now) == "2026-10-29", "Chornobyl"
+    assert fw.place_today({"utc_offset_seconds": -14400}, now) == "2026-10-28", "New York"
+    assert fw.place_today({}, now) == datetime.date.today().isoformat(), "no offset: this PC"
+    rows = [{"date": day, "high": high, "low": 5.0, "cycle": "clear"}
+            for day, high in (("2026-10-28", 11.0), ("2026-10-29", 9.4), ("2026-10-30", 9.0))]
+    with tempfile.TemporaryDirectory() as d:
+        path = sandbox(d)
+        was = fw.OUTS, fw.OUT
+        fw.OUTS, fw.OUT = [path], path
+        try:
+            fw.write(rows, today="2026-10-29")
+            s = sections(path)
+            fw.write(rows)
+            c = sections(path)
+        finally:
+            fw.OUTS, fw.OUT = was
+    assert s["weather"]["date"] == "2026-10-29" and s["weather"]["high"] == "9.4", s["weather"]
+    assert s["weather_next"]["date"] == "2026-10-30", s["weather_next"]
+    assert s["forecast"]["2026-10-28"] == "11.0, 5.0, clear", s["forecast"]
+    assert c["weather"]["date"] == "2026-10-28", "control: without the place's date, the first row"
+    return "[weather] is the place's today; this PC's today, the place's yesterday, has its row"
 
 
 @case

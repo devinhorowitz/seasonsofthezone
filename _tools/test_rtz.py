@@ -14,6 +14,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -383,6 +384,30 @@ def t_from_1_0_3_hours_a_day_past_their_start_are_said():
         assert row and "play.bat fetches" in row and not bangs and not notes, (version, row)
     return "a day old: its own of today, or the forecast's model, said with the start; " \
         "fresh ones, or 1.0.2, read as before"
+
+
+@case
+def t_from_1_0_7_its_own_file_is_dated_by_its_place():
+    """RTZ 1.0.7 dates its own file by its place's clock and keeps the place's UTC offset
+    beside the date: near the place's midnight its today is not this PC's."""
+    now = time.time()
+    pc = time.strftime("%Y-%m-%d", time.localtime(now))
+    off = next(h * 3600 for h in range(-12, 15)
+               if time.strftime("%Y-%m-%d", time.gmtime(now + h * 3600)) != pc)
+    there = time.strftime("%Y-%m-%d", time.gmtime(now + off))
+    dated = own_today(there)
+    with_offset = dated.replace("date = %s\n" % there, "date = %s\nutc_offset = %d\n" % (there, off))
+    old = sky(hours_ago=30)
+    with tempfile.TemporaryDirectory() as d:
+        rtz_install(d, sky=old, own=with_offset, version="1.0.7")
+        row, bangs, _n = report(d)
+    assert row and "its own hours of the sky, for Chornobyl" in row and not bangs, (row, bangs)
+    with tempfile.TemporaryDirectory() as d:
+        rtz_install(d, sky=old, own=dated, version="1.0.7")
+        row, _b, _n = report(d)
+    assert row and "modeled from the day's forecast" in row, \
+        "control: without the offset, the place's date reads as another day: %s" % row
+    return "its own file of the place's today read as today, wherever this PC's day is"
 
 
 # --- RTZ's real weather on a held day ---------------------------------------------------
