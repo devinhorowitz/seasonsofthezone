@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.12.2 — 2026-10-28
 
 - **The PDA's Tomorrow no longer repeats Today in the evening.** Where the place set in
   `configure.bat` is ahead of the PC's clock, its day turns first: at 6 PM in New York it is
