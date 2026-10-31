@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **The real weather's hours cover the night the clock goes back.** `play.bat` writes
+  `[hourly]` for the next 24 hours on the PC's clock. The night the clock went back an hour,
+  it stopped after 24 real hours, so the last hour on the clock had no line, and Real Time
+  Zone had no sky for it. It now reads the extra hour. The night the clock goes forward, the
+  hour it skips still has no line.
+
 ## 2.12.2 — 2026-10-28
 
 - **The PDA's Tomorrow no longer repeats Today in the evening.** Where the place set in

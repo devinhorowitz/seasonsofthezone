@@ -345,7 +345,9 @@ def to_hours(payload, now=None, tz=None):
     [(hour, cycle)], the hour 0-23. Open-Meteo gives the place's hours in the place's own
     time, so each is moved to this PC's: an hour here is the sky the place has at that
     moment. An hour Open-Meteo has no value for is left out, and an answer without hours
-    gives []. `now` (aware) and `tz` stand in for the clock in the tests."""
+    gives []. The night the clock goes back, its repeated hour is the first one's sky; the
+    night it goes forward, the hour it skips has none. `now` (aware) and `tz` stand in for
+    the clock in the tests."""
     h = payload.get("hourly") or {}
     times, codes = h.get("time") or [], h.get("weather_code") or []
     try:
@@ -365,17 +367,23 @@ def to_hours(payload, now=None, tz=None):
         return []
     starts = sorted(sky)
     now = now or datetime.datetime.now().astimezone()
-    first = now.astimezone(tz).replace(minute=0, second=0, microsecond=0)
-    first = first.astimezone(datetime.timezone.utc)
+    here = now.astimezone(tz).replace(minute=0, second=0, microsecond=0)
+    # the clock's next HOURS hours: one real hour fewer the night it goes forward, one more
+    # the night it goes back
+    end = here.replace(tzinfo=None) + datetime.timedelta(hours=HOURS)
+    first = here.astimezone(datetime.timezone.utc)
     out, seen = [], set()
-    for i in range(HOURS):
+    for i in range(HOURS + 1):
         at = first + datetime.timedelta(hours=i)
+        shown = at.astimezone(tz)
+        if shown.replace(tzinfo=None) >= end:
+            break
         # the place's hour this one falls in: the last to begin at or before it, if that
         # hour hasn't ended
         k = bisect.bisect_right(starts, at) - 1
         if k < 0 or at - starts[k] >= datetime.timedelta(hours=1):
             continue
-        hour = at.astimezone(tz).hour
+        hour = shown.hour
         if hour in seen:            # the clock going back an hour: the first one stays
             continue
         seen.add(hour)

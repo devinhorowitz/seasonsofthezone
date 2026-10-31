@@ -223,9 +223,10 @@ start        = 2026-10-21T14:00
 ```
 
 `start` is the hour the lines begin, on the PC's clock. They cover the 24 hours from it, so
-once those have passed they are a day old: read the day's `[forecast]` instead. `play.bat`
-refetches only when the file is over 6 hours old, and a launch without it, or without a
-connection, keeps the last hours.
+once those have passed they are a day old: read the day's `[forecast]` instead. The night
+the clock goes back, its repeated hour has the first one's sky; the night it goes forward,
+the hour it skips has no line. `play.bat` refetches only when the file is over 6 hours old,
+and a launch without it, or without a connection, keeps the last hours.
 
 ## `blowout()`
 

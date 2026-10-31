@@ -49,6 +49,38 @@ def payload(offset_h, first, codes):
             "hourly": {"time": times, "weather_code": codes}}
 
 
+class Eastern(datetime.tzinfo):
+    """A PC in New York around 2026's and 2027's clock changes: back from 2:00 EDT to 1:00
+    EST on November 1, forward from 2:00 EST to 3:00 EDT on March 14. zoneinfo would need
+    tzdata, which Windows doesn't always have."""
+    BACK = datetime.datetime(2026, 11, 1, 6, 0)                 # UTC
+    FORWARD = datetime.datetime(2027, 3, 14, 7, 0)              # UTC
+    EDT, EST = datetime.timedelta(hours=-4), datetime.timedelta(hours=-5)
+
+    def summer(self, utc):
+        return utc < self.BACK or utc >= self.FORWARD
+
+    def fromutc(self, dt):
+        utc = dt.replace(tzinfo=None)
+        wall = utc + (self.EDT if self.summer(utc) else self.EST)
+        # the hour after 2:00 EDT is 1:00 again, the second one
+        fold = int(self.BACK <= utc < self.BACK + datetime.timedelta(hours=1))
+        return wall.replace(tzinfo=self, fold=fold)
+
+    def utcoffset(self, dt):
+        wall = dt.replace(tzinfo=None, fold=0)
+        edt, est = self.summer(wall - self.EDT), not self.summer(wall - self.EST)
+        if edt and est:                                         # the repeated hour
+            return self.EST if dt.fold else self.EDT
+        return self.EDT if edt else self.EST
+
+    def dst(self, dt):
+        return self.utcoffset(dt) - self.EST
+
+    def tzname(self, dt):
+        return "EDT" if self.utcoffset(dt) == self.EDT else "EST"
+
+
 # --- the hours play.bat fetches ------------------------------------------------------------
 
 @case
@@ -92,6 +124,36 @@ def t_hours_without_values_are_left_out():
     assert fw.to_hours({"hourly": {"time": ["bad"], "weather_code": [1]}}, now=now,
                        tz=pc) == []
     return "an hour without a value, past the forecast, or unreadable is left out"
+
+
+@case
+def t_the_nights_the_clock_changes_keep_every_hour_it_shows():
+    # Chornobyl at UTC+2, a PC in New York at 13:20 the day before the clock goes back:
+    # 25 real hours to 13:00 tomorrow. Codes by the place's hour: clear at even hours, cloudy
+    # at odd ones; 07:00 (the first 1:00 here) a storm, 08:00 (the second) snow, and 19:00
+    # tomorrow (12:00 here, the 25th hour) fog
+    pc = Eastern()
+    first = datetime.datetime(2026, 10, 31, 0, 0)
+    marks = {31: 95, 32: 71, 43: 45}
+    codes = [marks.get(i, 3 if i % 2 else 0) for i in range(72)]
+    now = datetime.datetime(2026, 10, 31, 13, 20, tzinfo=pc)
+    back = fw.to_hours(payload(2, first, codes), now=now, tz=pc)
+    assert [h for h, _c in back] == list(range(13, 24)) + list(range(13)), back
+    assert dict(back)[1] == "storm" and dict(back)[12] == "foggy", back
+    # from inside the first 1:00, the 24 hours run to 0:00
+    inside = fw.to_hours(payload(2, first, codes), now=now.replace(day=1, month=11, hour=1),
+                         tz=pc)
+    assert [h for h, _c in inside] == list(range(1, 24)) + [0], inside
+    # 13:20 the day before it goes forward: 23 real hours to 13:00 tomorrow, and no 2:00.
+    # Today's 13:00 is the place's 20:00 (a storm); tomorrow's would be its 19:00 (snow)
+    first = datetime.datetime(2027, 3, 13, 0, 0)
+    marks = {20: 95, 43: 71}
+    codes = [marks.get(i, 3 if i % 2 else 0) for i in range(72)]
+    now = datetime.datetime(2027, 3, 13, 13, 20, tzinfo=pc)
+    fwd = fw.to_hours(payload(2, first, codes), now=now, tz=pc)
+    assert [h for h, _c in fwd] == list(range(13, 24)) + [0, 1] + list(range(3, 13)), fwd
+    assert dict(fwd)[13] == "storm", fwd
+    return "the night it goes back, 1:00 is the first one and 12:00 is there; forward, no 2:00"
 
 
 @case
@@ -157,13 +219,18 @@ fw.main()
     hour = int([l for l in out.splitlines() if l.startswith("HOUR")][0].split()[1])
     h = s.get("hourly", {})
     keys = sorted(int(k) for k in h if k.isdigit())
-    assert keys == list(range(24)), h
+    # every hour this PC's clock shows from the start to the same one tomorrow: all 24, but
+    # 23 the night it goes forward
+    start = datetime.datetime.strptime(h.get("start", ""), "%Y-%m-%dT%H:%M")
+    walls = [start + datetime.timedelta(hours=i) for i in range(24)]
+    shown = sorted(w.hour for w in walls if w.astimezone().replace(tzinfo=None) == w)
+    assert keys == shown, (shown, h)
     # the fake's hours, from yesterday's midnight: odd ones clear, even ones rain
     want = "clear" if (hour + 24) % 2 else "rain"
     assert h[str(hour)] == want, (hour, h[str(hour)])
     assert h["start"].endswith("T%02d:00" % hour), h["start"]
-    assert "hour by hour: 24 hours from" in out, out
-    return "play.bat's fetch asks for the hours and writes all 24, from this one"
+    assert "hour by hour: %d hours from" % len(shown) in out, out
+    return "play.bat's fetch asks for the hours and writes the clock's next 24, from this one"
 
 
 # --- play.bat ---------------------------------------------------------------------------
