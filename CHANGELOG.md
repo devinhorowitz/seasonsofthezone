@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.12.3 — 2026-10-31
 
 - **The real weather's hours cover the night the clock goes back.** `play.bat` writes
   `[hourly]` for the next 24 hours on the PC's clock. The night the clock went back an hour,
