@@ -7,6 +7,9 @@
   it stopped after 24 real hours, so the last hour on the clock had no line, and Real Time
   Zone had no sky for it. It now reads the extra hour. The night the clock goes forward, the
   hour it skips still has no line.
+- **The PDA app opens whichever way you like.** The README, the guides and MCM no longer
+  read as if Mod App Creator were needed: the app opens from a tab of its own in the PDA,
+  from Mod App Creator's tile, or on a key, and none needs another mod.
 
 ## 2.12.2 — 2026-10-28
 

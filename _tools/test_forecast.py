@@ -873,9 +873,10 @@ def t_mcm_status():
     assert "base game's scheduler" in ok["status_weather"][0], ok["status_weather"][0]
     assert "not running" not in ok["status_weather"][0]
 
+    # no MAC and, in this stand-in, no tab registry: no way in but the key
     missing = run(False, "none")
     assert missing["status_mac"][1] == red, "MAC missing but not flagged"
-    assert "not found" in missing["status_mac"][0], missing["status_mac"][0]
+    assert "no tab of its own" in missing["status_mac"][0], missing["status_mac"][0]
     assert missing["status_weather"][1] == red, "no weather manager but not flagged"
 
     assert run(True, "plan")["status_weather"][1] == gray
