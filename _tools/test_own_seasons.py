@@ -649,6 +649,100 @@ print("AFTER", g.cal._bad_own, [t for t in texts(g.own_box_list) if t.strip()])
 
 
 @case
+def t_a_name_play_bat_cant_use_is_taken_for_a_rename():
+    """Renaming a season of one's own or a spell onto the name of one play.bat can't use,
+    kept as written, threw that one away without a word and gave its mods to the renamed
+    one. The name is taken now, on the command line, in the dialogs and in config_edit; a
+    new one of that name still replaces the one that can't be used."""
+    own = 'OWN_SEASONS = {"Wormhole": ((8, 1), (8, 31)), "Bloom": ((5, 1), (5, 3))}\n'
+    spells = ('SPELLS = {"Frost": {"in": ("summer",), "chance": 3, "days": 1, "as": None},\n'
+              '          "Hail": {"in": ("summer",), "chance": 300, "days": 1, "as": None}}\n')
+    mod = 'TOGGLE_MODS = {"Lonely Mod": {"when": (%r,), "above": "Base Grass"}}\n'
+    # one at a time: with both, any save is refused, which hid it
+    for config, args, says in ((own + mod % "Bloom", ("season", "Wormhole", "--rename", "Bloom"),
+                                "You have a season called \"Bloom\" already."),
+                               (spells + mod % "Hail", ("spell", "Frost", "--rename", "Hail"),
+                                "You have a spell called \"Hail\" already.")):
+        with tempfile.TemporaryDirectory() as d:
+            tc.install(d, config=config)
+            rc, out = tc.run(d, *args)
+            assert rc == 1 and says in out and tc.config(d) == config, (args, out)
+    config = own + spells
+    with tempfile.TemporaryDirectory() as d:
+        tg.sandbox(d, config=config)
+        rc, out = tg.drive(d, FIND + r"""
+win = cf.own_season_dialog(root, g.cal, editing="Wormhole")
+fill_own(win, "Bloom")
+find(win, "TButton", "Save")[0].invoke()
+settle()
+win.destroy()
+win = cf.spell_dialog(root, g.cal, editing="Frost")
+box = find(win, "TEntry")[0]
+box.delete(0, "end")
+box.insert(0, "Hail")
+settle()
+find(win, "TButton", "Save")[0].invoke()
+settle()
+win.destroy()
+print("REFUSED", said, sorted(g.cal.own), sorted(g.cal._bad_own), sorted(g.cal.spells),
+      sorted(g.cal._bad_spells))
+g.cal.put_own("Bloom", ((8, 1), (8, 31)), was="Wormhole")
+g.cal.put_spell("Hail", g.cal.spells["Frost"], was="Frost")
+print("PUT", sorted(g.cal._bad_own), sorted(g.cal._bad_spells),
+      len([p for p in g.cal.check(g.cal.render()[0]) if "twice" in p]))
+g.cal = ce.Calendar()
+win = cf.own_season_dialog(root, g.cal)
+fill_own(win, "Bloom", (5, 1), (5, 31))
+find(win, "TButton", "Add")[0].invoke()
+settle()
+print("NEW", g.cal.own, g.cal._bad_own)
+""")
+        assert rc == 0 and "Traceback" not in out, out
+        assert "REFUSED [('showerror', 'You have a season called Bloom already.'), " \
+            "('showerror', 'You have a spell called Hail already.')] ['Wormhole'] ['Bloom'] " \
+            "['Frost'] ['Hail']" in out, out
+        assert "PUT ['Bloom'] ['Hail'] 2" in out and tc.config(d) == config, out
+        assert "NEW {'Wormhole': ((8, 1), (8, 31)), 'Bloom': ((5, 1), (5, 31))} {}" in out, out
+    return "taken by the commands, both dialogs and put_own; a new Bloom replaces the old"
+
+
+@case
+def t_a_name_too_long_can_be_shortened_in_the_dialogs():
+    """A season of one's own or a spell named by hand past the 24 letters a name can have:
+    play.bat can't use it, Change... opens it, and its box took no Backspace, as each step
+    was still too long. The guided setup's season names, at 20, had the same box. Deleting
+    is let through now; typing past the limit is not."""
+    long = "x" * 30
+    config = ('OWN_SEASONS = {"%s": ((8, 1), (8, 31))}\n' % long
+              + 'SPELLS = {"%s": {"in": ("summer",), "chance": 3, "days": 1, "as": None}}\n'
+              % long + 'NAMES = {"winter": "%s"}\n' % ("y" * 25))
+    with tempfile.TemporaryDirectory() as d:
+        tg.sandbox(d, config=config)
+        rc, out = tg.drive(d, FIND + r"""
+def shorten(box, var, n):
+    for _ in range(n):
+        box.delete(len(var.get()) - 1)
+    was = len(var.get())
+    box.insert("end", "z")
+    return was, len(var.get())
+for opened in (cf.own_season_dialog, cf.spell_dialog):
+    win = opened(root, g.cal, editing="%s")
+    box = find(win, "TEntry")[0]
+    print("DIALOG", shorten(box, box, 6))
+    win.destroy()
+g.edit("seasons")
+g.names_on.set(True)
+g.show_names()
+box = [w for w in widgets(root) if w.winfo_class() == "TEntry"
+       and str(w.cget("textvariable")) == str(g.name_vars["winter"])][0]
+print("NAMES", shorten(box, g.name_vars["winter"], 5))
+""" % long)
+        assert rc == 0 and "Traceback" not in out, out
+        assert out.count("DIALOG (24, 24)") == 2 and "NAMES (20, 20)" in out, out
+    return "30 letters cut to 24 in both dialogs, 25 to 20 in the guide; one more refused"
+
+
+@case
 def t_a_refusal_says_the_way_out():
     """The calendar command refused a season a spell brings with the rule it broke and no
     way out; preset load offered --force for a load it then refused whole; and status

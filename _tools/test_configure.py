@@ -417,6 +417,106 @@ root.destroy()
     return "unticked on Winter Pack, Map Pack off the calendar, the event gone"
 
 
+DIALOGS = r'''
+import sys
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+from tkinter import messagebox
+said = []
+messagebox.showerror = lambda *a, **k: said.append(a[1])
+import config_edit as ce
+import configure
+root = tk.Tk()
+root.withdraw()
+cal, inst = ce.Calendar(), ce.Install()
+app = configure.App(root, cal, inst)
+
+def widgets(w):
+    for c in w.winfo_children():
+        yield c
+        yield from widgets(c)
+
+def dialog():
+    root.update()
+    return [w for w in root.winfo_children() if isinstance(w, tk.Toplevel)][-1]
+
+def press(win, text):
+    [b for b in widgets(win) if b.winfo_class() == "TButton" and b.cget("text") == text][0].invoke()
+    root.update()
+'''
+
+
+def dialogs(d, script):
+    """Run `script` after DIALOGS, in a process of its own; (exit code, output)."""
+    p = os.path.join(d, "drive.py")
+    io.open(p, "w", encoding="utf-8").write(DIALOGS + script + "\nroot.destroy()\n")
+    r = subprocess.run([sys.executable, "-B", p, os.path.join(d, "_tools")], cwd=d,
+                       capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       timeout=120, env=dict(os.environ, PYTHONIOENCODING="utf-8"))
+    return r.returncode, r.stdout + r.stderr
+
+
+@case
+def t_the_window_keeps_the_weeks_its_box_has_no_choice_for():
+    """An event's weeks written by hand, two of them or one counted from the end: Edit...
+    shows them and Save keeps them, where it kept the first or dropped them all, which
+    made it every such weekday. A choice made in the box still replaces them."""
+    text = PLAIN.replace("EVENTS = {}", 'EVENTS = {\n'
+                         '    "market": {"weekdays": ("sat",), "weeks": (1, 3)},\n'
+                         '    "late_sat": {"weekdays": ("sat",), "weeks": (-2,)},\n}')
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config=text)
+        rc, out = dialogs(d, r'''
+for ev in ("market", "late_sat"):
+    app.new_event(ev)
+    win = dialog()
+    print("shows", ev, [c.get() for c in widgets(win) if c.winfo_class() == "TCombobox"])
+    press(win, "Save")
+print("kept", cal.events, cal.dirty())
+app.new_event("market")
+win = dialog()
+box = [c for c in widgets(win) if c.winfo_class() == "TCombobox"][0]
+box.current(2)
+box.event_generate("<<ComboboxSelected>>")
+press(win, "Save")
+print("saved", app.save(quiet=True), said)
+''')
+        assert rc == 0 and "shows market ['first and third']" in out \
+            and "shows late_sat ['second-last']" in out, out
+        assert "kept {'market': {'weekdays': ('sat',), 'weeks': (1, 3)}, 'late_sat': " \
+            "{'weekdays': ('sat',), 'weeks': (-2,)}} False" in out, out
+        assert "saved True []" in out, out
+        _, e = table(d)
+        assert e == {"market": {"weekdays": ("sat",), "weeks": (2,)},
+                     "late_sat": {"weekdays": ("sat",), "weeks": (-2,)}}, e
+        accepted(d)
+    return "(1, 3) and (-2,) shown and kept by Save; \"second\" picked replaces (1, 3)"
+
+
+@case
+def t_a_new_event_in_the_window_replaces_a_broken_one_of_its_name():
+    """As `event fest 12-24 12-26` does on the command line. The window's new event was
+    added beside the broken one, which the save wrote back over it."""
+    text = PLAIN.replace("EVENTS = {}", 'EVENTS = {"fest": ((12, 24),)}')
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config=text)
+        rc, out = dialogs(d, r'''
+app.new_event()
+win = dialog()
+for box, typed in zip([c for c in widgets(win) if c.winfo_class() == "TEntry"],
+                      ("fest", "12-24", "12-26")):
+    box.insert(0, typed)
+press(win, "Add")
+print("events", cal.events, cal._bad_events, said)
+print("saved", app.save(quiet=True))
+''')
+        assert rc == 0 and "events {'fest': ((12, 24), (12, 26))} {} []" in out \
+            and "saved True" in out, out
+        assert table(d)[1] == {"fest": ((12, 24), (12, 26))}, config(d)
+        accepted(d)
+    return "fest, Dec 24 to 26, saved in the broken one's place"
+
+
 @case
 def t_the_calendar_command_moves_and_turns_off_seasons():
     with tempfile.TemporaryDirectory() as d:
@@ -618,6 +718,31 @@ def t_a_file_keeps_its_encoding():
 
 
 @case
+def t_the_preview_reads_a_file_in_its_own_encoding():
+    """The window's preview wrote a cp1251 file out as UTF-8 under its cp1251 coding line,
+    so season.py read a Cyrillic mod name as mojibake and said it was not installed."""
+    name = "Зима Pack"
+    text = ("# -*- coding: cp1251 -*-\n" + PLAIN.replace("TOGGLE_MODS = {}", (
+        'TOGGLE_MODS = {\n    "%s": {"when": ("winter",), "above": "Base Grass"},\n}' % name)))
+    with tempfile.TemporaryDirectory() as d:
+        install(d, mods=MODS + [(name, False, ["textures/grass/z.dds"])])
+        raw_config(d, text.encode("cp1251"))
+        rc, out = dialogs(d, r'''
+app.preview()
+win = dialog()
+combo = [c for c in widgets(win) if c.winfo_class() == "TCombobox"][0]
+combo.set("Winter")
+combo.event_generate("<<ComboboxSelected>>")
+root.update()
+shown = [c for c in widgets(win) if isinstance(c, tk.Text)][0].get("1.0", "end")
+print("shown", [" ".join(l.split()) for l in shown.splitlines() if "Pack" in l][:1])
+''')
+        # ascii(): a failure printed to a pipe in Windows' code page can't hold Cyrillic
+        assert rc == 0 and "shown ['%s disabled (today: on)']" % name in out, ascii(out)
+    return "the Cyrillic name read whole: disabled now, on in winter"
+
+
+@case
 def t_layouts_the_tool_cannot_edit_are_refused():
     for text, says in (
             (PLAIN.replace("TOGGLE_MODS = {}", 'TOGGLE_MODS = {}; SOUND_SRC = "Map Pack"'),
@@ -701,6 +826,24 @@ def t_odd_but_valid_layouts_are_edited():
 
 
 @case
+def t_one_line_of_another_line_end_does_not_change_the_rest():
+    """A line pasted with Windows line ends into a file with Unix ones turned every line of
+    it into Windows' on the next save. Each file keeps the line end most of its lines have,
+    either way round."""
+    lines = PLAIN.rstrip("\n").split("\n")
+    for nl, odd in (("\n", "\r\n"), ("\r\n", "\n")):
+        with tempfile.TemporaryDirectory() as d:
+            install(d)
+            raw_config(d, (nl.join(lines[:-1]) + nl + lines[-1] + "  # pasted" + odd).encode())
+            rc, out = run(d, "event", "xmas", "12-24", "12-26")
+            got = raw_read(d)
+            kept = (b"\r" not in got) if nl == "\n" else got.count(b"\r\n") == got.count(b"\n")
+            assert rc == 0 and kept and b"# pasted" in got, (nl, got)
+            accepted(d)
+    return "Unix ends with one Windows line, and the other way round: each kept its own"
+
+
+@case
 def t_a_broken_event_is_kept_until_it_is_fixed():
     text = PLAIN.replace("EVENTS = {}", 'EVENTS = {"fest": ((12, 24),)}')
     with tempfile.TemporaryDirectory() as d:
@@ -741,7 +884,8 @@ def t_backups_the_tool_points_to_are_not_overwritten():
         path = os.path.join(d, "seasons_config.py")
         io.open(path, "w", encoding="utf-8").write("TOGGLE_MODS = {,}\n")
         cal = ce.Calendar(path)
-        kept = cal.start_over()
+        kept, why = cal.start_over()
+        assert why is None, why
         cal.events["xmas"] = ((12, 24), (12, 26))
         assert cal.save()[0]
         cal.events["easter"] = ((4, 5), (4, 5))
@@ -779,6 +923,54 @@ def t_a_read_only_config_is_a_message():
 
 
 @case
+def t_a_new_file_that_cant_be_written_is_a_message():
+    """"Start a new one" over a file that can't be read ended in a PermissionError
+    traceback, and no window, when the file was read-only. Now it says so and closes, and
+    a write that fails says why; either way the file and its folder are as they were."""
+    import stat
+    driver = r'''
+import sys
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+from tkinter import messagebox
+said = []
+messagebox.showerror = lambda *a, **k: said.append(a[1])
+messagebox.showinfo = lambda *a, **k: said.append(a[1])
+tk.Misc.mainloop = lambda self, n=0: None       # a window that opens returns at once
+import configure
+import season
+configure.unreadable = lambda root, cal: "new"
+if sys.argv[2] == "busy":
+    def busy(path, data):
+        raise OSError("it is open elsewhere")
+    season.replace_file = busy
+configure.window(advanced=True)
+print("said", said)
+'''
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config="TOGGLE_MODS = {\n")
+        p = os.path.join(d, "drive.py")
+        io.open(p, "w", encoding="utf-8").write(driver)
+        path = os.path.join(d, "_tools", "seasons_config.py")
+        before = sorted(os.listdir(os.path.join(d, "_tools")))
+        for how, says in (("read-only", "seasons_config.py is read-only"),
+                          ("busy", "Not saved: it is open elsewhere.")):
+            if how == "read-only":
+                os.chmod(path, stat.S_IREAD)
+            try:
+                r = subprocess.run([sys.executable, "-B", p, os.path.join(d, "_tools"), how],
+                                   cwd=d, capture_output=True, text=True, timeout=60)
+            finally:
+                os.chmod(path, stat.S_IREAD | stat.S_IWRITE)
+            out = r.stdout + r.stderr
+            assert r.returncode == 0 and "Traceback" not in out and says in out, (how, out)
+            assert config(d) == "TOGGLE_MODS = {\n", (how, config(d))
+            assert sorted(os.listdir(os.path.join(d, "_tools"))) == before, (how, os.listdir(
+                os.path.join(d, "_tools")))
+    return "read-only, and a write that fails: said, the file as it was, no copy left"
+
+
+@case
 def t_the_calendar_command_refuses_contradictions():
     with tempfile.TemporaryDirectory() as d:
         install(d)
@@ -807,6 +999,56 @@ def t_a_broken_calendar_is_mended_from_its_own_dates():
         rc, out = run(d, "calendar", "winter=11-5")
         assert rc == 0 and calendar_of(d) == {"summer": (5, 1), "winter": (11, 5)}, out
     return "not reset to Polesia's: summer May 1 stays, winter moves"
+
+
+@case
+def t_what_play_bat_refuses_is_said_before_anything_is_saved():
+    """A table set to None and a place that can't be: play.bat refuses both, but `list`,
+    the guided setup's summary and `preset save` read the file as fine, as their check
+    left out the place and read None as an empty table."""
+    text = PLAIN.replace("PERIODS = {}", "PERIODS = None").replace(
+        "TOGGLE_MODS = {}", 'TOGGLE_MODS = {"Winter Pack": {"when": ("winter",), '
+        '"above": "Grass Compat"}}') + 'WEATHER_PLACE = {"name": "Home", "lat": 95, "lon": 30}\n'
+    summary = r'''
+import sys
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+import config_edit as ce
+import guide
+root = tk.Tk()
+root.withdraw()
+g = guide.Guide(root, ce.Calendar(), ce.Install())
+root.update()
+def widgets(w):
+    for c in w.winfo_children():
+        yield c
+        yield from widgets(c)
+print("SUMMARY", g.mode, [str(c.cget("text")) for c in widgets(g.page)
+                          if c.winfo_class() == "TLabel" and str(c.cget("text"))[:2] == "- "])
+root.destroy()
+'''
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config=text)
+        with_mod(d)
+        rc, out = run(d, "status", tool="season.py")
+        said = [l.strip()[2:] for l in out.splitlines() if l.strip().startswith("- ")]
+        assert rc != 0 and len(said) == 2 and "PERIODS" in said[0] \
+            and "WEATHER_PLACE" in said[1], out
+        rc, out = run(d, "list")
+        assert rc == 0 and "can't switch anything until these are fixed" in out \
+            and all("! " + s in out for s in said), out
+        p = os.path.join(d, "drive.py")
+        io.open(p, "w", encoding="utf-8").write(summary)
+        r = subprocess.run([sys.executable, "-B", p, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True, timeout=120)
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "SUMMARY summary ['- PERIODS must be" in out \
+            and "'- WEATHER_PLACE: lat must be" in out, out
+        rc, out = run(d, "preset", "save", "Mine")
+        assert rc == 1 and "Not saved as a preset" in out and said[1] in out, out
+        assert not os.path.exists(os.path.join(d, "_tools", "presets", "Mine.json"))
+        assert config(d) == text
+    return "both listed by list and the summary as play.bat says them; the preset refused"
 
 
 @case
@@ -966,6 +1208,32 @@ root.destroy()
         assert ns["EVENTS"] == {"weekend": {"weekdays": ("sat", "sun")}}, ns["EVENTS"]
         accepted(d)
     return "a name, a rule event, and a day box that holds 1_0 refused"
+
+
+@case
+def t_a_name_too_long_can_be_shortened_in_the_window():
+    """A name written by hand past the 20 letters a name can have: its box took no Backspace,
+    as each step was still too long. Deleting is let through now; typing past 20 is not."""
+    with tempfile.TemporaryDirectory() as d:
+        install(d, config=PLAIN + 'NAMES = {"winter": "%s"}\n' % ("x" * 25))
+        with_mod(d)
+        rc, out = dialogs(d, r'''
+box, var = app.srows["winter"][8], app.srows["winter"][7]
+for _ in range(5):
+    box.delete(len(var.get()) - 1)
+print("shortened", len(var.get()))
+box.insert("end", "y")
+print("typed", len(var.get()))
+app.names_edited()
+print("saved", app.save(quiet=True))
+''')
+        assert rc == 0 and "shortened 20" in out and "typed 20" in out \
+            and "saved True" in out, out
+        ns = {}
+        exec(config(d), ns)
+        assert ns["NAMES"] == {"winter": "x" * 20}, ns.get("NAMES")
+        accepted(d)
+    return "25 letters cut to 20 a Backspace at a time, a 21st refused, saved"
 
 
 @case

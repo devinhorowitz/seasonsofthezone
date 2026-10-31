@@ -581,7 +581,9 @@ def cmd_season(a):
         if have not in cal.own:
             fail(_("%s can't be used as it is. Give it dates first, then rename it:") % have,
                  "  " + season.command("configure.py", "season \"%s\" 08-01 08-31" % have))
-        if any(n.casefold() == new.casefold() and n != have for n in cal.own):
+        # one play.bat can't use has its name too: renaming onto it would throw it away
+        if any(n.casefold() == new.casefold() and n != have
+               for n in list(cal.own) + list(cal._bad_own)):
             fail(_("You have a season called \"%s\" already.") % new)
         cal.put_own(new, cal.own[have], was=have)
         save(cal, [_("renamed season %(old)s to %(new)s") % {"old": have, "new": new}])
@@ -672,7 +674,8 @@ def cmd_spell(a):
         if have not in cal.spells:
             fail(_("%s can't be used as it is. Fix it first with --in, --chance or --days.")
                  % have)
-        if any(n.casefold() == new.casefold() and n != have for n in cal.spells):
+        if any(n.casefold() == new.casefold() and n != have
+               for n in list(cal.spells) + list(cal._bad_spells)):
             fail(_("You have a spell called \"%s\" already.") % new)
         cal.put_spell(new, cal.spells[have], was=have)
         save(cal, [_("renamed spell %(old)s to %(new)s") % {"old": have, "new": new}])
@@ -1139,7 +1142,7 @@ def cmd_lut(a):
     cal = loaded()
     found = [(s, o) for s, o, n in season.lut_choices() if n == 1]
     if not (a.season or a.off):
-        if cal.luts:
+        if cal.luts or cal._bad_luts:
             print("  " + _("Each season's LUT, moved from the game's LUT toward it:"))
             for s in season.SEASONS:
                 if s in cal.luts:
@@ -1147,6 +1150,10 @@ def cmd_lut(a):
                     print("    %-14s %3d%%  %s%s" % (
                         typed_name(s, cal), percent, lut_label(source, option),
                         "" if (source, option) in found else "   ! " + _("not found")))
+            # as written by hand: giving the season a LUT, or none, replaces it
+            for s, spec in cal._bad_luts.items():
+                print("    %-14s %s" % (typed_name(s, cal), _("can't be used: %s") % " ".join(
+                    reason(p) for p in season.lut_problems({s: spec}))))
         else:
             print("  " + _("No season has a LUT."))
         if found:
@@ -1159,7 +1166,8 @@ def cmd_lut(a):
             print("  ! " + line)
         return
     if a.off and not a.season:
-        cal.luts = {}
+        for s in list(cal.luts) + list(cal._bad_luts):
+            cal.set_lut(s, None)
         save(cal, [_("no season has a LUT; play.bat turns Seasonal LUT off at the next "
                      "launch")])
         return
@@ -1169,7 +1177,7 @@ def cmd_lut(a):
              % {"name": a.season, "known": comma_list(typed_name(k, cal)
                                                      for k in season.SEASONS)})
     if a.off:
-        cal.luts = {k: v for k, v in cal.luts.items() if k != s}
+        cal.set_lut(s, None)
         save(cal, [_("%s has no LUT") % typed_name(s, cal)])
         return
     if not a.lut:
@@ -1190,7 +1198,7 @@ def cmd_lut(a):
     if not 1 <= percent <= 100:
         fail(_("The percent is a whole number from 1 to 100."))
     source, option = hits[0]
-    cal.luts = dict(cal.luts, **{s: (source, option, percent)})
+    cal.set_lut(s, (source, option, percent))
     save(cal, [_("%(season)s's LUT is %(lut)s at %(percent)d%%; play.bat builds Seasonal LUT "
                  "at the next launch") % {"season": typed_name(s, cal),
                                           "lut": season.lut_name(source, option),
@@ -1333,7 +1341,13 @@ def cmd_rain(a):
             print("  " + _("No Rain in Winter takes the rain out of the weathers in %s.")
                   % when_text(have["when"], cal))
             n = sum(len(x) for x in winter_rain.stale(season.MODS, inst.order))
-            if n:
+            # none of its copies there (its folder gone): it is made, not made again
+            if n and not winter_rain.made(season.MODS):
+                print("  - " + ngettext(
+                    "No Rain in Winter isn't made yet: play.bat makes it from %d weather.",
+                    "No Rain in Winter isn't made yet: play.bat makes it from %d weathers.", n)
+                      % n)
+            elif n:
                 print("  - " + ngettext(
                     "%d weather changed since it was made; play.bat makes it again at the next "
                     "launch.",
@@ -1642,7 +1656,9 @@ def mcm_value(text, kind=None):
     why not) when it isn't the `kind` MCM keeps the option as."""
     t = text.strip()
     low = t.lower()
-    if low in ("true", "on", "yes"):
+    if kind == "text":
+        v = t                       # as typed: "off" is a word here, not false
+    elif low in ("true", "on", "yes"):
         v = True
     elif low in ("false", "off", "no"):
         v = False
@@ -2324,10 +2340,14 @@ class App(object):
         # which of the days checked in the month, as the rule counts it; read back by its
         # place in the list, whatever the language
         weeks = [(None, pgettext("which of those weekdays in the month", "every one"))] + [
-            (n, season._which_week(n)) for n in (1, 2, 3, 4, 5, -1)]
-        now = (spec_old.get("weeks") or (None,))[0]
+            ((n,), season._which_week(n)) for n in (1, 2, 3, 4, 5, -1)]
+        now = tuple(spec_old.get("weeks") or ()) or None
+        if now not in [k for k, w in weeks]:
+            # written by hand, (1, 3) or (-2,): a choice of its own, so Save keeps it
+            weeks.append((now, season._and(season._which_week(n) for n in now)))
         ttk.Label(rf, text=_("Which of them")).grid(row=1, column=0, sticky="w", pady=2)
-        weeks_box = ttk.Combobox(rf, state="readonly", width=10, values=[w for k, w in weeks])
+        weeks_box = ttk.Combobox(rf, state="readonly", values=[w for k, w in weeks],
+                                 width=max([10] + [len(w) for k, w in weeks]))
         weeks_box.current(next((i for i, (k, w) in enumerate(weeks) if k == now), 0))
         weeks_box.grid(row=1, column=1, columnspan=3, sticky="w")
         weeks_box.bind("<<ComboboxSelected>>", rule)
@@ -2376,7 +2396,7 @@ class App(object):
             if weeks_box.current() > 0:
                 if not days:
                     return None, _("Check a day of the week for \"Which of them\" to count.")
-                out["weeks"] = (weeks[weeks_box.current()][0],)
+                out["weeks"] = weeks[weeks_box.current()][0]
             if mdays.get().strip():
                 md = ce.parse_month_days(re.split(r"[,\s]+", mdays.get().strip()))
                 if not md:
@@ -2562,8 +2582,10 @@ class App(object):
 
     def add_event(self, name, start=None, end=None, spec=None, mod="current"):
         """Add an event, a window from `start` to `end` or a rule `spec`, and check it for
-        `mod`: the mod on show when the dialog was opened."""
+        `mod`: the mod on show when the dialog was opened. A broken event of its name, kept as
+        written, is replaced, as the command does it."""
         self.cal.events[name] = ce.norm_event(spec if spec is not None else (start, end))
+        self.cal._bad_events.pop(name, None)
         mod = self.current if mod == "current" else mod
         if mod and mod not in self.own:
             when = self.cal.toggle[mod]["when"] if mod in self.cal.toggle else []
@@ -2631,7 +2653,10 @@ class App(object):
                           (5, pgettext("the Seasons tab, a column", "Called"))):
             ttk.Label(grid, text=text, foreground=GREY).grid(row=0, column=col, sticky="w",
                                                             padx=(0, 4))
-        fits = root_register = self.root.register(lambda text: len(text) <= season.NAME_CHARS)
+        # what is typed is held to the limit, not what is deleted: a name written by hand
+        # past it can still be shortened
+        fits = root_register = self.root.register(
+            lambda action, text: action != "1" or len(text) <= season.NAME_CHARS)
         self.srows = {}
         for i, s in enumerate(season.SEASONS, start=1):
             m, d = self.cal.dates.get(s, ce.polesia()[s])
@@ -2655,7 +2680,7 @@ class App(object):
             days = ttk.Label(grid, text="", width=9, foreground=GREY)
             days.grid(row=i, column=4, sticky="w")
             name = ttk.Entry(grid, textvariable=called, width=22, validate="key",
-                             validatecommand=(fits, "%P"))
+                             validatecommand=(fits, "%d", "%P"))
             name.grid(row=i, column=5, sticky="w")
             name.bind("<KeyRelease>", lambda e: self.names_edited())
             self.srows[s] = (on, mon, day, cb, sp, runs, days, called, name, box)
@@ -2729,7 +2754,7 @@ class App(object):
             pick = tk.StringVar()
             cb = ttk.Combobox(grid, textvariable=pick, state="readonly", width=42)
             cb.grid(row=i, column=1, sticky="w")
-            cb.bind("<<ComboboxSelected>>", lambda e: self.luts_edited())
+            cb.bind("<<ComboboxSelected>>", lambda e, s=s: self.luts_edited(picked=s))
             share = tk.StringVar(value="50")
             sp = ttk.Spinbox(grid, from_=5, to=100, increment=5, textvariable=share, width=5,
                              command=self.luts_edited)
@@ -2817,7 +2842,9 @@ class App(object):
         self.lut_note.configure(text="\n".join(words))
         self._filling_luts = False
 
-    def luts_edited(self):
+    def luts_edited(self, picked=None):
+        """Put the LUT boxes into the setup. `picked` is the season whose row was just picked
+        from: only then does an entry for it that play.bat can't use, shown as none, go."""
         if self._filling_luts:
             return
         none, new = _("none"), {}
@@ -2830,7 +2857,9 @@ class App(object):
                     p = 50
                 source, option = self.lut_found[label]
                 new[s] = (source, option, max(1, min(100, p)))
-        self.cal.luts = new
+        for s in self.lut_rows:
+            if s in new or s == picked or s not in self.cal._bad_luts:
+                self.cal.set_lut(s, new.get(s))
         self.accent_fill()                  # which seasons the accents leave out follows the packs
         self.update_status()
 
@@ -3344,12 +3373,18 @@ class App(object):
         self.place_check.configure(text=_("Asking open-meteo.com..."), foreground=GREY)
         self.place_check_credit.pack_forget()
 
-        def done(rows, error):
-            if error is not None or not rows:
+        def today():
+            # the answer starts a day back (past_days=1): today is the row of the place's date
+            payload = self._fw.fetch(place)
+            rows = self._fw.to_rows(payload)
+            return next((r for r in rows if r["date"] == self._fw.place_today(payload)),
+                        rows[0])
+
+        def done(t, error):
+            if error is not None or not t:
                 self.place_check.configure(text=_("Couldn't reach open-meteo.com (%s).")
                                            % type(error).__name__, foreground=RED)
                 return
-            t = rows[0]
             self.place_check.configure(foreground="#000000", text=_(
                 "Today in %(place)s: high %(high).0f\u00b0C (%(high_f).0f\u00b0F), low "
                 "%(low).0f\u00b0C (%(low_f).0f\u00b0F), %(sky)s.") % {
@@ -3359,7 +3394,7 @@ class App(object):
                     "sky": sky_words(t["cycle"])})
             self.place_check_credit.pack(anchor="w", after=self.place_check)
 
-        self.in_background(lambda: self._fw.to_rows(self._fw.fetch(place)), done)
+        self.in_background(today, done)
 
     # saving
 
@@ -3893,11 +3928,14 @@ def own_season_dialog(root, cal, editing=None, done=None):
         "season's own mods stay on.")).pack(anchor="w")
     grid = ttk.Frame(f)
     grid.pack(anchor="w", pady=(12, 0))
-    fits = root.register(lambda text: len(text) <= season.OWN_NAME_CHARS)
+    # what is typed is held to the limit, not what is deleted: a name written by hand past
+    # it, which play.bat refuses and Change... opens here, can still be shortened
+    fits = root.register(
+        lambda action, text: action != "1" or len(text) <= season.OWN_NAME_CHARS)
     name = tk.StringVar(value=editing or "")
     ttk.Label(grid, text=_("Name")).grid(row=0, column=0, sticky="w", pady=3)
     box = ttk.Entry(grid, textvariable=name, width=28, validate="key",
-                    validatecommand=(fits, "%P"))
+                    validatecommand=(fits, "%d", "%P"))
     box.grid(row=0, column=1, columnspan=3, sticky="w", padx=(10, 0))
     ttk.Label(grid, text=_("like Wormhole season"), foreground=GREY).grid(
         row=0, column=4, sticky="w", padx=(10, 0))
@@ -3929,7 +3967,10 @@ def own_season_dialog(root, cal, editing=None, done=None):
             return n, w, [_("Give it a name.")]
         if not all(d for m, d in md):
             return n, w, [_("Give it a first and a last day.")]
-        if any(o.casefold() == n.casefold() and o != editing for o in cal.own):
+        # one play.bat can't use: a new one of its name replaces it, and a rename onto it
+        # would throw it away
+        taken = list(cal.own) + (list(cal._bad_own) if editing else [])
+        if any(o.casefold() == n.casefold() and o != editing for o in taken):
             return n, w, [_("You have a season called %s already.") % n]
         if any(o.casefold() == n.casefold() for o in cal.spells):
             return n, w, [_("You have a spell called %s already.") % n]
@@ -3986,11 +4027,14 @@ def spell_dialog(root, cal, editing=None, done=None):
         "agrees.")).pack(anchor="w")
     grid = ttk.Frame(f)
     grid.pack(anchor="w", pady=(12, 0))
-    fits = root.register(lambda text: len(text) <= season.OWN_NAME_CHARS)
+    # what is typed is held to the limit, not what is deleted: a name written by hand past
+    # it, which play.bat refuses and Change... opens here, can still be shortened
+    fits = root.register(
+        lambda action, text: action != "1" or len(text) <= season.OWN_NAME_CHARS)
     name = tk.StringVar(value=editing or "")
     ttk.Label(grid, text=_("Name")).grid(row=0, column=0, sticky="w", pady=3)
     box = ttk.Entry(grid, textvariable=name, width=28, validate="key",
-                    validatecommand=(fits, "%P"))
+                    validatecommand=(fits, "%d", "%P"))
     box.grid(row=0, column=1, columnspan=5, sticky="w", padx=(10, 0))
     ttk.Label(grid, text=_("Can start in")).grid(row=1, column=0, sticky="nw", pady=3)
     starts = ttk.Frame(grid)
@@ -4057,7 +4101,8 @@ def spell_dialog(root, cal, editing=None, done=None):
             return n, spec, [_("Check a season it can start in.")]
         if spec["chance"] is None or None in spec["days"]:
             return n, spec, [_("The chance and the days are numbers.")]
-        if any(o.casefold() == n.casefold() and o != editing for o in cal.spells):
+        taken = list(cal.spells) + (list(cal._bad_spells) if editing else [])
+        if any(o.casefold() == n.casefold() and o != editing for o in taken):
             return n, spec, [_("You have a spell called %s already.") % n]
         trial = {o: x for o, x in cal.spells.items() if o != editing}
         trial[n] = spec
@@ -4448,14 +4493,16 @@ def show_preview(root, cal):
 
     def run(e=None):
         problems = refused_lines(cal)
-        if problems:
-            out = "\n".join([_("Fix these first:")] + problems)
+        # as the file is written: a coding line says how season.py reads it
+        data, why = (None, None) if problems else cal.encode(cal.render()[0])
+        if problems or why:
+            out = "\n".join([_("Fix these first:")] + (problems or [why]))
         else:
             fd, path = tempfile.mkstemp(suffix=".py", prefix="seasons_config_preview_")
             os.close(fd)
             try:
-                with open(path, "w", encoding="utf-8") as h:
-                    h.write(cal.render()[0])
+                with open(path, "wb") as h:
+                    h.write(data)
                 args = [sys.executable, os.path.join(ce.HERE, "season.py"), "apply",
                         "--dry-run"]
                 key = keys[choices.index(which.get())]
@@ -4533,7 +4580,11 @@ def window(advanced=False):
         if what != "new":
             root.destroy()
             return
-        kept = cal.start_over()
+        kept, why = cal.start_over()
+        if why:
+            messagebox.showerror("seasons_config.py", why)
+            root.destroy()
+            return
         if kept:
             messagebox.showinfo("seasons_config.py", _(
                 "Started a new, empty one. The old file is kept as %(file)s, in %(folder)s.")

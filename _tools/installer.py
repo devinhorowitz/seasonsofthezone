@@ -18,6 +18,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 from lang import _, ngettext, pgettext, qt_value
 
@@ -130,7 +131,11 @@ class Plan(object):
         """(state, bytes) for a translation the GAMMA folder has already: "updated" to the
         one that comes with the tools when it translates nothing of its own; "merged" when
         it does - their translations kept, the new strings added, the shipped translations
-        filling in what theirs leaves out; "unread", left as it is, when it can't be read."""
+        filling in what theirs leaves out; "unread", left as it is, when it can't be read.
+        Only the strings these tools have count: one they dropped is no work of the
+        player's. A merge that comes out as the file already is - the run after one - is
+        "same": nothing written, its .bak kept."""
+        import build_messages
         import lang
         mine, shipped = os.path.join(self.gamma, rel), os.path.join(self.source, rel)
 
@@ -142,11 +147,11 @@ class Plan(object):
         except (OSError, ValueError, UnicodeDecodeError):
             return "unread", data
         ours = translated(shipped)
-        if not any(ours.get(k) != v for k, v in theirs.items()):
-            return "updated", data
-        import build_messages
         entries = build_messages.read_entries(os.path.join(self.source, LANG, "messages.pot"))
-        return "merged", build_messages.po_text(mine, entries, also=[shipped]).encode("utf-8")
+        if not any(ours.get(k) != v for k, v in theirs.items() if k in entries):
+            return "updated", data
+        merged = build_messages.po_text(mine, entries, also=[shipped]).encode("utf-8")
+        return ("same" if merged == read(mine) else "merged"), merged
 
     def keep_entry(self, data, old_bat):
         """The new play.bat's bytes, set to start the entry the old one started."""
@@ -224,37 +229,53 @@ class Plan(object):
         return None
 
 
-def write(path, data):
-    """Write a file whole or not at all: a temp file beside it, then a rename over it."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = path + ".tmp"
-    try:
-        with open(tmp, "wb") as f:
-            f.write(data)
-        os.replace(tmp, path)
-    except OSError:
+def replace(tmp, path):
+    """os.replace, tried again a few times while Windows refuses: a virus scanner or an
+    indexer looking at the file just written holds it a moment."""
+    for attempt in range(6):
         try:
-            os.remove(tmp)
-        except OSError:
-            pass
-        raise
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt == 5:
+                raise
+            time.sleep(0.3)
 
 
 def put(plan):
     """Write the new, updated and merged files; a merged translation's file as it was is
-    kept beside it as .bak first. Returns (the files written, None), or (those written
-    before it stopped, what stopped it)."""
-    done = []
+    kept beside it as .bak first. Each is written whole to a temp file beside it, all of
+    them before any replaces its file: one that can't be written stops the update with
+    nothing changed, rather than leaving the tools part one version and part the other.
+    Returns (the files written, None), or (those written before it stopped, what stopped
+    it)."""
+    writes = []                     # (rel, path, bytes): a .bak before its file
     for rel, data, state in plan.todo():
-        try:
-            if state == "merged":
-                there = os.path.join(plan.gamma, rel)
-                write(there + ".bak", read(there))
-            write(os.path.join(plan.gamma, rel), data)
-        except OSError as e:
-            return done, _("Couldn't write %(file)s: %(error)s.") % {
-                "file": rel, "error": (e.strerror or str(e)).rstrip(".")}
-        done.append(rel)
+        there = os.path.join(plan.gamma, rel)
+        if state == "merged":
+            writes.append((rel, there + ".bak", read(there)))
+        writes.append((rel, there, data))
+    done, left = [], []             # the files written; the temp files not renamed yet
+    try:
+        for rel, path, data in writes:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            left.append(path + ".tmp")
+            with open(path + ".tmp", "wb") as f:
+                f.write(data)
+        for rel, path, data in writes:
+            replace(path + ".tmp", path)
+            left.remove(path + ".tmp")
+            if path == os.path.join(plan.gamma, rel):
+                done.append(rel)
+    except OSError as e:
+        return done, _("Couldn't write %(file)s: %(error)s.") % {
+            "file": rel, "error": (e.strerror or str(e)).rstrip(".")}
+    finally:
+        for tmp in left:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
     return done, None
 
 
@@ -569,7 +590,14 @@ def write_shortcut(play_bat, title):
     if new == raw:
         return False
     tmp = play_bat + ".tmp"
-    with open(tmp, "wb") as f:
-        f.write(new)
-    os.replace(tmp, play_bat)
+    try:
+        with open(tmp, "wb") as f:
+            f.write(new)
+        replace(tmp, play_bat)          # a scanner may hold the new file a moment
+    except OSError:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
     return True

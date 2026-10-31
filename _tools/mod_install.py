@@ -42,6 +42,10 @@ BAD_NAME = N_("A mod's name can't start or end with a space, end with a dot, or 
               "/ \\ : * ? \" < > |. Pick another name.")
 CHUNK = 1 << 20
 TICK = 0.25                 # seconds between calls to install()'s progress, at the least
+# where install() makes a mod before it is one: beside mods\, which MO2 lists whole
+STAGE = "_seasons_installing"
+# where tools before it made one, in mods\: "<name>.installing-" and tempfile's 8 letters
+OLD_STAGE = re.compile(r".\.installing-[a-z0-9_]{8}$")
 
 WINTER = ("winter", "winter_snow", "late_winter")
 SEASON_WORDS = {"spring": ("spring",), "summer": ("summer",), "autumn": ("autumn",),
@@ -897,6 +901,32 @@ def _remove(path):
     shutil.rmtree(season.lp(path), ignore_errors=True)
 
 
+def _sweep(stage, mods):
+    """Clear what installs cut off partway left - the window closed, Ctrl+C, a crash - in
+    `stage`, and in `mods` where older tools made them. An install still running, in
+    another window, holds its lock file open, which Windows won't delete: its folder
+    stays."""
+    for n in os.listdir(mods):
+        if OLD_STAGE.search(n) and os.path.isdir(os.path.join(mods, n)):
+            _remove(os.path.join(mods, n))
+    try:
+        names = os.listdir(stage)
+    except OSError:
+        return
+    busy = set()
+    for n in names:
+        if n.endswith(".lock"):
+            try:
+                os.remove(os.path.join(stage, n))
+            except FileNotFoundError:
+                pass
+            except OSError:
+                busy.add(n[:-len(".lock")])
+    for n in names:
+        if n not in busy and os.path.isdir(os.path.join(stage, n)):
+            _remove(os.path.join(stage, n))
+
+
 def _dest(dest):
     """A dest as a path under the mod folder, or ArchiveError for one that leaves it."""
     d = slashed(dest)
@@ -907,8 +937,9 @@ def _dest(dest):
 
 def install(pkg, name, chosen=None, extra=(), progress=None, mods=None):
     """Install `pkg` as the mod folder mods\\<name> (mods defaults to season.MODS) and
-    return its path. The files go into a temp folder beside it first and are renamed into
-    place at the end, so a failure leaves no half-made mod; `extra`, [(loose path, dest)],
+    return its path. The files go into a temp folder in STAGE, beside mods\\, first and are
+    renamed into place at the end, so a failure leaves no half-made mod, and the next
+    install clears what one cut off partway left there; `extra`, [(loose path, dest)],
     is copied over the archive's files; a meta.ini is written the way MO2 writes one
     (gameName=stalkeranomaly, modid=0, version, installationFile = the archive's path,
     [installedFiles] size=0 is fine). Refuses, with ArchiveError: a folder of that name
@@ -955,8 +986,16 @@ def install(pkg, name, chosen=None, extra=(), progress=None, mods=None):
                              "which has %(free)s free. Make room, then try again.")
                            % {"need": _gb(need), "free": _gb(free)})
 
-    tmp = tempfile.mkdtemp(prefix=name + ".installing-", dir=mods)
+    # Made beside mods\, so an install cut off leaves no half-made mod for MO2 to list, and
+    # on the same drive, so moving it in is a rename. Its lock file stays open until the
+    # end: the next install clears what one cut off left, and by it tells a running one.
+    stage = os.path.join(os.path.dirname(os.path.realpath(mods)), STAGE)
+    _sweep(stage, mods)
+    os.makedirs(stage, exist_ok=True)
+    fd, lock = tempfile.mkstemp(prefix=name + "-", suffix=".lock", dir=stage)
+    tmp = lock[:-len(".lock")]
     try:
+        os.mkdir(tmp)
         at = {m: i for i, (m, _) in enumerate(pkg.members)}
         targets = {}                # in the archive's order, which a solid archive needs
         for member, dest in sorted(plan, key=lambda x: at.get(x[0], 0)):
@@ -1020,4 +1059,11 @@ def install(pkg, name, chosen=None, extra=(), progress=None, mods=None):
                                  "installed.") % said)
         raise ArchiveError(_("Couldn't install %(mod)s: %(error)s. Nothing was installed.")
                            % {"mod": name, "error": _said(e)})
+    finally:
+        os.close(fd)
+        try:
+            os.remove(lock)
+            os.rmdir(stage)
+        except OSError:
+            pass                    # an install still running in another window is in it
     return final

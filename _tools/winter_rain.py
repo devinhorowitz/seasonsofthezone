@@ -51,6 +51,13 @@ def _nl(raw):
     return "\r\n" if "\r\n" in raw else "\n"
 
 
+def _lines(text):
+    """[(line, its ending)] as the game reads a weather: a line ends at a CR or an LF, so a
+    CRLF file can hold a line that ends in LF alone, from an edit in another editor."""
+    parts = re.split(r"(\r\n|\r|\n)", text)
+    return list(zip(parts[0::2], parts[1::2] + [""]))
+
+
 OVERWRITE = "overwrite"
 
 
@@ -83,7 +90,7 @@ def _value(v):
 
 def rains(text):
     """Does a weather file rain at any hour?"""
-    for line in text.splitlines():
+    for line, _end in _lines(text):
         m = RAIN.match(line)
         if m and (_value(m.group(2)) or 0) > 0:
             return True
@@ -102,18 +109,20 @@ def _kept_key(prefix):
 
 def dry(text):
     """The weather with every rain_density set to 0 and the rain it had kept on the next
-    line as KEPT, every other character as it was, and the count of lines changed."""
+    line as KEPT, every other character as it was, and the count of lines changed. Each
+    line keeps its own ending, which the kept line under it takes too; a last line with
+    none gets the file's own between the two."""
     nl = _nl(text)
     out, n = [], 0
-    for line in text.split(nl):
+    for line, end in _lines(text):
         m = RAIN.match(line)
         if m and _value(m.group(2)) not in (None, 0.0):
-            out.append(m.group(1) + "0" + m.group(3))
-            out.append(_kept_key(m.group(1)) + m.group(2).strip())
+            out.append(m.group(1) + "0" + m.group(3) + (end or nl))
+            out.append(_kept_key(m.group(1)) + m.group(2).strip() + end)
             n += 1
             continue
-        out.append(line)
-    return nl.join(out), n
+        out.append(line + end)
+    return "".join(out), n
 
 
 def head_line(mod, digest):
@@ -196,8 +205,20 @@ def build(mods, order):
         out = head_line(mod, digest).encode("utf-8") + (_nl(text) + body).encode("latin-1")
         target = os.path.join(d, os.path.basename(path))
         if not (os.path.isfile(target) and open(target, "rb").read() == out):
-            with open(target, "wb") as fh:
-                fh.write(out)
+            # into a file beside it, then moved over it whole: a copy cut short (a full
+            # disk, a lock) keeps its first line, so stale() would take it as current and
+            # the broken weather would load every winter. One that fails leaves the old copy
+            tmp = target + ".tmp"
+            try:
+                with open(tmp, "wb") as fh:
+                    fh.write(out)
+                os.replace(tmp, target)
+            except OSError:
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+                raise
         sources.setdefault(mod, []).append(os.path.basename(path))
     meta = os.path.join(folder, "meta.ini")
     if not os.path.isfile(meta):

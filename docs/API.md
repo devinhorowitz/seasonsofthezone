@@ -232,8 +232,8 @@ and a launch without it, or without a connection, keeps the last hours.
 
 ```lua
 { tier = "coarse", standing = 240, need = 200, need_exact = 700, faction = "ecolog",
-  emission = { band = "2 to 8 hours",   fraction = 0.20, alert = false },
-  psi      = { band = "WITHIN 2 HOURS", fraction = 0.06, alert = true } }
+  emission = { band = "2 to 8 hours",   fraction = 0.21, alert = false },
+  psi      = { band = "WITHIN 2 HOURS", fraction = 0.04, alert = true } }
 ```
 
 At CLEARED, each part has `seconds` instead of `band`.
@@ -247,12 +247,15 @@ picks instead; `faction` says which: `"ecolog"`, `"csky"` or `"isg"`. See
 | `tier` | `seconds` | `band` | `fraction` |
 |---|---|---|---|
 | `locked` | nil | nil | nil |
-| `coarse` | nil | `WITHIN 2 HOURS` / `2 to 8 hours` / `8 to 16 hours` / `ALL CLEAR` | bracket midpoint |
+| `coarse` | nil | `WITHIN 2 HOURS` / `2 to 8 hours` / `8 to 16 hours` / `ALL CLEAR` | bracket midpoint, 0–1 |
 | `exact` | game seconds | nil | 0–1 |
 
 The coarse brackets are **fixed hours, not a fraction of the period**. A relayed warning
 is worth a window rather than a number, and "two to eight hours" has to mean two to eight
-hours whatever the frequency slider says.
+hours whatever the frequency slider says. Their `fraction` is the bracket's middle hour
+over the period, as `exact`'s is its seconds over it, so it moves with the slider: "8 to
+16 hours" is 0.50 of a 24-hour period and 0.25 of a 48-hour one. `ALL CLEAR` is the middle
+of 16 hours to the period.
 
 ### `alert` — the one to hang a device off
 

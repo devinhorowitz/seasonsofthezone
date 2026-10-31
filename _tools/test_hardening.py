@@ -215,22 +215,33 @@ def t_every_assignment_to_a_table_is_seen():
     return "a table replaced in an if, an entry listed twice; a bare annotation is no assignment"
 
 
-def with_archive(d):
-    """downloads/grass.7z with a Summer and a Winter set, and Base Grass holding Summer."""
+STAMP = 1700000000                  # 2023-11-14: one time for every file of a set
+
+
+def with_archive(d, when=None, downloads="downloads"):
+    """downloads/grass.7z with a Summer and a Winter set, and Base Grass holding Summer.
+    Their a.dds are the same size; `when`, a time, is given to all three, as a packer that
+    stamps one time and an install from the archive leave them. `downloads` is the folder
+    the archive goes in."""
     import py7zr
     src = os.path.join(d, "_arch")
     for opt in ("Summer", "Winter"):
         p = os.path.join(src, opt, "gamedata", "textures", "grass", "a.dds")
         os.makedirs(os.path.dirname(p))
         io.open(p, "w").write(opt)
-    os.makedirs(os.path.join(d, "downloads"), exist_ok=True)
-    with py7zr.SevenZipFile(os.path.join(d, "downloads", "grass.7z"), "w") as z:
+        if when is not None:
+            os.utime(p, (when, when))
+    os.makedirs(os.path.join(d, downloads), exist_ok=True)
+    with py7zr.SevenZipFile(os.path.join(d, downloads, "grass.7z"), "w") as z:
         for opt in ("Summer", "Winter"):
             z.writeall(os.path.join(src, opt), opt)
     live = os.path.join(d, "mods", "Base Grass", "gamedata", "textures", "grass")
     for f in os.listdir(live):
         os.remove(os.path.join(live, f))
     io.open(os.path.join(live, "a.dds"), "w").write("Summer")
+    if when is not None:
+        os.utime(os.path.join(live, "a.dds"), (when, when))
+    return os.path.join(live, "a.dds")
 
 
 @case
@@ -738,7 +749,8 @@ def t_a_set_that_spells_a_path_in_another_case_is_staged():
     """Two option folders that spell a path in different case: robocopy writes the new set
     over the old under the name the file already has, and the check after it went by the
     names' case, so it stopped the launch, and the next launch called the copy unrecognized
-    and stopped again."""
+    and stopped again. The two a.dds are the same size and have one time, as two files
+    written in one tick of the clock do: robocopy skipped the copy back to summer."""
     import py7zr
     layout = ('{"Base Grass": {"archive": "grass.7z", "options": {"summer": ["Summer"], '
               '"winter": ["Winter"]}}}')
@@ -750,6 +762,7 @@ def t_a_set_that_spells_a_path_in_another_case_is_staged():
             p = os.path.join(src, opt, "gamedata", *rel)
             os.makedirs(os.path.dirname(p))
             io.open(p, "w").write(opt)
+            os.utime(p, (STAMP, STAMP))
         os.makedirs(os.path.join(d, "downloads"), exist_ok=True)
         with py7zr.SevenZipFile(os.path.join(d, "downloads", "grass.7z"), "w") as z:
             for opt in ("Summer", "Winter"):
@@ -767,6 +780,97 @@ def t_a_set_that_spells_a_path_in_another_case_is_staged():
         assert rc == 0 and "VERIFIED" in out, out
         assert io.open(os.path.join(live, "a.dds")).read() == "Summer", "not staged back"
     return "winter over summer's a.dds, known again at the next launch, and back to summer"
+
+
+@case
+def t_a_set_whose_files_have_the_other_s_size_and_time_is_staged():
+    """robocopy skips a file whose size and time are the target's. A season's DDS can have
+    both of the other season's: the same dimensions, and the one time a packer stamps on
+    every file, kept by the install from the archive. The check after the copy stopped the
+    launch, and every launch after it stopped the same way."""
+    layout = ('{"Base Grass": {"archive": "grass.7z", "options": {"summer": ["Summer"], '
+              '"winter": ["Winter"]}}}')
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=cfg(LAYOUT=layout))
+        live = with_archive(d, when=STAMP)
+        rc, out = status(d, "apply", "--season", "winter")
+        assert rc == 0 and "VERIFIED" in out and "MISMATCH" not in out, out
+        assert io.open(live).read() == "Winter", "not restaged"
+        rc, out = status(d, "apply", "--season", "winter")
+        assert rc == 0 and "installed: winter" in out and "VERIFIED" not in out, out
+        # and back, from a winter set that has the archive's time again
+        os.utime(live, (STAMP, STAMP))
+        rc, out = status(d, "apply", "--season", "summer")
+        assert rc == 0 and "VERIFIED" in out and "MISMATCH" not in out, out
+        assert io.open(live).read() == "Summer", "not staged back"
+    return "winter over summer's a.dds of the same size and time, and back"
+
+
+@case
+def t_a_mod_set_to_win_over_one_just_installed_is_placed_at_once():
+    """Two seasonal mods configure.bat has just installed are in no list yet, and the first
+    is set to win over the second. apply skipped the first for that launch, the second not
+    being in MO2's list when it came to it, and said to pick another in its Wins over box."""
+    toggle = ('{"Winter Overlay": {"when": ("winter",), "above": "Winter Pack"}, '
+              '"Winter Pack": {"when": ("winter",), "above": "Grass Compat"}}')
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=cfg(TOGGLE_MODS=toggle))
+        ml = os.path.join(d, "profiles", "Default", "modlist.txt")
+        text = io.open(ml, encoding="utf-8", newline="").read()
+        io.open(ml, "w", encoding="utf-8", newline="").write(
+            text.replace("-Winter Overlay\r\n", "").replace("-Winter Pack\r\n", ""))
+        rc, out = status(d, "apply", "--season", "winter")
+        assert rc == 0 and "skipped" not in out and "Wins over" not in out, out
+        body = io.open(ml, encoding="utf-8").read().splitlines()[1:]
+        at = body.index("+Grass Compat")
+        assert body[at - 2:at] == ["+Winter Overlay", "+Winter Pack"], body
+        rc, out = status(d, "apply", "--season", "winter")
+        assert rc == 0 and "added" not in out and "moved" not in out, out
+    return "both added, Overlay over Pack over Grass Compat; nothing left for the next launch"
+
+
+@case
+def t_the_newest_ten_copies_of_mo2_s_list_are_kept():
+    """apply keeps a copy of MO2's list before it changes it, and kept every one: 52 on one
+    install. Ten are kept, as of user.ltx and MCM's file. The folder holds copies made by
+    hand too, named alike, and those stay."""
+    toggle = '{"Winter Pack": {"when": ("winter",), "above": "Grass Compat"}}'
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=cfg(TOGGLE_MODS=toggle))
+        bk = os.path.join(d, "_baseline", "modfile-backups")
+        os.makedirs(bk)
+        old = ["modlist-202001%02d-120000-pre-toggle.txt" % n for n in range(1, 13)]
+        by_hand = ["modlist-20191231-235959-pre-bisect.txt",
+                   "modlist-20260913-095301-pre-lennic.txt", "modlist.txt.pre-painter",
+                   "user.ltx-20261017-120000-pre-3dpda-off"]
+        for f in old + by_hand:
+            io.open(os.path.join(bk, f), "w").write(f)
+        rc, out = status(d, "apply", "--season", "winter")
+        assert rc == 0 and "disabled -> enabled" in out, out
+        kept = sorted(os.listdir(bk))
+        ours = [f for f in kept if f.endswith("-pre-toggle.txt")]
+        assert len(ours) == 10 and ours[:9] == old[3:] and ours[9] not in old, kept
+        assert "-Winter Pack" in io.open(os.path.join(bk, ours[9]), encoding="utf-8").read()
+        assert [f for f in by_hand if f not in kept] == [], kept
+    return "13 copies down to the newest 10, the one just made among them; 4 by hand stay"
+
+
+@case
+def t_texture_sets_come_from_the_downloads_folder_mo2_names():
+    """MO2's settings can move its downloads folder, and configure.bat installs from the one
+    they name; play.bat looked only in GAMMA\\downloads, so it skipped every texture set as
+    not in downloads."""
+    layout = ('{"Base Grass": {"archive": "grass.7z", "options": {"summer": ["Summer"], '
+              '"winter": ["Winter"]}}}')
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=cfg(LAYOUT=layout))
+        live = with_archive(d, downloads="Moved Downloads")
+        io.open(os.path.join(d, "ModOrganizer.ini"), "a", encoding="utf-8", newline="").write(
+            "\r\n[Settings]\r\ndownload_directory=%BASE_DIR%/Moved Downloads\r\n")
+        rc, out = status(d, "apply", "--season", "winter")
+        assert rc == 0 and "not in downloads" not in out and "VERIFIED" in out, out
+        assert io.open(live).read() == "Winter", "not restaged"
+    return "%BASE_DIR%/Moved Downloads, as MO2 writes it: winter staged from there"
 
 
 OLD_PYTHON = r'''
@@ -862,6 +966,31 @@ def t_mo2_open_is_seen_on_any_path():
             os.rmdir(link)                  # the junction only, never what it points to
         assert got == "RUNNING ['modorganizer.exe']", ("through a junction", got)
     return "MO2 seen under %s, and from a junction's other side" % ", ".join(seen)
+
+
+@case
+def t_with_mo2_open_no_dial_is_drawn():
+    """A launch with MO2 open drew the dial for a new calendar first, which MO2 doesn't see
+    until it starts again, then stopped at the seasonal mods saying nothing was changed.
+    MO2 is asked about first now."""
+    toggle = '{"Winter Pack": {"when": ("winter_snow",), "above": "Grass Compat"}}'
+    calendar = '{"summer": (5, 1), "winter_snow": (11, 15)}'
+    with tempfile.TemporaryDirectory() as d:
+        tc.install(d, config=cfg(TOGGLE_MODS=toggle, CALENDAR=calendar))
+        game, tex = tc.with_mod(d)
+        mo2 = stand_in(d, "ModOrganizer.exe")
+        try:
+            rc, out = status(d, "apply", "--season", "winter_snow")
+        finally:
+            mo2.stdin.close()
+            mo2.wait(timeout=30)
+        assert rc == 1 and "Close modorganizer.exe first. Nothing was changed." in out, out
+        assert tc.drawn(tex) == 0 and not os.path.exists(game), \
+            "%d dial files drawn with MO2 open" % tc.drawn(tex)
+        # the control: with MO2 closed it is drawn
+        rc, out = status(d, "apply", "--season", "winter_snow")
+        assert rc == 0 and tc.drawn(tex) == 32 and os.path.exists(game), out
+    return "stopped before the dial, nothing written; drawn once MO2 is closed"
 
 
 if __name__ == "__main__":

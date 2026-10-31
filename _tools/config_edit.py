@@ -833,7 +833,10 @@ class Calendar(object):
         if text.startswith("﻿"):
             text = text[1:]
         self.encoding = "utf-8" if enc == "utf-8-sig" else enc
-        self.nl = "\r\n" if "\r\n" in text else ("\r" if "\r" in text else "\n")
+        # the line end most lines have: one pasted from elsewhere doesn't change the rest
+        crlf = text.count("\r\n")
+        ends = {"\r\n": crlf, "\n": text.count("\n") - crlf, "\r": text.count("\r") - crlf}
+        self.nl = max(ends, key=ends.get) if any(ends.values()) else "\n"
         self.text = text.replace("\r\n", "\n").replace("\r", "\n")
         return True
 
@@ -966,12 +969,8 @@ class Calendar(object):
         self.accents_on_packs = self._kept_accents_on_packs = ns.get("SEASON_ACCENTS_ON_PACKS")
         self.keep_order = self._kept_keep_order = ns.get("KEEP_ORDER")
         calendar, names = ns.get("CALENDAR"), ns.get("NAMES")
-        self.problems = season.config_problems(toggle, self.layout, self.sound_src,
-                                               self.periods, events, calendar, names, own=own,
-                                               spells=spells, mcm=mcm, luts=luts,
-                                               accents=self.accents,
-                                               accents_on_packs=self.accents_on_packs,
-                                               keep_order=self.keep_order)
+        # as check() judges a save: the place too, and a table set to None as None
+        self.problems = self._refused(ns)
 
         for name, cfg in toggle.items():
             when = periods_of(cfg)
@@ -1089,7 +1088,10 @@ class Calendar(object):
                     self.spells[s] = dict(spec, **{"in": tuple(
                         name if p == was else p for p in spec["in"])})
             self._rename_in_mcm(was, name)
-        self._bad_own.pop(name, None)
+        else:
+            # one play.bat can't use, put right. A rename onto its name keeps it: the save
+            # is refused rather than lose it
+            self._bad_own.pop(name, None)
         self.own[name] = norm_event(win)
 
     def base(self, day):
@@ -1123,7 +1125,8 @@ class Calendar(object):
             for c in self.toggle.values():
                 c["when"] = [name if p == was else p for p in c["when"]]
             self._rename_in_mcm(was, name)
-        self._bad_spells.pop(name, None)
+        else:
+            self._bad_spells.pop(name, None)    # as with put_own
         self.spells[name] = norm_spell(spec)
 
     def take_spell(self, name):
@@ -1339,6 +1342,15 @@ class Calendar(object):
     def luts_changed(self):
         return self.luts != self._kept_luts or set(self._bad_luts) != self._kept_bad_luts
 
+    def set_lut(self, key, spec):
+        """Give the season `key` a LUT, (source, option, percent), or none with None. Either
+        way an entry for it that play.bat can't use, kept as written, goes."""
+        self._bad_luts.pop(key, None)
+        if spec:
+            self.luts = dict(self.luts, **{key: tuple(spec)})
+        else:
+            self.luts = {k: v for k, v in self.luts.items() if k != key}
+
     # writing
 
     def render(self):
@@ -1452,7 +1464,13 @@ class Calendar(object):
             exec(compile(text, self.path, "exec"), ns)
         except (Exception, SystemExit, KeyboardInterrupt) as e:
             return season._config_error(e)
-        return season._set_twice(text) + season.config_problems(
+        return season._set_twice(text) + self._refused(ns)
+
+    @staticmethod
+    def _refused(ns):
+        """What season.py would refuse in the tables a config sets, `ns`, as it reads them:
+        as written, None and all."""
+        return season.config_problems(
             ns.get("TOGGLE_MODS", {}), ns.get("LAYOUT", {}), ns.get("SOUND_SRC"),
             ns.get("PERIODS", {}), ns.get("EVENTS", {}), ns.get("CALENDAR"),
             ns.get("NAMES"), ns.get("WEATHER_PLACE"), ns.get("OWN_SEASONS"), ns.get("SPELLS"),
@@ -1469,6 +1487,20 @@ class Calendar(object):
         shutil.copyfile(self.path, dst)
         return os.path.basename(dst)
 
+    def encode(self, text):
+        """(`text` as this file's bytes - its encoding, line ends and BOM - and None), or
+        (None, why not) when its encoding can't hold it. Python reads a file by the coding
+        line it has, so a copy for season.py is written this way too."""
+        try:
+            data = text.replace("\n", self.nl).encode(self.encoding)
+        except UnicodeEncodeError as e:
+            return None, (_("Not saved: \"%(text)s\" can't be written in this file's encoding "
+                            "(%(encoding)s). Delete the # coding line at the top of "
+                            "seasons_config.py, save it as UTF-8 (Notepad: File > Save as, "
+                            "Encoding: UTF-8), then try again.")
+                          % {"text": e.object[e.start:e.end], "encoding": self.encoding})
+        return (codecs.BOM_UTF8 if self.bom else b"") + data, None
+
     def save(self):
         """Write the file. Returns (saved, lines to show); `wrote` says afterwards whether
         anything was written, as the lines, in the player's language, can't."""
@@ -1483,14 +1515,9 @@ class Calendar(object):
         if problems:
             return False, ([_("Not saved, because play.bat would refuse the result:")]
                            + problems)
-        try:
-            data = text.replace("\n", self.nl).encode(self.encoding)
-        except UnicodeEncodeError as e:
-            return False, [_("Not saved: \"%(text)s\" can't be written in this file's encoding "
-                             "(%(encoding)s). Delete the # coding line at the top of "
-                             "seasons_config.py, save it as UTF-8 (Notepad: File > Save as, "
-                             "Encoding: UTF-8), then try again.")
-                           % {"text": e.object[e.start:e.end], "encoding": self.encoding}]
+        data, why = self.encode(text)
+        if why:
+            return False, [why]
         # the file as it is now: if it changed since it was read - by hand, or a command
         # run while the window was open - writing would throw that change away
         try:
@@ -1517,7 +1544,7 @@ class Calendar(object):
                                    "how they were laid out; %s has them, and no later save "
                                    "touches it.") % self._keepsake("before"))
             # whole or not at all: a write that fails leaves the file as it was read
-            season.replace_file(self.path, (codecs.BOM_UTF8 if self.bom else b"") + data)
+            season.replace_file(self.path, data)
         except OSError as e:
             return False, [_("Not saved: %s. Close any program that has seasons_config.py "
                              "open, then try again.") % e]
@@ -1528,12 +1555,27 @@ class Calendar(object):
 
     def start_over(self):
         """Replace a file that can't be read with a new, empty one. The old one is kept,
-        dated, where no later save touches it; its name is returned."""
-        kept = self._keepsake("unreadable") if self.exists else None
-        with open(self.path, "wb") as f:
-            f.write(TEMPLATE.replace("\n", self.nl if self.nl else "\n").encode("utf-8"))
+        dated, where no later save touches it. Returns (the copy's name, None), the name
+        None when there was no file, or (None, why not) when the new one can't be written;
+        the file is then as it was, and no copy is left."""
+        if self.exists and not os.access(self.path, os.W_OK):
+            return None, _("A new one can't be written: seasons_config.py is read-only. "
+                           "Right-click it (in _tools), choose Properties, uncheck Read-only, "
+                           "then open configure.bat again.")
+        kept = None
+        try:
+            kept = self._keepsake("unreadable") if self.exists else None
+            season.replace_file(self.path, TEMPLATE.replace("\n", self.nl).encode("utf-8"))
+        except OSError as e:
+            if kept:
+                try:
+                    os.remove(os.path.join(os.path.dirname(self.path), kept))
+                except OSError:
+                    pass
+            return None, _("Not saved: %s. Close any program that has seasons_config.py "
+                           "open, then try again.") % e
         self.__init__(self.path)
-        return kept
+        return kept, None
 
 
 # --- presets -----------------------------------------------------------------------------

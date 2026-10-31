@@ -17,6 +17,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
@@ -367,6 +368,45 @@ def t_an_update_keeps_a_translator_s_work():
 
 
 @case
+def t_a_translation_is_theirs_only_for_what_still_ships():
+    """An untouched ru.po from older tools translates a message these ones no longer have:
+    that is no work of the player's, so it is updated, not merged. One the player edited is
+    merged once; at the next run it is the same, and ru.po.bak, the file as they left it,
+    stays."""
+    ru = os.path.join("_tools", "lang", "ru.po")
+    with tempfile.TemporaryDirectory() as d:
+        root, mod = gamma(d)
+        install(mod, "--yes")
+        dropped = bm.entry_text(None, "A line these tools no longer have", None,
+                                ["Строка, которой больше нет"])
+        put(root, ru, read(mod, ru) + ("\n" + dropped + "\n").encode("utf-8"))
+        rc, out = install(mod, "--yes")
+        assert rc == 0 and "merged" not in out and read(root, ru) == read(mod, ru), out
+        assert read(root, ru + ".bak") is None, "a .bak of a file with nothing of theirs"
+        shipped = read(mod, ru).decode("utf-8")
+        mine = shipped.replace('msgid "Save"\nmsgstr "Сохранить"',
+                               'msgid "Save"\nmsgstr "Записать"', 1).replace(
+            'msgid "Close"\nmsgstr "Закрыть"', 'msgid "Close"\nmsgstr ""', 1)
+        assert mine.count("Записать") == 1 and 'msgid "Close"\nmsgstr ""' in mine, \
+            "the test's ru.po has no Save and Close to change"
+        put(root, ru, mine.encode("utf-8"))
+        rc, out = install(mod, "--yes")
+        after = read(root, ru).decode("utf-8")
+        assert rc == 0 and "merged" in out and read(root, ru + ".bak") == mine.encode(
+            "utf-8"), out
+        assert 'msgstr "Записать"' in after and 'msgid "Close"\nmsgstr "Закрыть"' in after
+        age(root)
+        before = snapshot(root)
+        rc, out = install(mod, "--yes")
+        assert rc == 0 and "merged" not in out and "up to date" in out, out
+        changed = [f for f in before if snapshot(root)[f] != before[f]]
+        assert not changed, "rewrote %s:\n%s" % (changed, out)
+        assert read(root, ru + ".bak") == mine.encode("utf-8"), "the .bak was written over"
+    return "an old one with a dropped line updated; an edited one merged once, then the " \
+           "same, its .bak kept"
+
+
+@case
 def t_an_update_keeps_what_is_the_player_s():
     """Tools copied by hand before there was an installer, the player's settings, backups
     and presets beside them, and play.bat set to another of MO2's entries. The tools now
@@ -533,6 +573,83 @@ def t_each_file_is_written_whole_or_not_at_all():
            "run finishes" % (len(wrote), len(todo))
 
 
+@contextlib.contextmanager
+def scanner(held):
+    """A virus scanner, as the installer meets one: each file it writes is opened again the
+    moment it is closed, and held a little while, which Windows won't rename meanwhile. The
+    paths it held go in `held`."""
+    timers = []
+
+    class Scanned(object):
+        def __init__(self, path, mode):
+            self.path, self.f = path, open(path, mode)
+
+        def write(self, data):
+            return self.f.write(data)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            self.f.close()
+            h = open(self.path, "rb")
+            held.append(os.path.basename(self.path))
+            timers.append(threading.Timer(0.4, h.close))
+            timers[-1].start()
+
+    installer.open = Scanned
+    try:
+        yield
+    finally:
+        del installer.open
+        for t in timers:
+            t.join()
+
+
+@case
+def t_a_scanner_or_a_bad_file_leaves_no_mix_of_versions():
+    """A scanner holding each new file a moment: the update waits it out and puts every
+    file in. A file that can't be written stops the update before any is replaced, so the
+    tools there are never part one version and part the other."""
+    with tempfile.TemporaryDirectory() as d:
+        root, mod = gamma(d)
+        old(root, mod)
+        plan = installer.Plan(mod, root)
+        todo = [rel for rel, __, __ in plan.todo()]
+        held = []
+        with scanner(held):
+            done, error = installer.put(plan)
+        assert held, "the scanner held nothing, so this proves nothing"
+        assert error is None and done == todo, (error, done)
+        assert all(read(root, f) == read(mod, f) for f in todo), "not every file went in"
+        old(root, mod)
+        plan = installer.Plan(mod, root)
+        last = plan.todo()[-1][0]
+        os.makedirs(os.path.join(root, last + ".tmp"))     # in the way of the last one
+        before = snapshot(root)
+        done, error = installer.put(plan)
+        assert done == [] and error and last in error, (done, error)
+        assert snapshot(root) == before, "replaced some before the one that stopped it"
+    return "%d held by the scanner, all %d put in; one in the way, none replaced" % (
+        len(held), len(todo))
+
+
+@case
+def t_the_shortcut_is_set_past_a_scanner_too():
+    """The setup's step that picks the MO2 entry wrote play.bat as the tools update did
+    before it waited for a scanner: one holding the new file a moment stopped the step."""
+    with tempfile.TemporaryDirectory() as d:
+        root, mod = gamma(d)
+        shutil.copy2(os.path.join(mod, "play.bat"), os.path.join(root, "play.bat"))
+        held = []
+        with scanner(held):
+            changed = installer.write_shortcut(os.path.join(root, "play.bat"), "Anomaly (DX11)")
+        assert held, "the scanner held nothing, so this proves nothing"
+        assert changed and b'set "SHORTCUT=Anomaly (DX11)"' in read(root, "play.bat"),             read(root, "play.bat")[:400]
+        assert not os.path.exists(os.path.join(root, "play.bat.tmp")), "its temp file was left"
+    return "held by the scanner, and set once it let go"
+
+
 @case
 def t_configure_bat_installs_from_the_mod_s_folder():
     with tempfile.TemporaryDirectory() as d:
@@ -619,6 +736,41 @@ def t_play_bat_stops_on_a_crash_and_checks_its_entry_whole():
         assert "need Python 3, and this PC doesn't have it" in out \
             and 'STARTED "Anomaly (DX11)"' in out, out
     return "a crash below zero said and paused; a longer name refused; no Python said"
+
+
+@case
+def t_play_bat_starts_an_entry_mo2_keeps_in_quotes():
+    """MO2 keeps an entry's name in quotes when it has a comma, a semicolon or an equals
+    sign: 4\\title="Anomaly (DX11, ReShade)". configure.bat offers it without them, and
+    play.bat compared it with them, so every launch stopped with "MO2 has no shortcut
+    named"."""
+    titles = ["Anomaly (DX11, ReShade)", "Anomaly; DX11", "Anomaly = DX11"]
+    with tempfile.TemporaryDirectory() as d:
+        root, mod = gamma(d)
+        rc, out = install(mod, "--yes")
+        assert rc == 0, out
+        ini = os.path.join(root, "ModOrganizer.ini")
+        text = io.open(ini, encoding="utf-8").read().replace(
+            "size=%d" % len(ENTRIES), "size=%d" % (len(ENTRIES) + len(titles)))
+        io.open(ini, "w", encoding="utf-8", newline="").write(text + "".join(
+            '%d\\title="%s"' % (n, t) + CRLF for n, t in enumerate(titles, len(ENTRIES) + 1)))
+        offered = installer.mo2_entries(root)
+        assert offered[len(ENTRIES):] == titles, offered
+        bat = read(root, "play.bat").replace(
+            b'start "" "%~dp0ModOrganizer.exe" "moshortcut://:%SHORTCUT%"',
+            b'echo STARTED "%SHORTCUT%"')
+        put(root, os.path.join("_tools", "fetch_weather.py"), b"")
+        put(root, SEASON, b"import sys\nsys.exit(0)\n")
+        for title in titles:
+            assert installer.shortcut_problem(title) is None, title
+            put(root, "play.bat", installer.set_shortcut(bat, title))
+            rc, out = batch(root, "play.bat")
+            assert rc == 0 and 'STARTED "%s"' % title in out, (title, out)
+        # the control: a name MO2 doesn't list is still refused, quotes or none
+        put(root, "play.bat", installer.set_shortcut(bat, "Anomaly (DX11, ReShade) custom"))
+        rc, out = batch(root, "play.bat")
+        assert rc == 1 and "MO2 has no shortcut named" in out and "STARTED" not in out, out
+    return "a comma, a semicolon and an equals sign; a longer name still refused"
 
 
 @case

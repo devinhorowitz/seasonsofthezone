@@ -566,14 +566,14 @@ end
 -- Blowout
 -- =========================================================================================
 
--- Where each LIMITED bracket sits on a 0-1 gauge. Must track the bracket text in
--- zzz_seasons_of_the_zone.forecast_page(); a key that stops matching does not fail, it
--- quietly returns the fallback.
-local BRACKET_AT = {
-    ["WITHIN 2 HOURS"] = 0.06,
-    ["2 to 8 hours"]   = 0.20,
-    ["8 to 16 hours"]  = 0.50,
-    ["ALL CLEAR"]      = 0.85,
+-- The hours each LIMITED bracket spans, from and to; ALL CLEAR runs on to the period. Must
+-- track the bracket text in zzz_seasons_of_the_zone.forecast_page(); a key that stops
+-- matching does not fail, it quietly returns the fallback.
+local BRACKET_HOURS = {
+    ["WITHIN 2 HOURS"] = {0, 2},
+    ["2 to 8 hours"]   = {2, 8},
+    ["8 to 16 hours"]  = {8, 16},
+    ["ALL CLEAR"]      = {16},
 }
 
 --- Time to the next emission and psi storm, at the resolution the player has earned.
@@ -602,19 +602,30 @@ function blowout()
 
         local function part(seconds, band, key, fallback, alert)
             local out = {seconds = seconds, band = band, alert = alert and true or false}
+            local ok, hours = pcall(function() return ui_options.get(key) end)
+            if not (ok and type(hours) == "number" and hours > 0) then hours = fallback end
             if seconds then
-                local ok, hours = pcall(function() return ui_options.get(key) end)
-                if not (ok and type(hours) == "number" and hours > 0) then hours = fallback end
                 out.fraction = math.min(1.0, seconds / (hours * 3600))
             elseif band then
                 -- The coarse tier deliberately has no number, but a gauge still needs
-                -- somewhere to sit, so each bracket maps to its own midpoint.
+                -- somewhere to sit, so each bracket maps to its own midpoint, over the
+                -- period as the exact tier's seconds are. A bracket is the same hours
+                -- whatever the frequency slider says, so its place moves with the slider:
+                -- "8 to 16 hours" is half a 24-hour period and a quarter of a 48-hour one.
+                -- No wait outlasts the period (both managers roll it in [freq/2, freq]), so
+                -- a bracket stops there, and ALL CLEAR runs from 16 hours to it.
                 --
                 -- These keys have to track the brackets in forecast_page(). When the
                 -- bands were renamed this table was left behind, and every coarse
                 -- reading silently fell through to 0.70 - a needle pinned near "quiet"
                 -- while the panel beside it read WITHIN 2 HOURS.
-                out.fraction = BRACKET_AT[tostring(band)] or 0.70
+                local b = BRACKET_HOURS[tostring(band)]
+                if b then
+                    local to = math.max(b[1], math.min(b[2] or hours, hours))
+                    out.fraction = math.min(1.0, (b[1] + to) / 2 / hours)
+                else
+                    out.fraction = 0.70
+                end
             end
             return out
         end

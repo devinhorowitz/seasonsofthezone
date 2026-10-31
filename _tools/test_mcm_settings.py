@@ -226,6 +226,40 @@ def t_the_mcm_command():
 
 
 @case
+def t_a_text_option_keeps_on_and_off_as_words():
+    """GAMMA keeps video/advanced/smaa as text, "off". Typed for it, on and off stay words:
+    a Save with nothing changed in the window used to write them back as True and False,
+    and the command refused "on" with "off" as two kinds. For a checkbox they are still
+    true and false."""
+    config = 'MCM_SETTINGS = {"video/advanced/smaa": {"winter": "on", "else": "off"}}\n'
+    with tempfile.TemporaryDirectory() as d:
+        tg.sandbox(d, config=config)
+        store(d, STORE.replace("[options]", "        video/advanced/smaa              = off"
+                                            + CRLF + " " + CRLF + "[options]"))
+        rc, out = tg.drive(d, r"""
+win = cf.mcm_dialog(root, g.cal, editing="video/advanced/smaa")
+settle()
+[w for w in widgets(win) if w.winfo_class() == "TButton" and str(w.cget("text")) == "Save"][0].invoke()
+settle()
+print("CAL", g.cal.mcm, g.cal.dirty())
+""")
+        assert rc == 0 and "Traceback" not in out, out
+        assert "CAL {'video/advanced/smaa': {'winter': 'on', 'else': 'off'}} False" in out, out
+        rc, out = tc.run(d, "mcm", "video/advanced/smaa", "--in", "deep winter", "--to", "on",
+                         "--else", "off")
+        assert rc == 0, out
+        rc, out = tc.run(d, "mcm", "cold_system/winter", "--in", "winter", "--to", "on",
+                         "--else", "off")
+        assert rc == 0, out
+        ns = tg.table(d)
+        assert ns["MCM_SETTINGS"] == {
+            "video/advanced/smaa": {"winter": "on", "winter_snow": "on", "else": "off"},
+            "cold_system/winter": {"winter": True, "else": False}}, ns
+        tc.accepted(d)
+    return "\"on\" and \"off\" kept by the window and the command; a checkbox's are true and false"
+
+
+@case
 def t_mcm_settings_follow_renames_and_removals():
     """A season of one's own renamed is renamed in the settings that follow it; a spell
     taken off takes off the settings that follow nothing else, and says so."""

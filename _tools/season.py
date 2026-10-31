@@ -69,7 +69,23 @@ sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODS = os.path.join(ROOT, "mods")
-DOWNLOADS = os.path.join(ROOT, "downloads")
+
+
+def _downloads():
+    """MO2's downloads folder, the one configure.bat installs from: GAMMA\\downloads unless
+    MO2's settings moved it, as mod_install reads them. mod_install imports this file, so
+    it is handed this copy rather than a second. The usual folder when mod_install can't
+    say: it isn't there, it is broken, or it is what is importing this file and isn't
+    ready yet (no tool imports it before this one)."""
+    sys.modules.setdefault("season", sys.modules[__name__])
+    try:
+        import mod_install
+        return mod_install.downloads_folder(ROOT)
+    except Exception:                   # a launch never stops on where its downloads are
+        return os.path.join(ROOT, "downloads")
+
+
+DOWNLOADS = _downloads()
 SOTZ = "Seasons of the Zone"
 VERSION = "2.12.3"          # of the tools; build_release.py checks it against CHANGELOG.md
 SEASONS = ("spring", "summer", "autumn", "winter", "winter_snow", "late_winter")
@@ -974,16 +990,7 @@ def write_mcm(values, path=None):
         data = b""
     else:
         data = open(path, "rb").read()
-        bk = os.path.join(ROOT, "_baseline", "modfile-backups")
-        os.makedirs(bk, exist_ok=True)
-        shutil.copy2(path, os.path.join(bk, "axr_options-%s-pre-mcm.ltx"
-                                        % datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
-        old = sorted(glob.glob(os.path.join(glob.escape(bk), "axr_options-*-pre-mcm.ltx")))
-        for p in old[:-10]:
-            try:
-                os.remove(p)
-            except OSError:
-                pass
+        _back_up(path, "axr_options-%s-pre-mcm.ltx")
     # latin-1 reads every byte as itself, so what isn't changed is written back unchanged
     text = data.decode("latin-1")
     nl = "\r\n" if "\r\n" in text or not text else "\n"
@@ -1175,16 +1182,7 @@ def write_console(path, cmd, value):
     it was in _baseline/modfile-backups first, the newest ten. A file without the line gets
     it after its last. Returns the text written for the value."""
     data = open(path, "rb").read()
-    bk = os.path.join(ROOT, "_baseline", "modfile-backups")
-    os.makedirs(bk, exist_ok=True)
-    shutil.copy2(path, os.path.join(bk, "user-%s-pre-grass.ltx"
-                                    % datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
-    old = sorted(glob.glob(os.path.join(glob.escape(bk), "user-*-pre-grass.ltx")))
-    for p in old[:-10]:
-        try:
-            os.remove(p)
-        except OSError:
-            pass
+    _back_up(path, "user-%s-pre-grass.ltx")
     # latin-1 reads every byte as itself, so what isn't changed is written back unchanged
     text = data.decode("latin-1")
     nl = _detect_nl(text)
@@ -1198,16 +1196,31 @@ def write_console(path, cmd, value):
         while end and not lines[end - 1].strip():
             end -= 1
         lines.insert(end, cmd + " " + said)
-    tmp = path + ".tmp"
-    with open(tmp, "wb") as f:
-        f.write(nl.join(lines).encode("latin-1"))
-    os.replace(tmp, path)
+    replace_file(path, nl.join(lines).encode("latin-1"))
     return said
+
+
+# whether user_ltx_read_only() has said so this run
+READ_ONLY_SAID = []
+
+
+def user_ltx_read_only(path):
+    """Whether user.ltx at `path` is read-only. Players make it so, to keep the game from
+    resetting their settings: play.bat then leaves it as it is, and says so once a run.
+    Writing it anyway stopped every launch that changed the grass."""
+    if os.access(path, os.W_OK):
+        return False
+    if not READ_ONLY_SAID:
+        READ_ONLY_SAID.append(path)
+        print("  - " + _("user.ltx is read-only, so play.bat leaves it as it is: the grass "
+                         "stays as you set it."))
+    return True
 
 
 def send_grass(plan):
     """Set the grass for this launch, and remember it; the change as (was, now), or None.
-    Not while the game runs: it saves its own over user.ltx as it closes."""
+    Not while the game runs: it saves its own over user.ltx as it closes. Nor in a user.ltx
+    made read-only."""
     if plan is None or not plan["kept"]:
         return None
     change = None
@@ -1216,6 +1229,8 @@ def send_grass(plan):
         if game:
             print("  - " + _("The grass waits for the next launch: %s is running, and would "
                              "save its own over it.") % _and(game))
+            return None
+        if user_ltx_read_only(plan["path"]):
             return None
         change = (mcm_text(plan["now"]), write_console(plan["path"], GRASS_CMD, plan["want"]))
     os.makedirs(os.path.dirname(GRASS_STATE), exist_ok=True)
@@ -1244,6 +1259,25 @@ def replace_file(path, data):
         except OSError:
             pass
         raise
+
+
+def _back_up(path, name):
+    """Keep the file at `path` as it is in _baseline/modfile-backups, as `name` with the
+    time for its %s, and the newest ten of those. The folder holds copies made by hand too,
+    many named alike ("modlist-20260913-095301-pre-lennic.txt"): only `name` with a time
+    in it is pruned. A copy of a read-only file is read-only too, which the pruning couldn't
+    delete, so its flag comes off first."""
+    bk = os.path.join(ROOT, "_baseline", "modfile-backups")
+    os.makedirs(bk, exist_ok=True)
+    shutil.copy2(path, os.path.join(bk, name % datetime.datetime.now().strftime(
+        "%Y%m%d-%H%M%S")))
+    stamp = "[0-9]" * 8 + "-" + "[0-9]" * 6
+    for p in sorted(glob.glob(os.path.join(glob.escape(bk), name % stamp)))[:-10]:
+        try:
+            os.chmod(p, 0o666)
+            os.remove(p)
+        except OSError:
+            pass
 
 
 def _modlist_path():
@@ -1724,9 +1758,12 @@ def _place(body, name, above, want):
 def _place_all(body, wanted):
     """_place for each of `wanted`, [(name, above, "+" or "-")], pass after pass until none
     moves. A mod set to win over another seasonal mod has to follow it when a later entry
-    lifts that one past its own anchor: in one pass it landed below both for a launch.
-    Returns {name: _place's answer} for those that changed or were skipped, a mod's change
-    over the passes as one; loops of "above" are refused by config_problems, so it settles."""
+    lifts that one past its own anchor: in one pass it landed below both for a launch. One
+    whose anchor isn't in the list is tried again in each pass: a mod configure.bat has just
+    installed is in no list until a later entry adds it, and its follower was skipped for a
+    launch. Returns {name: _place's answer} for those that changed or were skipped, a mod's
+    change over the passes as one; loops of "above" are refused by config_problems, so it
+    settles."""
     out, anchor = {}, {}
     for name, above, want in wanted:
         seen = len(RENAMED)
@@ -1737,9 +1774,14 @@ def _place_all(body, wanted):
     for _pass in range(len(wanted)):
         moved = False
         for name, above, want in wanted:
-            if out.get(name) is False:
-                continue
+            seen = len(RENAMED)
             got = _place(body, name, anchor[name], want)
+            if out.get(name) is False:
+                if got is False:
+                    continue
+                # its anchor is in the list now: placed as the first pass would have
+                anchor[name] = RENAMED[-1][2] if len(RENAMED) > seen else above
+                del out[name]
             if got:
                 moved = True
                 # a later pass only moves a mod: whether it was added, or switched, stays
@@ -1973,18 +2015,31 @@ def _ltx_line(line):
 
 
 _LTX_HEAD = re.compile(r"^(!!|!|@)?\[([^\]]*)\]\s*(?::(.*))?$")
+# the configs the game reads for the weather, the interface, text, music and NPC logic:
+# none is read into system.ltx, which holds every section an object is made from, so a
+# section there that inherits makes no object
+_NO_OBJECTS = re.compile(r"configs/(?:(?:environment|gameplay|scripts|text|ui)/"
+                         r"|(?:mod_)?game_levels_music)")
+# the configs that spawn squads: smart terrains' (scripts/<level>/smart/) and the squads'
+_SPAWN_CONFIGS = re.compile(r"configs/(?:scripts/(?:[^/]+/)*smart/|(?:[^/]+/)*squad_descr)"
+                            r".*\.ltx$")
 
 
-def ltx_objects(text):
+def ltx_objects(text, system=True):
     """The sections in an .ltx's text that make an object a save can hold: one with
-    $spawn, or one with an inventory key (inv_...) and a class, its own or a parent's.
-    DLTX's ![...] and !![...] change or delete a section defined elsewhere, so they don't
-    count; its @[...] can make one, so it does."""
-    out, name, keys, parents = [], None, set(), False
+    $spawn, one with an inventory key (inv_...) and a class, its own or a parent's, one
+    that inherits (a variant of a monster or an artefact that only changes its look, a
+    squad), and a new one with a squad's members (npc, npc_random). DLTX's ![...] and
+    !![...] change or delete a section defined elsewhere, so they don't count; its @[...]
+    can make one, so it does, but not for a squad's members alone: that edits a squad
+    defined elsewhere. `system` False, for a file not read into system.ltx (_NO_OBJECTS),
+    leaves out the last two: a weather's parent makes no object."""
+    out, name, plain, keys, parents = [], None, False, set(), False
 
     def close():
         if name and ("$spawn" in keys or ((parents or "class" in keys)
-                                          and any(k.startswith("inv_") for k in keys))):
+                                          and any(k.startswith("inv_") for k in keys))
+                     or system and (parents or plain and keys & {"npc", "npc_random"})):
             out.append(name)
     for line in text.splitlines():
         s = _ltx_line(line)
@@ -1992,6 +2047,7 @@ def ltx_objects(text):
         if m:
             close()
             name = m.group(2).strip() if m.group(1) in (None, "@") else None
+            plain = m.group(1) is None
             parents, keys = bool((m.group(3) or "").strip()), set()
         elif name is not None and s and s[0] not in "!#":
             keys.add(s.split("=", 1)[0].strip().lower())
@@ -2059,7 +2115,8 @@ def save_content(folder):
       "items"    an .ltx in configs/ with sections that make objects; detail, their names
       "trade"    traders' stock: configs/items/trade/, or "trade" a word in the name
       "loadout"  a loadout, a new game's or NPCs': "loadout(s)" a word in the name
-      "spawns"   spawns/, or a .spawn
+      "spawns"   spawns/, a .spawn, or a config that spawns squads: a smart terrain's or
+                 the squads' own (squad_descr)
       "script"   a script that creates objects; detail, (line, call)
       "db"       a .db holding a script, a config or spawns, which can't be read from
                  outside; detail, (the first, how many)
@@ -2091,7 +2148,7 @@ def save_content(folder):
                 continue
             g = low[len("gamedata/"):]
             words = re.split(r"[^a-z0-9]+", g.rsplit("/", 1)[-1])
-            if g.startswith("spawns/") or g.endswith(".spawn"):
+            if g.startswith("spawns/") or g.endswith(".spawn") or _SPAWN_CONFIGS.match(g):
                 found.append((rel, "spawns", None))
             elif g.startswith("configs/") and g.endswith(".ltx"):
                 if g.startswith("configs/items/trade/") or "trade" in words:
@@ -2101,7 +2158,8 @@ def save_content(folder):
                 else:
                     try:
                         names = ltx_objects(io.open(p, encoding="cp1251",
-                                                    errors="replace").read())
+                                                    errors="replace").read(),
+                                            not _NO_OBJECTS.match(g))
                     except OSError:
                         continue
                     if names:
@@ -2310,11 +2368,8 @@ def apply_toggles(active, dry_run=False, prefs=None):
 
 
 def _keep_modlist(p):
-    """A copy of MO2's list as it was, before season.py writes it."""
-    bk = os.path.join(ROOT, "_baseline", "modfile-backups")
-    os.makedirs(bk, exist_ok=True)
-    shutil.copy2(p, os.path.join(bk, "modlist-%s-pre-toggle.txt"
-                                 % datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
+    """A copy of MO2's list as it was, before season.py writes it; the newest ten."""
+    _back_up(p, "modlist-%s-pre-toggle.txt")
 
 
 def disable_mod(name):
@@ -2382,37 +2437,50 @@ def toggle_status(active, prefs=None):
 # made from, so a weather mod's update is caught here and the mod made again before the
 # toggles switch it.
 
-def rain_refresh(writing):
+def rain_refresh(writing, active, prefs=None):
     """Make No Rain in Winter again when a weather it was made from has changed, and keep
-    it above every mod it copies. The lines to print; none when it is current or not set
+    it above every mod it copies, in MO2's list as this launch switches it for `active`:
+    a weather mod that comes on for the winter is copied and won over from its first
+    winter launch, not its second. The lines to print; none when it is current or not set
     up."""
     cfg = TOGGLE_MODS.get(winter_rain.MOD)
     if cfg is None:
         return []
-    order = [(l[1:], l[:1] == "+") for l in (_modlist_lines() or [])[1:] if l[:1] in ("+", "-")]
+    order = launch_order(active, prefs, place=True)
     n = sum(len(x) for x in winter_rain.stale(MODS, order))
+    # none of its copies there (its folder gone): it is made, not made again
+    fresh = n and not winter_rain.made(MODS)
     out = []
     if n and writing:
         busy = running()
         if busy:
             # MO2 maps a mod's files when it starts: a copy added now would not reach the game
-            out.append("  - " + ngettext(
+            out.append("  - " + (ngettext(
+                "No Rain in Winter isn't made yet (%(n)d weather to copy), and is made at a "
+                "launch with %(what)s closed.",
+                "No Rain in Winter isn't made yet (%(n)d weathers to copy), and is made at a "
+                "launch with %(what)s closed.", n) if fresh else ngettext(
                 "No Rain in Winter is out of date (%(n)d weather changed since it was made), "
                 "and is made again at a launch with %(what)s closed.",
                 "No Rain in Winter is out of date (%(n)d weathers changed since it was made), "
-                "and is made again at a launch with %(what)s closed.", n)
+                "and is made again at a launch with %(what)s closed.", n))
                 % {"n": n, "what": _and(busy)})
         else:
             winter_rain.build(MODS, order)
-            out.append("  " + ngettext(
+            out.append("  " + (ngettext(
+                "No Rain in Winter made from %d weather.",
+                "No Rain in Winter made from %d weathers.", n) if fresh else ngettext(
                 "No Rain in Winter made again: %d weather changed since it was made.",
-                "No Rain in Winter made again: %d weathers changed since it was made.", n) % n)
+                "No Rain in Winter made again: %d weathers changed since it was made.", n)) % n)
     elif n:
-        out.append("  - " + ngettext(
-            "No Rain in Winter is out of date: %d weather changed since it was made. play.bat "
-            "makes it again.",
-            "No Rain in Winter is out of date: %d weathers changed since it was made. play.bat "
-            "makes it again.", n) % n)
+        out.append("  - " + (ngettext(
+            "No Rain in Winter isn't made yet: play.bat makes it from %d weather.",
+            "No Rain in Winter isn't made yet: play.bat makes it from %d weathers.", n)
+            if fresh else ngettext(
+                "No Rain in Winter is out of date: %d weather changed since it was made. "
+                "play.bat makes it again.",
+                "No Rain in Winter is out of date: %d weathers changed since it was made. "
+                "play.bat makes it again.", n)) % n)
     above = winter_rain.anchor(MODS, order, list(winter_rain.wanted(MODS, order)))
     if above and above != cfg["above"]:
         # it has to win over the highest mod with a weather it copies, or that mod's rain wins
@@ -3494,7 +3562,8 @@ def lut_reset(path=None):
     """A user.ltx ssfx_lut naming a group the atlas the game will load lacks - a season's,
     left from a Seasonal LUT now off or holding fewer - samples outside it until a level
     loads and Atmospherics sets the level's: put its groups back to 0, the intensity kept.
-    Returns the change as (was, now), or None. Not while the game runs."""
+    Returns the change as (was, now), or None. Not while the game runs, nor in a user.ltx
+    made read-only."""
     path = _user_ltx() if path is None else path
     if not path:
         return None
@@ -3519,7 +3588,7 @@ def lut_reset(path=None):
                       if len(lines[hits[-1]].split(None, 1)) == 2 else "")
     if len(nums) < 4 or all(float(n) < groups - 0.5 for n in nums[1:3]):
         return None
-    if [p for p in running() if p.startswith("anomaly")]:
+    if [p for p in running() if p.startswith("anomaly")] or user_ltx_read_only(path):
         return None
     now = "(%s, 0.000000, 0.000000, 0.000000)" % ("%.6f" % float(nums[0]))
     was = lines[hits[-1]].split(None, 1)[1].strip()
@@ -4319,17 +4388,24 @@ def your_keys():
     """{(kind, name): key} for the player's own seasons ("own"), events, periods and spells:
     MCM's switch for each one's PDA message goes by it, and so do its strings. Letters and
     digits as they are, the rest "_"; a name with letters past ASCII, or one that comes out
-    like another's, takes a checksum of its whole name, so a key is the same every run."""
+    like another's, takes a checksum of its whole name, so a key is the same every run.
+    Two that come out alike both take one, so neither comes up with the other's MCM
+    setting, as "Cold snap" added beside "Cold_snap" did; a name alone keeps its key, and
+    gets it back once the other is gone."""
     out, taken = {}, set()
     for kind, table in (("own", OWN_SEASONS), ("event", EVENTS), ("period", PERIODS),
                         ("spell", SPELLS)):
+        bare = {}
         for name in sorted((n for n in table if isinstance(n, str)),
                            key=lambda n: (n.casefold(), n)):
             s = "".join(c if c.isascii() and c.isalnum() else "_" for c in name.lower())
             while "__" in s:
                 s = s.replace("__", "_")
-            k = ("%s_%s" % (kind, s.strip("_")[:32])).rstrip("_")
-            if k == kind or k in taken or not name.isascii():
+            bare[name] = ("%s_%s" % (kind, s.strip("_")[:32])).rstrip("_")
+        # the keys as they are that names would take, one for each
+        claims = [k for name, k in bare.items() if k != kind and name.isascii()]
+        for name, k in bare.items():
+            if k == kind or claims.count(k) > 1 or k in taken or not name.isascii():
                 k = "%s_%08x" % (k[:40], zlib.crc32(name.encode("utf-8")) & 0xffffffff)
             while k in taken:
                 k += "_"
@@ -5748,14 +5824,21 @@ def loaded_particles(text):
     return None if blocks else out
 
 
-def launch_order(active, prefs=None, switch=True):
+def launch_order(active, prefs=None, switch=True, place=False):
     """MO2's mod list as [(name, on)], the top first. With `switch`, each seasonal mod is on
-    or off as apply switches it for `active`, where it stands now."""
+    or off as apply switches it for `active`, where it stands now; with `place` too, where
+    apply puts it, worked out on a copy of the list."""
     flip = {name: bool(should and not held)
             for name, inst, __, should, held in toggle_status(active, prefs)
             if inst and held != "saves"} if switch else {}
-    return [(l[1:], flip.get(l[1:], l[:1] == "+")) for l in (_modlist_lines() or [])[1:]
-            if l[:1] in ("+", "-")]
+    body = [l for l in (_modlist_lines() or [])[1:] if l[:1] in ("+", "-")]
+    if place and flip:
+        # what _place_all notes is for the list apply writes, not this copy
+        kept = UNPLACED[:], RENAMED[:]
+        _place_all(body, [(name, TOGGLE_MODS[name]["above"], "+" if on else "-")
+                          for name, on in flip.items()])
+        UNPLACED[:], RENAMED[:] = kept
+    return [(l[1:], flip.get(l[1:], l[:1] == "+")) for l in body]
 
 
 def _db_archives(folder):
@@ -6565,7 +6648,13 @@ def main():
     if writing:
         # the dates and names go to the game now, as configure.bat sends them; today's spell
         # only once what it brings is staged (send_spell), so a run that stops - MO2 open,
-        # a failed copy - leaves the game on what is staged
+        # a failed copy - leaves the game on what is staged. A dial drawn with MO2 open isn't
+        # seen until MO2 starts again, so MO2 is asked about first, and a stop changes
+        # nothing.
+        if dial_state(a.mapping) == "stale":
+            busy = running()
+            if busy:
+                raise SystemExit(close_first(busy))
         dial, note = write_calendar(a.mapping)
     else:
         dial = dial_state(a.mapping)
@@ -6674,8 +6763,9 @@ def main():
                       % season_label(want))
         print()
 
-        # before the toggles: they switch a seasonal mod only when its folder is there
-        for line in rain_refresh(writing):
+        # before the toggles: they switch a seasonal mod only when its folder is there. It
+        # is made from the list as they will leave it, a weather mod they switch on included
+        for line in rain_refresh(writing, active, prefs):
             print(line)
         folders = _mod_folders()
         for name, inst, state, should, held in toggle_status(active, prefs):
@@ -6974,8 +7064,21 @@ def main():
                 raise SystemExit("  ** " + _("Copying the textures into %(mod)s failed "
                                              "(robocopy code %(code)d). Run play.bat again.")
                                  % {"mod": mod, "code": r.returncode} + " **")
-            src, dst = _folded(hashes(merged)), _folded(hashes(target))
+            from_archive = hashes(merged)
+            src, dst = _folded(from_archive), _folded(hashes(target))
             bad = sorted(k for k in set(src) | set(dst) if src.get(k) != dst.get(k))
+            if bad:
+                # robocopy skips a file whose size and time are the target's, and a season's
+                # DDS can have both of the other's: the same dimensions, and the one time a
+                # packer stamps on every file. Those are copied whole, over the name the file
+                # already has, and checked again.
+                missed = set(bad)
+                for rel in (k for k in from_archive if k.lower() in missed):
+                    to = os.path.join(target, *rel.split("/"))
+                    os.makedirs(lp(os.path.dirname(to)), exist_ok=True)
+                    shutil.copyfile(lp(os.path.join(merged, *rel.split("/"))), lp(to))
+                dst = _folded(hashes(target))
+                bad = sorted(k for k in set(src) | set(dst) if src.get(k) != dst.get(k))
             # translators: English says MISMATCH for any number
             wrong = ngettext("%d MISMATCH", "%d MISMATCH", len(bad)) % len(bad)
             print("  %-64s %3d %-5s  %s" % (mod[:64], len(dst),

@@ -243,10 +243,23 @@ def _nl(raw):
     return crlf if crlf in raw else chr(10)
 
 
+def _lines(raw):
+    """The file's lines, as splitlines() gives them but ended by CR and LF only:
+    splitlines() also breaks at 0x85 - a cp1251 ellipsis, read as latin-1 - at a form
+    feed and a few more, and what followed one in a comment would become code."""
+    lines = re.split(r"\r\n|\r|\n", raw)
+    if lines[-1] == "":
+        lines.pop()                 # nothing after the last line end is no line
+    return lines
+
+
 def _find():
-    """Look for the script under a GAMMA install, starting from this file's folder."""
+    """Look for the script under a GAMMA install, starting from this file's folder: the
+    GAMMA folder is one level up from patches\\ in the repo, three from the mod's own
+    mods\\<mod>\\patches\\, where a double-click runs it with nothing named."""
     here = os.path.dirname(os.path.abspath(__file__))
-    for root in (here, os.path.dirname(here), os.getcwd()):
+    up3 = os.path.dirname(os.path.dirname(os.path.dirname(here)))
+    for root in (here, os.path.dirname(here), up3, os.getcwd()):
         mods = os.path.join(root, "mods")
         if not os.path.isdir(mods):
             continue
@@ -342,7 +355,7 @@ def unpatch(lines):
 def patch(path):
     raw = io.open(path, encoding="latin-1", newline="").read()
     nl = _nl(raw)
-    lines = raw.splitlines()
+    lines = _lines(raw)
 
     # A patched copy is updated: take the patch out, then put the current one in.
     updating = "zzz_seasons_of_the_zone" in raw

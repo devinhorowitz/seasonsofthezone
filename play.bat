@@ -51,9 +51,10 @@ REM  its own entry does.
 set "SHORTCUT=Anomaly (DX11-AVX)"
 
 REM  The entry by its whole name: a line of ModOrganizer.ini like 2\title=Anomaly (DX11),
-REM  which "Anomaly (DX11) custom" doesn't match.
+REM  which "Anomaly (DX11) custom" doesn't match. MO2 puts a name with a comma, semicolon
+REM  or equals sign in quotes, 2\title="Anomaly (DX11, ReShade)": it is read without them.
 set "FOUND="
-for /f "usebackq tokens=1,* delims==" %%A in ("ModOrganizer.ini") do if "%%B"=="%SHORTCUT%" for /f "tokens=2 delims=\" %%K in ("%%A") do if /i "%%K"=="title" set "FOUND=1"
+for /f "usebackq tokens=1,* delims==" %%A in ("ModOrganizer.ini") do if "%%~B"=="%SHORTCUT%" for /f "tokens=2 delims=\" %%K in ("%%A") do if /i "%%K"=="title" set "FOUND=1"
 if not defined FOUND (
     echo.
     echo  ** MO2 has no shortcut named "%SHORTCUT%". Pick the one you play with in

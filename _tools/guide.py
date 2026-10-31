@@ -253,6 +253,7 @@ class Guide(object):
         self.kept, self.kept_layout = {}, {}    # unchecked this time round, to check again
         self.saved_lines = []
         self.seasons_bad, self.names_bad, self._fw, self._found = [], [], None, []
+        self.installing = None      # the InstallDialog whose mod is being installed
         style = ttk.Style(root)
         style.configure("Big.TLabel", font=("TkDefaultFont", 15, "bold"))
         style.configure("Head.TLabel", font=("TkDefaultFont", 10, "bold"))
@@ -1203,14 +1204,17 @@ class Guide(object):
 
     def names_grid(self, parent):
         tk, ttk = self.tk, self.ttk
-        fits = self.root.register(lambda text: len(text) <= season.NAME_CHARS)
+        # what is typed is held to the limit, not what is deleted: a name written by hand
+        # past it can still be shortened
+        fits = self.root.register(
+            lambda action, text: action != "1" or len(text) <= season.NAME_CHARS)
         self.name_vars = {}
         for i, s in enumerate(season.SEASONS):
             ttk.Label(parent, text=usual_title(s), width=13).grid(
                 row=i, column=0, sticky="w", pady=2)
             v = tk.StringVar(value=self.cal.names.get(s, ""))
             e = ttk.Entry(parent, textvariable=v, width=24, validate="key",
-                          validatecommand=(fits, "%P"))
+                          validatecommand=(fits, "%d", "%P"))
             e.grid(row=i, column=1, sticky="w")
             e.bind("<KeyRelease>", lambda ev: self.names_edited())
             self.name_vars[s] = v
@@ -1415,15 +1419,20 @@ class Guide(object):
         self.check_label.configure(text=_("Asking open-meteo.com..."), foreground=cf.GREY)
         self.check_credit.pack_forget()
 
-        def done(rows, error):
+        def today():
+            # the answer starts a day back (past_days=1): today is the row of the place's date
+            payload = fw.fetch(place)
+            rows = fw.to_rows(payload)
+            return next((r for r in rows if r["date"] == fw.place_today(payload)), rows[0])
+
+        def done(t, error):
             if not self.check_label.winfo_exists():
                 return
-            if error is not None or not rows:
+            if error is not None or not t:
                 # translators: %s is the kind of error, as Python names it
                 self.check_label.configure(text=_("Couldn't reach open-meteo.com (%s).")
                                            % type(error).__name__, foreground=cf.RED)
                 return
-            t = rows[0]
             # translators: %(sky)s is the sky that day, like "partly cloudy"
             self.check_label.configure(foreground="#000000", text=_(
                 "Today in %(place)s: high %(high).0f°C (%(high_f).0f°F), low %(low).0f°C "
@@ -1434,7 +1443,7 @@ class Guide(object):
                     "sky": cf.sky_words(t["cycle"])})
             self.check_credit.pack(anchor="w", after=self.check_label)
 
-        self.in_background(lambda: fw.to_rows(fw.fetch(place)), done)
+        self.in_background(today, done)
 
     # 5. review
 
@@ -1808,8 +1817,22 @@ class Guide(object):
         else:
             self.steps()
 
+    def still_installing(self):
+        """True, and says why the window can't close yet, while a mod is being installed:
+        closing would cut the install off partway."""
+        if not self.installing:
+            return False
+        from tkinter import messagebox
+        win = self.installing.win
+        messagebox.showinfo(pgettext("dialog title", "Close"), _(
+            "A mod is still being installed. Close the window once it's done."),
+            parent=win if win.winfo_exists() else self.root)
+        return True
+
     def close(self):
         from tkinter import messagebox
+        if self.still_installing():
+            return
         if self.unsaved():
             if not messagebox.askyesno(
                     pgettext("dialog title", "Close"),
@@ -2199,11 +2222,14 @@ class InstallDialog(object):
             g.para(pkg.about, parent=f, color=cf.GREY, wrap=620)
         self.chosen = {}
         if pkg.fomod:
-            chosen = pkg.fomod.default()
+            chosen, missing = pkg.fomod.default(), pkg.fomod.missing
             for step in pkg.fomod.steps:
                 for group in step["groups"]:
-                    plugins = [p for p in group["plugins"] if p["files"]]
-                    if not plugins:
+                    # a group whose options install nothing, like an introduction, asks
+                    # nothing; an option that installs nothing beside ones that do, like
+                    # GRIP's "None", is one to pick
+                    plugins = group["plugins"]
+                    if not any(p["files"] or missing[p["id"]] for p in plugins):
                         continue
                     ttk.Label(f, text=group["name"], style="Head.TLabel").pack(
                         anchor="w", pady=(12, 2))
@@ -2224,6 +2250,11 @@ class InstallDialog(object):
                         if p["description"]:
                             g.para(p["description"], parent=f, color=cf.GREY, pad=(0, 0),
                                    indent=24, wrap=620)
+                    if group["type"] == "SelectAtMostOne" and all(
+                            p["files"] or missing[p["id"]] for p in plugins):
+                        # one picked can be taken back: the group allows none
+                        ttk.Radiobutton(f, text=_("None of these"), value="",
+                                        variable=radio).pack(anchor="w")
         ttk.Label(f, text=_("Fix files from the author"), style="Head.TLabel").pack(
             anchor="w", pady=(12, 2))
         self.extra = []
@@ -2246,10 +2277,17 @@ class InstallDialog(object):
         self.bar = ttk.Progressbar(f, mode="determinate", length=560)
         self.msg = ttk.Label(f, text="", foreground=cf.GREY, wraplength=620, justify="left")
         self.msg.pack(anchor="w", pady=(12, 0))
-        self.buttons = cf.button_row(f, (_("Install"), self.go), (_("Cancel"), win.destroy))
+        self.buttons = cf.button_row(f, (_("Install"), self.go), (_("Cancel"), self.close))
         self.show_size()
         win.bind("<Return>", lambda e: self.go())
+        win.bind("<Escape>", lambda e: self.close())
+        win.protocol("WM_DELETE_WINDOW", self.close)
         cf.present(win, g.root)
+
+    def close(self):
+        """Cancel, Escape and the window's X: not while the mod is being installed."""
+        if not self.g.still_installing():
+            self.win.destroy()
 
     def choice(self):
         """The installer options checked, as plugin ids."""
@@ -2293,6 +2331,8 @@ class InstallDialog(object):
     def go(self):
         from tkinter import messagebox
         g = self.g
+        if g.installing:
+            return                          # Enter again while it installs
         name = self.name.get().strip()
         when = [s for s, v in self.seasons.items() if v.get()]
         problems = self.pkg.fomod.problems(self.choice()) if self.pkg.fomod else []
@@ -2302,6 +2342,7 @@ class InstallDialog(object):
             messagebox.showerror(pgettext("dialog title", "Install"), "\n".join(problems),
                                  parent=self.win)
             return
+        g.installing = self
         for b in self.buttons:
             b.configure(state="disabled")
         self.bar.pack(anchor="w", pady=(10, 0), before=self.msg)
@@ -2320,13 +2361,17 @@ class InstallDialog(object):
 
         def done(folder, error):
             state["over"] = True
+            g.installing = None
+            here = self.win.winfo_exists()
             if error is not None:
-                for b in self.buttons:
-                    b.configure(state="normal")
-                self.bar.pack_forget()
-                self.msg.configure(text=str(error), foreground=cf.RED)
+                if here:
+                    for b in self.buttons:
+                        b.configure(state="normal")
+                    self.bar.pack_forget()
+                    self.msg.configure(text=str(error), foreground=cf.RED)
                 return
-            self.win.destroy()
+            if here:
+                self.win.destroy()
             self.adopt(name, when)
 
         choice = self.choice()

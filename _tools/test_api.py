@@ -373,6 +373,48 @@ def t_blowout_coarse():
     return "coarse tier: bracket, a matching gauge position, no number"
 
 
+def _with_frequency(g, lua, hours):
+    """Both frequency options at `hours`, as the player's options slider sets them."""
+    opts = {"alife/event/emission_frequency": hours, "alife/event/psi_storm_frequency": hours}
+    g.ui_options = lua.table_from({"get": lambda k: opts.get(k)})
+
+
+def t_a_coarse_gauge_follows_the_frequency():
+    """A bracket is fixed hours, so where it sits on a 0-1 gauge depends on the period, as the
+    exact tier's fraction does. Fixed places (0.06/0.20/0.50/0.85) were right only for a
+    24-hour period: here the psi storm is 48 hours apart, and "8 to 16 hours" read 0.50."""
+    lua, g = build(standing=300, psi_left=12 * HOUR)
+    psi = F(g.sotz_api.blowout(), "psi")
+    assert F(psi, "band") == "8 to 16 hours", F(psi, "band")
+    assert abs(F(psi, "fraction") - 0.25) < 0.01, \
+        "8 to 16 hours of a 48-hour period read %.2f" % F(psi, "fraction")
+    # Every option the slider has, a wait in each bracket: the gauge sits in the middle of the
+    # bracket's hours over the period, where the exact tier would put a wait there. A wait
+    # never runs past the period (the managers roll it in [freq/2, freq]), so a bracket stops
+    # there and ALL CLEAR ends there.
+    seen = {}
+    for freq in (12, 24, 48, 96):
+        for left in (1, 5, 12, 20, 40, 90):
+            if left > freq:
+                continue
+            lua, g = build(standing=300, surge_left=left * HOUR)
+            _with_frequency(g, lua, freq)
+            em = F(g.sotz_api.blowout(), "emission")
+            band, frac = F(em, "band"), F(em, "fraction")
+            lo, hi = {"WITHIN 2 HOURS": (0, 2), "2 to 8 hours": (2, 8),
+                      "8 to 16 hours": (8, 16), "ALL CLEAR": (16, freq)}[band]
+            hi = min(hi, freq)
+            assert abs(frac - (lo + hi) / 2.0 / freq) < 0.01, \
+                "%dh, %dh left (%s): %.3f, not the middle of %d-%dh over the period" % (
+                    freq, left, band, frac, lo, hi)
+            seen[(freq, band)] = frac
+    # the control: the same bracket moves down the gauge as the period grows
+    assert seen[(12, "8 to 16 hours")] > seen[(24, "8 to 16 hours")] > \
+        seen[(48, "8 to 16 hours")] > seen[(96, "8 to 16 hours")], seen
+    return "8 to 16 hours of 48 reads %.2f; each bracket at its middle hour, 12-96h" % (
+        seen[(48, "8 to 16 hours")])
+
+
 # --- the cache is real ------------------------------------------------------------------
 def t_cache():
     lua, g = build(hour=6.0, month=4, clock_ms=0)
@@ -662,6 +704,7 @@ CASES = [
     ("fraction moves", t_blowout_fraction_moves),
     ("blowout locked", t_blowout_locked),
     ("blowout coarse", t_blowout_coarse),
+    ("coarse by period", t_a_coarse_gauge_follows_the_frequency),
     ("cache", t_cache),
     ("observed used", t_observed_used),
     ("observed stale", t_observed_stale),

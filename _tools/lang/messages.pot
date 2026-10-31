@@ -580,6 +580,10 @@ msgid "(now %s)"
 msgstr ""
 
 #: season.py
+msgid "user.ltx is read-only, so play.bat leaves it as it is: the grass stays as you set it."
+msgstr ""
+
+#: season.py
 #, python-format
 msgid "The grass waits for the next launch: %s is running, and would save its own over it."
 msgstr ""
@@ -854,6 +858,13 @@ msgstr ""
 
 #: season.py
 #, python-format
+msgid "No Rain in Winter isn't made yet (%(n)d weather to copy), and is made at a launch with %(what)s closed."
+msgid_plural "No Rain in Winter isn't made yet (%(n)d weathers to copy), and is made at a launch with %(what)s closed."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
 msgid "No Rain in Winter is out of date (%(n)d weather changed since it was made), and is made again at a launch with %(what)s closed."
 msgid_plural "No Rain in Winter is out of date (%(n)d weathers changed since it was made), and is made again at a launch with %(what)s closed."
 msgstr[0] ""
@@ -861,8 +872,22 @@ msgstr[1] ""
 
 #: season.py
 #, python-format
+msgid "No Rain in Winter made from %d weather."
+msgid_plural "No Rain in Winter made from %d weathers."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py
+#, python-format
 msgid "No Rain in Winter made again: %d weather changed since it was made."
 msgid_plural "No Rain in Winter made again: %d weathers changed since it was made."
+msgstr[0] ""
+msgstr[1] ""
+
+#: season.py configure.py
+#, python-format
+msgid "No Rain in Winter isn't made yet: play.bat makes it from %d weather."
+msgid_plural "No Rain in Winter isn't made yet: play.bat makes it from %d weathers."
 msgstr[0] ""
 msgstr[1] ""
 
@@ -2580,6 +2605,11 @@ msgstr ""
 msgid "%s: saving rewrites this entry in the right shape"
 msgstr ""
 
+#: config_edit.py
+#, python-format
+msgid "Not saved: \"%(text)s\" can't be written in this file's encoding (%(encoding)s). Delete the # coding line at the top of seasons_config.py, save it as UTF-8 (Notepad: File > Save as, Encoding: UTF-8), then try again."
+msgstr ""
+
 #: config_edit.py configure.py
 msgid "seasons_config.py can't be edited here:"
 msgstr ""
@@ -2590,11 +2620,6 @@ msgstr ""
 
 #: config_edit.py configure.py
 msgid "Not saved, because play.bat would refuse the result:"
-msgstr ""
-
-#: config_edit.py
-#, python-format
-msgid "Not saved: \"%(text)s\" can't be written in this file's encoding (%(encoding)s). Delete the # coding line at the top of seasons_config.py, save it as UTF-8 (Notepad: File > Save as, Encoding: UTF-8), then try again."
 msgstr ""
 
 #: config_edit.py
@@ -2632,6 +2657,10 @@ msgstr ""
 
 #: config_edit.py
 msgid "Also fixed:"
+msgstr ""
+
+#: config_edit.py
+msgid "A new one can't be written: seasons_config.py is read-only. Right-click it (in _tools), choose Properties, uncheck Read-only, then open configure.bat again."
 msgstr ""
 
 #: config_edit.py
@@ -6789,6 +6818,10 @@ msgid "Close"
 msgstr ""
 
 #: guide.py
+msgid "A mod is still being installed. Close the window once it's done."
+msgstr ""
+
+#: guide.py
 msgid "Leave without saving? Nothing you set here is kept."
 msgstr ""
 
@@ -6887,6 +6920,10 @@ msgstr ""
 #. followed by a box with the name of the mod's folder
 #: guide.py
 msgid "Install it as"
+msgstr ""
+
+#: guide.py
+msgid "None of these"
 msgstr ""
 
 #: guide.py

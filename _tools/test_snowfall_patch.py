@@ -207,6 +207,47 @@ def t_crlf_survives_an_update():
 
 
 @case
+def t_a_cp1251_ellipsis_in_a_comment_stays_in_it():
+    """The script is read byte for byte, as latin-1. A cp1251 ellipsis, 0x85, is a line break
+    to str.splitlines(), and so are a form feed and a few others: the rest of the comment
+    would have become code. Only CR and LF end a line."""
+    with tempfile.TemporaryDirectory() as d:
+        notes = ["-- snow by Daedalus-Prime\x85 refactored by demonized",
+                 "-- page two\x0c of the notes"]
+        orig = fixture().replace("\nfunction on_game_start()",
+                                 "\n" + "\n".join(notes) + "\nfunction on_game_start()", 1)
+        p = put(d, orig)
+        rc, out = run(PATCHER, p)
+        assert rc == 0 and "patched" in out, out
+        lines = data(p).decode("latin-1").split("\n")
+        for note in notes:
+            assert note in lines, "%r broken up: %r" % (note, [l for l in lines if l[:6] in (
+                note[:6], " refac", " of th")])
+        rc, out = run(PATCHER, p)
+        assert rc == 0 and "already up to date" in out, out
+    return "0x85 and a form feed kept inside their comments; the next run up to date"
+
+
+@case
+def t_double_clicked_in_the_mod_it_finds_the_script():
+    """The patcher ships in mods\\Seasons of the Zone\\patches\\. Double-clicked there, it
+    runs in that folder with nothing named: the mods folder is three levels up."""
+    with tempfile.TemporaryDirectory() as d:
+        here = os.path.join(d, "GAMMA", "mods", "Seasons of the Zone", "patches")
+        scripts = os.path.join(d, "GAMMA", "mods", "INVERNO Snowfall", "gamedata", "scripts")
+        os.makedirs(here)
+        os.makedirs(scripts)
+        shutil.copy2(PATCHER, here)
+        p = put(scripts, fixture())
+        r = subprocess.run([sys.executable, os.path.join(here, os.path.basename(PATCHER))],
+                           cwd=here, capture_output=True, text=True)
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "patched" in out, out
+        assert "zzz_seasons_of_the_zone" in data(p).decode("latin-1"), "not patched"
+    return "found under mods\\ three levels up and patched"
+
+
+@case
 def t_revert_restores_the_original():
     with tempfile.TemporaryDirectory() as d:
         orig = fixture()

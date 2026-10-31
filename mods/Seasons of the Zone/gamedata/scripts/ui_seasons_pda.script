@@ -947,16 +947,26 @@ function SeasonsPDA:Fill()
         end
     end
 
-    -- the spells that can start today, with the chance of each a day; one on glows
+    -- the spells that can start today, with the chance of each a day; one on glows. They get
+    -- the room the year leaves: the heading only over a row, and when they do not all fit
+    -- the last row says how many more, as Now's does
     local spells = d.spells or {}
     if #spells > 0 then
         self:Gap(2, 6)
-        self:Section(2, sotz_text.text("st_sotz_year_spells_in", {season = d.spells_in}))
-        for _, sp in ipairs(spells) do
-            local drawn = self:Put(2, {{0, fit(sp.show, 17)}, {118, odds(sp.chance)}},
-                                   sp.on and NOW_RGB or LINE_RGB)
-            if not drawn then break end
-            if sp.on then self:Glow(drawn) end
+        local room = self:Room(2, 1)
+        if room > 0 then
+            self:Section(2, sotz_text.text("st_sotz_year_spells_in", {season = d.spells_in}))
+            local shown = (#spells > room) and (room - 1) or #spells
+            for i = 1, shown do
+                local sp = spells[i]
+                local drawn = self:Put(2, {{0, fit(sp.show, 17)}, {118, odds(sp.chance)}},
+                                       sp.on and NOW_RGB or LINE_RGB)
+                if sp.on then self:Glow(drawn) end
+            end
+            if #spells > shown then
+                self:Put(2, {{0, sotz_text.plural("st_sotz_year_more", #spells - shown)}},
+                         LINE_RGB)
+            end
         end
     end
 

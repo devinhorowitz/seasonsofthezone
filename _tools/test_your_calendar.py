@@ -245,6 +245,45 @@ def t_the_page_lists_now_coming_the_year_and_its_spells():
 
 
 @case
+def t_the_spells_get_the_room_left_and_say_how_many_more():
+    """Beside the dial the year's rows come first and the spells get what room is left: a
+    heading only over a row, and the last row that fits says how many more. With six seasons,
+    three periods and two spells the page showed "Spells in autumn" over nothing, and with
+    fewer periods it dropped spells without a word."""
+    two = {"high_summer": (7, 1), "first_snow": (11, 20)}
+    three = dict(two, thaw=(3, 25))
+    grey = dict(SPELLS, **{"Grey rain": {"in": ("autumn",), "chance": 1, "days": 1,
+                                         "as": None}})
+    col_y1 = int(re.search(r"local COL_Y1\s*=\s*\{\d+,\s*(\d+)\}", PAGE).group(1))
+
+    def right(**kw):
+        lua, g, _, _ = page_data(**kw)
+        p, shown = filled(lua, g)
+        assert p.cursor[2] <= col_y1, "the right column ran to %d, past %d" % (p.cursor[2], col_y1)
+        year = 6 + len(kw.get("periods", PERIODS))
+        rows = [r[1] for r in shown["rows"] if r[0] == 2]
+        return shown["heads"][2:], rows[year:]
+
+    # the room for both, as the page ships its example: both spells, nothing more
+    heads, spells = right()
+    assert heads == ["Season starts", "Spells in autumn"], heads
+    assert spells == [["Indian summer", "2% a day"], ["Odd fog", "0.5% a day"]], spells
+    # room for two rows and three spells: one, and the two more
+    heads, spells = right(spells=grey)
+    assert spells == [["Grey rain", "1% a day"], ["and 2 more"]], \
+        "three spells, room for two rows: %s" % spells
+    # room for one row: the heading over how many there are
+    heads, spells = right(periods=two)
+    assert heads == ["Season starts", "Spells in autumn"] and spells == [["and 2 more"]], \
+        "two spells, room for one row: %s over %s" % (heads, spells)
+    # no room for a row: no heading
+    heads, spells = right(periods=three)
+    assert heads == ["Season starts"] and spells == [], \
+        "with no room left: %s over %s" % (heads, spells)
+    return "both with room; one and 2 more; 2 more under the heading; no heading without a row"
+
+
+@case
 def t_the_season_running_heads_the_page_and_says_why():
     """A pin, the dice and a spell each head the page with their season and its bar, say
     why beside what the calendar reads, and glow; with the dice on and nothing rolled, the
@@ -560,6 +599,42 @@ def t_mcm_has_a_switch_for_each_of_the_player_s_own():
     op = g.load_in(src, "zzz_seasons_of_the_zone_mcm", g).on_mcm_load()
     assert "yours" not in [op.gr[i].id for i in range(1, len(op.gr) + 1)]
     return "%d switches under 4 headings; none without any" % len(checks)
+
+
+@case
+def t_a_name_added_never_takes_another_s_switch():
+    """MCM keeps each switch by its key. "Cold snap" added beside "Cold_snap", which comes
+    out the same, took its key: the new spell came up with the old one's setting. Two that
+    come out alike each take a checksum of their own; a name alone keeps the key it had,
+    and gets it back once the other is gone."""
+    def crc(name):
+        return "%08x" % (season.zlib.crc32(name.encode("utf-8")) & 0xffffffff)
+    old = dict(SPELLS, Cold_snap={"in": ("autumn",), "chance": 3})
+    new = dict(old, **{"Cold snap": {"in": ("winter",), "chance": 3}})
+    with tables(spells=old) as s:
+        before = s.your_keys()
+    with tables(spells=new) as s:
+        after = s.your_keys()
+    with tables(spells={"Cold snap": {"in": ("winter",), "chance": 3}}) as s:
+        alone = s.your_keys()
+    # a name past ASCII always takes a checksum, so it leaves one alike its key
+    with tables(spells={"Cold snap": {"in": ("winter",), "chance": 3},
+                        "Cold snapé": {"in": ("winter",), "chance": 3}}) as s:
+        past = s.your_keys()
+    assert before[("spell", "Cold_snap")] == "spell_cold_snap", before
+    assert after[("spell", "Cold snap")] != before[("spell", "Cold_snap")], \
+        "the new spell took the old one's key, %s" % before[("spell", "Cold_snap")]
+    assert (after[("spell", "Cold_snap")], after[("spell", "Cold snap")]) == (
+        "spell_cold_snap_" + crc("Cold_snap"), "spell_cold_snap_" + crc("Cold snap")), after
+    for key in before:
+        if key != ("spell", "Cold_snap"):
+            assert after[key] == before[key], (key, before[key], after[key])
+    assert len(set(after.values())) == len(after), after
+    assert alone[("spell", "Cold snap")] == "spell_cold_snap", alone
+    assert past[("spell", "Cold snap")] == "spell_cold_snap", \
+        "one past ASCII took the key from one alike: %s" % past[("spell", "Cold snap")]
+    return "both alike take a checksum; %d others keep theirs; one alone keeps the bare key" \
+        % (len(before) - 1)
 
 
 @case

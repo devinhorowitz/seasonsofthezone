@@ -217,6 +217,82 @@ def t_rain_lines_are_read_as_numbers():
 
 
 @case
+def t_a_line_with_an_ending_of_its_own_is_dried_too():
+    """A CRLF weather with a line that ends in LF alone, as an edit in another editor
+    leaves it: rains() saw the rain on or after that line, but dry() split on CRLF only,
+    so the line didn't match and its rain stayed on in the winters. The game ends a line
+    at a CR or an LF, as rains() does; each line keeps its own ending."""
+    src = ("[00:00:00]\r\nrain_density = 0.6\r\nsky = 1\r\n"
+           "[01:00:00]\nrain_density = 0.8\r\n"          # the line before ends in LF alone
+           "[02:00:00]\r\nrain_density = 0.7\nfog = 300\r\n"   # the rain line itself does
+           "[03:00:00]\rrain_density = 0.5\r")                # a CR alone, an old Mac's
+    body, n = wr.dry(src)
+    assert not wr.rains(body), "rain left on: %s" % [l for l in body.splitlines()
+                                                      if l.startswith("rain_density = 0.")]
+    assert (body, n) == (
+        "[00:00:00]\r\nrain_density = 0\r\nsotz_rain_density = 0.6\r\nsky = 1\r\n"
+        "[01:00:00]\nrain_density = 0\r\nsotz_rain_density = 0.8\r\n"
+        "[02:00:00]\r\nrain_density = 0\nsotz_rain_density = 0.7\nfog = 300\r\n"
+        "[03:00:00]\rrain_density = 0\rsotz_rain_density = 0.5\r", 4), (body, n)
+    body, n = wr.dry("rain_density = 0.4")
+    assert (body, n) == ("rain_density = 0\nsotz_rain_density = 0.4", 1), (body, n)
+    # cp1251's ellipsis, read as latin-1, is a line break to str.splitlines(), not the game
+    assert not wr.rains("; heavy\x85rain_density = 0.9\r\n"), "a comment read as rain"
+    return "an LF line before the rain and on it, and a CR alone: all 4 dried, each " \
+           "ending kept; lines read as the game reads them"
+
+
+@case
+def t_a_copy_cut_short_is_made_again():
+    """A copy cut short as it was written (a full disk, a lock) kept its first line, which
+    names the right source, so it read as current, and the broken weather loaded every
+    winter. A copy is written beside its place and moved in whole."""
+    def cut(path, mode="r", *args, **kw):
+        fh = open(path, mode, *args, **kw)
+        if "w" not in mode:
+            return fh
+
+        class Full:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                fh.close()
+
+            def write(self, data):
+                fh.write(data[:len(data) // 3])
+                raise OSError(28, "No space left on device")
+        return Full()
+
+    with tempfile.TemporaryDirectory() as d:
+        mods = tree(d, LAYOUT)
+        wr.build(mods, ORDER)
+        newer = weather(("0.3", "0.3"), nl="\n")
+        tree(d, {"Atmospherics": {"w_rain1.ltx": newer}})
+        wr.open = cut
+        try:
+            wr.build(mods, ORDER)
+            raise AssertionError("the full disk went unsaid")
+        except OSError:
+            pass
+        finally:
+            del wr.open
+        got = wr.stale(mods, ORDER)
+        assert got != ([], [], []), "a copy cut short reads as current"
+        assert got == ([], ["w_rain1.ltx"], []), got
+        w = os.path.join(mods, wr.MOD, *wr.WEATHERS)
+        assert sorted(os.listdir(w)) == ["w_rain1.ltx", "w_rain5.ltx", "w_storm1.ltx"], \
+            "left behind: %s" % sorted(os.listdir(w))
+        old = LAYOUT["Atmospherics"]["w_rain1.ltx"]
+        assert copy_of(mods, "w_rain1.ltx").decode("latin-1") == \
+            wr.head_line("Atmospherics", sha(old)) + "\n" + kept_dry(old), "the old copy changed"
+        wr.build(mods, ORDER)
+        assert wr.stale(mods, ORDER) == ([], [], []), wr.stale(mods, ORDER)
+        assert sha(newer) in copy_of(mods, "w_rain1.ltx").decode("latin-1"), "not made again"
+    return "the write that fails leaves the old copy whole, read as changed; made again"
+
+
+@case
 def t_an_older_format_is_made_again():
     with tempfile.TemporaryDirectory() as d:
         mods = tree(d, LAYOUT)
@@ -323,6 +399,76 @@ def t_play_bat_makes_it_again_and_follows_a_new_weather_mod():
         assert rc == 0 and "for this launch" not in out and "made again" not in out, out
     return "a changed weather: status says so, apply makes it again; a new pack on top: " \
         "taken in and won over"
+
+
+WINTER = "Winter Weathers (seasonal)"
+
+
+@case
+def t_a_weather_mod_switched_on_for_winter_is_won_over_that_launch():
+    """A seasonal weather mod on in winter, set to win over Weather Expansion as No Rain in
+    Winter is. On the first winter launch, No Rain was made and placed from last season's
+    list, where that mod was off: the mod came on above it, and its rain won that launch.
+    It is made and placed from the list as the launch switches it, and as it places a mod
+    MO2's list doesn't have yet."""
+    mods = [(WINTER, False, {"w_rain5.ltx": weather(("0.9", "0.9")),
+                             "w_snow2.ltx": weather(("0.5", "0.5"))})] + RAIN_MODS
+    for listed in (True, False):
+        with tempfile.TemporaryDirectory() as d:
+            tc = sandbox(d, mods)
+            if not listed:
+                lines = [l for l in modlist(d) if l[1:] != WINTER]
+                io.open(os.path.join(d, "profiles", "Default", "modlist.txt"), "w",
+                        encoding="utf-8", newline="").write("\r\n".join(lines) + "\r\n")
+            tc.run(d, "rain", "--build")
+            io.open(os.path.join(d, "_tools", "seasons_config.py"), "w",
+                    encoding="utf-8").write("TOGGLE_MODS = {\n%s}\n" % "".join(
+                        '    "%s": {"when": ("winter", "winter_snow"), '
+                        '"above": "Weather Expansion"},\n' % n for n in (WINTER, wr.MOD)))
+            if listed:
+                rc, out = tc.run(d, "apply", "--season", "summer", tool="season.py")
+                assert rc == 0 and "-" + WINTER in modlist(d), out
+            rc, out = tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+            assert rc == 0, out
+            made = {f: m[0] for f, m in wr.made(os.path.join(d, "mods")).items()}
+            assert made.get("w_rain5.ltx") == WINTER and "w_snow2.ltx" in made, \
+                "made from last season's list%s: %s" % ("" if listed else ", %s not in it"
+                                                        % WINTER, made)
+            names = [l[1:] for l in modlist(d)]
+            assert names.index(wr.MOD) < names.index(WINTER), \
+                "%s is above it, and its rain wins: %s" % (WINTER, modlist(d))
+            assert above_of(d) == (WINTER, True), modlist(d)
+            rc, out = tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+            assert rc == 0 and "made again" not in out and "No Rain in Winter made" not in out, \
+                out
+    return "made from its weathers and above it on that launch, listed or added; the next " \
+           "has nothing to do"
+
+
+@case
+def t_a_missing_mod_is_said_to_be_made():
+    """With its folder gone, every weather it copies is new to it: it said "3 weathers
+    changed since it was made", of a mod that wasn't there."""
+    with tempfile.TemporaryDirectory() as d:
+        tc = sandbox(d)
+        tc.run(d, "rain", "--build")
+        tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+        import shutil
+        shutil.rmtree(os.path.join(d, "mods", wr.MOD))
+        rc, out = tc.run(d, "status", "--season", "winter_snow", tool="season.py")
+        said = [l.strip() for l in out.splitlines() if l.lstrip(" -").startswith("No Rain")]
+        assert rc == 0 and "changed since it was made" not in out, said or out
+        assert "No Rain in Winter isn't made yet: play.bat makes it from 3 weathers." in out, out
+        rc, out = tc.run(d, "rain")
+        assert rc == 0 and "changed since it was made" not in out, out
+        assert "No Rain in Winter isn't made yet: play.bat makes it from 3 weathers." in out, out
+        rc, out = tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+        said = [l.strip() for l in out.splitlines() if l.lstrip(" -").startswith("No Rain")]
+        assert rc == 0 and "No Rain in Winter made from 3 weathers." in out, said or out
+        assert sorted(wr.made(os.path.join(d, "mods"))) == [
+            "w_rain1.ltx", "w_rain5.ltx", "w_storm1.ltx"], "not made"
+        assert above_of(d) == ("Weather Expansion", True), modlist(d)
+    return "status and rain: it isn't made yet; apply: made from 3 weathers, and on"
 
 
 @case

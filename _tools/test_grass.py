@@ -240,6 +240,56 @@ def t_the_game_running_holds_the_grass_for_the_next_launch():
 
 
 @case
+def t_a_read_only_user_ltx_is_left_as_it_is():
+    """Players make user.ltx read-only so the game can't reset their settings. Every launch
+    that changed the grass then stopped with "Access is denied ... Run play.bat again", left
+    user.ltx.tmp beside it, and kept a read-only copy of it, which the pruning of the copies
+    couldn't delete. It is left as it is now, said once, and the launch goes on; so is the
+    LUT setting play.bat resets in it."""
+    said = "user.ltx is read-only"
+    with tempfile.TemporaryDirectory() as d:
+        p = scratch(d)
+        bk = os.path.join(d, "_baseline", "modfile-backups")
+        os.makedirs(bk)
+        # ten copies of it kept by 2.12.3, read-only as it was
+        old = ["user-202001%02d-120000-pre-grass.ltx" % n for n in range(1, 11)]
+        for f in old:
+            open(os.path.join(bk, f), "wb").write(USER.encode())
+            os.chmod(os.path.join(bk, f), 0o444)
+        os.chmod(p, 0o444)
+        try:
+            rc, out = tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+            assert rc == 0 and out.count(said) == 1 and "Stopped" not in out, out
+            assert open(p, "rb").read() == USER.encode(), "user.ltx was changed"
+            assert os.listdir(os.path.dirname(p)) == ["user.ltx"], os.listdir(os.path.dirname(p))
+            assert sorted(os.listdir(bk)) == old, "a copy was kept: %s" % os.listdir(bk)
+            assert not os.path.exists(os.path.join(d, "_baseline", "season-grass.json"))
+            # an ssfx_lut group the game's atlas lacks, to be reset in the same file: one word
+            atlas = os.path.join(d, "mods", "Grass Compat", "gamedata", *season.LUT_ATLAS)
+            os.makedirs(os.path.dirname(atlas))
+            open(atlas, "wb").write(season._dds_header(1) + bytes(season.LUT_GROUP))
+            lut = USER + "ssfx_lut (1.000000, 3.000000, 3.000000, 0.000000)" + CRLF
+            os.chmod(p, 0o666)
+            open(p, "wb").write(lut.encode())
+            os.chmod(p, 0o444)
+            rc, out = tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+            assert rc == 0 and out.count(said) == 1 and "Stopped" not in out, out
+            assert open(p, "rb").read() == lut.encode(), "user.ltx was changed"
+            # read-only no more: both are set, and the oldest copy goes, read-only as it is
+            os.chmod(p, 0o666)
+            rc, out = tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+            assert rc == 0 and "0.25 -> 0.4" in out and "ssfx_lut (user.ltx)" in out \
+                and said not in out, out
+            kept = sorted(os.listdir(bk))
+            assert len(kept) == 10 and old[0] not in kept and kept[:9] == old[1:], kept
+        finally:
+            os.chmod(p, 0o666)
+            for f in os.listdir(bk):
+                os.chmod(os.path.join(bk, f), 0o666)
+    return "said once for the grass and the LUT, nothing written, no copy; then both set"
+
+
+@case
 def t_switched_off_from_the_start_it_never_writes():
     with tempfile.TemporaryDirectory() as d:
         p = scratch(d)

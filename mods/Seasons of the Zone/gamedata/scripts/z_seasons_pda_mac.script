@@ -41,13 +41,15 @@ local function year_icon()
 end
 
 local TILED = false
+local ICON = nil            -- the icon the tile was last put with
 
 local function put_tile()
     -- `name` is the tile's own label. The section titles the PDA prints top left
     -- stay "The Year" and "Forecast", which are what each face is.
+    ICON = year_icon()
     mac_mcm.add_app("app_seasons", {
         name    = "pda_app_seasons",
-        texture = year_icon(),
+        texture = ICON,
         tab     = sotz_pda.VIEWS.year.tab,
         func    = ui_seasons_pda.get_ui,
     })
@@ -82,8 +84,31 @@ function has_tile()
     return TILED
 end
 
+-- The icon follows the season. It is read as the tile is put, and the scripts start before
+-- a save has a date: on the game's clock that is the clock file's day, the last session's,
+-- so a new game after a winter save showed winter, and on real time a turn in play went
+-- unseen. So while the tile is there it is put again whenever the icon would change: once
+-- the save is up, and at a turn, a pin, the dice or a spell. Looked at every few seconds,
+-- as the core looks at the day. A launcher on screen keeps the icon it was built with until
+-- it is opened again.
+local LOOK_MS = 5000
+local next_look = 0
+
+local function follow_season()
+    if not TILED then return end
+    local tg = time_global()
+    if tg < next_look then return end
+    next_look = tg + LOOK_MS
+    local icon = year_icon()
+    if icon == ICON then return end
+    ICON = icon             -- a tile MAC will not take back is tried once, and said once
+    remove_tile()
+    add_tile()
+end
+
 function on_game_start()
     if not (mac_mcm and mac_mcm.add_app) then return end
+    RegisterScriptCallback("actor_on_update", follow_season)
     local ok, tab = pcall(function() return sotz_pda.wants_tab() end)
     if ok and tab then return end
     add_tile()

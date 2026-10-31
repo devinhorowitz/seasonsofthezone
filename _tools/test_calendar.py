@@ -1385,6 +1385,241 @@ def t_the_season_tips_atmospherics_odds():
     return "autumn: rain x1.4, clear x0.7, once; the player's change re-based; off restores"
 
 
+# the grade's uniforms, read from the script's own UNIFORMS
+GRADE = re.findall(r'\{name = "(\w+)",\s+layer = "grade"',
+                   io.open(os.path.join(SCRIPTS, "zzz_seasons_of_the_zone.script"),
+                           encoding="utf-8").read())
+
+
+class Played(object):
+    """A game in play, from in_play()."""
+
+
+def in_play(date=(2026, 10, 10), mcm=None, game=None, console=None, options=None,
+            calendar=None, asked=None, pages=None, files=None):
+    """The shipped script as a load runs it: its callbacks registered and the first update
+    run. `console` is the engine's console, {command: value}, which user.ltx carries from one
+    load into the next; `options` is axr_options.ltx, {(section, key): text}, carried the same
+    way; a new in_play() is a new Lua state, as every load is. `game` puts the calendar on the
+    game's clock at that in-game (Y, M, D, h, mi); `asked` collects every string id asked for.
+    With `pages`, the option paths MCM's pages define, asking for any other logs "!MCM given
+    bad path" and gets nil, as MCM's ui_mcm.get does. `files` are what is on disk once the
+    script has loaded, {(alias, name): path}. .play(ms) runs the update loop, .sleep(game)
+    moves the in-game date, .option() is MCM's Apply; .sent holds the PDA messages, .shown
+    the notes on screen, .cmds the commands sent."""
+    w = Played()
+    w.mcm = {} if mcm is None else mcm
+    w.lua, w.g = lua, g = build(*date, mcm=w.mcm, calendar=calendar)
+    if asked is not None:
+        g.game["translate_string"] = translator(None, asked)
+    if pages is not None:
+        def get(path):
+            if path not in pages:
+                LOG.append("!MCM given bad path:%s" % path)
+                return None
+            return w.mcm.get(path)
+        g.ui_mcm = lua.table_from({"get": get})
+    if files is not None:
+        g.getFS = lambda: lua.table_from({
+            "exist": lambda self, alias, name: (alias, name) in files,
+            "update_path": lambda self, alias, name: files.get(
+                (alias, name), os.path.join(TMP, "missing", name))})
+    w.console = {} if console is None else console
+    w.options = {} if options is None else options
+    w.sent, w.shown, w.cmds = [], [], []
+
+    def execute(self, cmd):
+        name, _, val = str(cmd).partition(" ")
+        w.console[name] = val
+        w.cmds.append(name)
+    con = lua.table_from({"execute": execute,
+                          "get_string": lambda self, name: w.console.get(name)})
+    g.get_console = lambda: con
+
+    # ini_file_ex over axr_options.ltx, as axr_main.config is
+    def r_value(self, s, k, typ=0, default=None):
+        v = w.options.get((s, k))
+        if v is None:
+            return default
+        if typ == 1:
+            return v == "true"
+        if typ == 2:
+            try:
+                return float(v)
+            except ValueError:
+                return default
+        return v
+
+    def w_value(self, s, k, val, comment=None):
+        w.options[(s, k)] = ("true" if val is True else "false" if val is False
+                             else "" if val is None else str(val))
+    g.axr_main = lua.table_from({"config": lua.table_from({
+        "r_value": r_value, "w_value": w_value, "save": lambda self: None})})
+
+    hooks, clock = {}, {"t": 0}
+    g.RegisterScriptCallback = lambda name, fn: hooks.__setitem__(name, fn)
+    g.time_global = lambda: clock["t"]
+    g.CreateTimeEvent = lambda ev, act, delay, fn, *a: fn()
+    g.news_manager = lua.table_from({"send_tip": lambda actor, msg, *a: w.sent.append(msg)})
+    g.actor_menu = lua.table_from({"set_msg": lambda n, msg, *a: w.shown.append(msg)})
+    if game:
+        clock_world(lua, g, game=game)
+    g.zzz_seasons_of_the_zone.on_game_start()
+    hooks["actor_on_first_update"]()
+
+    def play(ms, step=1000):
+        for _ in range(ms // step):
+            clock["t"] += step
+            hooks["actor_on_update"]()
+    w.play = play
+    w.sleep = lambda to: clock_world(lua, g, game=to)
+    w.option = lambda: hooks["on_option_change"]()
+    return w
+
+
+@case
+def t_the_grade_goes_back_to_neutral_when_it_is_let_go():
+    """MCM says the grade returns to neutral when the mod is switched off. Switched off at
+    the main menu, where nothing of the mod runs, the load after it is a new Lua state that
+    never set a grade, and the last season's stayed in user.ltx. "Drive color and light"
+    turned off in play left it too. Given back once, it is left alone after, so a grade of
+    the player's own (cfg_load) isn't undone at every load."""
+    only = {"seasons_zone/main/intensity": 0.0, "seasons_zone/main/do_flora": False,
+            "seasons_zone/main/do_fog": False, "seasons_zone/main/do_wind": False,
+            "seasons_zone/main/do_wet": False}
+    neutral = in_play(mcm=only).console        # intensity 0 is the neutral baseline
+    assert sorted(neutral) == sorted(GRADE), sorted(neutral)
+
+    def grade(console):
+        return {n: console.get(n) for n in GRADE}
+    console, options = {}, {}
+    in_play(mcm={}, console=console, options=options)
+    autumn = dict(console)
+    assert grade(autumn) != neutral, "control: autumn's grade is the neutral one"
+    off = {"seasons_zone/main/enabled": False}
+    in_play(mcm=off, console=console, options=options)
+    assert grade(console) == neutral, "switched off at the menu, the load kept %s" % (
+        console["r__color_grading"])
+    console["r__color_grading"] = "(0.5000,0.6000,0.7000)"      # the player's own, since
+    w = in_play(mcm=off, console=console, options=options)
+    assert not w.cmds, "the next load sent %s" % w.cmds
+    # in play
+    console = {}
+    w = in_play(mcm={}, console=console)
+    w.mcm["seasons_zone/main/do_grade"] = False
+    w.option()
+    assert grade(console) == neutral, "color and light off kept %s" % (
+        console["r__color_grading"])
+    assert console["ssfx_fog"] == autumn["ssfx_fog"], "the fog let go with the grade"
+    w.mcm["seasons_zone/main/do_grade"] = True
+    w.option()
+    assert grade(console) == grade(autumn), "turned back on, the grade isn't autumn's"
+    return "neutral at the load after the menu and with color and light off; left alone after"
+
+
+@case
+def t_the_light_follows_the_zone_s_day_after_a_sleep():
+    """On the game's clock a sleep can carry the Zone past a turn. The PDA, the LUT and the
+    snow follow at the next five-second look; the grade, fog, wind and wetness waited for
+    the calendar's ten-minute re-check. With no transition, October 31 is autumn and November
+    1 winter."""
+    mcm = {"seasons_zone/main/clock": "game", "seasons_zone/main/blend_days": 0}
+    w = in_play(mcm=dict(mcm), game=(2018, 10, 31, 20, 0))
+    w.play(20000)
+    before = dict(w.console)
+    woke = in_play(mcm=dict(mcm), game=(2018, 11, 1, 8, 0)).console   # loaded that morning
+    for n in ("r__color_grading", "ssfx_fog", "ssfx_wind_grass", "ssfx_wetness_multiplier"):
+        assert before[n] != woke[n], "control: %s is the same in autumn and winter" % n
+    w.sleep((2018, 11, 1, 8, 0))
+    w.play(10000)
+    stale = sorted(n for n in woke if w.console.get(n) != woke[n])
+    assert not stale, "10 s after waking in winter, autumn's %s" % ", ".join(stale)
+    return "%d uniforms winter's within 10 s of waking on November 1" % len(woke)
+
+
+@case
+def t_each_marked_day_opens_with_its_transmission():
+    """A marked day's first transmission comes shortly after you load in, and the log says
+    which day it is. On the game's clock a sleep can bring a second one in the same session,
+    April 26, then August 22, and it got neither: both hung on state kept once a session."""
+    asked = []
+    quiet = {"seasons_zone/main/clock": "game", "seasons_zone/main/pda_greeting": False,
+             "seasons_zone/main/pda_turns": False, "seasons_zone/main/rem_weather": False,
+             "seasons_zone/main/rem_ann_weather": False,
+             "seasons_zone/main/rem_ann_artefacts": False}
+    w = in_play(mcm=quiet, game=(2019, 4, 26, 12, 0), asked=asked)
+    w.play(60000)
+    opened = [a for a in asked if a.startswith("st_sotz_rem_chernobyl_opens_")]
+    logged = [l for l in LOG if "remembrance day active" in l]
+    assert len(w.sent) == 1 and opened and len(logged) == 1, \
+        "control, a minute into April 26: %s, %s" % (w.sent, logged)
+    del w.sent[:], asked[:]
+    w.sleep((2019, 8, 22, 12, 0))
+    w.play(60000)
+    opened = [a for a in asked if a.startswith("st_sotz_rem_cs_opens_")]
+    logged = [l for l in LOG if "remembrance day active" in l]
+    assert len(w.sent) == 1 and opened, "a minute into August 22: %s" % w.sent
+    assert len(logged) == 2 and logged[1].endswith("cs (anniversary)"), logged
+    return "April 26's opening, then August 22's a minute after the sleep, each logged"
+
+
+@case
+def t_the_intensity_slider_says_nothing_about_the_season():
+    """The note on screen says the season moved. It was handed the log's label, which ends
+    in the intensity, so every move of MCM's Intensity slider said autumn had settled."""
+    w = in_play(date=(2026, 10, 10))
+    for v in (0.8, 0.85, 1.0):
+        w.mcm["seasons_zone/main/intensity"] = v
+        w.option()
+    assert not w.shown, w.shown
+    assert any("autumn @80% applied" in l for l in LOG), "the log lost the intensity"
+    w.mcm["seasons_zone/main/mode"] = "winter"
+    w.option()
+    assert w.shown == ["Winter has settled over the Zone."], w.shown
+    return "three moves of the slider, no note; a pin on winter still has one"
+
+
+def mcm_paths(calendar=None):
+    """Every option path the shipped MCM pages define, as MCM saves them."""
+    lua, g = build(2026, 7, 1, calendar=calendar)
+    src = io.open(os.path.join(SCRIPTS, "zzz_seasons_of_the_zone_mcm.script"),
+                  encoding="utf-8").read()
+    op = g.load_in(src, "zzz_seasons_of_the_zone_mcm", g).on_mcm_load()
+    out = set()
+
+    def walk(t, path):
+        for i in range(1, len(t.gr) + 1):
+            o = t.gr[i]
+            if o.gr is not None:
+                walk(o, path + o.id + "/")
+            elif o.id is not None:
+                out.add(path + o.id)
+    walk(op, op.id + "/")
+    return out
+
+
+@case
+def t_mcm_is_asked_only_for_pages_it_has():
+    """MCM has a page only for the seasons that are on, and asking it for an option no page
+    has logs "!MCM given bad path". Every load asked for each season's grade preset, the
+    ones turned off too. The preset chosen for a season that is on still applies: here
+    Seasons: Deep winter's grey for autumn, which the table has warm."""
+    known = mcm_paths(OWN)
+    assert "seasons_zone/autumn/preset" in known and "seasons_zone/spring/preset" not in known
+    name = "seasons_presets\\Seasons_DeepWinter.ltx"
+    preset = os.path.join(os.path.dirname(SCRIPTS), "configs", name.replace("\\", os.sep))
+    w = in_play(date=(2026, 10, 10), calendar=OWN, pages=known,
+                mcm={"seasons_zone/autumn/preset": "seasons_deepwinter",
+                     "seasons_zone/spring/preset": "seasons_deepwinter"},
+                files={("$game_config$", name): preset})
+    w.play(30000)
+    bad = [l for l in LOG if "bad path" in l]
+    assert not bad, bad
+    assert w.console["r__color_grading"] == "(0.7000,0.7000,0.7000)", \
+        "autumn's preset didn't apply: %s" % w.console["r__color_grading"]
+    return "a load and 30 s of play ask only for pages there are; autumn's preset applied"
+
+
 if __name__ == "__main__":
     print("  running the shipped calendar page under %s" % LUA_NAME)
     bad = 0

@@ -451,6 +451,57 @@ root.destroy()
 
 
 @case
+def t_today_s_weather_there_is_the_place_s_today():
+    """The forecast starts a day back (past_days=1), so its first day is the place's
+    yesterday: the editor's and the guided setup's "Today in" lines show the day the
+    place has now."""
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d)
+        driver = r'''
+import datetime, time
+import tkinter as tk
+import fetch_weather as fw
+import config_edit as ce
+import configure
+import guide
+today = datetime.date.fromisoformat(fw.place_today({"utc_offset_seconds": 7200}))
+days = [(today + datetime.timedelta(days=i)).isoformat() for i in (-1, 0, 1)]
+fw.get = lambda url, timeout=12: {"utc_offset_seconds": 7200, "daily": {
+    "time": days, "temperature_2m_max": [1.0, 22.0, 23.0],
+    "temperature_2m_min": [-5.0, 12.0, 13.0], "weather_code": [71, 0, 3]}}
+
+def settle(root, until):
+    for _ in range(200):
+        root.update()
+        if until():
+            break
+        time.sleep(0.02)
+
+root = tk.Tk()
+root.withdraw()
+app = configure.App(root, ce.Calendar(), ce.Install())
+app.check_place()
+settle(root, lambda: app.place_check.cget("text").startswith("Today"))
+print("EDITOR", app.place_check.cget("text"))
+root.destroy()
+root = tk.Tk()
+root.withdraw()
+g = guide.Guide(root, ce.Calendar(), ce.Install())
+g.steps("weather")
+g.check_place()
+settle(root, lambda: g.check_label.cget("text").startswith("Today"))
+print("GUIDE", g.check_label.cget("text"))
+root.destroy()
+'''
+        rc, out = drive(d, driver)
+        assert rc == 0, out
+        for window in ("EDITOR", "GUIDE"):
+            assert "%s Today in Chornobyl: high 22°C (72°F), low 12°C (54°F), clear." % (
+                window) in out, out
+    return "the editor's and the guide's line: 22°C and clear, not yesterday's 1°C and snow"
+
+
+@case
 def t_weather_days_come_from_the_place_s_own_reading():
     """freezing, thaw and heat come from the file fetch_weather.py leaves - but only when
     it is for the place the config names, and whatever alphabet the place's name is in."""

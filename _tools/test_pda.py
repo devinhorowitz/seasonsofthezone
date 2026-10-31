@@ -1025,6 +1025,61 @@ def t_a_load_closes_the_flat_faces():
     return "a load closes whichever face is open flat, and with none open does nothing"
 
 
+# actor_menu.is_hud_free as the base game has it (actor_menu.script, 9.12), over the state the
+# engine and _g.script keep: the actor menu's mode, the PDA's talk flag, and the windows that
+# registered themselves with Register_UI
+HUD = r"""
+pda.dialog_closed = true
+_GUIs = {}
+function Check_UI(name)
+    if name then return _GUIs[name] and true or false end
+    return next(_GUIs) ~= nil
+end
+actor_menu = {last_mode = 0}
+function actor_menu.get_last_mode() return actor_menu.last_mode end
+function actor_menu.is_hud_free()
+    return (actor_menu.last_mode == 0) and (pda.dialog_closed == true) and (not Check_UI())
+end
+"""
+
+
+@case
+def t_the_key_waits_while_another_window_is_up():
+    """The engine hands a key to the scripts before any window (Level_input.cpp), so the key
+    opened The Year over the inventory, a trade or a talk, and a letter bound to it fired as
+    the player typed a stash's name. It waits while actor_menu.is_hud_free says no, as a
+    quicksave does; over the PDA it still opens The Year flat."""
+    busy = (
+        ("the inventory", "actor_menu.last_mode = 1"),
+        ("a trade", "actor_menu.last_mode = 2"),
+        ("an upgrade", "actor_menu.last_mode = 3"),
+        ("a body searched", "actor_menu.last_mode = 4"),
+        ("a talk", "pda.dialog_closed = false; _GUIs.Dialog = {}; "
+                   "db.actor.is_talking = function() return true end"),
+        ("a stash's name typed", "_GUIs.UICreateStash = {path = 'item_backpack'}"),
+    )
+    for what, state in busy:
+        lua, g, opened, hooks = build_flat()
+        lua.execute(HUD)
+        lua.execute(state)
+        engine_press(g, hooks, KEY)
+        assert shown(g) == [], "the key opened %s over %s" % (shown(g), what)
+        assert list(opened) == [], "%s: the key went through the PDA: %s" % (what, list(opened))
+    # the window closed, the key works again: nothing is latched
+    lua.execute("_GUIs = {}")
+    engine_press(g, hooks, KEY)
+    assert shown(g) == ["year"], "after the stash's window closed: %s" % shown(g)
+    # the control: over the PDA, as on foot, The Year opens flat
+    lua, g, opened, hooks = build_flat()
+    lua.execute(HUD)
+    lua.execute("local m = ActorMenu.get_pda_menu(); m.IsShown = function() return true end; "
+                "db.actor.has_info = function(self, id) return id == 'ui_pda' end")
+    engine_press(g, hooks, KEY)
+    assert shown(g) == ["year"], "over the PDA: %s" % shown(g)
+    return "nothing over the inventory, a trade, an upgrade, a body, a talk or a typed name; " \
+           "over the PDA, The Year"
+
+
 # --- a tab of its own ---------------------------------------------------------------------------
 #
 # The shipped sotz_pda.script and z_seasons_pda_mac.script over stand-ins for Modded Exes' tab
@@ -1033,6 +1088,7 @@ def t_a_load_closes_the_flat_faces():
 
 TABS = r"""
 NOW = 0
+function time_global() return math.floor(NOW * 1000) end
 timers = {}
 function CreateTimeEvent(ev_id, act_id, delay, fn, ...)
     local id = ev_id .. "/" .. act_id
@@ -1154,11 +1210,16 @@ class Game(object):
     the PDA is built) and the first update; `seen` is what reached the registry by each step."""
 
     def __init__(self, mac=True, registry=True, addtab=True, option=False, bar=None,
-                 pages=False):
+                 pages=False, season=None):
         lua = self.lua = LuaRuntime(unpack_returned_tuples=True)
         g = self.g = lua.globals()
         lua.execute(PRELUDE)
         lua.execute(TABS)
+        if season is not None:
+            # the season the world runs, as the core answers for the tile's icon
+            g.SEASON = season
+            lua.execute("zzz_seasons_of_the_zone = "
+                        "{season_now = function() return {key = SEASON} end}")
         self.logs = []
         g.printf = lambda fmt, *a: self.logs.append(str(a[0]) if a else str(fmt))
         self.hooks = {}
@@ -1439,6 +1500,52 @@ def t_a_mac_that_refuses():
     assert gm.g.z_seasons_pda_mac.has_tile() is True and gm.g.sotz_pda.back_to_launcher() is True
     assert len(gm.logs) == 1 and "stays" in gm.logs[0], gm.logs
     return "a refused tile is logged and the scripts start; a tile MAC keeps stays reachable"
+
+
+@case
+def t_the_tile_follows_the_season():
+    """The tile's icon is the season the world runs, and it was read once, as the scripts
+    start. On the game's clock that is before a save has a date, so the clock file's day,
+    the last session's: a new game after a winter save showed winter. On real time a turn in
+    play went unseen."""
+    def update(gm, seconds):
+        gm.g.play(seconds)
+        gm.fire("actor_on_update")
+
+    def icon(gm):
+        t = gm.g.tiles.app_seasons
+        return t.texture if t is not None else None
+
+    gm = Game(season="winter")          # the scripts start on the last session's day
+    g = gm.g
+    assert icon(gm) == "sotz_app_year_winter", icon(gm)
+    # the save is up, and its day is in autumn: the tile again, with autumn
+    g.SEASON = "autumn"
+    update(gm, 0.1)
+    assert icon(gm) == "sotz_app_year_autumn", "after the load: %s" % icon(gm)
+    assert (g.adds, g.removed) == (2, 1), (g.adds, g.removed)
+    # a quiet while: the tile stays as it is
+    for _ in range(6):
+        update(gm, 5)
+    assert (g.adds, g.removed) == (2, 1), "put again with nothing changed: %s" % g.adds
+    # the turn to winter in play: the tile again within seconds, once
+    g.SEASON = "winter"
+    update(gm, 5)
+    update(gm, 5)
+    assert icon(gm) == "sotz_app_year_winter" and g.adds == 3, (icon(gm), g.adds)
+    assert gm.logs == [], gm.logs
+    # with the tab there is no tile to follow, and none comes for a turn
+    gm = Game(season="winter", option=True)
+    gm.g.play(1)
+    gm.g.SEASON = "autumn"
+    update(gm, 5)
+    assert icon(gm) is None and gm.g.adds == 0, (icon(gm), gm.g.adds)
+    # the tab going in play brings the tile back with the season it is then
+    gm.option(False)
+    update(gm, 0.01)
+    assert icon(gm) == "sotz_app_year_autumn", icon(gm)
+    return "winter as the scripts start, autumn once the save is up, winter at the turn; " \
+           "no tile with the tab"
 
 
 @case

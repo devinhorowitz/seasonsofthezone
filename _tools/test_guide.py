@@ -642,6 +642,208 @@ print("SAVED", said[-1][0])
             "over the mod it recolors; saved and placed")
 
 
+def grass_fomod(d):
+    """GRIP's and Homestead's shape: a pick-one group whose recommended option, "None",
+    installs no files, beside a page that only says what the mod is, a pick-at-most-one
+    group of two options that both install files, and the main files."""
+    import test_mod_install as tm
+    top = "Winter Grass 1.0"
+    xml = tm.fomod_xml([("Options", [
+        tm.group_xml("Intro", "SelectAny", [tm.plugin_xml("Read me", [])]),
+        tm.group_xml("LOD", "SelectExactlyOne", [
+            tm.plugin_xml("None", [], kind="Recommended"),
+            tm.plugin_xml("Grass LOD", [("folder", "gamedata\\textures\\lod",
+                                         "gamedata\\textures\\lod")])]),
+        tm.group_xml("Extras", "SelectAtMostOne", [
+            tm.plugin_xml("Bushes", [("file", "gamedata\\textures\\wg\\bush.dds", None)]),
+            tm.plugin_xml("Rocks", [("file", "gamedata\\textures\\wg\\rock.dds", None)])]),
+        tm.group_xml("Main", "SelectAll", [
+            tm.plugin_xml("Grass", [("file", "gamedata\\textures\\wg\\grass.dds", None)])])])])
+    return tm.make(os.path.join(d, top + ".7z"), {
+        top + "/fomod/ModuleConfig.xml": xml.encode("utf-8"),
+        top + "/gamedata/textures/lod/a.dds": b"lod a",
+        top + "/gamedata/textures/wg/bush.dds": b"bush",
+        top + "/gamedata/textures/wg/rock.dds": b"rock",
+        top + "/gamedata/textures/wg/grass.dds": b"grass"})
+
+
+OPEN_INSTALL = r"""
+import os
+gamma = os.path.dirname(sys.argv[1])
+guide.ask_winner = lambda *a, **k: True
+g.edit("mods")
+dlg = guide.InstallDialog(g, os.path.join(gamma, "Winter Grass 1.0.7z"))
+for _ in range(300):
+    settle(1)
+    if dlg.win is not None:
+        break
+dlg.name.set("Winter Grass")
+names = {p["id"]: p["name"] for p in dlg.pkg.fomod.plugins()}
+"""
+
+
+@case
+def t_an_option_that_installs_nothing_is_offered():
+    """A pick-one group's "None" installs no files: it is shown, and checked as the
+    installer recommends, so Install goes ahead. A pick-at-most-one group whose options all
+    install files gets a none of its own. A group that installs nothing is left out."""
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d)
+        grass_fomod(d)
+        rc, out = drive(d, OPEN_INSTALL + r"""
+from tkinter import ttk
+radios = [w for w in widgets(dlg.win) if isinstance(w, ttk.Radiobutton)]
+print("RADIOS", [str(w.cget("text")) for w in radios])
+print("INTRO", "Intro" in texts(dlg.win) or "Read me" in texts(dlg.win))
+print("CHOICE", sorted(names[p] for p in dlg.choice()))
+print("PROBLEMS", dlg.pkg.fomod.problems(dlg.choice()))
+for pid, (var, value) in dlg.chosen.items():
+    if names[pid] == "Rocks":
+        var.set(value)
+print("PICKED", sorted(names[p] for p in dlg.choice()))
+radios[-1].invoke()
+print("NONE AGAIN", sorted(names[p] for p in dlg.choice()))
+dlg.go()
+for _ in range(600):
+    settle(1)
+    if "Winter Grass" in g.cal.toggle:
+        break
+print("SAID", said)
+print("SEASONAL", "Winter Grass" in g.cal.toggle)
+""")
+        assert rc == 0, out
+        assert "RADIOS ['None', 'Grass LOD', 'Bushes', 'Rocks', 'None of these']" in out, out
+        assert "INTRO False" in out, out
+        assert "CHOICE ['Grass', 'None']" in out and "PROBLEMS []" in out, out
+        assert "PICKED ['Grass', 'None', 'Rocks']" in out, out
+        assert "NONE AGAIN ['Grass', 'None']" in out, out
+        assert "SAID []" in out and "SEASONAL True" in out, out
+        import test_mod_install as tm
+        got = tm.on_disk(os.path.join(d, "mods", "Winter Grass"))
+        assert got == ["gamedata/textures/wg/grass.dds", "meta.ini"], got
+    return "GRIP's None shown and checked, installed as is; a none for at most one; no intro"
+
+
+# install() held partway, until gate is set: it is running once going is
+HOLD_INSTALL = r"""
+import threading
+import mod_install
+going, gate, calls = threading.Event(), threading.Event(), []
+real = mod_install.install
+
+def held(pkg, name, chosen, extra, progress):
+    calls.append(name)
+
+    def wait(done, total):
+        progress(done, total)
+        if done:
+            going.set()
+            gate.wait(60)
+    return real(pkg, name, chosen, extra, wait)
+
+mod_install.install = held
+
+def until(test, n=600):
+    for _ in range(n):
+        settle(1)
+        if test():
+            break
+
+def alive(w):
+    try:
+        return bool(w.winfo_exists())
+    except tk.TclError:
+        return False
+
+def press(w, key):
+    # what `key` does in `w`: its binding, called as Tk calls it. The windows here are
+    # hidden, and a hidden window gets no keys.
+    script = w.bind(key)
+    if script:
+        w.tk.call(script.split("[", 1)[1].split()[0], "0", *["??"] * 18)
+"""
+
+
+@case
+def t_closing_while_a_mod_installs_is_refused():
+    """Closing the window, or the install dialog by Escape or its X, would cut the install
+    off partway: each says why it can't yet and stays open, and the files on their way are
+    not in mods\\ meanwhile. Once the mod is in, the window closes."""
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d)
+        grass_fomod(d)
+        rc, out = drive(d, HOLD_INSTALL + OPEN_INSTALL + r"""
+closed = []
+root.destroy = lambda: closed.append("window")
+dlg.go()
+until(going.is_set)
+g.close()
+if alive(dlg.win):
+    press(dlg.win, "<Escape>")
+    settle()
+if alive(dlg.win):
+    x = dlg.win.protocol("WM_DELETE_WINDOW")     # the window's X: destroy, unless set
+    root.tk.call(x) if x else dlg.win.destroy()
+    settle()
+print("CLOSED", closed, alive(dlg.win))
+print("SAID", said)
+print("MODS", [n for n in os.listdir(os.path.join(gamma, "mods")) if "Winter Grass" in n])
+gate.set()
+until(lambda: "Winter Grass" in g.cal.toggle)
+g.close()
+print("THEN", closed)
+del root.destroy
+""")
+        assert rc == 0, out
+        assert "CLOSED [] True" in out, out
+        why = "A mod is still being installed. Close the window once it's done."
+        assert "SAID [('showinfo', %r), ('showinfo', %r), ('showinfo', %r)]" % (
+            why, why, why) in out, out
+        assert "MODS []" in out and "THEN ['window']" in out, out
+        assert not os.path.exists(os.path.join(d, "_seasons_installing")), os.listdir(d)
+    return "the window, Escape and the dialog's X: each said why and stayed; closed once in"
+
+
+@case
+def t_enter_while_a_mod_installs_starts_no_second_one():
+    """Enter presses Install: pressed again while the mod installs, it starts nothing, and
+    nothing goes wrong when the install is done - nor when one ends refused with its dialog
+    gone."""
+    with tempfile.TemporaryDirectory() as d:
+        sandbox(d)
+        grass_fomod(d)
+        rc, out = drive(d, HOLD_INSTALL + OPEN_INSTALL + r"""
+dlg.go()
+until(going.is_set)
+press(dlg.win, "<Return>")
+dlg.go()
+settle()
+gate.set()
+until(lambda: "Winter Grass" in g.cal.toggle)
+settle(100)
+print("CALLS", calls, "SAID", said)
+# another, whose name is taken by the time it is done, and its dialog destroyed meanwhile
+dlg = guide.InstallDialog(g, os.path.join(gamma, "Winter Grass 1.0.7z"))
+until(lambda: dlg.win is not None)
+dlg.name.set("Winter Grass 2")
+going.clear()
+gate.clear()
+dlg.go()
+until(going.is_set)
+os.makedirs(os.path.join(gamma, "mods", "Winter Grass 2"))
+dlg.win.destroy()
+gate.set()
+until(lambda: g.installing is None)
+settle(50)
+print("GONE", calls[1:], "Winter Grass 2" in g.cal.toggle)
+""")
+        assert rc == 0, out
+        assert "CALLS ['Winter Grass'] SAID []" in out, out
+        assert "GONE ['Winter Grass 2'] False" in out, out
+        assert "Error" not in out and "Traceback" not in out, out
+    return "one install, no second; nothing said or raised once in, or once refused unseen"
+
+
 @case
 def t_making_a_mod_seasonal_says_what_is_at_stake():
     """Switching a mod off by season is safe for looks and sounds, and can leave a save

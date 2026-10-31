@@ -617,6 +617,78 @@ def t_configure_gives_a_season_a_lut_and_takes_it_off():
         return "set by name, 50% when left out, an unknown name refused, taken off"
 
 
+BAD_LUT = 'SEASON_LUTS = {\n    "winter": ("Kumo LUTs.zip", "00 data/LUT - Iris", 150),\n}\n'
+
+
+@case
+def t_a_lut_entry_play_bat_refuses_is_listed_and_replaced_by_the_commands():
+    """A SEASON_LUTS entry written by hand that play.bat refuses: `lut` lists it, and giving
+    its season a LUT, or none, replaces it, where it used to be written back as it was."""
+    with tempfile.TemporaryDirectory() as d:
+        scratch(d, BAD_LUT)
+        packs(d)
+        rc, out = tc.run(d, "lut", tool="configure.py")
+        assert rc == 0 and "can't be used" in out and "1 to 100" in out, out
+        rc, out = tc.run(d, "lut", "winter", "iris", "60", tool="configure.py")
+        assert rc == 0, out
+        ns = {}
+        exec(tc.config(d), ns)
+        assert ns["SEASON_LUTS"] == {"winter": ("Kumo LUTs.zip", "00 data/LUT - Iris", 60)}, ns
+        tc.accepted(d)
+        for args in (["winter", "--off"], ["--off"]):
+            io.open(os.path.join(d, "_tools", "seasons_config.py"), "w",
+                    encoding="utf-8").write(BAD_LUT)
+            rc, out = tc.run(d, "lut", *args, tool="configure.py")
+            assert rc == 0 and "Nothing changed" not in out, (args, out)
+            ns = {}
+            exec(tc.config(d), ns)
+            assert not ns.get("SEASON_LUTS"), (args, ns)
+            tc.accepted(d)
+    return "listed; a new LUT, --off for the season and --off for all each replace it"
+
+
+@case
+def t_a_lut_entry_play_bat_refuses_is_replaced_from_its_own_row_in_the_window():
+    """In the window, a pick in another season's row leaves the entry, and Save stays held
+    back; a pick in its own row, a LUT or none, replaces it."""
+    driver = r'''
+import sys
+sys.path.insert(0, sys.argv[1])
+import tkinter as tk
+import config_edit as ce
+import configure
+root = tk.Tk()
+root.withdraw()
+app = configure.App(root, ce.Calendar(), ce.Install())
+root.update()
+def pick(s, i):
+    cb = app.lut_rows[s][1]
+    cb.current(i)
+    cb.event_generate("<<ComboboxSelected>>")
+    root.update()
+pick("autumn", 1)
+print("other row", sorted(app.cal._bad_luts), app.save(quiet=True))
+pick("winter", 0)
+print("own row", sorted(app.cal._bad_luts), app.save(quiet=True))
+root.destroy()
+'''
+    with tempfile.TemporaryDirectory() as d:
+        scratch(d, BAD_LUT)
+        packs(d)
+        p = os.path.join(d, "drive.py")
+        io.open(p, "w", encoding="utf-8").write(driver)
+        r = subprocess.run([sys.executable, p, os.path.join(d, "_tools")], cwd=d,
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        out = r.stdout + r.stderr
+        assert r.returncode == 0 and "Traceback" not in out, out
+        assert "other row ['winter'] False" in out and "own row [] True" in out, out
+        ns = {}
+        exec(tc.config(d), ns)
+        assert set(ns["SEASON_LUTS"]) == {"autumn"}, ns
+        tc.accepted(d)
+    return "held back after a pick in autumn's row; none in winter's own row replaces it"
+
+
 # --- seasonal accents ------------------------------------------------------------------------
 
 def sweetfx(rgb, accent):

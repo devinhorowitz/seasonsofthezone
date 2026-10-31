@@ -721,6 +721,61 @@ def t_a_failure_leaves_nothing_behind():
     return "a damaged .zip and .7z; progress raising, as it raised: no mod or temp folder"
 
 
+@case
+def t_an_install_cut_off_leaves_nothing_in_mods():
+    """The window closed, Ctrl+C, a crash: the install stops where it is, with no chance to
+    clean up. Nothing of it is in mods\\, where MO2 would list it as a mod; the next install
+    clears what it left, and what older tools left in mods\\, but not the files of an
+    install still running in another window."""
+    with tempfile.TemporaryDirectory() as d, ticking():
+        mods = mods_in(d)
+        archive = rusty(os.path.join(d, "Rusty Leaves 2.1.7z"))
+        pkg = mi.Package(rusty(os.path.join(d, "Rusty Leaves 2.1.zip")))
+        cut = os.path.join(d, "cut.py")
+        open(cut, "w").write(
+            "import os, sys\nsys.path.insert(0, %r)\nsys.dont_write_bytecode = True\n"
+            "import mod_install as mi\nmi.TICK = 0\n\n"
+            "def progress(done, total):\n    if done:\n        os._exit(9)\n\n"
+            "mi.install(mi.Package(%r), 'Cut', progress=progress, mods=%r)\n"
+            % (HERE, archive, mods))
+        before = sorted(os.listdir(d))
+        r = subprocess.run([sys.executable, "-B", cut], capture_output=True, text=True)
+        assert r.returncode == 9, r.stdout + r.stderr
+        assert os.listdir(mods) == [], "in mods: %s" % os.listdir(mods)
+        left = sorted(set(os.listdir(d)) - set(before))
+        assert left, "the install cut off left nothing to clear, so this proves nothing"
+        # and what the tools before these left, in mods\ as they made it
+        os.makedirs(os.path.join(mods, "Old.installing-k2v9x_7q", "gamedata"))
+        # an install in another window, held partway while the next one runs: one texture
+        # written whole and closed, which a sweep that took its folder would delete
+        going, held, box = threading.Event(), threading.Event(), {}
+
+        def progress(done, total):
+            if done > 300 and not going.is_set():
+                going.set()
+                held.wait(30)
+
+        def other():
+            try:
+                box["out"] = mi.install(pkg, "Held", progress=progress, mods=mods)
+            except Exception as e:
+                box["error"] = e
+
+        t = threading.Thread(target=other)
+        t.start()
+        try:
+            assert going.wait(30), "the held install never started writing"
+            mi.install(pkg, "Next", mods=mods)
+        finally:
+            held.set()
+            t.join()
+        assert "error" not in box, "the running install's files went: %s" % box.get("error")
+        assert sorted(os.listdir(mods)) == ["Held", "Next"], os.listdir(mods)
+        assert on_disk(box["out"]) == sorted(TEXTURES + ["meta.ini"]), on_disk(box["out"])
+        assert sorted(os.listdir(d)) == before, "left %s" % (set(os.listdir(d)) - set(before))
+    return "nothing in mods; what it left cleared at the next install, a running one's kept"
+
+
 def multi_7z(path, parts):
     """A .7z with each file in a block of its own - the kind py7zr unpacks in threads when
     given the archive's path."""

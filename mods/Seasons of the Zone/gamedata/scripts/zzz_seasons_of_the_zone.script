@@ -104,8 +104,8 @@ local dte_said   = false
 
 local P          = nil   -- P[season][key] = number, loaded from the ltx
 local want       = nil   -- resolved command list for the current blend
--- What apply() last resolved, {mode, season}, for the MCM panel: ui_mcm.get() cannot
--- be called while the panel is being built.
+-- What apply() last resolved, {mode, season, ..., day}, for the MCM panel: ui_mcm.get()
+-- cannot be called while the panel is being built.
 local live       = nil
 local reasserts  = {}
 local fails      = {}
@@ -1063,7 +1063,8 @@ end
 local function overlay_presets(tbl)
     local paths
     for _, s in ipairs(PRESET_SEASONS) do
-        local sel = season_preset(s)
+        -- a season the calendar has off never runs, and has no MCM page to ask
+        local sel = (s == "neutral" or is_on(s)) and season_preset(s)
         if sel and sel ~= "builtin" and tbl[s] then
             paths = paths or preset_paths()
             sel = tostring(sel):lower()
@@ -1628,26 +1629,62 @@ local function enforce()
     end
 end
 
+-- Whether the console holds a grade this mod set. user.ltx keeps the grade from one
+-- session into the next, while the Lua state that knew starts over at every load, so a
+-- switch made at the main menu found nothing to give back. Kept in axr_options.ltx's
+-- [temp], where the base game and other mods keep such notes. nil until read.
+local grade_held = nil
+
+-- Whether the grade is held; with `on`, records that it now is or isn't
+local function hold_grade(on)
+    if grade_held == nil then
+        local ok, v = pcall(function()
+            return axr_main.config:r_value("temp", "seasons_zone_grade", 1, false)
+        end)
+        grade_held = (ok and v == true) or false
+    end
+    if on ~= nil and on ~= grade_held then
+        grade_held = on
+        pcall(function()
+            axr_main.config:w_value("temp", "seasons_zone_grade", on)
+            axr_main.config:save()
+        end)
+    end
+    return grade_held
+end
+
 local function apply(announce)
     if not P then return end
     local enabled = mcm("enabled", true)
+    local grading = enabled and mcm("do_grade", true)
+
+    -- Restore the grade to neutral when this mod stops driving it; nothing else sets those
+    -- values. The other layers are SSS's own and it re-pushes them itself. Once, so a grade
+    -- of the player's own (cfg_load) is left alone after.
+    local released = false
+    if not grading and hold_grade() then
+        local c = get_console()
+        for _, u in ipairs(build("neutral", "neutral", 1.0, 1.0, {grade = true})) do
+            c:execute(u.cmd)
+        end
+        hold_grade(false)
+        released = true
+    end
+
     if not enabled then
-        if want then
-            -- Restore the grade to neutral before letting go; nothing else sets those
-            -- values. The other layers are SSS's own and it re-pushes them itself.
-            local c = get_console()
-            for _, u in ipairs(build("neutral", "neutral", 1.0, 1.0, {grade = true})) do
-                c:execute(u.cmd)
-            end
+        if released then
             say("disabled in MCM - grade restored to neutral, releasing control")
+        elseif want then
+            say("disabled in MCM - releasing control")
         end
         want = nil
         live = nil          -- not driving anything, so claim no season on the panel
         return
     end
+    if released then say("color and light off in MCM - grade restored to neutral") end
 
     local layers = {
-        grade = mcm("do_grade", true), flora = mcm("do_flora", true),
+        grade = grading,               flora = mcm("do_flora", true),
         fog   = mcm("do_fog",   true), wind  = mcm("do_wind",  true),
         wet   = mcm("do_wet",   true),
     }
@@ -1665,11 +1702,13 @@ local function apply(announce)
     local roll = rolled()
     local spell = nil
     if pinned() == "auto" and not roll then spell = spell_today() end
-    live = {mode = mode, season = to, spell = spell, roll = roll}
+    -- `day` lets the update loop see a sleep on the game's clock move the day on
+    live = {mode = mode, season = to, spell = spell, roll = roll, day = zone_today().iso}
 
     want = build(from, to, k, intensity, layers)
     local c = get_console()
     for _, u in ipairs(want) do c:execute(u.cmd) end
+    if grading then hold_grade(true) end
 
     local label
     if from == to then
@@ -1677,6 +1716,10 @@ local function apply(announce)
     else
         label = string.format("%s->%s %d%%", from, to, math.floor(k * 100 + 0.5))
     end
+    -- the note on screen is for the season moving, so it compares the labels without the
+    -- intensity: MCM's Intensity slider moves nothing it speaks of
+    local blend = label
+    local last_blend = last_label and (last_label:gsub(" @%d+%%$", ""))
     if intensity < 1.0 then
         label = label .. string.format(" @%d%%", math.floor(intensity * 100 + 0.5))
     end
@@ -1695,7 +1738,7 @@ local function apply(announce)
                     matches(got, u.val, u.n) and "OK" or ("WANT " .. u.val)))
             end
         end
-        if last_label and label ~= last_label and mcm("notify", true)
+        if last_blend and blend ~= last_blend and mcm("notify", true)
            and actor_menu and actor_menu.set_msg then
             -- `label` is the log string, built from config keys; not for the player
             local said
@@ -1815,7 +1858,7 @@ end
 
 local REM_MS  = 5000          -- how often the day is re-checked; cheap either way
 local next_rem = 0
-local rem_said = false        -- the opening is once per session, not once per tick
+local rem_said = false        -- the opening is once per marked day, not once per tick
 
 -- Two kinds of day, deliberately not treated alike.
 --
@@ -1877,9 +1920,10 @@ local REMEMBRANCE = {
                        "owl", "barman", "beard"}},
 }
 
+-- today's marked day, or nil, and today as "YYYY-MM-DD"
 local function remembrance_today()
     local t = zone_today()
-    return REMEMBRANCE[t.month * 100 + t.day]
+    return REMEMBRANCE[t.month * 100 + t.day], t.iso
 end
 
 -- Hold the weather on a named cycle.
@@ -2116,7 +2160,7 @@ local function remembrance_announce(day)
     rem_next = tg + math.random(REM_GAP_MIN, REM_GAP_MAX)
 end
 
-local rem_logged = false
+local rem_logged = nil          -- the marked day said in the log, "YYYY-MM-DD"
 
 -- --- the sky a day holds, and Real Time Zone -----------------------------------------------
 --
@@ -2191,14 +2235,17 @@ function rtz_bridge()
 end
 
 local function remembrance_tick()
-    local day = remembrance_today()
+    local day, today = remembrance_today()
     if not day then
         hold_failed = nil
         return
     end
 
-    if not rem_logged then
-        rem_logged = true
+    -- Once a day. On the game's clock a sleep can bring a second marked day in one session,
+    -- which opens and is logged as the first one was.
+    if rem_logged ~= today then
+        rem_logged = today
+        rem_said, rem_bag = false, nil
         say("remembrance day active: " .. day.key .. " (" .. tostring(day.kind) .. ")")
     end
 
@@ -2331,6 +2378,9 @@ local function actor_on_update()
             wx_failed = true
             say("!weather messages failed: " .. tostring(whyw))
         end
+        -- A sleep on the game's clock can carry the Zone into a new day, and past a turn: the
+        -- light follows now, as the PDA and the LUT do, not at the next re-check
+        if live and live.day ~= zone_today().iso then next_date = 0 end
     end
     if tg >= next_date then
         next_date = tg + DATE_MS
@@ -3408,11 +3458,6 @@ function forecast_page()
         return v * 3600
     end
 
-    -- A band is a FRACTION of the period, never an hour count, so it keeps its meaning
-    -- whoever moves the frequency slider: at the stock 24 "building" is a few hours, at
-    -- 168 it is most of a day. This is the whole point of the coarse tier - it tells you
-    -- to get indoors without telling you exactly when, which is what the ecologists would
-    -- actually say over a radio.
     -- What a relayed warning is actually worth. The ecologists are reading their own
     -- instruments and passing a bulletin down a bunker relay; a bracket is honest about
     -- that in a way a single number would not be, and eight hours of slop still tells a

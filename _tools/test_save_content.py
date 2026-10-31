@@ -319,6 +319,64 @@ def t_each_kind_of_file_that_ties_a_save_is_found():
            "loadouts; a trader's door and a texture-only mod pass"
 
 
+# a winter monster mod: a squad, look-only variants, a smart terrain that spawns them, and
+# what makes no new object: DLTX edits of sections defined elsewhere, and the parents in
+# a weather file, NPC logic and the music's list, none of which the game makes objects from
+VARIANTS = {
+    "gamedata/configs/misc/squad_descr/squad_descr_winter.ltx": (
+        "[winter_dogs_squad]:online_offline_group\nfaction = monster\nnpc_random = dog_snow\n"
+        "npc_in_squad = 4, 6\n"),
+    "gamedata/configs/creatures/m_dog_snow.ltx": (
+        "[dog_snow]:dog_normal_red\nvisual = monsters\\dog\\dog_snow\n"),
+    "gamedata/configs/items/items/items_frost.ltx": (
+        "[af_frost]:af_ice                  ; no inv_ key: the look alone\n"
+        "visual = dynamics\\devices\\dev_artefacts\\af_frost\n"
+        "![af_ice]\nvisual = dynamics\\devices\\dev_artefacts\\af_ice_winter\n"
+        "@[af_compass]\nvisual = dynamics\\devices\\dev_artefacts\\af_compass_winter\n"
+        "@[af_glacier]:af_ice              ; made when no other mod has it\n"),
+    "gamedata/configs/mod_system_winter_squads.ltx": (
+        "[winter_boars_squad]\nclass = ONLINE_OFFLINE_GROUP_S\nnpc = boar_strong, boar_strong\n"
+        "![esc_dogs_squad]\nnpc_random = dog_snow\n"
+        "@[mil_dogs_squad]\nnpc_random = dog_snow\n"),
+    "gamedata/configs/scripts/escape/smart/esc_smart_terrain_2_12.ltx": (
+        "[smart_terrain]\nsquad_id = 1\nrespawn_params = respawn@esc\n[respawn@esc]\n"
+        "spawn_winter\n[spawn_winter]\nspawn_squads = winter_dogs_squad\nspawn_num = 2\n"),
+    "gamedata/configs/environment/weathers/w_indoor_winter.ltx": (
+        "[default]\nsky_color = 0.1, 0.1, 0.1\n[00:00:00]:default\n[12:00:00]:default\n"),
+    "gamedata/configs/scripts/escape/esc_winter_logic.ltx": (
+        "[logic@esc_winter]:logic@base\nactive = walker@esc_winter\n"
+        "[walker@esc_winter]:walker@base\npath_walk = esc_winter_walk\n"),
+    "gamedata/configs/game_levels_music.ltx": (
+        "[background_music_winter]\nmusic\\level\\winter_01 = 6, 21, 0.40, 20, 40\n"
+        "[background_music_mix_normal_maps]:background_music_winter\n"),
+}
+
+
+@case
+def t_squads_variants_and_smart_terrains_tie_a_save_too():
+    """A save keeps squads and monsters by their sections' names too. A squad, a variant
+    that inherits a spawnable section and changes only its look, and a smart terrain's
+    spawns are each found, and an @[...] that names a parent, which makes the section when
+    no other file has it. DLTX's ! and @ edits of a section defined elsewhere aren't, nor
+    the parents in a weather file, NPC logic or the music's list."""
+    with tempfile.TemporaryDirectory() as d:
+        for rel, text in VARIANTS.items():
+            write(d, "Winter Wolves", rel, text)
+        got = {rel: (kind, detail) for rel, kind, detail in
+               season.save_content(os.path.join(d, "mods", "Winter Wolves"))}
+    want = {
+        "gamedata/configs/misc/squad_descr/squad_descr_winter.ltx": ("spawns", None),
+        "gamedata/configs/creatures/m_dog_snow.ltx": ("items", ["dog_snow"]),
+        "gamedata/configs/items/items/items_frost.ltx": ("items", ["af_frost", "af_glacier"]),
+        "gamedata/configs/mod_system_winter_squads.ltx": ("items", ["winter_boars_squad"]),
+        "gamedata/configs/scripts/escape/smart/esc_smart_terrain_2_12.ltx": ("spawns", None)}
+    missed = sorted(set(want) - set(got))
+    assert not missed, "missed: %s" % ", ".join(r.rsplit("/", 1)[-1] for r in missed)
+    assert got == want, got
+    return "a squad, two look-only variants, a squad by its members, a smart terrain; " \
+           "the edits, a weather file, NPC logic and music pass"
+
+
 @case
 def t_a_mod_that_puts_things_into_saves_is_left_as_it_is():
     """Without "save_content": True each of the four stays as it is in MO2, said and counted;

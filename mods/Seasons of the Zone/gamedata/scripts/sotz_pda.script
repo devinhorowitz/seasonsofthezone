@@ -126,14 +126,26 @@ function flat_open()
     return nil
 end
 
+-- Whether nothing else has the player: no inventory, trade, upgrade or loot, no talk, and no
+-- window up that registered itself with _g.script's Register_UI, as the base game's windows
+-- with a text field do (a stash's name, the numpad). The engine has no call that says a text
+-- field has focus, so this asks what the base game asks before a quicksave. The PDA is none
+-- of these: the key opens The Year flat over it.
+local function hud_free()
+    local ok, free = pcall(function() return actor_menu.is_hud_free() end)
+    return not (ok and free == false)
+end
+
 -- The key opens The Year a moment after the press, not on it. The engine hands a key to the
 -- scripts before the UI (Level_input.cpp: on_key_press, then IR_UIOnKeyboardPress), so a
 -- window opened during the press becomes the UI's receiver for that same press, and the app
 -- key closes a flat face: it opened and closed in one frame, and nothing showed. While a
--- face is open the press is the face's to close it, so this leaves it alone.
+-- face is open the press is the face's to close it, so this leaves it alone. For the same
+-- reason the press reaches here over another window, or as the player types in one, and
+-- waits for it (hud_free).
 local function on_key_press(key)
     local k = app_key()
-    if not (k and key == k) or flat_open() then return end
+    if not (k and key == k) or flat_open() or not hud_free() then return end
     CreateTimeEvent("sotz_pda", "open_flat", 0, function()
         open_flat("year")
         return true
