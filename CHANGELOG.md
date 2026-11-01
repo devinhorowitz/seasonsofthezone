@@ -1,5 +1,73 @@
 # Changelog
 
+## 2.12.4 — 2026-10-31
+
+Fixes from a top-down bug sweep.
+
+- **The grade goes back to neutral when the mod lets go of it.** Switching the atmosphere off
+  at the main menu, then loading, kept the last season's grade, and user.ltx kept it too.
+  Turning "Drive color and light" off during play never gave the grade back. Both now restore
+  neutral once, and a grade of your own set after that is left alone.
+- **The light follows a sleep.** On the game's clock, a sleep past a turn moved the PDA, the
+  LUT and the snow within seconds, but the grade, fog, wind and wetness kept the old season
+  for up to 10 minutes. They now follow within 5 seconds.
+- **Every marked day opens with its transmission.** On the game's clock, a second marked day
+  in one session had none. Moving Intensity no longer says the season "has settled", and a
+  season that is off no longer logs a bad MCM path at every load.
+- **The save check sees squads, look-only variants and smart terrains.** A seasonal mod that
+  adds a squad, a variant of a monster or an artefact that only changes its look, or a smart
+  terrain's spawns could be switched, and a save made while it was on then held objects
+  that vanished. Such a mod now stays as it is, as one with new items does.
+- **No Rain in Winter wins from the first winter launch.** It was made from last season's
+  mod list, so a weather mod switched on for the winter won its rain for that launch. A
+  weather copy cut short (a full disk) is now made again, a line ending in LF alone in a CRLF
+  weather is dried too, and a missing No Rain mod is said to be made, not "changed".
+- **A texture set whose files share a size and a time is staged.** robocopy skipped such a
+  file, the check after it stopped the launch, and every launch after stopped the same way.
+- **play.bat:**
+  - It starts an MO2 entry whose name has a comma, a semicolon or an equals sign.
+  - A mod set to win over one just installed is placed at once, not on the launch after.
+  - A read-only user.ltx is left as it is: play.bat stopped at every grass change, and now
+    says once that the grass stays as you set it.
+  - Texture sets come from the downloads folder MO2 names, when it was moved.
+  - The newest ten copies of MO2's list are kept, as for the other backups; copies made by
+    hand are never touched.
+  - With MO2 open, no dial is drawn, so "Nothing was changed" is true.
+  - "Cold snap" added beside "Cold_snap" no longer takes its PDA message switch.
+- **The settings editor:**
+  - A broken LUT entry can be cleared or replaced, and `lut` lists it.
+  - "on" and "off" typed for a text MCM option stay text.
+  - Edit... then Save keeps an event's weeks, like `(1, 3)` or `(-2,)`.
+  - A rename onto the name of a season or spell play.bat can't use is refused, instead of
+    deleting it.
+  - "Start a new one" on a read-only config says so instead of crashing.
+  - A new event named like a broken one replaces it.
+  - The preview reads a cp1251 config's Cyrillic mod names.
+  - `list`, the summary and `preset save` see what play.bat refuses in WEATHER_PLACE and in
+    tables set to None.
+  - A name past its limit can be shortened with Backspace, here, in the guided setup and in
+    the season and spell dialogs.
+  - One CRLF line no longer turns a whole LF config CRLF.
+- **The setup:**
+  - "Today's weather there" shows today, not yesterday.
+  - A FOMOD option that installs nothing ("None") can be picked, and a pick-at-most-one
+    group has a "None of these".
+  - A mod is built beside `mods\`, so closing the setup partway leaves nothing for MO2 to
+    list; the window won't close while a mod installs, and Enter starts no second install.
+  - An untouched translation is updated rather than merged, and an edited one isn't merged
+    again every run.
+  - A tools update and the step that sets play.bat's MO2 entry wait out a virus scanner, and
+    an update that can't finish changes nothing.
+  - The snowfall patch keeps a cp1251 ellipsis in a comment, and finds the mods folder when
+    double-clicked in the mod's own `patches` folder.
+- **The PDA app:**
+  - The LIMITED tier's blowout and psi `fraction` follows the frequency option, as the
+    CLEARED tier's does: "8 to 16 hours" of a 48-hour psi storm reads 0.25, not 0.50.
+  - The app key waits while the inventory, trade, loot or a talk is up, or a window that
+    takes typing.
+  - Mod App Creator's tile icon follows the season, the save's after a load.
+  - The Year shows no spells heading without rows, and says "and N more".
+
 ## 2.12.3 — 2026-10-31
 
 - **The real weather's hours cover the night the clock goes back.** `play.bat` writes

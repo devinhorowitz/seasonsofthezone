@@ -87,7 +87,7 @@ def _downloads():
 
 DOWNLOADS = _downloads()
 SOTZ = "Seasons of the Zone"
-VERSION = "2.12.3"          # of the tools; build_release.py checks it against CHANGELOG.md
+VERSION = "2.12.4"          # of the tools; build_release.py checks it against CHANGELOG.md
 SEASONS = ("spring", "summer", "autumn", "winter", "winter_snow", "late_winter")
 
 
