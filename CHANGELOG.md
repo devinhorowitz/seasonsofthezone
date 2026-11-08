@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Foliage on Atmospherics RC8.** The README shows each season's leaf translucency beside
+  RC8's new SSS24 default, in three Cordon views. The seasons' values stay: the sun tint
+  scales the light, so they reach the leaves at about RC8's strength, and warmer.
+
 ## 2.12.4 — 2026-10-31
 
 Fixes from a top-down bug sweep.

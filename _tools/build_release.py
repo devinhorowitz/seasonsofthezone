@@ -41,9 +41,11 @@ MARKER = "gamedata/scripts/zzz_seasons_of_the_zone.script"
 # where season.py writes the gated ambient presets; must match SOUND_REL there
 SOUND_REL = ("configs", "environment", "ambients", "presets")
 
-# Images for the GitHub page only: the README's season animation would add 4 MB to a
-# 6 MB download. The packaged README links to the copy on GitHub instead.
-WEB_ONLY = ["docs/images/seasons.webp"]
+# Images for the GitHub page only: the README's season animation and the foliage
+# comparisons would add 9 MB to a 6 MB download. The packaged README links to the copies
+# on GitHub instead.
+WEB_ONLY = ["docs/images/seasons.webp", "docs/images/foliage-rc8-forest.jpg",
+            "docs/images/foliage-rc8-village.jpg", "docs/images/foliage-rc8-field.jpg"]
 WEB_BASE = "https://github.com/devinhorowitz/seasonsofthezone/raw/main/"
 
 # What MO2's Anomaly plugin accepts at the top of an archive

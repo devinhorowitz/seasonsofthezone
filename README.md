@@ -62,6 +62,25 @@ and renames them, for a year of only summer and deep winter, say, or one on Ukra
 meteorological dates. A season turned off gives its days to the one before it, and the
 game, MCM and the dial all follow.
 
+### Foliage on SSS24 and Atmospherics RC8
+
+Each season sets how much sunlight passes through leaves and grass, and how much of the
+sun's color it takes. Atmospherics 2.69 RC8 moved SSS24's defaults to 0.7 in white light.
+The sun tint scales that light, so the seasons reach the leaves at about RC8's strength: a
+little more from spring to autumn, less in the winters, and warmer. Each row below is one
+launch at 09:00 under a clear sky; only the leaf values change across it.
+
+![Leaf translucency through the year at a fallen tree in Cordon: RC8's default beside Seasons' value for each of the six seasons](docs/images/foliage-rc8-forest.jpg)
+
+<details>
+<summary>Two more views: the rookie village and a grass slope</summary>
+
+![Leaf translucency through the year in the rookie village: RC8's default beside Seasons' value for each of the six seasons](docs/images/foliage-rc8-village.jpg)
+
+![Leaf translucency through the year on a grass slope toward the sun: RC8's default beside Seasons' value for each of the six seasons](docs/images/foliage-rc8-field.jpg)
+
+</details>
+
 ---
 
 ## The calendar underneath
