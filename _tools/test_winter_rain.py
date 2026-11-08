@@ -570,6 +570,42 @@ def t_off_the_calendar_it_goes_off_at_the_next_launch():
     return "off the calendar, off at the next launch; one of that name it didn't make stays"
 
 
+@case
+def t_a_weather_mod_turned_off_takes_its_copies_with_it():
+    """Weather Expansion off, as GAMMA retires it: its copies named its own sun, and with WE's
+    suns.ltx gone the game stops as it starts (a player's crash, 2026-10-24). The next launch
+    with MO2 closed makes No Rain in Winter again without them before it checks the weathers,
+    and wins over the mod it now copies; rain --build keeps that in the setup."""
+    suns = "[sunset_sunrise]\r\nsun_color = 1, 1, 1\r\n"
+    mods = [("Weather Expansion", True, {
+                "w_rain5.ltx": weather(("0.66", "1"), extra=["        sun = cloudy_dark_special"]),
+                "w_clear4.ltx": weather(("0", "0"))}),
+            RAIN_MODS[1]]
+    with tempfile.TemporaryDirectory() as d:
+        tc = sandbox(d, mods)
+        for mod, text in (("Weather Expansion", suns + "[cloudy_dark_special]\r\nsun_color = 1\r\n"),
+                          ("Atmospherics", suns)):
+            io.open(os.path.join(d, "mods", mod, "gamedata", "configs", "environment",
+                                 "suns.ltx"), "w", encoding="latin-1", newline="").write(text)
+        tc.run(d, "rain", "--build")
+        rc, out = tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+        assert rc == 0 and "w_rain5.ltx" in wr.made(os.path.join(d, "mods")), out
+        p = os.path.join(d, "profiles", "Default", "modlist.txt")
+        lines = [("-" + l[1:]) if l[1:] == "Weather Expansion" else l for l in modlist(d)]
+        io.open(p, "w", encoding="utf-8", newline="").write("\r\n".join(lines) + "\r\n")
+        rc, out = tc.run(d, "apply", "--season", "winter_snow", tool="season.py")
+        assert rc == 0 and "cloudy_dark_special" not in out, out
+        assert sorted(wr.made(os.path.join(d, "mods"))) == ["w_rain1.ltx", "w_storm1.ltx"], \
+            sorted(wr.made(os.path.join(d, "mods")))
+        names = [l[1:] for l in modlist(d)]
+        assert names.index(wr.MOD) < names.index("Atmospherics") and above_of(d)[1], modlist(d)
+        assert "rain --build" in out, "no word that the setup still names Weather Expansion:\n" + out
+        rc, out = tc.run(d, "rain", "--build")
+        cfg = tc.table(d)[0].get(wr.MOD)
+        assert rc == 0 and cfg["above"] == "Atmospherics", (cfg, out)
+    return "its copy and its sun gone at the next launch; wins over Atmospherics, kept by rain --build"
+
+
 if __name__ == "__main__":
     print("  No Rain in Winter, in a scratch GAMMA folder")
     bad = 0
