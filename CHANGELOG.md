@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **A Year in the Zone, on video.** The README links a 2:41 video of the six seasons in
+  Cordon: the same camera moves filmed in each, with the date running on the Zone's own
+  calendar and each season's mods named as it arrives.
 - **Foliage on Atmospherics RC8.** The README shows each season's leaf translucency beside
   RC8's new SSS24 default, in three Cordon views. The seasons' values stay: the sun tint
   scales the light, so they reach the leaves at about RC8's strength, and warmer.

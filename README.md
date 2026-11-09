@@ -12,6 +12,11 @@ Light, color, fog, wind, wetness, snowfall, and ambient sound change with the da
 blend across each season boundary. Nothing to download beyond this mod, nothing to
 configure.
 
+[![One Cordon street in all six seasons, from spring to late winter. Click to watch A Year in the Zone on YouTube.](docs/images/year-in-the-zone.jpg)](https://youtu.be/n7p4iXlqmh4)
+
+*[A Year in the Zone](https://youtu.be/n7p4iXlqmh4) (2:41): the same camera moves filmed in
+all six seasons, with the date running on the Zone's own calendar.*
+
 That is the part that works out of the box. Underneath it is a scheduler, and the six
 seasons are the calendar it ships with — see
 **[the calendar underneath](#the-calendar-underneath)**.
