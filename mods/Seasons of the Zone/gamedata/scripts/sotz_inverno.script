@@ -20,6 +20,13 @@
 -- warm. INVERNO 1.09 without the update freezes at any temperature, since it takes the
 -- absolute value, so it keeps its own numbers, and its cold runs only on a day that freezes.
 --
+-- Season preset. INVERNO's mechanics update of November 2026 has a Season Preset on its MCM page
+-- (season_mode: 1 winter, 2 autumn, 3 spring, 4 summer) that sets its temperature range, its
+-- indoor warmth and how often it snows; summer has no snow at all. While this mod drives INVERNO,
+-- INVERNO reads the preset of the season this mod runs: spring, summer and autumn their own, the
+-- three winters winter, and a season of the player's own winter when it has snow. The value in
+-- INVERNO's options is left as the player set it, and stands again when this mod lets go.
+--
 -- When this mod can't say, INVERNO's own value stands: a gate that doesn't know returns nil.
 
 local ON_MS = 1000
@@ -75,20 +82,47 @@ local function snowless()
     return snowless_cached
 end
 
+-- INVERNO's season preset for each of this mod's seasons
+local PRESET = {spring = 3, summer = 4, autumn = 2, winter = 1, winter_snow = 1, late_winter = 1}
+local preset_cached, preset_until = nil, -1
+
+-- the preset of the season this mod runs, read once a second like the switches; nil when this mod
+-- can't say, or for a season of the player's own without snow
+local function season_preset()
+    local tg = time_global()
+    if tg < preset_until then return preset_cached end
+    preset_until = tg + ON_MS
+    local s = sotz_api.season()
+    local p = nil
+    if s and s.key then
+        p = PRESET[s.key]
+        if p == nil and (s.snow or 0) > 0 then p = 1 end
+    end
+    preset_cached = p
+    return p
+end
+
 -- INVERNO is here: its options, which every file of it reads
 function present()
     return project_inverno_mcm ~= nil and type(project_inverno_mcm.get_config) == "function"
 end
 
 -- An option this mod holds off: false while its gate is shut, the player's own value
--- otherwise. INVERNO reads every option through get_config, its own file included, by the
--- name in that file's table.
-local function gate_options(mcm, gates)
+-- otherwise. An option this mod sets: its value while it has one, the player's own otherwise.
+-- INVERNO reads every option through get_config, its own file included, by the name in that
+-- file's table.
+local function gate_options(mcm, gates, sets)
     local get = mcm.get_config
     mcm.get_config = function(key, ...)
         local v = get(key, ...)
+        if not on() then return v end
+        local set = sets and sets[key]
+        if set then
+            local w = set()
+            if w ~= nil then return w end
+        end
         local gate = gates[key]
-        if gate and on() and gate() == false then return false end
+        if gate and gate() == false then return false end
         return v
     end
 end
@@ -185,7 +219,7 @@ function on_game_start()
             gates.enable_inverno_mechanics = freezing_day
         end
     end
-    gate_options(project_inverno_mcm, gates)
+    gate_options(project_inverno_mcm, gates, {season_mode = season_preset})
     if not snowfall then
         printf("[seasons] ! INVERNO's snowfall file isn't one this mod knows, so its snow can "
             .. "fall in any season")

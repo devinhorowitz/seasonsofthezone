@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **INVERNO's Season Preset follows the season.** INVERNO's November 2026 update has a Season
+  Preset on its MCM page that sets its snow chances and indoor warmth, and no snow in
+  summer. With **INVERNO follows the season** on, INVERNO now reads the preset of the season
+  this mod runs: spring, summer and autumn their own, the three winters Winter, and a season
+  of your own Winter when it has snow. Nothing is written to INVERNO's options, and the
+  temperature stays this mod's. The README says to leave the update's new cloud shader out of
+  the always-on survival copy.
 - **A Year in the Zone, on video.** The README links a 2:41 video of the six seasons in
   Cordon: the same camera moves filmed in each, with the date running on the Zone's own
   calendar and each season's mods named as it arrives.

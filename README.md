@@ -779,7 +779,9 @@ if you want the survival system, keep it in a mod of its own that stays on all y
   in July. Keep `gamedata\particles` in it: its snowfall script makes those particles as a
   save loads, and a load without them crashes. Keep the `.db` too, or the snow falls as
   squares. `play.bat` stops a launch without the particles, warns about one without the
-  textures, and says what to copy.
+  textures, and says what to copy. INVERNO's November update adds `gamedata\shaders` with
+  its own cloud shader; leave that folder out of this copy too, or INVERNO's clouds replace
+  your shader pack's all year.
 
 From there, this mod runs INVERNO by the season: **INVERNO follows the season** on MCM's
 Main page, on by default and shown when INVERNO is installed.
@@ -794,11 +796,18 @@ Main page, on by default and shown when INVERNO is installed.
   warm. So the cold bites only on the coldest real nights.
 - Without that update, INVERNO keeps its own temperatures, always below zero, and its cold
   runs only on days that freeze.
+- With INVERNO's update of November 2026 (on its Google Drive, copied over the installed
+  INVERNO), its **Season Preset** follows this mod's season: spring, summer and autumn
+  their own, the three winters Winter, and a season of your own Winter when it has snow. The
+  temperature stays this mod's; the preset sets how often INVERNO snows and how warm it is
+  indoors, and in summer it doesn't snow at all. The pick on INVERNO's page stands again when
+  either switch is off.
 
 INVERNO 1.09.11's weather key, on its MCM page and Backslash unless you change it, steps its
 snow by hand in the winters, as INVERNO ships it. If Backslash already does something in your
-setup, give INVERNO another key. Each press also starts a second set of snow that stays where
-you pressed it, an INVERNO bug this mod clears only out of season.
+setup, give INVERNO another key. Before INVERNO's November update, each press also started a
+second set of snow that stayed where you pressed it; this mod clears it out of season, and the
+update fixes it.
 
 None of INVERNO's options is written: one you turn off on its MCM page stays off. Its
 mechanics are on as it installs, so a character can start freezing with no warning;

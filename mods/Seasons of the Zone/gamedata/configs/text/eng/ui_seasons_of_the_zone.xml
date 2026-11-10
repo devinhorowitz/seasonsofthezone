@@ -163,7 +163,7 @@
 		<text>INVERNO follows the season</text>
 	</string>
 	<string id="ui_mcm_seasons_zone_inverno_desc">
-		<text>Project INVERNO's snow and fog fall only in the winters. With INVERNO's winter mechanics update, its temperature is this mod's, from the real weather, so its cold bites only below -10 C, on the coldest real nights. Without that update, its cold runs only on days that freeze. An INVERNO option you turn off on its own page stays off.</text>
+		<text>Project INVERNO's snow and fog fall only in the winters. With INVERNO's winter mechanics update, its temperature is this mod's, from the real weather, so its cold bites only below -10 C, on the coldest real nights. Without that update, its cold runs only on days that freeze. With INVERNO's November update, its Season Preset follows this mod's season too: spring, summer and autumn their own, the three winters Winter. An INVERNO option you turn off on its own page stays off.</text>
 	</string>
 
 	<!-- The per-mod checkboxes on the season pages are GENERATED into

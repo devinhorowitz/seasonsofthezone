@@ -58,6 +58,16 @@ UPDATE = FREEZING.replace("COST", """if current_temperature_c <= -10.0 then
     end""") + "function save_state(m_data) end\n"
 # 1.09: a freeze at any temperature, by its absolute value
 OLD = FREEZING.replace("COST", "freeze_level = freeze_level + math.abs(current_temperature_c) / 1000")
+# the mechanics update of November 2026: its own roll goes by the Season Preset on its MCM page
+# (season_mode: 1 winter, 2 autumn, 3 spring, 4 summer; winter when unset)
+PRESET_UPDATE = UPDATE.replace("""function update_ambient_temperature()
+    current_temperature_c = -25.0
+end""", """PRESET_TEMPS = {-25.0, 3.0, 6.0, 20.0}
+function update_ambient_temperature()
+    local s = project_inverno_mcm.get_config("season_mode") or 1
+    current_temperature_c = PRESET_TEMPS[s] or -25.0
+end""")
+assert PRESET_UPDATE != UPDATE
 
 SNOWFALL = """
 -- stand-in for INVERNO's snowfall file
@@ -156,14 +166,18 @@ os.time = function(t) if t == nil then return now end return real_time(t) end
 
 
 def world(version="update", bridge=True, inverno=True, mcm=None, units=None, month=1,
-          day=15, twin=False, options=True, **kw):
+          day=15, twin=False, options=True, season=None, **kw):
     """The data layer and sotz_api as test_api builds them on the given day, MCM's saved values
     by full path, INVERNO's stand-ins and the bridge. Version "1.09.11" loads its snowfall
     file under the lowercase name the game gives every script; twin adds the second copy the
-    game loads when INVERNO's freezing file asks for it as Inverno_snowfall_system."""
+    game loads when INVERNO's freezing file asks for it as Inverno_snowfall_system. Version
+    "preset" is the November 2026 update with its Season Preset. season, a Lua table, stands
+    in for sotz_api.season()."""
     lua, g = ta.build(units=units, **kw)
     year = int(ta._pinned(month, day)[:4])
     lua.execute(PIN % (year, month, day))
+    if season is not None:
+        lua.execute("sotz_api.season = function() return %s end" % season)
     vals = dict(mcm or {})
     if units is not None:
         vals["seasons_zone/main/units"] = units
@@ -172,8 +186,9 @@ def world(version="update", bridge=True, inverno=True, mcm=None, units=None, mon
     if inverno:
         if options:
             load(OPTIONS, "project_inverno_mcm", g)
-        load(OLD if version == "1.09" else UPDATE, "inverno_freezing_mechanic", g)
-        if version == "1.09.11":
+        freezing = {"1.09": OLD, "preset": PRESET_UPDATE}.get(version, UPDATE)
+        load(freezing, "inverno_freezing_mechanic", g)
+        if version in ("1.09.11", "preset"):
             load(SNOWFALL_11, "inverno_snowfall_system", g)
             if twin:
                 load(SNOWFALL_11, "Inverno_snowfall_system", g)
@@ -447,6 +462,81 @@ def t_1_09_11_as_it_ships_when_switched_off_or_unsure():
     g.sotz_api.season = lambda: None
     assert drawn(g) == ALL, "no season"
     return "either switch off, or no season to go by"
+
+
+# The Season Preset (INVERNO's mechanics update, November 2026). The player's own pick on
+# INVERNO's page is autumn (2) throughout, so a value that isn't 2 is this mod's.
+OWN_PICK = {"project_inverno/season_mode": 2}
+YEAR = [((1, 15), "winter_snow", 1), ((3, 20), "late_winter", 1), ((4, 25), "spring", 3),
+        ((7, 15), "summer", 4), ((10, 10), "autumn", 2), ((11, 15), "winter", 1)]
+
+
+@case
+def t_the_preset_follows_the_year():
+    for (month, day), key, want in YEAR:
+        g = world(version="preset", month=month, day=day, mcm=OWN_PICK)
+        assert g.sotz_api.season().key == key, (month, day, g.sotz_api.season().key)
+        assert option(g, "season_mode") == want, (key, option(g, "season_mode"), want)
+    for (month, day), key, _ in YEAR:
+        c = world(version="preset", bridge=False, month=month, day=day, mcm=OWN_PICK)
+        assert option(c, "season_mode") == 2, "control: the player's pick, %s" % key
+    return "deep and late winter 1, spring 3, summer 4, autumn 2, winter 1"
+
+
+@case
+def t_a_pinned_summer_in_january_sets_summer():
+    mcm = dict(OWN_PICK, **{"seasons_zone/main/mode": "summer"})
+    g = world(version="preset", month=1, mcm=mcm)
+    assert option(g, "season_mode") == 4, option(g, "season_mode")
+    assert option(world(version="preset", month=1, mcm=OWN_PICK), "season_mode") == 1, \
+        "control: January without the pin"
+    return "the pin, not the date"
+
+
+@case
+def t_the_players_preset_stands_when_let_go():
+    for path in ("seasons_zone/main/enabled", "seasons_zone/main/inverno"):
+        g = world(version="preset", month=7, mcm=dict(OWN_PICK, **{path: False}))
+        assert option(g, "season_mode") == 2, (path, option(g, "season_mode"))
+    g = world(version="preset", month=7, mcm=OWN_PICK)
+    g.sotz_api.season = lambda: None
+    assert option(g, "season_mode") == 2, "no season to go by"
+    assert option(world(version="preset", month=7, mcm=OWN_PICK), "season_mode") == 4, \
+        "control: July with both switches on"
+    return "either switch off, or no season: the pick on INVERNO's page"
+
+
+@case
+def t_a_season_of_the_players_own():
+    snowy = world(version="preset", month=7, mcm=OWN_PICK, season='{key = "frostfall", snow = 0.5}')
+    assert option(snowy, "season_mode") == 1, option(snowy, "season_mode")
+    mild = world(version="preset", month=7, mcm=OWN_PICK, season='{key = "monsoon", snow = 0}')
+    assert option(mild, "season_mode") == 2, option(mild, "season_mode")
+    c = world(version="preset", bridge=False, month=7, mcm=OWN_PICK,
+              season='{key = "frostfall", snow = 0.5}')
+    assert option(c, "season_mode") == 2, "control: the player's pick"
+    return "with snow it's winter; without, the player's pick"
+
+
+@case
+def t_seasons_temperature_still_wins_over_the_preset():
+    g = world(version="preset", month=9, day=15, hour=5.0, observed=MILD_DAY, mcm=OWN_PICK)
+    temp, _ = run(g)
+    assert temp == celsius_now(g) and temp != 3.0, (temp, celsius_now(g))
+    c = world(version="preset", bridge=False, month=9, day=15, hour=5.0, observed=MILD_DAY,
+              mcm=OWN_PICK)
+    assert run(c)[0] == 3.0, "control: the autumn preset's own roll"
+    return "%.1f C from the real weather, not the preset's 3 C" % temp
+
+
+@case
+def t_without_a_temperature_inverno_rolls_for_seasons_season():
+    g = world(version="preset", month=7, hour=15.0, observed=None, mcm=OWN_PICK)
+    g.sotz_api.temperature = lambda: None
+    assert run(g)[0] == 20.0, "summer's roll"
+    c = world(version="preset", bridge=False, month=7, hour=15.0, observed=None, mcm=OWN_PICK)
+    assert run(c)[0] == 3.0, "control: the player's autumn"
+    return "summer's own range in July"
 
 
 def main_page(with_inverno):
